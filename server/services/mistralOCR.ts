@@ -5,7 +5,6 @@ import sharp from 'sharp';
 import XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { gcsService } from './googleCloudStorage';
-import { aiClientWrapper } from './aiClientWrapper';
 
 const mistral = new Mistral({
   apiKey: process.env.MISTRAL_API_KEY || '',
@@ -243,37 +242,35 @@ export class MistralOCRService {
       
       const base64Image = imageBuffer.toString('base64');
       
-      // Use AI client wrapper with rate limiting and retry logic for Mistral API call
-      const content = await aiClientWrapper.callMistral(async () => {
-        const response = await mistral.chat.complete({
-          model: 'pixtral-12b-2409',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
-                },
-                {
-                  type: 'image_url',
-                  imageUrl: `data:image/jpeg;base64,${base64Image}`
-                }
-              ]
-            }
-          ],
-          maxTokens: 4000,
-        });
-        
-        const content = response.choices[0]?.message?.content;
-        if (!content || typeof content !== 'string' || content.trim().length === 0) {
-          throw new Error('Mistral returned empty content for image OCR');
-        }
-        
-        return content;
+      // Add timeout wrapper for Mistral API call
+      const mistralPromise = mistral.chat.complete({
+        model: 'pixtral-12b-2409',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
+              },
+              {
+                type: 'image_url',
+                imageUrl: `data:image/jpeg;base64,${base64Image}`
+              }
+            ]
+          }
+        ],
+        maxTokens: 4000,
+        // Note: Mistral client doesn't support timeout parameter directly
       });
       
-      return content;
+      const mistralTimeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
+      });
+      
+      const response = await Promise.race([mistralPromise, mistralTimeout]);
+      const content = response.choices[0]?.message?.content;
+      return typeof content === 'string' ? content : '';
     } catch (error) {
       console.error('Error in Mistral image OCR:', error);
       throw error;
@@ -286,50 +283,18 @@ export class MistralOCRService {
       
       const { execSync } = await import('child_process');
       
-      // ENHANCED: Multiple PDF extraction methods with better fallbacks
-      let extractedText = '';
-      
-      // Method 1: Direct text extraction with pdftotext
+      // First try direct text extraction with pdftotext
       try {
-        console.log(`🔍 Method 1: Attempting direct text extraction from PDF`);
+        console.log(`🔍 Attempting direct text extraction from PDF`);
         const textOutput = execSync(`pdftotext "${filePath}" -`, { encoding: 'utf8', timeout: 30000 });
         
         if (textOutput && textOutput.trim().length > 50) {
           console.log(`✅ Successfully extracted ${textOutput.length} characters via direct text extraction`);
           return textOutput.trim();
         }
-        console.log(`⚠️ Direct text extraction returned insufficient content (${textOutput ? textOutput.length : 0} chars)`);
-        extractedText = textOutput || '';
+        console.log(`⚠️ Direct text extraction returned insufficient content, trying OCR approach`);
       } catch (directError) {
-        console.log(`⚠️ Direct text extraction failed: ${directError}`);
-      }
-      
-      // Method 2: Try alternative PDF text extraction with different options
-      try {
-        console.log(`🔍 Method 2: Attempting PDF text extraction with layout preservation`);
-        const layoutTextOutput = execSync(`pdftotext -layout "${filePath}" -`, { encoding: 'utf8', timeout: 30000 });
-        
-        if (layoutTextOutput && layoutTextOutput.trim().length > extractedText.length + 50) {
-          console.log(`✅ Layout extraction provided better results (${layoutTextOutput.length} chars vs ${extractedText.length})`);
-          return layoutTextOutput.trim();
-        }
-      } catch (layoutError) {
-        console.log(`⚠️ Layout text extraction failed: ${layoutError}`);
-      }
-      
-      // Method 3: Try with poppler-utils pdfinfo to check if PDF is readable
-      try {
-        console.log(`🔍 Method 3: Checking PDF structure and readability`);
-        const pdfInfo = execSync(`pdfinfo "${filePath}"`, { encoding: 'utf8', timeout: 10000 });
-        console.log(`📄 PDF Info extracted successfully, PDF appears to be readable`);
-        
-        // If we have some text from previous methods, use it
-        if (extractedText && extractedText.trim().length > 20) {
-          console.log(`✅ Using previously extracted text (${extractedText.length} chars) since PDF is readable`);
-          return extractedText.trim();
-        }
-      } catch (infoError) {
-        console.log(`⚠️ PDF info extraction failed, PDF may be corrupted: ${infoError}`);
+        console.log(`⚠️ Direct text extraction failed, using OCR: ${directError}`);
       }
       
       // Fallback to PDF-to-image OCR conversion

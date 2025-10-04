@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Checkbox, 
+  CheckboxIndicator 
+} from "@/components/ui/checkbox";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -29,6 +39,7 @@ export default function MemoControls({
   isGenerating,
   currentDeal
 }: MemoControlsProps) {
+  const [memoFormat, setMemoFormat] = useState("standard");
   const [selectedSections, setSelectedSections] = useState<string[]>(
     sections.filter(s => s.defaultChecked).map(s => s.id)
   );
@@ -54,6 +65,26 @@ export default function MemoControls({
         <h3 className="text-xl font-semibold mb-4">Generate Investment Memo</h3>
         
         <div className="space-y-6">
+          <div>
+            <Label className="block text-sm font-medium text-gray-300 mb-2">
+              Memo Format
+            </Label>
+            <Select 
+              value={memoFormat} 
+              onValueChange={setMemoFormat}
+            >
+              <SelectTrigger className="w-full bg-dark-lighter border-dark-lighter focus-visible:ring-primary">
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent className="bg-dark-lighter border-dark-lighter">
+                <SelectItem value="standard">Standard VC Memo</SelectItem>
+                <SelectItem value="term-sheet">Term Sheet Memo</SelectItem>
+                <SelectItem value="executive">Executive Brief (2-3 pages)</SelectItem>
+                <SelectItem value="comprehensive">Comprehensive Analysis</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div>
             <Label className="block text-sm font-medium text-gray-300 mb-2">
               Sections to Include

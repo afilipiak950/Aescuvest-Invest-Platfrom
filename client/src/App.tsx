@@ -26,7 +26,10 @@ import MemoTemplates from "@/pages/memo-templates";
 import Memos from "@/pages/memos";
 import GlobalAIAssistant from "@/pages/global-ai-assistant";
 import InvestorMatching from "@/pages/investor-matching";
+import WorkflowAutomation from "@/pages/workflow-automation";
 import AIInvestorMatching from "@/pages/ai-investor-matching";
+import AIWorkflowAutomation from "@/pages/ai-workflow-automation";
+import AutomationsPage from "@/pages/automations";
 import EmailTestPage from "@/pages/email-test";
 import InboxPage from "@/pages/inbox";
 import SettingsPage from "@/pages/settings";
@@ -124,8 +127,17 @@ function AppContent() {
               <Route path="/investor-matching">
                 <InvestorMatching />
               </Route>
+              <Route path="/workflow">
+                <WorkflowAutomation />
+              </Route>
               <Route path="/ai-investor-matching/:dealId">
                 <AIInvestorMatching />
+              </Route>
+              <Route path="/ai-workflow-automation">
+                <AIWorkflowAutomation />
+              </Route>
+              <Route path="/automations">
+                <AutomationsPage />
               </Route>
               <Route path="/email-test">
                 <EmailTestPage />

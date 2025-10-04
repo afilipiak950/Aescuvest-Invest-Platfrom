@@ -1,5 +1,10 @@
+import OpenAI from 'openai';
 import { storage } from '../storage';
-import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
+
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 interface EvaluationCriteria {
   id: number;
@@ -284,31 +289,23 @@ Respond in this exact JSON format with ALL ${criteria.length} criteria evaluated
 Be extremely detailed and specific. Use actual facts from the research.`;
 
   try {
-    // Ultra-Intelligent Financial Analysis Configuration for Investment Evaluation
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'financial',
-      complexity: 'ultra',
-      speedPriority: 'quality',
-      qualityThreshold: 0.90,
-      maxTokens: 3000,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a senior healthcare VC analyst with 15+ years experience. Distinguish clearly between healthcare tech and biotech. Provide detailed, evidence-based analysis with specific reasoning for each score."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
       temperature: 0.2,
-      responseFormat: { type: "json_object" }
-    };
+      max_tokens: 3000
+    });
 
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a senior healthcare VC analyst with 15+ years experience. Distinguish clearly between healthcare tech and biotech. Provide detailed, evidence-based analysis with specific reasoning for each score."
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ], ultraIntelligentConfig);
-
-    console.log(`🤖 Ultra-Intelligent AI Evaluation: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    const content = response.content;
+    const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error('No response from AI evaluation');
     }
@@ -487,24 +484,19 @@ async function scrapeCompanyWebsite(website: string): Promise<string | null> {
 }
 
 async function searchCompanyNews(companyName: string): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
   try {
-    // Ultra-Intelligent Research Configuration for News Analysis
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'research',
-      complexity: 'medium',
-      speedPriority: 'balanced',
-      qualityThreshold: 0.90,
-      maxTokens: 600
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a research analyst with access to current business intelligence. Provide realistic and detailed news analysis based on the company name provided."
-      },
-      {
-        role: "user",
-        content: `Search for recent news, press releases, and media coverage for ${companyName}. Focus on:
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are a research analyst with access to current business intelligence. Provide realistic and detailed news analysis based on the company name provided."
+        },
+        {
+          role: "user",
+          content: `Search for recent news, press releases, and media coverage for ${companyName}. Focus on:
           - Recent funding announcements
           - Product launches or updates
           - Partnerships and collaborations
@@ -513,12 +505,12 @@ async function searchCompanyNews(companyName: string): Promise<string> {
           - Industry recognition or awards
           
           Provide specific, detailed findings with approximate dates and sources.`
-      }
-    ], ultraIntelligentConfig);
+        }
+      ],
+      max_tokens: 600,
+    });
 
-    console.log(`📰 Ultra-Intelligent News Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    return response.content || 'News search unavailable';
+    return response.choices[0].message.content || 'News search unavailable';
   } catch (error) {
     console.error('News search error:', error);
     return `News search failed: ${error}`;
@@ -526,24 +518,19 @@ async function searchCompanyNews(companyName: string): Promise<string> {
 }
 
 async function searchFundingInformation(companyName: string): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
   try {
-    // Ultra-Intelligent Financial Research Configuration
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'financial',
-      complexity: 'high',
-      speedPriority: 'quality',
-      qualityThreshold: 0.90,
-      maxTokens: 600
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a venture capital research analyst. Provide detailed funding and investment analysis."
-      },
-      {
-        role: "user",
-        content: `Research funding and investment information for ${companyName}:
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are a venture capital research analyst. Provide detailed funding and investment analysis."
+        },
+        {
+          role: "user",
+          content: `Research funding and investment information for ${companyName}:
           - Previous funding rounds (seed, series A/B/C, etc.)
           - Notable investors and lead investors
           - Valuation estimates if available
@@ -553,12 +540,12 @@ async function searchFundingInformation(companyName: string): Promise<string> {
           - Exit potential and strategic value
           
           Provide realistic estimates and analysis based on company profile.`
-      }
-    ], ultraIntelligentConfig);
+        }
+      ],
+      max_tokens: 600,
+    });
 
-    console.log(`💰 Ultra-Intelligent Funding Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    return response.content || 'Funding research unavailable';
+    return response.choices[0].message.content || 'Funding research unavailable';
   } catch (error) {
     console.error('Funding search error:', error);
     return `Funding search failed: ${error}`;
@@ -566,24 +553,19 @@ async function searchFundingInformation(companyName: string): Promise<string> {
 }
 
 async function searchLeadershipInformation(companyName: string): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
   try {
-    // Ultra-Intelligent Research Configuration for Leadership Analysis
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'research',
-      complexity: 'high',
-      speedPriority: 'quality',
-      qualityThreshold: 0.85,
-      maxTokens: 600
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are an executive search consultant with expertise in healthcare and technology leadership."
-      },
-      {
-        role: "user",
-        content: `Research leadership and team information for ${companyName}:
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are an executive search consultant with expertise in healthcare and technology leadership."
+        },
+        {
+          role: "user",
+          content: `Research leadership and team information for ${companyName}:
           - Founder and CEO background
           - Key executives and their experience
           - Technical leadership and expertise
@@ -594,12 +576,12 @@ async function searchLeadershipInformation(companyName: string): Promise<string>
           - Leadership track record and achievements
           
           Focus on credibility, experience, and ability to execute.`
-      }
-    ], ultraIntelligentConfig);
+        }
+      ],
+      max_tokens: 600,
+    });
 
-    console.log(`👥 Ultra-Intelligent Leadership Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    return response.content || 'Leadership research unavailable';
+    return response.choices[0].message.content || 'Leadership research unavailable';
   } catch (error) {
     console.error('Leadership search error:', error);
     return `Leadership search failed: ${error}`;
@@ -607,24 +589,19 @@ async function searchLeadershipInformation(companyName: string): Promise<string>
 }
 
 async function analyzeTechnologyStack(companyName: string, website: string): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
   try {
-    // Ultra-Intelligent Research Configuration for Technology Analysis
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'research',
-      complexity: 'high',
-      speedPriority: 'quality',
-      qualityThreshold: 0.85,
-      maxTokens: 600
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a technology analyst specializing in healthcare and biotech innovations."
-      },
-      {
-        role: "user",
-        content: `Analyze the technology and products for ${companyName} (website: ${website}):
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are a technology analyst specializing in healthcare and biotech innovations."
+        },
+        {
+          role: "user",
+          content: `Analyze the technology and products for ${companyName} (website: ${website}):
           - Core technology platform and architecture
           - Product offerings and capabilities
           - Technical differentiation and IP
@@ -635,12 +612,12 @@ async function analyzeTechnologyStack(companyName: string, website: string): Pro
           - Integration capabilities
           
           Distinguish between software, hardware, and wet-lab technologies.`
-      }
-    ], ultraIntelligentConfig);
+        }
+      ],
+      max_tokens: 600,
+    });
 
-    console.log(`🔬 Ultra-Intelligent Technology Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    return response.content || 'Technology analysis unavailable';
+    return response.choices[0].message.content || 'Technology analysis unavailable';
   } catch (error) {
     console.error('Technology analysis error:', error);
     return `Technology analysis failed: ${error}`;
@@ -648,24 +625,19 @@ async function analyzeTechnologyStack(companyName: string, website: string): Pro
 }
 
 async function searchRegulatoryInformation(companyName: string): Promise<string> {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
   try {
-    // Ultra-Intelligent Legal/Regulatory Research Configuration
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'legal',
-      complexity: 'high',
-      speedPriority: 'quality',
-      qualityThreshold: 0.90,
-      maxTokens: 600
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a regulatory affairs specialist in healthcare and medical technology."
-      },
-      {
-        role: "user",
-        content: `Research regulatory and compliance aspects for ${companyName}:
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      messages: [
+        {
+          role: "system",
+          content: "You are a regulatory affairs specialist in healthcare and medical technology."
+        },
+        {
+          role: "user",
+          content: `Research regulatory and compliance aspects for ${companyName}:
           - Applicable regulatory frameworks (FDA, EMA, etc.)
           - Current regulatory status and approvals
           - Compliance requirements and challenges
@@ -676,12 +648,12 @@ async function searchRegulatoryInformation(companyName: string): Promise<string>
           - Regulatory pathway and timeline
           
           Assess regulatory risk and approval probability.`
-      }
-    ], ultraIntelligentConfig);
+        }
+      ],
+      max_tokens: 600,
+    });
 
-    console.log(`📋 Ultra-Intelligent Regulatory Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    return response.content || 'Regulatory research unavailable';
+    return response.choices[0].message.content || 'Regulatory research unavailable';
   } catch (error) {
     console.error('Regulatory search error:', error);
     return `Regulatory search failed: ${error}`;
@@ -689,30 +661,25 @@ async function searchRegulatoryInformation(companyName: string): Promise<string>
 }
 
 async function analyzeIndustryClassification(companyName: string): Promise<string> {
+  // Use OpenAI to classify the industry based on company name and context
   try {
-    // Ultra-Intelligent Commercial Analysis Configuration for Industry Classification
-    const ultraIntelligentConfig: UltraIntelligentConfig = {
-      domain: 'commercial',
-      complexity: 'medium',
-      speedPriority: 'balanced',
-      qualityThreshold: 0.85,
-      maxTokens: 400
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are an expert in healthcare and biotech industry classification. Classify companies as either Healthcare Technology (software, digital health, medical devices, health platforms) or Biotech/Pharma (drug discovery, therapeutics, wet lab research)."
-      },
-      {
-        role: "user",
-        content: `Classify this company: "${companyName}". Is it Healthcare Tech or Biotech? Provide reasoning.`
-      }
-    ], ultraIntelligentConfig);
-
-    console.log(`🏭 Ultra-Intelligent Industry Classification: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert in healthcare and biotech industry classification. Classify companies as either Healthcare Technology (software, digital health, medical devices, health platforms) or Biotech/Pharma (drug discovery, therapeutics, wet lab research)."
+        },
+        {
+          role: "user",
+          content: `Classify this company: "${companyName}". Is it Healthcare Tech or Biotech? Provide reasoning.`
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 200
+    });
     
-    return response.content || 'Industry classification unavailable';
+    return response.choices[0]?.message?.content || 'Industry classification unavailable';
   } catch (error) {
     return `Industry analysis for ${companyName}: Unable to classify due to API limitations`;
   }
@@ -844,11 +811,13 @@ export async function evaluateCompanyWebsite(
     const criteria = await storage.getAllEvaluationCriteria();
     const activeCriteria = criteria.filter(c => c.isActive);
 
-    // Perform AI evaluation using Ultra-Intelligent AI with GPT-5
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: `You are an expert investment analyst specializing in healthcare technology investments. You work for Aescuvest, a venture capital firm focused on healthcare innovation.
+    // Perform AI evaluation
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert investment analyst specializing in healthcare technology investments. You work for Aescuvest, a venture capital firm focused on healthcare innovation.
 
 Analyze the company website content against these specific investment criteria:
 
@@ -880,37 +849,18 @@ Return your analysis in JSON format with this structure:
   "keyFindings": ["Most important positive discoveries"],
   "redFlags": ["Major concerns that need attention"]
 }`
-      },
-      {
-        role: "user",
-        content: `Analyze this company: ${companyName}
+        },
+        {
+          role: "user",
+          content: `Analyze this company: ${companyName}
 
 Website content:
 ${textContent}`
-      }
-    ], {
-      responseFormat: { type: "json_object" },
-      qualityThreshold: 0.90 // Investment-grade quality threshold
-    } as UltraIntelligentConfig);
-
-    console.log(`🤖 Ultra-Intelligent Company Website Evaluation: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-    // Clean response content and strip markdown code blocks before parsing
-    let cleanContent = response.content;
-    if (cleanContent.includes('```json')) {
-      cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-    }
-    if (cleanContent.includes('```')) {
-      cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-    }
-
-    const completion = {
-      choices: [{
-        message: {
-          content: cleanContent
         }
-      }]
-    };
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1
+    });
 
     const analysis = JSON.parse(completion.choices[0].message.content || '{}');
     

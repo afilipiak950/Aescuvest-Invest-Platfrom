@@ -5,13 +5,10 @@
 
 import { db } from '../db';
 import { documents, agentAnalyses, deals } from '../../shared/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from '../storage';
 import { EmbeddingService } from './embeddingService';
-import { semanticCacheService } from './semanticCacheService';
-import { IntentClassifierService } from './intentClassifierService';
-import crypto from 'crypto';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -593,7 +590,8 @@ Use markdown formatting. Focus on actionable investment insights.`
         model: 'gpt-4o',
         messages,
         temperature: 0.1,
-        max_tokens: 2500 // Optimized for faster responses
+        max_tokens: 2500, // Optimized for faster responses
+        timeout: 30000 // 30 second timeout
       });
       
       const answer = response.choices[0].message.content || 'I was unable to generate a response.';
@@ -634,42 +632,6 @@ Use markdown formatting. Focus on actionable investment insights.`
     return 'English';
   }
 
-  /**
-   * Generate context hash for semantic caching
-   * This ensures cache invalidation when context changes
-   */
-  private async generateContextHash(): Promise<string> {
-    try {
-      // 🔧 CRITICAL FIX: Add error handling for database queries
-      const dealInfo = await db.select({ updatedAt: deals.updatedAt }).from(deals).where(eq(deals.id, this.dealId)).limit(1).catch(() => []);
-      const latestDocUpdate = await db.select({ updatedAt: documents.updatedAt }).from(documents).where(eq(documents.dealId, this.dealId)).orderBy(desc(documents.updatedAt)).limit(1).catch(() => []);
-      const latestAgentUpdate = await db.select({ updatedAt: agentAnalyses.updatedAt }).from(agentAnalyses).where(eq(agentAnalyses.dealId, this.dealId)).orderBy(desc(agentAnalyses.updatedAt)).limit(1).catch(() => []);
-
-      const contextData = {
-        dealId: this.dealId,
-        dealUpdatedAt: dealInfo[0]?.updatedAt?.getTime() || 0,
-        latestDocumentUpdate: latestDocUpdate[0]?.updatedAt?.getTime() || 0,
-        latestAgentUpdate: latestAgentUpdate[0]?.updatedAt?.getTime() || 0,
-        agentAnalysesCount: this.agentContext.length,
-        companyContextExists: !!this.companyContext,
-        documentsCount: this.agentContext.length,
-        // Include recent conversation context
-        recentQueries: this.conversationMemory.slice(-3).map(m => m.query)
-      };
-      
-      return crypto.createHash('sha256').update(JSON.stringify(contextData)).digest('hex').substring(0, 16);
-    } catch (error) {
-      console.warn('Failed to generate context hash:', error);
-      // Fallback to simpler hash if database queries fail
-      const fallbackData = {
-        dealId: this.dealId,
-        agentAnalysesCount: this.agentContext.length,
-        timestamp: Date.now() // Force cache miss on errors
-      };
-      return crypto.createHash('sha256').update(JSON.stringify(fallbackData)).digest('hex').substring(0, 16);
-    }
-  }
-
   async streamQuery(query: string): Promise<AsyncIterable<string>> {
     console.log(`🎯 streamQuery called for deal ${this.dealId} with query: "${query}"`);
     
@@ -686,89 +648,10 @@ Use markdown formatting. Focus on actionable investment insights.`
       console.log('✅ Context already loaded');
     }
     
-    // ⚡ SEMANTIC CACHE CHECK - Check for similar queries before expensive operations
-    const contextHash = await this.generateContextHash();
-    console.log(`🔑 Generated context hash: ${contextHash}`);
-    
-    const cacheEntry = await semanticCacheService.checkCache(query, this.dealId, contextHash, queryLanguage);
-    if (cacheEntry) {
-      console.log(`🚀 CACHE HIT! Similarity: ${cacheEntry.similarity?.toFixed(3)} - Returning cached response instantly`);
-      
-      // Store in conversation memory for consistency
-      this.conversationMemory.push({
-        query: query,
-        response: cacheEntry.response,
-        timestamp: new Date()
-      });
-      
-      // Return cached response as streaming tokens for consistent UX
-      return semanticCacheService.streamCachedResponse(cacheEntry);
-    }
-    
-    console.log(`❌ Cache miss - proceeding with AI generation`);
-    
-    // 🎯 INTENT CLASSIFICATION - Reduce search space by 80-90%
-    console.log(`🎯 Classifying query intent to optimize search...`);
-    const intentResult = await IntentClassifierService.classifyQuery(query);
-    console.log(`✅ Intent classification: ${intentResult.categories.join(', ')} (${intentResult.method}, confidence: ${intentResult.confidence})`);
-    
-    // Use RAG to find relevant document chunks with conditional intent-based filtering
-    console.log(`🔍 Searching for relevant document chunks using targeted RAG...`);
-    
-    // Only apply filtering if we have specific intent categories (not fallback)
-    const shouldFilter = intentResult.method !== 'fallback' && 
-                        intentResult.confidence > 0.5 && 
-                        intentResult.agentTypes.length > 0 && 
-                        intentResult.agentTypes.length < 7; // Don't filter if all categories selected
-    
-    let relevantChunks;
-    try {
-      relevantChunks = await EmbeddingService.searchSimilarChunks(
-        query, 
-        this.dealId, 
-        15, 
-        shouldFilter ? intentResult.agentTypes : undefined
-      );
-      console.log(`📄 Found ${relevantChunks.length} relevant chunks`);
-    } catch (error) {
-      console.warn(`⚠️ Intent-filtered search failed, falling back to unfiltered search:`, error);
-      // Fallback to unfiltered search on any error
-      relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
-      console.log(`📄 Found ${relevantChunks.length} chunks (unfiltered fallback)`);
-    }
-    
-    // Calculate and log actual space reduction metrics
-    if (shouldFilter) {
-      try {
-        // Count total documents for this deal
-        const totalDocsResult = await db.execute(sql`
-          SELECT COUNT(DISTINCT d.id) as total 
-          FROM documents d 
-          WHERE d.deal_id = ${this.dealId} AND d.agent_type IS NOT NULL
-        `);
-        
-        // Count filtered documents 
-        const filteredDocsResult = await db.execute(sql`
-          SELECT COUNT(DISTINCT d.id) as filtered 
-          FROM documents d 
-          WHERE d.deal_id = ${this.dealId} AND d.agent_type = ANY(${intentResult.agentTypes}::text[])
-        `);
-        
-        const totalDocs = (totalDocsResult.rows[0] as any)?.total || 0;
-        const filteredDocs = (filteredDocsResult.rows[0] as any)?.filtered || 0;
-        
-        const metrics = IntentClassifierService.calculateSpaceReduction(totalDocs, filteredDocs);
-        
-        console.log(`⚡ Search optimized by intent classification: focusing on ${intentResult.agentTypes.join(', ')} documents`);
-        console.log(`📊 Space reduction: ${metrics.reductionPercentage}% (${metrics.documentsSearched}/${totalDocs} documents)`);
-        console.log(`📋 Intent description: ${IntentClassifierService.getIntentDescription(intentResult.categories)}`);
-      } catch (error) {
-        console.warn('Failed to calculate space reduction metrics:', error);
-        console.log(`⚡ Search optimized by intent classification: focusing on ${intentResult.agentTypes.join(', ')} documents`);
-      }
-    } else {
-      console.log(`🔄 Using unfiltered search (${intentResult.method} classification, confidence: ${intentResult.confidence})`);
-    }
+    // Use RAG to find relevant document chunks
+    console.log(`🔍 Searching for relevant document chunks using RAG...`);
+    const relevantChunks = await EmbeddingService.searchSimilarChunks(query, this.dealId, 15);
+    console.log(`📄 Found ${relevantChunks.length} relevant chunks`);
     
     // Build context with only relevant information
     let ragContext = 'RELEVANT DOCUMENT CONTEXT:\n\n';
@@ -829,14 +712,14 @@ Use markdown formatting. Focus on actionable investment insights.`
         stream: true
       });
       
-      return this.processStream(stream, query, contextHash, queryLanguage);
+      return this.processStream(stream, query);
     } catch (error) {
       console.error('Error streaming AI query:', error);
       throw error;
     }
   }
 
-  private async *processStream(stream: any, originalQuery: string, contextHash: string, queryLanguage: string): AsyncIterable<string> {
+  private async *processStream(stream: any, originalQuery: string): AsyncIterable<string> {
     let fullResponse = '';
     
     for await (const chunk of stream) {
@@ -847,7 +730,7 @@ Use markdown formatting. Focus on actionable investment insights.`
       }
     }
     
-    // Store completed response in conversation memory and semantic cache
+    // Store completed response in conversation memory
     if (fullResponse) {
       this.conversationMemory.push({
         query: originalQuery,
@@ -858,22 +741,6 @@ Use markdown formatting. Focus on actionable investment insights.`
       // Keep only last 10 conversations
       if (this.conversationMemory.length > 10) {
         this.conversationMemory = this.conversationMemory.slice(-10);
-      }
-      
-      // ⚡ SEMANTIC CACHE STORAGE - Store successful response for future instant retrieval
-      try {
-        console.log(`💾 Storing response in semantic cache for future queries`);
-        await semanticCacheService.storeResponse(
-          originalQuery, 
-          fullResponse, 
-          this.dealId, 
-          contextHash, 
-          queryLanguage
-        );
-        console.log(`✅ Response cached successfully`);
-      } catch (cacheError) {
-        console.warn('⚠️ Failed to cache response:', cacheError);
-        // Don't throw - caching failure shouldn't break the main flow
       }
     }
   }

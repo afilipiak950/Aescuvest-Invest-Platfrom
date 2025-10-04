@@ -23,7 +23,7 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
   // Check for existing background jobs (OPTIMIZED: Smart polling instead of every 1 second!)
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: (data: any) => {
+    refetchInterval: (data) => {
       // Smart polling: only poll frequently when jobs are actually running
       const hasActiveJobs = data?.jobs?.some((job: any) => 
         job.status === 'processing' || job.status === 'pending'
@@ -35,8 +35,8 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
 
   // Check if clinical analysis is already running
   const isAnalysisRunning = (() => {
-    if ((jobProgress as any)?.jobs) {
-      const clinicalJob = (jobProgress as any).jobs.find((job: any) => job.agentType === 'clinical');
+    if (jobProgress?.jobs) {
+      const clinicalJob = jobProgress.jobs.find((job: any) => job.agentType === 'clinical');
       return !!clinicalJob && clinicalJob.status === 'processing';
     }
     return false;
@@ -47,7 +47,7 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
     try {
       console.log(`🧬 Starting persistent clinical analysis for deal ${dealId}...`);
       
-      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive`, {
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/start`, {
         method: 'POST',
         body: JSON.stringify({})
       });
@@ -93,7 +93,7 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
     try {
       console.log(`🛑 Stopping persistent clinical analysis for deal ${dealId}...`);
       
-      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/comprehensive/stop`, {
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/stop`, {
         method: 'POST',
         body: JSON.stringify({})
       });

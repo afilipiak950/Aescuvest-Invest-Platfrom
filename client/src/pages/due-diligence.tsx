@@ -319,42 +319,42 @@ function DueDiligenceContent() {
   // Fetch comprehensive analysis data for each agent - NON-BLOCKING lazy load
   const { data: clinicalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: hrAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/hr/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: ipAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: researchAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: financialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: commercialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
-    enabled: !!selectedDeal, // Enable when deal is selected
+    enabled: false, // Load lazily, don't block page render
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -1028,7 +1028,7 @@ function DueDiligenceContent() {
                             if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
                             if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
                             if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                            if (agentLower === 'research') return researchAnalysisData?.results !== null;
+                            if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
                             if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
                             if (agentLower === 'legal') return (typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis !== null);
                             return false;
@@ -1054,7 +1054,7 @@ function DueDiligenceContent() {
                         hr: !!hrAnalysisData?.analysis,
                         commercial: !!commercialAnalysisData?.analysis,
                         ip: !!ipAnalysisData?.analysis,
-                        research: !!researchAnalysisData?.results,
+                        research: !!researchAnalysisData?.analysis,
                         financial: !!financialAnalysisData?.analysis,
                         legal: !!(typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis)
                       }});
@@ -1363,52 +1363,10 @@ function DueDiligenceContent() {
                       j.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // CRITICAL FIX: Check for completed analysis with MEANINGFUL CONTENT (prevents stale data)
-                    const completedAnalysis = analyses?.find(a => {
-                      if (a.agentType?.toLowerCase() !== agentType.toLowerCase()) return false;
-                      if (a.status !== 'completed') return false;
-                      
-                      // 🎯 STALE DATA PREVENTION: Verify analysis has meaningful content
-                      const agentLower = agentType.toLowerCase();
-                      if (agentLower === 'legal') {
-                        return a.legalAnswers && Object.keys(a.legalAnswers || {}).length > 0;
-                      }
-                      if (agentLower === 'clinical') {
-                        return a.clinicalAnswers && Object.keys(a.clinicalAnswers || {}).length > 0;
-                      }
-                      if (agentLower === 'commercial') {
-                        if (!a.commercialAnswers || Object.keys(a.commercialAnswers || {}).length === 0) return false;
-                        
-                        // 🎯 DEEP CONTENT VERIFICATION: Check if answers contain real content vs placeholder text
-                        const answers = Object.values(a.commercialAnswers || {});
-                        const hasRealContent = answers.some((answerObj: any) => {
-                          const answer = answerObj?.answer || '';
-                          // Reject placeholder/empty content
-                          return answer && 
-                                 answer.trim().length > 50 && 
-                                 !answer.includes('Analysis completed but no specific answer provided') &&
-                                 !answer.includes('No information available') &&
-                                 !answer.includes('Unable to determine');
-                        });
-                        
-                        return hasRealContent;
-                      }
-                      if (agentLower === 'hr') {
-                        return a.hrAnswers && Object.keys(a.hrAnswers || {}).length > 0;
-                      }
-                      if (agentLower === 'financial') {
-                        return a.financialAnswers && Object.keys(a.financialAnswers || {}).length > 0;
-                      }
-                      if (agentLower === 'ip') {
-                        return a.ipAnswers && Object.keys(a.ipAnswers || {}).length > 0;
-                      }
-                      if (agentLower === 'research') {
-                        return a.researchAnswers && Object.keys(a.researchAnswers || {}).length > 0;
-                      }
-                      
-                      // Fallback: Check if it has findings or recommendations
-                      return (a.findings && a.findings.length > 0) || (a.recommendations && a.recommendations.length > 0);
-                    });
+                    // CRITICAL FIX: Check for completed analysis data first, then active jobs
+                    const completedAnalysis = analyses?.find(a => 
+                      a.agentType?.toLowerCase() === agentType.toLowerCase()
+                    );
                     
                     // COMPREHENSIVE ANALYSIS FIX: Also check if comprehensive analysis exists
                     // by checking if the agent-specific results endpoint returns data
@@ -1418,50 +1376,19 @@ function DueDiligenceContent() {
                       if (agentLower === 'legal') return legalAnalysisData?.analysis && Object.keys(legalAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'commercial') {
-                        // 🎯 COMMERCIAL FIX: Check both comprehensive analysis AND commercialAnswers from analysis table
-                        // First try comprehensive analysis
-                        if (commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0) {
-                          const analysisValues = Object.values(commercialAnalysisData.analysis || {});
-                          const hasRealContent = analysisValues.some((item: any) => {
-                            const answer = item?.answer || item?.content || '';
-                            return answer && 
-                                   answer.trim().length > 50 && 
-                                   !answer.includes('Analysis completed but no specific answer provided') &&
-                                   !answer.includes('No information available') &&
-                                   !answer.includes('Unable to determine');
-                          });
-                          if (hasRealContent) return true;
-                        }
-                        
-                        // 🎯 FALLBACK: Check commercialAnswers from analyses table (same logic as above)
-                        const latestCommercialAnalysis = analyses?.find(a => a.agentType?.toLowerCase() === 'commercial');
-                        if (latestCommercialAnalysis?.commercialAnswers && Object.keys(latestCommercialAnalysis.commercialAnswers || {}).length > 0) {
-                          const answers = Object.values(latestCommercialAnalysis.commercialAnswers || {});
-                          return answers.some((answerObj: any) => {
-                            const answer = answerObj?.answer || '';
-                            return answer && 
-                                   answer.trim().length > 50 && 
-                                   !answer.includes('Analysis completed but no specific answer provided') &&
-                                   !answer.includes('No information available') &&
-                                   !answer.includes('Unable to determine');
-                          });
-                        }
-                        
-                        return false;
-                      }
+                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'research') return researchAnalysisData?.results && Object.keys(researchAnalysisData.results || {}).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
                       return false;
                     })();
                     
-                    // FIXED: Prioritize active job progress, then check if this agent's analysis is TRULY completed with content
+                    // FIXED: Prioritize active job progress, then check if this agent's analysis is completed
                     const currentProgress = matchingJob?.status === 'processing'
                       ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
-                      : (completedAnalysis || hasComprehensiveAnalysis)
-                        ? 100  // Show completed only when analysis has meaningful content
-                        : 0;   // Default to 0% (new deals and empty/incomplete analyses)
+                      : (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
+                        ? 100  // Show completed when analysis is done (regardless of job presence)
+                        : 0;   // Default to 0% (new deals and non-completed analyses)
                     
                     // CRITICAL FIX: Show "Currently Running" when job is processing, regardless of completion status
                     const isCurrentlyRunning = matchingJob?.status === 'processing';
@@ -1474,7 +1401,7 @@ function DueDiligenceContent() {
                     
                     // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
-                      'Legal': 13, 'Clinical': 11, 'Commercial': 11, 
+                      'Legal': 13, 'Clinical': 6, 'Commercial': 11, 
                       'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 19
                     };
                     const totalQuestions = questionCounts[agentType] || 5;

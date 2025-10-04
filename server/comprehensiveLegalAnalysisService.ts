@@ -9,7 +9,6 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
-import { ENTERPRISE_AGENT_PROMPTS, EVIDENCE_SYNTHESIS_PROMPT } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -128,12 +127,6 @@ interface LegalEvidence {
   relevantContent: string[];
   keyFindings: string[];
   confidence: number;
-  legalRiskScore: number;
-  quantitativeMetrics: Record<string, any>;
-  redFlags: string[];
-  riskFactors: string[];
-  investmentImpact: string;
-  dueDiligenceRecommendations: string[];
 }
 
 interface LegalAnswer {
@@ -146,31 +139,9 @@ interface LegalAnswer {
   evidenceSummary: string;
   legalAssessment: string;
   recommendations: string[];
-  legalRiskScore: number;
-  quantitativeMetrics: Record<string, any>;
-  redFlags: string[];
-  riskFactors: string[];
-  investmentImpact: string;
-  dueDiligenceRecommendations: string[];
 }
 
 class ComprehensiveLegalAnalysisService {
-  /**
-   * Delete existing analysis to ensure fresh start
-   */
-  async deleteExistingAnalysis(dealId: number): Promise<void> {
-    console.log(`🧹 Deleting existing legal analysis for deal ${dealId}`);
-    
-    await db
-      .delete(agentAnalyses)
-      .where(and(
-        eq(agentAnalyses.dealId, dealId),
-        eq(agentAnalyses.agentType, 'Legal')
-      ));
-    
-    console.log(`✅ Cleared existing legal analysis for deal ${dealId}`);
-  }
-
   /**
    * Run comprehensive legal analysis for a deal - EXACT COPY from Clinical
    */
@@ -236,7 +207,7 @@ class ComprehensiveLegalAnalysisService {
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
           const answer = await Promise.race([
             this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 1800000)) // 1800 second (30 minute) timeout - ULTRA MASSIVE for comprehensive analysis
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
           ]);
           legalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
@@ -336,21 +307,15 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for legal analysis - FIXED to use proper storage method
+   * Get all documents suitable for legal analysis - EXACT COPY from Clinical
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
-    console.log(`🔧 FIXED: Using storage.getDocumentsWithOCRByDealId for legal analysis deal ${dealId}`);
-    
-    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
-    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
+    const allDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
-    
-    // Log OCR text availability for debugging
-    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
-    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
-    console.log(`📊 Legal: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
-    console.log(`📊 Legal: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to legal agent
     let legalDocuments = allDocuments.filter(doc => 
@@ -365,21 +330,13 @@ class ComprehensiveLegalAnalysisService {
       console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
       
       legalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) {
-          console.log(`⚠️ Legal: Document ${doc.name} has no OCR text or AI summary - skipping`);
-          return false;
-        }
+        if (!doc.ocrText && !doc.aiSummary) return false;
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
         
-        // Log OCR text length for debugging
-        if (doc.ocrText) {
-          console.log(`📄 Legal: Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
-        }
-        
-        // Legal document keywords
+        // Legal document keywords - EXACT Clinical approach
         const legalKeywords = [
           'legal', 'contract', 'agreement', 'license', 'patent', 'trademark', 'copyright',
           'litigation', 'lawsuit', 'compliance', 'regulatory', 'governance', 'corporate',
@@ -414,26 +371,26 @@ class ComprehensiveLegalAnalysisService {
       console.log(`📄 Documents with content available: ${legalDocuments.length}`);
     }
     
-    // ENTERPRISE FIX: Process all documents for comprehensive institutional analysis
-    console.log(`📊 Processing ALL ${legalDocuments.length} legal documents for comprehensive enterprise analysis`);
+    // Apply EXACT same document limits as Clinical
+    if (legalDocuments.length > 50) {
+      console.log(`📄 Limiting to first 50 documents for legal analysis efficiency (found ${legalDocuments.length})`);
+      legalDocuments = legalDocuments.slice(0, 50);
+    }
     
     return legalDocuments;
   }
   
   /**
-   * Extract evidence from ALL documents for a specific question - COMPREHENSIVE VERSION
+   * Extract evidence from ALL documents for a specific question - EXACT COPY from Clinical
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 Starting comprehensive evidence extraction from ALL ${documents.length} documents for: ${question.question}`);
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // COMPREHENSIVE PROCESSING: Process ALL documents for complete analysis
-    console.log(`📊 Processing ALL ${documents.length} documents for comprehensive legal analysis of: ${question.question}`);
-    
-    // BATCH PROCESSING: Smaller batches with rate limiting to prevent API overload
-    const batchSize = 3; // Keep small batch size to prevent rate limiting
+    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
+    const batchSize = 10;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
@@ -447,25 +404,18 @@ class ComprehensiveLegalAnalysisService {
         })
       );
       
-      // Filter out null results and add to evidence
+      // Filter out null results and add to evidence - EXACT Clinical approach
       const validEvidence = batchResults.filter(docEvidence => 
         docEvidence && docEvidence.relevantContent.length > 0
       );
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
-      
-      // Rate limiting between batches to prevent API throttling
-      if (i + batchSize < documents.length) {
-        console.log(`⏱️ Rate limiting: waiting 2 seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents with comprehensive analysis`);
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
     return evidence;
   }
-
 
   /**
    * Extract specific evidence from a single document - EXACT COPY from Clinical
@@ -475,58 +425,32 @@ class ComprehensiveLegalAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `${ENTERPRISE_AGENT_PROMPTS.LEGAL.SYSTEM_PROMPT}
-
-${ENTERPRISE_AGENT_PROMPTS.LEGAL.ANALYSIS_PROMPT}
+    const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for institutional-grade analysis...]' : ''}
+CONTENT: ${content.substring(0, 4000)}
 
 QUESTION: "${question.question}"
-ANALYSIS FOCUS: ${question.analysisPrompt}
+ANALYSIS TASK: ${question.analysisPrompt}
 
-INSTITUTIONAL ANALYSIS REQUIREMENTS:
-• CONTRACT LIABILITY QUANTIFICATION: Extract specific dollar amounts, percentage terms, caps on liability
-• TERMINATION ANALYSIS: Identify notice periods, termination triggers, post-termination obligations
-• REGULATORY COMPLIANCE GAPS: Map compliance requirements with estimated remediation costs
-• INTELLECTUAL PROPERTY RISKS: Assess IP litigation exposure, licensing restrictions, freedom to operate
-• CORPORATE GOVERNANCE ISSUES: Evaluate fiduciary duties, conflicts of interest, board composition requirements
+Instructions:
+- Look for DIRECT legal terms, contracts, agreements, regulatory filings, compliance matters
+- Look for INDIRECT references to intellectual property, corporate governance, litigation risks, regulatory requirements
+- Consider business documents that mention legal milestones, compliance matters, contractual obligations
+- Even general business context often has legal implications for investment due diligence
+- For companies, most business documents contain legal information relevant to investors
 
-QUANTITATIVE EXTRACTION MANDATES:
-✓ Quote exact dollar amounts, percentages, timeframes from contracts
-✓ Identify liability caps, indemnification limits, penalty calculations
-✓ Extract payment terms, milestone schedules, performance metrics
-✓ Quantify regulatory compliance costs and timelines
-✓ Calculate termination notice periods and cure periods
-
-RISK SCORING CRITERIA (1-10 scale):
-• Contract Terms: Assess enforceability, liability exposure, termination risk
-• Regulatory Status: Evaluate compliance gaps, violation penalties, approval probability
-• IP Position: Analyze litigation risk, licensing dependencies, patent strength
-• Corporate Structure: Review governance adequacy, fiduciary compliance, transaction risks
-
-Respond in JSON format with enhanced institutional metrics:
+Respond in JSON format:
 {
-  "relevantContent": ["Exact contractual quotes with $ amounts", "Specific regulatory requirements with timelines", "IP terms with licensing details"],
+  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Quantified liability exposures", "Specific compliance gaps with costs", "Material contract risks"],
-  "documentSummary": "Executive summary of legal materiality to investment decision",
-  "legalRiskScore": 1-10,
-  "quantitativeMetrics": {
-    "liabilityExposure": "$ amount or percentage if specified",
-    "terminationNotice": "days/months required",
-    "complianceCosts": "estimated $ for gaps identified",
-    "contractValue": "$ value if specified",
-    "penaltyRisk": "maximum $ penalty exposure"
-  },
-  "redFlags": ["Deal-breaker legal issues", "Material litigation risks", "Regulatory violation exposure"],
-  "riskFactors": ["Specific legal risks with probability assessment", "Compliance timeline risks", "Contract enforceability concerns"],
-  "investmentImpact": "Direct impact on investment thesis and valuation",
-  "dueDiligenceRecommendations": ["Specific legal items requiring further investigation", "Expert consultations needed", "Additional documentation required"]
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "legalContext": "How this document relates to legal/regulatory aspects of the business"
 }
 
-Apply institutional investment standards - prioritize material risks that impact valuation and deal structure.`;
+Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -534,7 +458,7 @@ Apply institutional investment standards - prioritize material risks that impact
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000 // Increased for full document comprehensive extraction
+        max_tokens: 1500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -547,13 +471,7 @@ Apply institutional investment standards - prioritize material risks that impact
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        legalRiskScore: analysis.legalRiskScore || 0,
-        quantitativeMetrics: analysis.quantitativeMetrics || {},
-        redFlags: analysis.redFlags || [],
-        riskFactors: analysis.riskFactors || [],
-        investmentImpact: analysis.investmentImpact || '',
-        dueDiligenceRecommendations: analysis.dueDiligenceRecommendations || [],
-        fullContent: content.substring(0, 2000) // Keep larger sample for reference
+        fullContent: content.substring(0, 1000) // Keep sample for reference
       };
       
     } catch (error) {
@@ -566,12 +484,6 @@ Apply institutional investment standards - prioritize material risks that impact
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
-        legalRiskScore: 0,
-        quantitativeMetrics: {},
-        redFlags: ['Analysis failed - requires manual review'],
-        riskFactors: ['Technical error in document processing'],
-        investmentImpact: 'Unknown due to analysis failure',
-        dueDiligenceRecommendations: ['Manual legal review required', 'Retry automated analysis'],
         fullContent: content.substring(0, 1000)
       };
     }
@@ -632,29 +544,22 @@ Respond in JSON format:
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 3000 // INCREASED to allow comprehensive answers
+        temperature: 0.2,
+        max_tokens: 2000
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
-      // CRITICAL FIX: Ensure comprehensive answers even with partial data
-      const answer = compiledAnswer.answer || 
-        (evidence.length > 0 ? 
-          `Based on analysis of ${evidence.length} documents, the following legal information was identified: ` + 
-          evidence.filter(e => e.documentSummary).map(e => e.documentSummary).join(' ') // ENTERPRISE: Use ALL evidence summaries
-          : 'No relevant legal information found in available documentation');
-
       return {
         question: question.question,
         category: question.category,
-        answer: answer,
-        confidence: Math.max(compiledAnswer.confidence || 30, evidence.length > 0 ? 50 : 20),
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: compiledAnswer.keyFindings || evidence.flatMap(e => e.keyFindings || []), // ENTERPRISE: Show ALL findings without limits
+        keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
-        recommendations: compiledAnswer.recommendations || ['Consider obtaining additional legal documentation for comprehensive analysis'],
-        legalAssessment: compiledAnswer.legalAssessment || `Analysis based on review of ${evidence.length} available documents`,
+        recommendations: compiledAnswer.recommendations || [],
+        legalAssessment: compiledAnswer.legalAssessment || '',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -699,15 +604,15 @@ Respond in JSON format:
         });
       }
       
-      // Only add risk findings for truly empty answers, not partial content
-      if (answer.confidence < 30 && (!answer.answer || answer.answer.length < 50)) {
+      // Risk findings for low confidence or gaps
+      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
         findings.push({
           id: findings.length + 1,
           type: 'risk',
-          content: `Limited legal documentation available for: ${question.question}. Consider obtaining additional relevant documentation.`,
+          content: `Insufficient legal information for: ${question.question}. Additional documentation may be required.`,
           source: 'Legal Analysis',
           confidence: 0.3,
-          category: 'documentation_gaps',
+          category: 'gaps',
           evidenceCount: answer.evidenceCount || 0
         });
       }
@@ -777,7 +682,7 @@ Respond in JSON format:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      legal_answers: legalAnswers, // FIXED: Store as object (not JSON string) for consistent field mapping
+      legalAnswers: JSON.stringify(legalAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()

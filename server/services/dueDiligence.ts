@@ -1,6 +1,6 @@
 import openaiService from './openai';
 import { storage } from '../storage';
-import { agentAnalyses } from '@shared/schema';
+import { InsertAgentAnalysis } from '@shared/schema';
 
 // Define the types of due diligence agents
 export type AgentType = 
@@ -175,7 +175,7 @@ export async function createAgentAnalysis(
   agentType: AgentType,
   analysisResults: any
 ): Promise<number> {
-  const analysisData: typeof agentAnalyses.$inferInsert = {
+  const analysisData: InsertAgentAnalysis = {
     dealId,
     agentType,
     status: "In Progress",

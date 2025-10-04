@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { documents, systemSettings, backgroundJobs } from "../shared/schema";
-import { eq, and, or, isNotNull, isNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { authenticate } from "./middleware/auth";
@@ -42,8 +42,6 @@ import legacyResetRoutes from './routes/legacyReset';
 import comprehensiveAnalysisRoutes from './routes/comprehensiveAnalysis';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
-import { persistentCommercialRoutes } from './routes/persistentCommercialRoutes';
-import persistentHRRoutes from './routes/persistentHRRoutes';
 import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
@@ -54,7 +52,6 @@ import { aiProcessingTimeoutService } from './services/aiProcessingTimeout';
 import { chunkedUploadService } from './services/chunkedUploadService';
 import { zipProcessor } from './services/zipProcessor';
 import { gcsService } from './services/googleCloudStorage';
-import { jobProcessor } from './services/jobProcessor';
 
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
@@ -380,72 +377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 📊 AI PROCESSING MONITORING ENDPOINT - Live system health visibility
-  app.get('/api/monitoring/ai', async (req: Request, res: Response) => {
-    try {
-      console.log('📊 AI Processing monitoring endpoint hit');
-      
-      // Import services dynamically to avoid circular dependencies
-      const { jobProcessor } = await import('./services/jobProcessor');
-      const { aiClientWrapper } = await import('./services/aiClientWrapper');
-      
-      // Get comprehensive monitoring data
-      const jobMetrics = jobProcessor.getMetrics();
-      const rateLimitStatus = aiClientWrapper.getRateLimitStatus();
-      
-      // Get current queue status from database
-      const [queueStats] = await db.select({
-        total: sql`count(*)`,
-        pending: sql`count(*) filter (where status = 'pending')`,
-        processing: sql`count(*) filter (where status = 'processing')`,
-        failed: sql`count(*) filter (where status = 'failed')`
-      }).from(backgroundJobs);
-      
-      const monitoring = {
-        timestamp: new Date().toISOString(),
-        system: {
-          status: jobMetrics.activeJobs === 0 ? 'idle' : 'processing',
-          uptime: jobMetrics.uptime,
-          lastReset: jobMetrics.lastReset
-        },
-        jobProcessor: {
-          successRate: jobMetrics.successRatePercent,
-          apiCalls: jobMetrics.apiSuccessRate,
-          activeJobs: jobMetrics.activeJobs,
-          queueLength: jobMetrics.queueLength,
-          processingTimes: {
-            avg: Math.round(jobMetrics.processingTimes.avg),
-            min: jobMetrics.processingTimes.min === Number.MAX_VALUE ? 0 : jobMetrics.processingTimes.min,
-            max: jobMetrics.processingTimes.max
-          }
-        },
-        rateLimiting: rateLimitStatus,
-        emptySummaryPrevention: jobMetrics.emptySummaryPrevented,
-        rateLimitHits: jobMetrics.rateLimitHits,
-        databaseQueue: {
-          total: Number(queueStats.total),
-          pending: Number(queueStats.pending),
-          processing: Number(queueStats.processing),
-          failed: Number(queueStats.failed)
-        }
-      };
-      
-      res.json({
-        success: true,
-        monitoring
-      });
-      
-      console.log(`✅ Monitoring data returned: ${jobMetrics.successRatePercent} success rate, ${jobMetrics.activeJobs} active jobs`);
-      
-    } catch (error) {
-      console.error('❌ AI Processing monitoring error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get AI processing monitoring data',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
   // Global AI Assistant Stats Endpoint - Enhanced with real service integration
   app.get('/api/ai-assistant/global/stats', async (req: Request, res: Response) => {
     try {
@@ -526,16 +457,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🔍 Registering persistent legal analysis routes...');
   app.use(persistentLegalRoutes);
   console.log('✅ Persistent legal analysis routes registered');
-  
-  // Register persistent commercial analysis routes
-  console.log('🚀 Registering persistent commercial analysis routes...');
-  app.use(persistentCommercialRoutes);
-  console.log('✅ Persistent commercial analysis routes registered');
-  
-  // Register persistent HR analysis routes
-  console.log('👥 Registering persistent HR analysis routes...');
-  app.use(persistentHRRoutes);
-  console.log('✅ Persistent HR analysis routes registered');
   
   // Register persistent research analysis routes
   console.log('🔬 Registering persistent research analysis routes...');
@@ -2166,62 +2087,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Investment Memo routes
-  // Get all investment memos for memos list page
-  app.get('/api/memos', async (req: Request, res: Response) => {
-    console.log('🎯 API route hit: GET /api/memos');
-    console.log('🌐 ULTRA-DEBUG: GET /api/memos - MIDDLEWARE HIT');
-    
-    try {
-      console.log('📝 Fetching all investment memos...');
-      const memos = await storage.getAllMemos();
-      console.log(`✅ Found ${memos.length} investment memos`);
-      
-      // Enhanced logging to debug what's being returned
-      if (memos.length > 0) {
-        console.log('📋 Sample memo data:', {
-          id: memos[0].id,
-          dealId: memos[0].dealId,
-          companyName: memos[0].companyName || 'No company name',
-          status: memos[0].status || 'No status',
-          createdAt: memos[0].createdAt
-        });
-      }
-      
-      return res.status(200).json(memos);
-    } catch (error) {
-      console.error('Error fetching all investment memos:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // Get specific memo by memo ID
-  app.get('/api/memos/id/:memoId', async (req: Request, res: Response) => {
-    console.log('🎯 API route hit: GET /api/memos/id/:memoId');
-    console.log('🌐 ULTRA-DEBUG: GET /api/memos/id/:memoId - MIDDLEWARE HIT');
-    
-    try {
-      const memoId = parseInt(req.params.memoId);
-      if (isNaN(memoId)) {
-        return res.status(400).json({ message: 'Invalid memo ID' });
-      }
-      
-      console.log(`📖 Loading memo by ID: ${memoId}`);
-      const memo = await storage.getMemoById(memoId);
-      
-      if (!memo) {
-        console.log(`❌ Memo ${memoId} not found`);
-        return res.status(404).json({ message: 'Memo not found' });
-      }
-      
-      console.log(`✅ Found memo: ${memo.id} for deal ${memo.dealId}`);
-      return res.status(200).json({ success: true, memo });
-    } catch (error) {
-      console.error('Error fetching memo by ID:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // Get specific memo by deal ID
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -2237,7 +2102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post('/api/memos', authenticate, async (req: Request, res: Response) => {
+  app.post('/api/memos', async (req: Request, res: Response) => {
     try {
       const result = insertInvestmentMemoSchema.safeParse(req.body);
       
@@ -2249,35 +2114,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(201).json(memo);
     } catch (error) {
       console.error('Error creating memo:', error);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // Update existing memo by ID
-  app.patch('/api/memos/:id', authenticate, async (req: Request, res: Response) => {
-    try {
-      const memoId = parseInt(req.params.id);
-      if (isNaN(memoId)) {
-        return res.status(400).json({ message: 'Invalid memo ID' });
-      }
-
-      // Validate request body using partial schema
-      const result = insertInvestmentMemoSchema.partial().safeParse(req.body);
-      if (!result.success) {
-        return handleValidationError(res, result.error);
-      }
-
-      console.log(`📝 Updating memo ${memoId} with data:`, result.data);
-      const updatedMemo = await storage.updateMemo(memoId, result.data);
-      
-      if (!updatedMemo) {
-        return res.status(404).json({ message: 'Memo not found' });
-      }
-
-      console.log(`✅ Memo ${memoId} updated successfully`);
-      return res.status(200).json(updatedMemo);
-    } catch (error) {
-      console.error('Error updating memo:', error);
       return res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -2447,414 +2283,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         success: false, 
         error: 'Failed to process AI summary' 
-      });
-    }
-  });
-
-  // 🔄 ENHANCED RESUME PROCESSING - Queue AI summaries with detailed skip reasons and force override
-  app.post('/api/deals/:dealId/documents/resume-processing', async (req: Request, res: Response) => {
-    console.log('🔄 Enhanced resume processing endpoint hit');
-    res.setHeader('Content-Type', 'application/json');
-    
-    try {
-      const dealId = parseInt(req.params.dealId);
-      const { force = false, documentIds = [] } = req.body;
-      
-      console.log(`🔄 Resume processing for deal ${dealId}, force: ${force}, specific docs: ${documentIds.length}`);
-      
-      // Find documents that have OCR text but no AI summary
-      let whereConditions = and(
-        eq(documents.dealId, dealId),
-        // Has OCR text or force mode
-        force ? undefined : isNotNull(documents.ocrText),
-        // But missing AI summary or has error status
-        or(
-          isNull(documents.aiSummary),
-          eq(documents.aiSummaryStatus, 'failed'),
-          eq(documents.aiSummaryStatus, 'quota_exceeded'),
-          eq(documents.aiSummaryStatus, 'pending')
-        )
-      );
-      
-      // Filter by specific document IDs if provided
-      if (documentIds.length > 0) {
-        whereConditions = and(
-          whereConditions,
-          sql`${documents.id} = ANY(${documentIds})`
-        );
-      }
-      
-      const incompleteDocuments = await db.select({
-        id: documents.id,
-        name: documents.name,
-        ocrText: documents.ocrText,
-        aiSummary: documents.aiSummary,
-        aiSummaryStatus: documents.aiSummaryStatus,
-        ocrTextLength: sql<number>`LENGTH(${documents.ocrText})`
-      })
-        .from(documents)
-        .where(whereConditions);
-      
-      console.log(`🔍 Found ${incompleteDocuments.length} documents needing AI summaries`);
-      
-      let queuedCount = 0;
-      const skippedDetails: any[] = [];
-      
-      for (const document of incompleteDocuments) {
-        let skipReason: string | null = null;
-        let canProcess = true;
-        
-        // Analyze why document might be skipped
-        if (!force) {
-          if (!document.ocrText) {
-            skipReason = 'no_ocr_text';
-            canProcess = false;
-          } else if (document.ocrTextLength < 50) {
-            skipReason = 'insufficient_content';
-            canProcess = false;
-          } else if (document.ocrText) {
-            const lowerText = document.ocrText.toLowerCase();
-            if (lowerText.includes('extraction failed')) {
-              skipReason = 'ocr_extraction_failed';
-              canProcess = false;
-            } else if (lowerText.includes('timeout')) {
-              skipReason = 'ocr_timeout';
-              canProcess = false;
-            } else if (lowerText.includes('corrupted')) {
-              skipReason = 'file_corrupted';
-              canProcess = false;
-            } else if (lowerText.includes('unable to extract')) {
-              skipReason = 'extraction_error';
-              canProcess = false;
-            }
-          }
-        }
-        
-        if (!canProcess && !force) {
-          console.log(`⏭️ Skipping document ${document.id} (${document.name}) - ${skipReason}`);
-          skippedDetails.push({
-            id: document.id,
-            name: document.name,
-            skipReason,
-            ocrTextLength: document.ocrTextLength,
-            canForce: true
-          });
-          continue;
-        }
-        
-        // Create AI summary job
-        const jobId = `ai_summary_resume_${document.id}_${Date.now()}`;
-        try {
-          await db.insert(backgroundJobs).values({
-            jobId: jobId,
-            jobType: 'ai_summary_generation',
-            status: 'pending',
-            dealId: dealId,
-            documentId: document.id,
-            jobData: JSON.stringify({
-              documentId: document.id,
-              dealId: dealId,
-              resumeType: 'missing_summary',
-              forceProcessed: force
-            }),
-            progress: 0,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
-          
-          queuedCount++;
-          console.log(`✅ Queued AI summary job for document ${document.id}: ${document.name} ${force ? '(FORCED)' : ''}`);
-        } catch (error) {
-          console.error(`❌ Failed to queue job for document ${document.id}:`, error);
-          skippedDetails.push({
-            id: document.id,
-            name: document.name,
-            skipReason: 'job_creation_failed',
-            error: error.message,
-            canForce: false
-          });
-        }
-      }
-      
-      // Trigger job processing
-      if (queuedCount > 0) {
-        const { jobProcessor } = await import('./services/jobProcessor');
-        await jobProcessor.loadPendingJobsFromDatabase();
-        console.log(`🚀 Triggered job processing for ${queuedCount} AI summary jobs`);
-      }
-      
-      res.json({
-        success: true,
-        message: `Resume processing started for ${queuedCount} documents`,
-        queuedJobs: queuedCount,
-        totalIncomplete: incompleteDocuments.length,
-        skippedDocuments: skippedDetails.length,
-        dealId: dealId,
-        force: force,
-        skippedDetails: skippedDetails,
-        summary: {
-          found: incompleteDocuments.length,
-          queued: queuedCount,
-          skipped: skippedDetails.length,
-          skipReasons: skippedDetails.reduce((acc, doc) => {
-            acc[doc.skipReason] = (acc[doc.skipReason] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>)
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Resume processing failed:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  });
-
-  // 🔍 BASIC DIAGNOSTIC ENDPOINT - Analyze incomplete documents  
-  app.get('/api/deals/:dealId/documents/diagnostic', async (req: Request, res: Response) => {
-    console.log('🔍 Basic diagnostic endpoint hit');
-    res.setHeader('Content-Type', 'application/json');
-    
-    try {
-      const dealId = parseInt(req.params.dealId);
-      console.log(`🔍 Running basic diagnostics for deal ${dealId}`);
-      
-      // Step 1: Get document counts directly from storage interface (bypassing Drizzle issues)
-      console.log('🔍 Getting documents via storage interface...');
-      const allDocuments = await storage.getDocumentsByDealId(dealId);
-      console.log(`🔍 Found ${allDocuments.length} total documents`);
-
-      // Step 2: Analyze document states
-      let completed = 0;
-      let incomplete = 0;
-      let noOcr = 0;
-      let insufficientContent = 0;
-      let ocrErrors = 0;
-      let readyForProcessing = 0;
-
-      const incompleteDetails: any[] = [];
-
-      for (const doc of allDocuments) {
-        // Check if document has AI summary
-        if (doc.aiSummary && doc.aiSummary.trim().length > 0) {
-          completed++;
-          continue;
-        }
-
-        // Document is incomplete - analyze why
-        incomplete++;
-        
-        let skipReason = 'unknown';
-        let canForce = false;
-
-        if (!doc.ocrText || doc.ocrText.trim().length === 0) {
-          skipReason = 'no_ocr_text';
-          noOcr++;
-        } else if (doc.ocrText.length < 50) {
-          skipReason = 'insufficient_content';
-          insufficientContent++;
-          canForce = true;
-        } else {
-          const lowerText = doc.ocrText.toLowerCase();
-          if (lowerText.includes('extraction failed') || 
-              lowerText.includes('timeout') || 
-              lowerText.includes('corrupted') ||
-              lowerText.includes('unable to extract')) {
-            skipReason = 'ocr_error';
-            ocrErrors++;
-          } else {
-            skipReason = 'ready_for_processing';
-            readyForProcessing++;
-            canForce = true;
-          }
-        }
-
-        incompleteDetails.push({
-          id: doc.id,
-          name: doc.name,
-          size: doc.size,
-          ocrStatus: doc.ocrStatus,
-          aiSummaryStatus: doc.aiSummaryStatus,
-          ocrTextLength: doc.ocrText ? doc.ocrText.length : 0,
-          skipReason,
-          canForce,
-          ocrPreview: doc.ocrText ? doc.ocrText.substring(0, 100) + '...' : null
-        });
-      }
-
-      const skipReasonSummary = {
-        no_ocr_text: noOcr,
-        insufficient_content: insufficientContent,
-        ocr_error: ocrErrors,
-        ready_for_processing: readyForProcessing
-      };
-
-      console.log(`🔍 Diagnostic complete: ${allDocuments.length} total, ${completed} completed, ${incomplete} incomplete`);
-
-      return res.status(200).json({
-        success: true,
-        dealId,
-        summary: {
-          totalDocuments: allDocuments.length,
-          completedSummaries: completed,
-          incompleteDocuments: incomplete,
-          analysis: `${incomplete} documents need AI summaries (${readyForProcessing} ready, ${insufficientContent} insufficient content, ${ocrErrors} OCR errors, ${noOcr} no OCR)`
-        },
-        skipReasonSummary,
-        incompleteDetails: incompleteDetails.slice(0, 20), // Limit to first 20 for brevity
-        readyForProcessing: incompleteDetails.filter(d => d.skipReason === 'ready_for_processing').length,
-        canBeForced: incompleteDetails.filter(d => d.canForce).length,
-        totalIncompleteShown: Math.min(incompleteDetails.length, 20)
-      });
-      
-    } catch (error) {
-      console.error('Error in basic diagnostic endpoint:', error);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to run diagnostics',
-        details: error.message
-      });
-    }
-  });
-
-  // 🔄 RE-PROCESS DOCUMENTS WITH FAILED OCR OR EMPTY AI SUMMARIES
-  app.post('/api/deals/:dealId/documents/reprocess-failed', async (req: Request, res: Response) => {
-    console.log('🔄 Re-processing failed documents endpoint hit');
-    res.setHeader('Content-Type', 'application/json');
-    
-    try {
-      const dealId = parseInt(req.params.dealId);
-      const { documentIds, forceReprocess = false } = req.body;
-      
-      if (isNaN(dealId)) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Invalid deal ID' 
-        });
-      }
-      
-      console.log(`🔄 Re-processing documents for deal ${dealId}, force: ${forceReprocess}`);
-      
-      // Get documents to reprocess
-      let documentsToProcess;
-      
-      if (documentIds && Array.isArray(documentIds)) {
-        // Specific documents requested
-        const documents = await Promise.all(
-          documentIds.map(id => storage.getDocumentById(parseInt(id)))
-        );
-        documentsToProcess = documents.filter(doc => doc && doc.dealId === dealId);
-        console.log(`🎯 Re-processing ${documentsToProcess.length} specific documents`);
-      } else {
-        // Find documents with failed OCR or empty AI summaries
-        const allDocuments = await storage.getDocumentsByDealId(dealId);
-        
-        documentsToProcess = allDocuments.filter(doc => {
-          // Check for OCR errors or missing content
-          const hasOcrError = doc.ocrText && doc.ocrText.toLowerCase().includes('extraction failed');
-          const hasProcessingError = doc.ocrText && doc.ocrText.toLowerCase().includes('processing failed');
-          const hasMissingOcr = !doc.ocrText || doc.ocrText.trim().length < 50;
-          
-          // Check for empty or problematic AI summaries
-          const aiSummary = doc.aiSummary as any;
-          const hasEmptyAiSummary = !aiSummary || 
-                                    (aiSummary.executiveSummary && aiSummary.executiveSummary.toLowerCase().includes('empty')) ||
-                                    (aiSummary.criticalFindings && aiSummary.criticalFindings.some((f: string) => f.toLowerCase().includes('empty'))) ||
-                                    doc.aiSummaryStatus === 'failed' ||
-                                    doc.aiSummaryStatus === 'quota_exceeded';
-          
-          return forceReprocess || hasOcrError || hasProcessingError || hasMissingOcr || hasEmptyAiSummary;
-        });
-        
-        console.log(`🔍 Found ${documentsToProcess.length} documents needing re-processing out of ${allDocuments.length} total`);
-      }
-      
-      if (documentsToProcess.length === 0) {
-        return res.status(200).json({
-          success: true,
-          message: 'No documents found that need re-processing',
-          reprocessed: 0
-        });
-      }
-      
-      // Queue documents for re-processing
-      let reprocessedCount = 0;
-      const errors = [];
-      
-      for (const document of documentsToProcess) {
-        try {
-          console.log(`🔄 Re-processing document ${document.id}: ${document.name}`);
-          
-          // Reset document status and clear previous results
-          await db.update(documents)
-            .set({
-              status: 'Pending',
-              ocrText: null,
-              aiSummary: null,
-              aiSummaryStatus: 'pending',
-              updatedAt: new Date()
-            })
-            .where(eq(documents.id, document.id));
-          
-          // Create new OCR job
-          const jobData = {
-            jobType: 'document_ocr',
-            jobData: {
-              filePath: document.filePath || document.path,
-              fileName: document.name,
-              fileType: document.type,
-              documentId: document.id
-            },
-            dealId: dealId,
-            priority: 5, // Medium priority
-            status: 'pending' as const,
-            progress: 0,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          };
-          
-          await db.insert(backgroundJobs).values(jobData);
-          
-          console.log(`✅ Queued document ${document.id} for re-processing`);
-          reprocessedCount++;
-          
-        } catch (docError) {
-          console.error(`❌ Failed to queue document ${document.id}:`, docError);
-          errors.push({
-            documentId: document.id,
-            documentName: document.name,
-            error: docError instanceof Error ? docError.message : 'Unknown error'
-          });
-        }
-      }
-      
-      // Start job processing immediately
-      setImmediate(async () => {
-        try {
-          console.log('🚀 Starting job processing for re-queued documents...');
-          await jobProcessor.processJobs();
-          console.log('✅ Job processing initiated successfully');
-        } catch (error) {
-          console.error('❌ Error starting job processing after reprocessing:', error);
-        }
-      });
-      
-      return res.status(200).json({
-        success: true,
-        message: `Re-processing started for ${reprocessedCount} documents`,
-        reprocessed: reprocessedCount,
-        errors: errors.length > 0 ? errors : undefined,
-        dealId
-      });
-      
-    } catch (error) {
-      console.error('❌ Document re-processing error:', error);
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Document re-processing failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -6008,15 +5436,10 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       // Debug: Log current running analyses
       console.log(`📊 Current running analyses:`, Array.from(runningAnalyses.keys()));
       
-      // Start agent-specific analysis in background with rate limiting 
+      // Start agent-specific analysis in background with rate limiting
       setImmediate(async () => {
         try {
-          // SKIP processAgentSpecificAnalysis for Commercial - it uses PersistentCommercialAnalysis service
-          if (agentType.toLowerCase() !== 'commercial') {
-            await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
-          } else {
-            console.log(`🔄 Skipping processAgentSpecificAnalysis for Commercial - handled by PersistentCommercialAnalysis service`);
-          }
+          await processAgentSpecificAnalysis(dealId, agentType, documents, deal, forceRefresh);
         } catch (error) {
           console.error(`❌ Error in ${agentType} analysis for deal ${dealId}:`, error);
         } finally {
@@ -6103,24 +5526,24 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Import the PERSISTENT legal analysis service for comprehensive analysis
-      const { persistentLegalAnalysisService } = await import('./services/persistentLegalAnalysis');
+      // Import the ENHANCED legal analysis service
+      const { startEnhancedLegalAnalysis } = await import('./enhancedLegalAnalysisService');
       
-      // Run PERSISTENT legal analysis in background with comprehensive question set
+      // Run ENHANCED legal analysis in background with deep evidence-based processing
       (async () => {
         try {
-          console.log(`🔬 Starting PERSISTENT legal analysis background process for deal ${dealId}`);
-          await persistentLegalAnalysisService.startLegalAnalysis(dealId);
-          console.log(`✅ Persistent legal analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting ENHANCED legal analysis background process for deal ${dealId}`);
+          await startEnhancedLegalAnalysis(dealId);
+          console.log(`✅ Enhanced legal analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in persistent legal analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in enhanced legal analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'COMPREHENSIVE legal analysis started - persistent processing with comprehensive question set including contracts, governance, IP, and regulatory analysis'
+        message: 'ENHANCED legal analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
@@ -6200,115 +5623,44 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Clinical Analysis Start Route - RAG-POWERED WITH PROGRESS TRACKING!
+  // Clinical Analysis Start Route
   app.post('/api/deals/:dealId/clinical-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
-      console.log(`🧬 Starting RAG-powered comprehensive clinical analysis for deal ${dealId}`);
-      console.log(`🚀 Revolutionary 15-30 second processing using correct 11 frontend questions!`);
-      
-      // Create background job for progress tracking
-      const jobId = `rag_clinical_analysis_${dealId}_${Date.now()}`;
-      
-      // Check for existing running jobs
-      const existingJobs = await storage.getRunningBackgroundJobs(dealId);
-      const existingClinicalJob = existingJobs.find(job => 
-        job.agentType?.toLowerCase() === 'clinical' || 
-        job.jobType?.includes('clinical')
-      );
-      
+      // Check if there's already a running comprehensive clinical analysis
+      const existingClinicalJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_clinical_analysis');
       if (existingClinicalJob) {
-        console.log(`⚠️ Clinical analysis already running for deal ${dealId}: ${existingClinicalJob.jobId}`);
-        return res.status(409).json({
-          success: false,
-          error: 'Clinical analysis already running for this deal',
-          existingJobId: existingClinicalJob.jobId
+        return res.json({
+          success: true,
+          message: 'Comprehensive clinical analysis already running',
+          alreadyRunning: true,
+          progress: existingClinicalJob.progress || 0
         });
       }
       
-      // Create background job for progress tracking
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'rag_clinical_analysis',
-        dealId,
-        agentType: 'clinical',
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting RAG-powered clinical analysis',
-        currentDocumentName: 'Initializing semantic search',
-        processedDocuments: 0,
-        totalDocuments: 11, // 11 questions
-        message: 'RAG-powered clinical analysis starting'
-      });
+      // Import the ENHANCED comprehensive analysis service
+      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
       
-      console.log(`✅ Created background job ${jobId} for RAG clinical analysis`);
-      
-      // Start analysis asynchronously
+      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
       (async () => {
         try {
-          // Import the new RAG-powered clinical agent
-          const { RagPoweredClinicalAgent } = await import('./services/ragPoweredClinicalAgent');
-          const ragAgent = new RagPoweredClinicalAgent(dealId);
-          
-          // Set up progress callback
-          ragAgent.setProgressCallback(async (progress) => {
-            await storage.updateBackgroundJob(jobId, {
-              progress: progress.percentage,
-              currentStep: progress.currentStep,
-              currentDocumentName: progress.currentQuestion,
-              processedDocuments: progress.completedQuestions,
-              totalDocuments: 11,
-              message: `Processing question ${progress.completedQuestions + 1}/11: ${progress.currentQuestion}`
-            });
-          });
-          
-          // Execute RAG-powered analysis
-          const results = await ragAgent.runComprehensiveAnalysis();
-          
-          // Mark job as completed
-          await storage.updateBackgroundJob(jobId, {
-            status: 'completed',
-            progress: 100,
-            currentStep: 'Analysis completed',
-            currentDocumentName: 'All questions processed',
-            processedDocuments: 11,
-            totalDocuments: 11,
-            message: `RAG clinical analysis completed in ${results.performance.totalTime}ms`
-          });
-          
-          console.log(`✅ RAG-powered clinical analysis completed in ${results.performance.totalTime}ms`);
-          
+          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
+          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
+          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ RAG clinical analysis failed:`, error);
-          
-          // Mark job as failed
-          await storage.updateBackgroundJob(jobId, {
-            status: 'failed',
-            currentStep: 'Analysis failed',
-            message: error instanceof Error ? error.message : 'Unknown error occurred'
-          });
+          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
-      // Return immediately with job info
-      res.json({
-        success: true,
-        message: 'RAG-powered clinical analysis started',
-        jobId,
-        ragPowered: true,
-        questionsTotal: 11,
-        estimatedTime: '15-30 seconds',
-        revolutionarySpeed: true
+      res.json({ 
+        success: true, 
+        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
       });
-      
     } catch (error) {
-      console.error(`❌ Failed to start RAG-powered clinical analysis:`, error);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Failed to start RAG-powered clinical analysis',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to start comprehensive clinical analysis' });
     }
   });
 
@@ -6708,65 +6060,6 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         }
       }
 
-      // For Legal agent, get analysis with legal answers - EXACT CLINICAL APPROACH
-      if (agentType === 'legal') {
-        const analysis = await storage.getAgentAnalysis(dealId, 'legal');
-        
-        if (analysis) {
-          let legalAnswers = {};
-          let findings = [];
-          let recommendations = [];
-          
-          // Parse stored JSON data - EXACT Clinical approach with field name fallback
-          try {
-            // Fix field name mismatch: database uses legal_answers (snake_case) but storage returns legalAnswers (camelCase)
-            if (analysis.legal_answers) {
-              legalAnswers = typeof analysis.legal_answers === 'string' 
-                ? JSON.parse(analysis.legal_answers) 
-                : analysis.legal_answers;
-            } else if (analysis.legalAnswers) {
-              legalAnswers = typeof analysis.legalAnswers === 'string' 
-                ? JSON.parse(analysis.legalAnswers) 
-                : analysis.legalAnswers;
-            }
-            if (analysis.findings) {
-              findings = typeof analysis.findings === 'string' 
-                ? JSON.parse(analysis.findings) 
-                : analysis.findings;
-            }
-            if (analysis.recommendations) {
-              recommendations = typeof analysis.recommendations === 'string' 
-                ? JSON.parse(analysis.recommendations) 
-                : analysis.recommendations;
-            }
-          } catch (parseError) {
-            console.error('Error parsing comprehensive legal analysis data:', parseError);
-            console.error('Analysis data received:', analysis);
-          }
-
-          console.log(`✅ Found comprehensive legal analysis - ${Object.keys(legalAnswers).length} questions, ${findings.length} findings, ${recommendations.length} recommendations`);
-
-          return res.json({
-            success: true,
-            analysis: {
-              ...analysis,
-              legalAnswers,
-              findings,
-              recommendations,
-              questionsAnswered: Object.keys(legalAnswers).length,
-              totalQuestions: 13, // Legal has 13 questions (matches our comprehensive service)
-              completionRate: Math.round((Object.keys(legalAnswers).length / 13) * 100)
-            }
-          });
-        } else {
-          console.log(`❌ No legal analysis found for deal ${dealId}`);
-          return res.json({
-            success: true,
-            analysis: null
-          });
-        }
-      }
-
       // For other agent types, use regular agent analysis
       const analysis = await storage.getAgentAnalysis(dealId, agentType);
       
@@ -6812,9 +6105,27 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         totalDocuments: 0
       });
       
-      // DISABLED: Commercial analysis now handled by PersistentCommercialAnalysisService
-      // to prevent dual execution conflicts. See architect analysis for details.
-      console.log(`🏢 Commercial analysis delegated to PersistentCommercialAnalysisService for deal ${dealId}`);
+      // Import and run service in background - EXACT Clinical approach
+      (async () => {
+        try {
+          console.log(`🏢 Starting comprehensive commercial analysis background process for deal ${dealId}`);
+          const { ComprehensiveCommercialAnalysisService } = await import('./comprehensiveCommercialAnalysisService');
+          
+          const commercialService = new ComprehensiveCommercialAnalysisService();
+          await commercialService.runComprehensiveAnalysis(dealId, storage, jobId);
+          
+          console.log(`✅ Comprehensive commercial analysis completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in comprehensive commercial analysis for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT Clinical approach
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            error: error.message,
+            currentStep: 'Analysis failed'
+          });
+        }
+      })();
       
       res.json({
         success: true,
@@ -6889,7 +6200,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       console.log(`🏢 Fetching comprehensive commercial analysis results for deal ${dealId}`);
       
       // Get comprehensive commercial analysis from agent_analyses table - EXACT Clinical approach
-      const analysis = await storage.getAgentAnalysis(dealId, 'commercial');
+      const analysis = await storage.getAgentAnalysis(dealId, 'Commercial');
       console.log(`🏢 Raw analysis data from storage:`, analysis);
       
       if (!analysis) {
@@ -7734,42 +7045,6 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Generate SWOT Analysis for existing memo
-  app.post('/api/deals/:dealId/memo/generate-swot', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      if (isNaN(dealId)) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Invalid deal ID' 
-        });
-      }
-      
-      console.log(`🎯 Generating SWOT analysis for deal ${dealId}`);
-      
-      // Import the service here to avoid circular dependencies
-      const { investmentMemoService } = await import('./services/investmentMemoService');
-      
-      // Generate SWOT analysis specifically
-      const swotContent = await investmentMemoService.generateSWOTOnly(dealId);
-      
-      console.log(`✅ SWOT analysis generated for deal ${dealId}:`, swotContent);
-      
-      res.json({ 
-        success: true, 
-        swotAnalysis: swotContent,
-        message: "SWOT analysis generated successfully"
-      });
-    } catch (error) {
-      console.error('SWOT generation failed:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to generate SWOT analysis' 
-      });
-    }
-  });
-
   // Regenerate individual memo section with custom prompt
   app.post('/api/deals/:dealId/memo/regenerate-section', async (req: Request, res: Response) => {
     try {
@@ -8205,8 +7480,6 @@ function calculateDocumentRelevanceScore(document: any, agent: any): number {
 
 // Agent-specific analysis processing function with AI caching
 async function processAgentSpecificAnalysis(dealId: number, agentType: string, documents: any[], deal: any, forceRefresh = false) {
-  // ALL AGENTS NOW USE SAME PROCESSING PATH - NO EXCLUSIONS
-  
   console.log(`🤖 Starting ${agentType} agent analysis for deal ${dealId} with ${documents.length} documents (forceRefresh: ${forceRefresh})`);
   
   // Create in-memory job tracking for progress updates
@@ -8364,20 +7637,16 @@ async function processAgentSpecificAnalysis(dealId: number, agentType: string, d
     // Create initial job progress entry for real-time tracking using unified pattern
     const trackingJobId = `${agentType.toLowerCase()}-analysis-${dealId}`;
     
-    // Check if a job already exists to prevent duplicates (SKIP for Commercial as it manages its own jobs)
-    if (agentType.toLowerCase() !== 'commercial') {
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingJob = existingJobs.find(job => 
-        job.agentType?.toLowerCase() === agentType.toLowerCase() && 
-        (job.status === 'processing' || job.status === 'pending')
-      );
-      
-      if (existingJob) {
-        console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
-        throw new Error(`${agentType} analysis already running for deal ${dealId}`);
-      }
-    } else {
-      console.log(`🔄 Skipping duplicate check for Commercial - managed by PersistentCommercialAnalysis service`);
+    // Check if a job already exists to prevent duplicates
+    const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const existingJob = existingJobs.find(job => 
+      job.agentType.toLowerCase() === agentType.toLowerCase() && 
+      (job.status === 'processing' || job.status === 'pending')
+    );
+    
+    if (existingJob) {
+      console.log(`🔄 Found existing ${agentType} analysis job: ${existingJob.jobId}, skipping duplicate creation`);
+      throw new Error(`${agentType} analysis already running for deal ${dealId}`);
     }
     
     try {
@@ -10374,88 +9643,39 @@ export async function registerAllRoutes(app: Express) {
         console.log(`⚡ Using cached AI Assistant instance for deal ${dealId} (instant)`);
       }
       
-      // Set up proper SSE streaming response with all required headers
+      // Set up streaming response
       res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      
-      // Flush headers immediately to establish SSE connection
-      res.flushHeaders();
       
       let streamComplete = false;
-      let heartbeatInterval: NodeJS.Timeout | null = null;
-      
-      // Set up connection cleanup on client disconnect
-      req.on('close', () => {
-        console.log(`🔌 Client disconnected, cleaning up streaming resources for deal ${dealId}`);
-        streamComplete = true;
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-        }
-      });
-      
-      // Send periodic heartbeat to keep connection alive
-      heartbeatInterval = setInterval(() => {
-        if (!streamComplete) {
-          res.write(':heartbeat\n\n');
-        }
-      }, 15000); // Every 15 seconds
       
       try {
-        // ⚡ ULTRA-FAST: Use TRUE token-by-token streaming for 50-80% speed improvement
+        // ⚡ ULTRA-FAST: Process query with cached context (no reloading)
         const setupTime = Date.now() - startTime;
-        console.log(`⏱️ Assistant setup completed in ${setupTime}ms - Starting token streaming`);
+        console.log(`⏱️ Assistant setup completed in ${setupTime}ms`);
         
         const queryStartTime = Date.now();
-        
-        // Send setup completion status
-        res.write(`data: ${JSON.stringify({ 
-          type: 'status', 
-          message: 'Starting analysis...',
-          setupTime
-        })}\n\n`);
-        
-        // Use streaming for real-time token delivery
-        const streamIterator = await assistant.streamQuery(query);
-        let tokenCount = 0;
-        let fullResponse = '';
-        
-        for await (const token of streamIterator) {
-          // Check if client disconnected
-          if (streamComplete) {
-            console.log(`🔌 Streaming aborted due to client disconnect`);
-            break;
-          }
-          
-          if (token) {
-            tokenCount++;
-            fullResponse += token;
-            
-            // Stream each token immediately for real-time response
-            res.write(`data: ${JSON.stringify({ 
-              type: 'token', 
-              content: token,
-              tokenCount
-            })}\n\n`);
-          }
-        }
-        
+        const response = await assistant.processQuery(query);
         const queryTime = Date.now() - queryStartTime;
-        console.log(`✅ Streaming completed: ${tokenCount} tokens in ${queryTime}ms (${(tokenCount/queryTime*1000).toFixed(1)} tokens/sec)`);
+        
+        console.log(`✅ Query processed in ${queryTime}ms (total: ${Date.now() - startTime}ms)`);
+        
+        // Stream the complete response immediately 
+        res.write(`data: ${JSON.stringify({ 
+          type: 'content', 
+          content: response 
+        })}\n\n`);
         
         streamComplete = true;
         res.write(`data: ${JSON.stringify({ 
           type: 'done', 
           done: true,
-          fullResponse,
           timing: {
             setup: setupTime,
             query: queryTime,
-            total: Date.now() - startTime,
-            tokensPerSecond: Math.round(tokenCount / queryTime * 1000)
+            total: Date.now() - startTime
           }
         })}\n\n`);
         res.end();
@@ -10463,20 +9683,11 @@ export async function registerAllRoutes(app: Express) {
       } catch (error) {
         console.error('❌ Streaming error:', error);
         if (!streamComplete) {
-          // Send SSE error event
           res.write(`data: ${JSON.stringify({ 
-            type: 'error',
             error: 'Failed to generate response',
             message: error instanceof Error ? error.message : 'Unknown error'
           })}\n\n`);
           res.end();
-        }
-      } finally {
-        // Cleanup resources
-        streamComplete = true;
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
         }
       }
       

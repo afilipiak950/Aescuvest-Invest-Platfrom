@@ -1,6 +1,7 @@
-import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
+import OpenAI from "openai";
 
-// All OpenAI calls migrated to Ultra-Intelligent AI system with GPT-5
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface CompanyResearchData {
   // Executive Information
@@ -181,24 +182,23 @@ export class AICompanyResearchService {
     Focus on information that would be critical for an investor's due diligence process.
     `;
     
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a senior venture capital analyst with access to comprehensive business intelligence. Provide detailed, factual research based on publicly available information."
-      },
-      {
-        role: "user",
-        content: researchPrompt
-      }
-    ], {
-      qualityThreshold: 0.90,
-      maxTokens: 4000,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a senior venture capital analyst with access to comprehensive business intelligence. Provide detailed, factual research based on publicly available information."
+        },
+        {
+          role: "user",
+          content: researchPrompt
+        }
+      ],
+      max_tokens: 4000,
       temperature: 0.3
-    } as UltraIntelligentConfig);
+    });
     
-    console.log(`🤖 Ultra-Intelligent Company Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-    
-    return response.content || '';
+    return response.choices[0].message.content || '';
   }
   
   private async structureResearchFindings(
@@ -287,35 +287,25 @@ export class AICompanyResearchService {
     Ensure all URLs are complete and valid if included.
     `;
     
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-      {
-        role: "system",
-        content: "You are a data structuring expert. Extract and organize information into valid JSON format."
-      },
-      {
-        role: "user",
-        content: structuringPrompt
-      }
-    ], {
-      responseFormat: { type: "json_object" },
-      qualityThreshold: 0.90,
-      maxTokens: 3000,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a data structuring expert. Extract and organize information into valid JSON format."
+        },
+        {
+          role: "user",
+          content: structuringPrompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 3000,
       temperature: 0.1
-    } as UltraIntelligentConfig);
-    
-    console.log(`🤖 Ultra-Intelligent Data Structuring: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-    
-    // Clean response content and strip markdown code blocks before parsing
-    let cleanContent = response.content;
-    if (cleanContent.includes('```json')) {
-      cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-    }
-    if (cleanContent.includes('```')) {
-      cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-    }
+    });
     
     try {
-      const structuredData = JSON.parse(cleanContent || '{}');
+      const structuredData = JSON.parse(response.choices[0].message.content || '{}');
       return structuredData as CompanyResearchData;
     } catch (error) {
       console.error('Failed to parse structured research data:', error);

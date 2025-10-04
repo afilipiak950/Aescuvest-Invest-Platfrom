@@ -21,11 +21,11 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     // Clear any stuck jobs first
     await persistentJobManager.clearStuckJobs(dealId);
     
-    // Define 6 agent types - Commercial handled by PersistentCommercialAnalysisService
+    // Define all 7 agent types
     const agentTypes = [
       'Clinical',
       'Legal', 
-      // 'Commercial', // EXCLUDED: Now handled by dedicated PersistentCommercialAnalysisService
+      'Commercial',
       'HR',
       'Financial',
       'IP',
@@ -64,7 +64,7 @@ router.post('/api/deals/:dealId/start-all-analyses', async (req: Request, res: R
     
     res.json({
       success: true,
-      message: `Started ${startedJobs.filter(job => job.status === 'started').length}/6 analyses (Commercial handled separately)`,
+      message: `Started ${startedJobs.filter(job => job.status === 'started').length}/7 analyses`,
       jobs: startedJobs
     });
     
@@ -338,8 +338,8 @@ async function getAnalysisServiceForAgent(agentType: string): Promise<any> {
       return comprehensiveClinicalAnalysisService;
       
     case 'commercial':
-      const { RAGPoweredCommercialAgent } = await import('../services/ragPoweredCommercialAgent.js');
-      return new RAGPoweredCommercialAgent();
+      const { comprehensiveCommercialAnalysisService } = await import('../comprehensiveCommercialAnalysisService.js');
+      return comprehensiveCommercialAnalysisService;
       
     case 'hr':
       const { ComprehensiveHRAnalysisService } = await import('../comprehensiveHRAnalysisService.js');

@@ -9,88 +9,92 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
-import { ENTERPRISE_AGENT_PROMPTS } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Enterprise-Grade Clinical Intelligence Questions
-// Aligned with ENTERPRISE_AGENT_PROMPTS.CLINICAL framework
+// Enhanced clinical questions for comprehensive analysis
 export const COMPREHENSIVE_CLINICAL_QUESTIONS = [
-  // Efficacy Assessment with Statistical Rigor
+  // Clinical Trial Protocols
   { 
-    id: 'efficacy_1', 
-    question: 'What is the quantified clinical efficacy with statistical significance?', 
-    category: 'Efficacy Assessment',
-    analysisPrompt: 'Quantify primary endpoint achievement rates, statistical significance (p-values), confidence intervals, number needed to treat (NNT), and clinical improvement percentages vs standard of care.',
-    keywords: ['efficacy', 'primary endpoint', 'p-value', 'statistical significance', 'confidence interval', 'nnt', 'number needed to treat', 'clinical improvement', 'response rate', 'treatment effect']
+    id: 'trial_1', 
+    question: 'Are trial phases and designs clearly defined?', 
+    category: 'Clinical Trial Protocols',
+    analysisPrompt: 'Identify clinical trial phases, study designs, randomization methods, blinding procedures, and protocol structure.',
+    keywords: ['phase i', 'phase ii', 'phase iii', 'randomized', 'controlled', 'blinded', 'double-blind', 'placebo', 'trial design', 'protocol', 'enrollment', 'study design']
   },
   { 
-    id: 'efficacy_2', 
-    question: 'How do clinical outcomes compare to standard of care with quantified improvement?', 
-    category: 'Efficacy Assessment',
-    analysisPrompt: 'Compare clinical outcomes to standard of care with specific percentage improvements, hazard ratios, and clinical significance thresholds.',
-    keywords: ['standard of care', 'hazard ratio', 'odds ratio', 'clinical significance', 'comparative effectiveness', 'superiority', 'non-inferiority', 'improvement percentage']
-  },
-  // Safety Profile with Quantified Risk Assessment
-  { 
-    id: 'safety_1', 
-    question: 'What are the quantified adverse event rates and severity classifications?', 
-    category: 'Safety Profile',
-    analysisPrompt: 'Quantify adverse event rates by severity (mild/moderate/severe), serious adverse event rates, treatment-emergent adverse events, and discontinuation rates due to adverse events.',
-    keywords: ['adverse event rate', 'serious adverse events', 'sae', 'treatment emergent', 'discontinuation rate', 'toxicity grade', 'ctcae', 'safety profile']
+    id: 'trial_2', 
+    question: 'What are primary and secondary endpoints?', 
+    category: 'Clinical Trial Protocols',
+    analysisPrompt: 'Identify primary and secondary endpoints, efficacy measures, clinical outcomes, and endpoint definitions.',
+    keywords: ['primary endpoint', 'secondary endpoint', 'efficacy endpoint', 'primary outcome', 'secondary outcome', 'clinical endpoint', 'surrogate endpoint']
   },
   { 
-    id: 'safety_2', 
-    question: 'What is the therapeutic safety margin and contraindication profile?', 
-    category: 'Safety Profile',
-    analysisPrompt: 'Assess therapeutic window, safety margin, contraindications count, drug interactions, and population restrictions with risk quantification.',
-    keywords: ['therapeutic window', 'safety margin', 'contraindications', 'drug interactions', 'population restrictions', 'risk benefit', 'tolerance']
+    id: 'trial_3', 
+    question: 'How is efficacy/safety assessed?', 
+    category: 'Clinical Trial Protocols',
+    analysisPrompt: 'Find safety and efficacy assessment methods, adverse event reporting, toxicity monitoring, and safety committees.',
+    keywords: ['safety', 'efficacy', 'adverse events', 'side effects', 'toxicity', 'dose limiting', 'safety monitoring', 'dsmb', 'safety committee']
   },
-  // Regulatory Pathway with Timeline Assessment
+  // Regulatory Filings
   { 
     id: 'regulatory_1', 
-    question: 'What is the regulatory approval probability and timeline estimate?', 
-    category: 'Regulatory Assessment',
-    analysisPrompt: 'Assess regulatory approval probability (0-100%), timeline estimates in months/years, regulatory pathway (510k/PMA/BLA/NDA), and precedent analysis.',
-    keywords: ['approval probability', 'regulatory timeline', '510k', 'pma', 'bla', 'nda', 'fda guidance', 'regulatory precedent', 'submission strategy']
+    question: 'What is current approval status?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    analysisPrompt: 'Identify regulatory approval status, FDA/EMA submissions, clearances, and marketing authorizations.',
+    keywords: ['fda', 'ema', 'regulatory', 'approval', 'clearance', '510k', 'pma', 'ide', 'ind', 'regulatory submission', 'marketing authorization']
   },
   { 
     id: 'regulatory_2', 
-    question: 'What regulatory risk factors and compliance gaps exist with remediation costs?', 
-    category: 'Regulatory Assessment',
-    analysisPrompt: 'Identify regulatory compliance gaps, potential FDA holds or objections, required additional studies, and estimated costs for regulatory compliance.',
-    keywords: ['regulatory risk', 'compliance gaps', 'fda hold', 'complete response letter', 'additional studies', 'regulatory costs', 'post-market requirements']
-  },
-  // Clinical Risk Scoring and Investment Viability
-  { 
-    id: 'risk_1', 
-    question: 'What is the overall clinical risk score (1-10) with quantified rationale?', 
-    category: 'Clinical Risk Assessment',
-    analysisPrompt: 'Calculate clinical risk score (1-10) considering efficacy probability, safety concerns, regulatory hurdles, and commercial viability with specific risk quantification.',
-    keywords: ['clinical risk', 'development risk', 'efficacy risk', 'safety risk', 'regulatory risk', 'commercial risk', 'investment risk']
+    question: 'Are fast-track or orphan designations received?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    analysisPrompt: 'Look for special regulatory designations like fast-track, orphan drug, breakthrough therapy, or priority review status.',
+    keywords: ['fast track', 'fast-track', 'orphan drug', 'breakthrough therapy', 'priority review', 'accelerated approval', 'rare disease', 'orphan designation']
   },
   { 
-    id: 'commercial_1', 
-    question: 'What is the commercial viability with market adoption potential?', 
-    category: 'Commercial Assessment',
-    analysisPrompt: 'Assess market size, competitive positioning, reimbursement likelihood, adoption barriers, and revenue potential with quantified projections.',
-    keywords: ['market size', 'competitive advantage', 'reimbursement', 'adoption barriers', 'revenue potential', 'market penetration', 'pricing power']
+    id: 'regulatory_3', 
+    question: 'Are adverse events disclosed?', 
+    category: 'Regulatory Filings (FDA, EMA)',
+    analysisPrompt: 'Find adverse event reporting, safety disclosures, serious adverse events, and safety monitoring reports.',
+    keywords: ['adverse events', 'adverse event', 'sae', 'serious adverse event', 'aesi', 'medwatch', 'safety report', 'susar']
   },
-  // Clinical Development Strategy
+  // Investigator Brochures & Study Reports
   { 
-    id: 'development_1', 
-    question: 'What are the clinical development milestones and success probability?', 
-    category: 'Development Strategy',
-    analysisPrompt: 'Identify next clinical milestones, development timeline, success probability at each phase, and investment requirements with risk-adjusted projections.',
-    keywords: ['development milestones', 'phase progression', 'success probability', 'development timeline', 'investment requirements', 'go/no-go criteria']
+    id: 'study_1', 
+    question: 'Are inclusion/exclusion criteria consistent?', 
+    category: 'Investigator Brochures & Study Reports',
+    analysisPrompt: 'Analyze inclusion and exclusion criteria for patient selection, eligibility requirements, and enrollment consistency.',
+    keywords: ['inclusion criteria', 'exclusion criteria', 'patient selection', 'eligibility', 'enrollment criteria', 'screening']
   },
   { 
-    id: 'development_2', 
-    question: 'What competitive threats and differentiation factors exist?', 
-    category: 'Development Strategy',
-    analysisPrompt: 'Analyze competitive landscape, differentiation factors, competitive timing risks, and patent protection with strategic implications.',
-    keywords: ['competitive landscape', 'differentiation', 'competitive timing', 'patent protection', 'competitive advantage', 'market positioning']
+    id: 'study_2', 
+    question: 'What patient population is used?', 
+    category: 'Investigator Brochures & Study Reports',
+    analysisPrompt: 'Identify patient demographics, disease characteristics, severity levels, and target population definitions.',
+    keywords: ['patient population', 'demographics', 'disease stage', 'severity', 'baseline characteristics', 'target population']
   },
+  { 
+    id: 'study_3', 
+    question: 'Are SAE (Serious Adverse Events) tracked?', 
+    category: 'Investigator Brochures & Study Reports',
+    analysisPrompt: 'Find serious adverse event tracking, safety monitoring procedures, and causality assessment methods.',
+    keywords: ['serious adverse event', 'sae', 'adverse event reporting', 'safety signal', 'causality', 'safety profile']
+  },
+  // Scientific Advisory Board Notes
+  { 
+    id: 'advisory_1', 
+    question: 'Are trial results debated by experts?', 
+    category: 'Scientific Advisory Board Notes',
+    analysisPrompt: 'Look for expert opinions, advisory board reviews, KOL feedback, and scientific discussions about trial results.',
+    keywords: ['advisory board', 'expert opinion', 'scientific advisory', 'kol', 'key opinion leader', 'expert review', 'scientific review']
+  },
+  { 
+    id: 'advisory_2', 
+    question: 'Are post-trial steps (e.g. Phase 3 readiness) described?', 
+    category: 'Scientific Advisory Board Notes',
+    analysisPrompt: 'Look for development plans, phase 3 readiness, regulatory strategies, and next steps in clinical development.',
+    keywords: ['phase 3', 'phase iii', 'next steps', 'development plan', 'regulatory strategy', 'go/no-go', 'pivotal trial']
+  }
 ];
 
 export interface ClinicalAnalysisProgress {
@@ -120,28 +124,6 @@ interface ClinicalAnswer {
   evidenceSummary: string;
   clinicalAssessment: string;
   recommendations: string[];
-  clinicalRiskScore: number;
-  efficacyMetrics: {
-    primaryEndpointAchievement?: number;
-    statisticalSignificance?: string;
-    numberNeededToTreat?: number;
-    clinicalImprovement?: string;
-    confidenceInterval?: string;
-  };
-  safetyProfile: {
-    adverseEventRate?: number;
-    severityClassification?: string;
-    seriousAdverseEvents?: number;
-    contraindicationsCount?: number;
-    safetyMargin?: string;
-  };
-  regulatoryAssessment: {
-    approvalProbability?: number;
-    timelineEstimate?: string;
-    regulatoryPathway?: string;
-    precedentAnalysis?: string;
-    complianceStatus?: string;
-  };
 }
 
 export class ComprehensiveClinicalAnalysisService {
@@ -205,7 +187,7 @@ export class ComprehensiveClinicalAnalysisService {
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
           const answer = await Promise.race([
             this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 600000)) // 600 second (10 minute) timeout - MASSIVE increase
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
           ]);
           clinicalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
@@ -318,21 +300,15 @@ export class ComprehensiveClinicalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for clinical analysis - FIXED to use proper storage method
+   * Get all documents suitable for clinical analysis
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
-    console.log(`🔧 FIXED: Using storage.getDocumentsWithOCRByDealId for deal ${dealId}`);
-    
-    // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
-    const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
+    const allDocuments = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.dealId, dealId));
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
-    
-    // Log OCR text availability for debugging
-    const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
-    const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
-    console.log(`📊 Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
-    console.log(`📊 Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
     
     // First try documents explicitly assigned to clinical agent
     let clinicalDocuments = allDocuments.filter(doc => 
@@ -347,19 +323,11 @@ export class ComprehensiveClinicalAnalysisService {
       console.log('📄 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
       
       clinicalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) {
-          console.log(`⚠️ Document ${doc.name} has no OCR text or AI summary - skipping`);
-          return false;
-        }
+        if (!doc.ocrText && !doc.aiSummary) return false;
         
         const docName = doc.name.toLowerCase();
         const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
-        
-        // Log OCR text length for debugging
-        if (doc.ocrText) {
-          console.log(`📄 Document ${doc.name}: OCR text length = ${doc.ocrText.length}`);
-        }
         
         // Clinical document keywords
         const clinicalKeywords = [
@@ -397,8 +365,11 @@ export class ComprehensiveClinicalAnalysisService {
       console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
     }
     
-    // ENTERPRISE FIX: Process all documents for comprehensive institutional analysis
-    console.log(`📊 Processing ALL ${clinicalDocuments.length} clinical documents for comprehensive enterprise analysis`);
+    // Apply EXACT same document limits as Legal for efficiency
+    if (clinicalDocuments.length > 50) {
+      console.log(`📄 Limiting to first 50 documents for clinical analysis efficiency (found ${clinicalDocuments.length})`);
+      clinicalDocuments = clinicalDocuments.slice(0, 50);
+    }
     
     return clinicalDocuments;
   }
@@ -412,8 +383,8 @@ export class ComprehensiveClinicalAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // ENTERPRISE BATCH PROCESSING: Optimized for large document sets
-    const batchSize = documents.length > 100 ? 8 : 10; // Smaller batches for large sets
+    // Process documents in batches to avoid overwhelming the system
+    const batchSize = 10;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
@@ -451,19 +422,17 @@ export class ComprehensiveClinicalAnalysisService {
     const prompt = `You are an expert clinical research analyst conducting comprehensive investment analysis. Your task is to find ANY clinical, regulatory, safety, or efficacy information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+CONTENT: ${content.substring(0, 4000)}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
 
 Instructions:
-- Extract ALL clinical trial data: endpoints, patient populations, efficacy results, safety profiles
-- Find ALL regulatory information: FDA approvals, CE marks, submission timelines, compliance status
-- Capture ALL safety data: adverse events, contraindications, risk assessments, monitoring requirements
-- Extract ALL efficacy data: clinical outcomes, statistical significance, comparative effectiveness
-- Include ALL market access: reimbursement, pricing, formulary coverage, payer negotiations
-- Find ALL research data: publications, studies, investigator relationships, academic partnerships
-- Be exhaustive - read the ENTIRE document content provided and extract every clinical detail
+- Look for DIRECT clinical terms, trial data, regulatory submissions, safety reports
+- Look for INDIRECT references to medical devices, therapeutics, patient outcomes, regulatory milestones
+- Consider business documents that mention clinical milestones, regulatory matters, safety data
+- Even general business context often has clinical implications for investment due diligence
+- For healthcare companies, most business documents contain clinical information relevant to investors
 
 Respond in JSON format:
 {
@@ -483,7 +452,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500 // Increased for full document comprehensive extraction
+        max_tokens: 1500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -496,7 +465,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 2000) // Keep larger sample for reference
+        fullContent: content.substring(0, 1000) // Keep sample for reference
       };
       
     } catch (error) {
@@ -509,7 +478,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 2000) // Keep larger sample for reference
+        fullContent: content.substring(0, 1000)
       };
     }
   }
@@ -531,31 +500,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
         evidenceCount: 0,
         keyFindings: [],
         gaps: ['No relevant clinical information found'],
-        category: question.category,
-        clinicalAssessment: 'Insufficient data for clinical assessment',
-        recommendations: ['Request comprehensive clinical documentation'],
-        clinicalRiskScore: 7, // High risk due to lack of clinical data
-        efficacyMetrics: {
-          primaryEndpointAchievement: null,
-          statisticalSignificance: null,
-          numberNeededToTreat: null,
-          clinicalImprovement: null,
-          confidenceInterval: null
-        },
-        safetyProfile: {
-          adverseEventRate: null,
-          severityClassification: null,
-          seriousAdverseEvents: null,
-          contraindicationsCount: null,
-          safetyMargin: null
-        },
-        regulatoryAssessment: {
-          approvalProbability: null,
-          timelineEstimate: null,
-          regulatoryPathway: null,
-          precedentAnalysis: null,
-          complianceStatus: null
-        }
+        category: question.category
       };
     }
 
@@ -567,67 +512,36 @@ Be thorough in finding relevance - most healthcare business documents have clini
       confidence: ev.confidence
     }));
 
-    // Apply Enterprise Clinical Framework
-    const systemPrompt = ENTERPRISE_AGENT_PROMPTS.CLINICAL.SYSTEM_PROMPT;
-    const analysisPrompt = ENTERPRISE_AGENT_PROMPTS.CLINICAL.ANALYSIS_PROMPT;
-    
-    const prompt = `${systemPrompt}
+    const prompt = `You are an expert clinical research analyst compiling a comprehensive answer based on evidence from multiple documents.
 
-${analysisPrompt}
-
-CLINICAL ANALYSIS QUESTION: "${question.question}"
+QUESTION: "${question.question}"
 CATEGORY: ${question.category}
-FOCUS AREA: ${question.analysisPrompt}
+ANALYSIS TASK: ${question.analysisPrompt}
 
-CLINICAL EVIDENCE FROM DOCUMENTS:
+EVIDENCE FROM DOCUMENTS:
 ${evidenceSummary.map(ev => `
-═══ DOCUMENT: ${ev.document} ═══
-CLINICAL CONTENT: ${ev.content}
-KEY CLINICAL FINDINGS: ${ev.findings}
-EVIDENCE CONFIDENCE: ${ev.confidence}%
+DOCUMENT: ${ev.document}
+CONTENT: ${ev.content}
+KEY FINDINGS: ${ev.findings}
+CONFIDENCE: ${ev.confidence}%
 `).join('\n')}
 
-CRITICAL INSTRUCTIONS:
-• Apply statistical rigor and quantitative analysis
-• Calculate clinical risk score (1-10) with specific rationale
-• Quantify efficacy metrics with statistical significance
-• Assess safety profile with adverse event rates
-• Evaluate regulatory pathway with approval probability
-• Quote exact text from documents with document names
-• Provide confidence intervals where applicable
-• Compare to industry benchmarks with specific data
+Instructions:
+1. Synthesize ALL evidence into a comprehensive answer
+2. Cite specific documents and quotes
+3. Identify gaps in information
+4. Provide confidence assessment
+5. Include clinical recommendations
 
-Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 500-800 words for answer field):
+Respond in JSON format:
 {
-  "answer": "ULTRA-COMPREHENSIVE clinical analysis with quantitative evidence, detailed methodology, statistical rigor, industry benchmarking, risk assessment, investment implications, and actionable insights. Include specific data points, percentages, timelines, costs, regulatory pathways, competitive analysis, and strategic recommendations with executive-level depth.",
+  "answer": "Comprehensive answer synthesizing all evidence",
   "confidence": 0-100,
   "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1 with specific metrics", "Finding 2 with statistical data"],
-  "gaps": ["Missing clinical data 1", "Missing regulatory info 2"],
-  "recommendations": ["Evidence-based recommendation 1", "Risk mitigation 2"],
-  "clinicalAssessment": "Executive summary of clinical viability with risk assessment",
-  "clinicalRiskScore": 1-10,
-  "efficacyMetrics": {
-    "primaryEndpointAchievement": "percentage or null",
-    "statisticalSignificance": "p-value and confidence interval or null",
-    "numberNeededToTreat": "NNT value or null",
-    "clinicalImprovement": "percentage improvement vs standard of care or null",
-    "confidenceInterval": "95% CI range or null"
-  },
-  "safetyProfile": {
-    "adverseEventRate": "percentage or null",
-    "severityClassification": "mild/moderate/severe distribution or null",
-    "seriousAdverseEvents": "SAE rate or null",
-    "contraindicationsCount": "number of contraindications or null",
-    "safetyMargin": "therapeutic window description or null"
-  },
-  "regulatoryAssessment": {
-    "approvalProbability": "0-100 percentage or null",
-    "timelineEstimate": "months/years with rationale or null",
-    "regulatoryPathway": "FDA/EMA pathway description or null",
-    "precedentAnalysis": "similar product precedents or null",
-    "complianceStatus": "current regulatory standing or null"
-  },
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "gaps": ["Missing information 1", "Missing information 2"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "clinicalAssessment": "Overall clinical assessment based on evidence",
   "evidenceCount": ${evidence.length}
 }`;
 
@@ -636,8 +550,8 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 8000 // ULTRA INCREASED for comprehensive enterprise analysis synthesis
+        temperature: 0.2,
+        max_tokens: 2000
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
@@ -653,29 +567,7 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
         recommendations: compiledAnswer.recommendations || [],
         clinicalAssessment: compiledAnswer.clinicalAssessment || '',
         evidenceCount: evidence.length,
-        detailedEvidence: evidence,
-        clinicalRiskScore: compiledAnswer.clinicalRiskScore || 5,
-        efficacyMetrics: {
-          primaryEndpointAchievement: compiledAnswer.efficacyMetrics?.primaryEndpointAchievement || null,
-          statisticalSignificance: compiledAnswer.efficacyMetrics?.statisticalSignificance || null,
-          numberNeededToTreat: compiledAnswer.efficacyMetrics?.numberNeededToTreat || null,
-          clinicalImprovement: compiledAnswer.efficacyMetrics?.clinicalImprovement || null,
-          confidenceInterval: compiledAnswer.efficacyMetrics?.confidenceInterval || null
-        },
-        safetyProfile: {
-          adverseEventRate: compiledAnswer.safetyProfile?.adverseEventRate || null,
-          severityClassification: compiledAnswer.safetyProfile?.severityClassification || null,
-          seriousAdverseEvents: compiledAnswer.safetyProfile?.seriousAdverseEvents || null,
-          contraindicationsCount: compiledAnswer.safetyProfile?.contraindicationsCount || null,
-          safetyMargin: compiledAnswer.safetyProfile?.safetyMargin || null
-        },
-        regulatoryAssessment: {
-          approvalProbability: compiledAnswer.regulatoryAssessment?.approvalProbability || null,
-          timelineEstimate: compiledAnswer.regulatoryAssessment?.timelineEstimate || null,
-          regulatoryPathway: compiledAnswer.regulatoryAssessment?.regulatoryPathway || null,
-          precedentAnalysis: compiledAnswer.regulatoryAssessment?.precedentAnalysis || null,
-          complianceStatus: compiledAnswer.regulatoryAssessment?.complianceStatus || null
-        }
+        detailedEvidence: evidence
       };
       
     } catch (error) {
@@ -690,35 +582,13 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
         gaps: ['Analysis compilation failed'],
         recommendations: ['Manual review required'],
         evidenceCount: evidence.length,
-        detailedEvidence: evidence,
-        clinicalRiskScore: 8, // High risk due to analysis failure
-        efficacyMetrics: {
-          primaryEndpointAchievement: null,
-          statisticalSignificance: null,
-          numberNeededToTreat: null,
-          clinicalImprovement: null,
-          confidenceInterval: null
-        },
-        safetyProfile: {
-          adverseEventRate: null,
-          severityClassification: null,
-          seriousAdverseEvents: null,
-          contraindicationsCount: null,
-          safetyMargin: null
-        },
-        regulatoryAssessment: {
-          approvalProbability: null,
-          timelineEstimate: null,
-          regulatoryPathway: null,
-          precedentAnalysis: null,
-          complianceStatus: null
-        }
+        detailedEvidence: evidence
       };
     }
   }
 
   /**
-   * Generate enterprise-grade clinical findings with quantitative metrics
+   * Generate comprehensive findings
    */
   private generateComprehensiveFindings(answers: Record<string, any>): any[] {
     const findings = [];
@@ -727,80 +597,29 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
       const question = COMPREHENSIVE_CLINICAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // Enterprise Clinical Intelligence Findings
+      // High confidence findings
       if (answer.confidence > 70) {
-        // Efficacy findings with quantified metrics
-        if (answer.efficacyMetrics && (answer.efficacyMetrics.primaryEndpointAchievement || answer.efficacyMetrics.statisticalSignificance)) {
-          findings.push({
-            id: findings.length + 1,
-            type: 'positive',
-            content: `Clinical Efficacy Confirmed: ${answer.efficacyMetrics.primaryEndpointAchievement ? `${answer.efficacyMetrics.primaryEndpointAchievement}% primary endpoint achievement` : ''} ${answer.efficacyMetrics.statisticalSignificance || ''}`,
-            source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
-            confidence: answer.confidence / 100,
-            category: 'efficacy_metrics',
-            evidenceCount: answer.evidenceCount || 0,
-            clinicalRiskScore: answer.clinicalRiskScore,
-            quantitativeData: answer.efficacyMetrics
-          });
-        }
-        
-        // Safety profile findings
-        if (answer.safetyProfile && (answer.safetyProfile.adverseEventRate || answer.safetyProfile.seriousAdverseEvents)) {
-          findings.push({
-            id: findings.length + 1,
-            type: answer.safetyProfile.adverseEventRate > 30 ? 'risk' : 'positive',
-            content: `Safety Profile: ${answer.safetyProfile.adverseEventRate ? `${answer.safetyProfile.adverseEventRate}% adverse event rate` : ''} ${answer.safetyProfile.seriousAdverseEvents ? `, ${answer.safetyProfile.seriousAdverseEvents}% serious adverse events` : ''}`,
-            source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
-            confidence: answer.confidence / 100,
-            category: 'safety_profile',
-            evidenceCount: answer.evidenceCount || 0,
-            clinicalRiskScore: answer.clinicalRiskScore,
-            quantitativeData: answer.safetyProfile
-          });
-        }
-        
-        // Regulatory assessment findings
-        if (answer.regulatoryAssessment && (answer.regulatoryAssessment.approvalProbability || answer.regulatoryAssessment.timelineEstimate)) {
-          findings.push({
-            id: findings.length + 1,
-            type: answer.regulatoryAssessment.approvalProbability > 70 ? 'positive' : 'neutral',
-            content: `Regulatory Assessment: ${answer.regulatoryAssessment.approvalProbability ? `${answer.regulatoryAssessment.approvalProbability}% approval probability` : ''} ${answer.regulatoryAssessment.timelineEstimate ? `, ${answer.regulatoryAssessment.timelineEstimate} timeline` : ''}`,
-            source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
-            confidence: answer.confidence / 100,
-            category: 'regulatory_assessment',
-            evidenceCount: answer.evidenceCount || 0,
-            clinicalRiskScore: answer.clinicalRiskScore,
-            quantitativeData: answer.regulatoryAssessment
-          });
-        }
-        
-        // General high-confidence clinical findings
-        if (!answer.efficacyMetrics?.primaryEndpointAchievement && !answer.safetyProfile?.adverseEventRate && !answer.regulatoryAssessment?.approvalProbability) {
-          findings.push({
-            id: findings.length + 1,
-            type: 'positive',
-            content: `Clinical Finding: ${answer.answer.substring(0, 150)}... (Risk Score: ${answer.clinicalRiskScore}/10)`,
-            source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
-            confidence: answer.confidence / 100,
-            category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            evidenceCount: answer.evidenceCount || 0,
-            clinicalRiskScore: answer.clinicalRiskScore
-          });
-        }
+        findings.push({
+          id: findings.length + 1,
+          type: 'positive',
+          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
+          source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
+          confidence: answer.confidence / 100,
+          category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          evidenceCount: answer.evidenceCount || 0
+        });
       }
       
-      // High-risk findings (Clinical Risk Score >= 7 or low confidence)
-      if (answer.clinicalRiskScore >= 7 || answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
+      // Risk findings for low confidence or gaps
+      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
         findings.push({
           id: findings.length + 1,
           type: 'risk',
-          content: `Clinical Risk Alert: ${answer.clinicalRiskScore >= 7 ? `High risk score (${answer.clinicalRiskScore}/10)` : ''} ${answer.gaps?.length > 0 ? `Missing: ${answer.gaps.join(', ')}` : 'Insufficient clinical data'}`,
-          source: 'Clinical Risk Assessment',
+          content: `Insufficient clinical information for: ${question.question}. Additional documentation may be required.`,
+          source: 'Clinical Analysis',
           confidence: 0.3,
-          category: 'clinical_risk',
-          evidenceCount: answer.evidenceCount || 0,
-          clinicalRiskScore: answer.clinicalRiskScore,
-          riskFactors: answer.gaps || ['Insufficient clinical data']
+          category: 'gaps',
+          evidenceCount: answer.evidenceCount || 0
         });
       }
     }
@@ -809,114 +628,33 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
   }
   
   /**
-   * Generate enterprise-grade clinical recommendations with risk-based prioritization
+   * Generate comprehensive recommendations
    */
   private generateComprehensiveRecommendations(answers: Record<string, any>): any[] {
     const recommendations = [];
     
-    // Calculate overall clinical risk assessment
-    const riskScores = Object.values(answers).map(a => a.clinicalRiskScore || 5);
-    const avgRiskScore = riskScores.reduce((sum, score) => sum + score, 0) / riskScores.length;
-    
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = COMPREHENSIVE_CLINICAL_QUESTIONS.find(q => q.id === questionId);
-      if (!question) continue;
-      
-      // Enterprise clinical recommendations based on risk scoring
       if (answer.recommendations && answer.recommendations.length > 0) {
         for (const rec of answer.recommendations) {
           recommendations.push({
-            title: `Clinical Intelligence: ${question.category}`,
-            description: `${rec} (Clinical Risk Score: ${answer.clinicalRiskScore}/10)`,
-            priority: answer.clinicalRiskScore >= 7 ? 'critical' : answer.clinicalRiskScore >= 4 ? 'high' : 'medium',
-            category: 'clinical_intelligence',
-            impact: answer.clinicalRiskScore >= 7 ? 'deal-breaker' : answer.clinicalRiskScore >= 4 ? 'material' : 'moderate',
-            clinicalRiskScore: answer.clinicalRiskScore,
-            confidence: answer.confidence,
-            quantitativeData: {
-              efficacyMetrics: answer.efficacyMetrics,
-              safetyProfile: answer.safetyProfile,
-              regulatoryAssessment: answer.regulatoryAssessment
-            }
+            title: `Clinical Due Diligence: ${answer.question}`,
+            description: rec,
+            priority: answer.confidence < 60 ? 'high' : 'medium',
+            category: 'clinical',
+            impact: answer.confidence < 40 ? 'critical' : 'moderate'
           });
         }
       }
       
-      // Risk-based documentation gap recommendations
       if (answer.gaps && answer.gaps.length > 0) {
         recommendations.push({
-          title: `Critical Data Gap: ${question.category}`,
-          description: `Missing clinical intelligence: ${answer.gaps.join(', ')}. Immediate action required for investment decision. Risk Score: ${answer.clinicalRiskScore}/10`,
-          priority: answer.clinicalRiskScore >= 7 ? 'critical' : 'high',
-          category: 'clinical_data_gaps',
-          impact: 'deal-breaker',
-          clinicalRiskScore: answer.clinicalRiskScore,
-          actionRequired: 'Request comprehensive clinical documentation and expert review',
-          timeframe: answer.clinicalRiskScore >= 7 ? 'immediate' : 'within 48 hours'
+          title: `Documentation Gap: ${answer.question}`,
+          description: `Missing clinical information identified: ${answer.gaps.join(', ')}. Request additional documentation.`,
+          priority: 'high',
+          category: 'clinical',
+          impact: 'critical'
         });
       }
-      
-      // Efficacy-specific recommendations
-      if (answer.efficacyMetrics && answer.efficacyMetrics.primaryEndpointAchievement) {
-        const efficacyRate = parseFloat(answer.efficacyMetrics.primaryEndpointAchievement);
-        if (efficacyRate < 50) {
-          recommendations.push({
-            title: 'Efficacy Concern: Low Primary Endpoint Achievement',
-            description: `Primary endpoint achievement of ${efficacyRate}% is below investor threshold. Consider efficacy risk mitigation strategies.`,
-            priority: 'critical',
-            category: 'efficacy_risk',
-            impact: 'deal-breaker',
-            clinicalRiskScore: answer.clinicalRiskScore,
-            actionRequired: 'Detailed efficacy analysis and competitive benchmarking'
-          });
-        }
-      }
-      
-      // Safety-specific recommendations
-      if (answer.safetyProfile && answer.safetyProfile.adverseEventRate) {
-        const aeRate = parseFloat(answer.safetyProfile.adverseEventRate);
-        if (aeRate > 30) {
-          recommendations.push({
-            title: 'Safety Risk: High Adverse Event Rate',
-            description: `Adverse event rate of ${aeRate}% exceeds acceptable safety threshold. Safety risk assessment required.`,
-            priority: 'critical',
-            category: 'safety_risk',
-            impact: 'material',
-            clinicalRiskScore: answer.clinicalRiskScore,
-            actionRequired: 'Independent safety review and risk-benefit analysis'
-          });
-        }
-      }
-      
-      // Regulatory-specific recommendations
-      if (answer.regulatoryAssessment && answer.regulatoryAssessment.approvalProbability) {
-        const approvalProb = parseFloat(answer.regulatoryAssessment.approvalProbability);
-        if (approvalProb < 60) {
-          recommendations.push({
-            title: 'Regulatory Risk: Low Approval Probability',
-            description: `Regulatory approval probability of ${approvalProb}% indicates significant regulatory risk. Enhanced regulatory strategy required.`,
-            priority: 'high',
-            category: 'regulatory_risk',
-            impact: 'material',
-            clinicalRiskScore: answer.clinicalRiskScore,
-            actionRequired: 'Regulatory consultant engagement and pathway optimization'
-          });
-        }
-      }
-    }
-    
-    // Overall portfolio-level recommendations based on aggregate risk
-    if (avgRiskScore >= 7) {
-      recommendations.push({
-        title: 'Portfolio Risk Alert: High Clinical Risk Profile',
-        description: `Average clinical risk score of ${avgRiskScore.toFixed(1)}/10 indicates significant investment risk. Comprehensive risk mitigation strategy required.`,
-        priority: 'critical',
-        category: 'portfolio_risk',
-        impact: 'deal-breaker',
-        clinicalRiskScore: avgRiskScore,
-        actionRequired: 'Executive review and enhanced due diligence',
-        timeframe: 'immediate'
-      });
     }
     
     return recommendations;
@@ -950,17 +688,11 @@ Respond in JSON format with ULTRA-COMPREHENSIVE clinical intelligence (minimum 5
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      clinical_answers: clinicalAnswers, // FIXED: Store as object like Research agent (not JSON string)
+      clinicalAnswers: JSON.stringify(clinicalAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
-    // DIAGNOSTIC: Log what we're actually saving
-    console.log(`🔍 DIAGNOSTIC: Clinical answers being saved:`);
-    for (const [questionId, answer] of Object.entries(clinicalAnswers)) {
-      console.log(`  ${questionId}: "${answer.answer?.substring(0, 60)}..."`);
-    }
     
     await db
       .insert(agentAnalyses)

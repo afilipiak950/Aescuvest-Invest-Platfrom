@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
+import OpenAI from 'openai';
 import { storage } from '../storage';
 import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
 import { openaiQuotaManager } from './openaiQuotaManager';
 import { getMemoFallback } from './memoFallbackContent';
-import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface ComprehensiveMemoData {
   dealId: number;
@@ -145,488 +147,247 @@ class InvestmentMemoService {
   }
 
   private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
-    console.log(`🚀 Generating optimized memo sections for ${data.companyName} with concurrency limits`);
+    console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
 
-    // Prepare comprehensive context using OPTIMIZED extraction system
+    // Prepare comprehensive context using COMPLETE OCR extraction system
     const context = await this.prepareComprehensiveAnalysisContext(data);
     
-    // OPTIMIZED: Generate sections with concurrency limits (3 concurrent calls max)
-    // Split into strategic batches to prevent timeout and quota issues
-    console.log(`⏱️ Processing memo sections in batches with 3 concurrent calls...`);
-    
-    // Batch 1: Core business sections (most important first)
-    const batch1 = await this.processSectionBatch([
-      { key: 'executiveSummary', fn: () => this.generateExecutiveSummary(context) },
-      { key: 'investmentHighlights', fn: () => this.generateInvestmentHighlights(context) },
-      { key: 'marketAnalysis', fn: () => this.generateMarketAnalysis(context) }
+    // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
+    const [
+      coverPage,
+      executiveSummary,
+      investmentHighlights,
+      swotAnalysis,
+      marketAnalysis,
+      tamSamSomAnalysis,
+      competitiveAnalysis,
+      technologyAssessment,
+      productAnalysis,
+      businessModel,
+      commercialStrategy,
+      teamAssessment,
+      managementAnalysis,
+      financialAnalysis,
+      financialProjections,
+      valuationAnalysis,
+      legalAssessment,
+      regulatoryAnalysis,
+      clinicalAssessment,
+      ipAnalysis,
+      researchInsights,
+      riskAssessment,
+      mitigationStrategies,
+      investmentTerms,
+      exitStrategy,
+      recommendation,
+      appendices
+    ] = await Promise.all([
+      this.generateCoverPage(data),
+      this.generateExecutiveSummary(context),
+      this.generateInvestmentHighlights(context),
+      this.generateSWOTAnalysis(context),
+      this.generateMarketAnalysis(context),
+      this.generateTAMSAMSOMAnalysis(context),
+      this.generateCompetitiveAnalysis(context),
+      this.generateTechnologyAssessment(context),
+      this.generateProductAnalysis(context),
+      this.generateBusinessModel(context),
+      this.generateCommercialStrategy(context),
+      this.generateTeamAssessment(context),
+      this.generateManagementAnalysis(context),
+      this.generateFinancialAnalysis(context),
+      this.generateFinancialProjections(context),
+      this.generateValuationAnalysis(context),
+      this.generateLegalAssessment(context),
+      this.generateRegulatoryAnalysis(context),
+      this.generateClinicalAssessment(context),
+      this.generateIPAnalysis(context),
+      this.generateResearchInsights(context),
+      this.generateRiskAssessment(context),
+      this.generateMitigationStrategies(context),
+      this.generateInvestmentTerms(context),
+      this.generateExitStrategy(context),
+      this.generateRecommendation(context),
+      this.generateAppendices(data)
     ]);
-    
-    // Batch 2: Financial and business model
-    const batch2 = await this.processSectionBatch([
-      { key: 'financialAnalysis', fn: () => this.generateFinancialAnalysis(context) },
-      { key: 'businessModel', fn: () => this.generateBusinessModel(context) },
-      { key: 'productAnalysis', fn: () => this.generateProductAnalysis(context) }
-    ]);
-    
-    // Batch 3: Team and strategic analysis  
-    const batch3 = await this.processSectionBatch([
-      { key: 'teamAssessment', fn: () => this.generateTeamAssessment(context) },
-      { key: 'swotAnalysis', fn: () => this.generateSWOTAnalysis(context) },
-      { key: 'competitiveAnalysis', fn: () => this.generateCompetitiveAnalysis(context) }
-    ]);
-    
-    // Batch 4: Risk and legal assessment
-    const batch4 = await this.processSectionBatch([
-      { key: 'riskAssessment', fn: () => this.generateRiskAssessment(context) },
-      { key: 'legalAssessment', fn: () => this.generateLegalAssessment(context) },
-      { key: 'recommendation', fn: () => this.generateRecommendation(context) }
-    ]);
-    
-    // Batch 5: Extended analysis sections
-    const batch5 = await this.processSectionBatch([
-      { key: 'tamSamSomAnalysis', fn: () => this.generateTAMSAMSOMAnalysis(context) },
-      { key: 'technologyAssessment', fn: () => this.generateTechnologyAssessment(context) },
-      { key: 'commercialStrategy', fn: () => this.generateCommercialStrategy(context) }
-    ]);
-    
-    // Batch 6: Specialized assessments
-    const batch6 = await this.processSectionBatch([
-      { key: 'managementAnalysis', fn: () => this.generateManagementAnalysis(context) },
-      { key: 'regulatoryAnalysis', fn: () => this.generateRegulatoryAnalysis(context) },
-      { key: 'clinicalAssessment', fn: () => this.generateClinicalAssessment(context) }
-    ]);
-    
-    // Batch 7: Final sections and projections
-    const batch7 = await this.processSectionBatch([
-      { key: 'financialProjections', fn: () => this.generateFinancialProjections(context) },
-      { key: 'valuationAnalysis', fn: () => this.generateValuationAnalysis(context) },
-      { key: 'ipAnalysis', fn: () => this.generateIPAnalysis(context) }
-    ]);
-    
-    // Batch 8: Closing sections
-    const batch8 = await this.processSectionBatch([
-      { key: 'researchInsights', fn: () => this.generateResearchInsights(context) },
-      { key: 'mitigationStrategies', fn: () => this.generateMitigationStrategies(context) },
-      { key: 'investmentTerms', fn: () => this.generateInvestmentTerms(context) }
-    ]);
-    
-    // Batch 9: Final sections (less AI-intensive)
-    const batch9 = await this.processSectionBatch([
-      { key: 'exitStrategy', fn: () => this.generateExitStrategy(context) },
-      { key: 'coverPage', fn: () => this.generateCoverPage(data) },
-      { key: 'appendices', fn: () => this.generateAppendices(data) }
-    ]);
-    
-    // Combine all batched results
-    const allResults = { ...batch1, ...batch2, ...batch3, ...batch4, ...batch5, ...batch6, ...batch7, ...batch8, ...batch9 };
-    
-    console.log(`✅ Memo generation completed with optimized batching for ${data.companyName}`);
 
     return {
-      coverPage: allResults.coverPage,
-      executiveSummary: allResults.executiveSummary,
-      investmentHighlights: allResults.investmentHighlights,
-      swotAnalysis: allResults.swotAnalysis,
-      marketAnalysis: allResults.marketAnalysis,
-      tamSamSomAnalysis: allResults.tamSamSomAnalysis,
-      competitiveAnalysis: allResults.competitiveAnalysis,
-      technologyAssessment: allResults.technologyAssessment,
-      productAnalysis: allResults.productAnalysis,
-      businessModel: allResults.businessModel,
-      commercialStrategy: allResults.commercialStrategy,
-      teamAssessment: allResults.teamAssessment,
-      managementAnalysis: allResults.managementAnalysis,
-      financialAnalysis: allResults.financialAnalysis,
-      financialProjections: allResults.financialProjections,
-      valuationAnalysis: allResults.valuationAnalysis,
-      legalAssessment: allResults.legalAssessment,
-      regulatoryAnalysis: allResults.regulatoryAnalysis,
-      clinicalAssessment: allResults.clinicalAssessment,
-      ipAnalysis: allResults.ipAnalysis,
-      researchInsights: allResults.researchInsights,
-      riskAssessment: allResults.riskAssessment,
-      mitigationStrategies: allResults.mitigationStrategies,
-      investmentTerms: allResults.investmentTerms,
-      exitStrategy: allResults.exitStrategy,
-      recommendation: allResults.recommendation,
-      appendices: allResults.appendices
+      coverPage,
+      executiveSummary,
+      investmentHighlights,
+      swotAnalysis,
+      marketAnalysis,
+      tamSamSomAnalysis,
+      competitiveAnalysis,
+      technologyAssessment,
+      productAnalysis,
+      businessModel,
+      commercialStrategy,
+      teamAssessment,
+      managementAnalysis,
+      financialAnalysis,
+      financialProjections,
+      valuationAnalysis,
+      legalAssessment,
+      regulatoryAnalysis,
+      clinicalAssessment,
+      ipAnalysis,
+      researchInsights,
+      riskAssessment,
+      mitigationStrategies,
+      investmentTerms,
+      exitStrategy,
+      recommendation,
+      appendices
     };
   }
 
   /**
-   * Process a batch of sections with concurrency limits (3 max concurrent calls)
-   * This prevents API timeouts and quota issues from unbounded parallelism
-   */
-  private async processSectionBatch(sections: Array<{ key: string; fn: () => Promise<any> }>): Promise<Record<string, any>> {
-    const CONCURRENCY_LIMIT = 3;
-    const results: Record<string, any> = {};
-    
-    console.log(`🔄 Processing batch of ${sections.length} sections with ${CONCURRENCY_LIMIT} concurrent calls`);
-    
-    // Process sections in chunks of CONCURRENCY_LIMIT
-    for (let i = 0; i < sections.length; i += CONCURRENCY_LIMIT) {
-      const chunk = sections.slice(i, i + CONCURRENCY_LIMIT);
-      const chunkStart = Date.now();
-      
-      console.log(`⏳ Processing chunk ${Math.floor(i/CONCURRENCY_LIMIT) + 1}: ${chunk.map(s => s.key).join(', ')}`);
-      
-      // Execute chunk with limited concurrency
-      const chunkPromises = chunk.map(async (section) => {
-        try {
-          const result = await section.fn();
-          return { key: section.key, result, success: true };
-        } catch (error) {
-          console.error(`❌ Error generating ${section.key}:`, error);
-          // Return typed fallbacks matching InvestmentMemoSections interface
-          const fallback = this.getTypedSectionFallback(section.key, error);
-          return { key: section.key, result: fallback, success: false };
-        }
-      });
-      
-      const chunkResults = await Promise.all(chunkPromises);
-      
-      // Store results and track failures
-      chunkResults.forEach(({ key, result, success }) => {
-        results[key] = result;
-        if (!success) {
-          console.warn(`⚠️ Section ${key} failed - using typed fallback`);
-        }
-      });
-      
-      const chunkDuration = Date.now() - chunkStart;
-      const failedSections = chunkResults.filter(r => !r.success).map(r => r.key);
-      if (failedSections.length > 0) {
-        console.log(`✅ Chunk completed in ${chunkDuration}ms with ${failedSections.length} failures: ${failedSections.join(', ')}`);
-      } else {
-        console.log(`✅ Chunk completed in ${chunkDuration}ms: ${chunk.map(s => s.key).join(', ')}`);
-      }
-    }
-    
-    return results;
-  }
-  
-  /**
-   * Returns typed fallbacks matching InvestmentMemoSections interface EXACTLY
-   * Ensures production safety when sections fail to generate
-   */
-  private getTypedSectionFallback(sectionKey: string, error: any): any {
-    const errorMsg = `[Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}]`;
-    
-    // Return proper types matching InvestmentMemoSections interface EXACTLY
-    switch (sectionKey) {
-      case 'investmentHighlights':
-        return [errorMsg];
-      
-      case 'swotAnalysis':
-        return {
-          strengths: [errorMsg],
-          weaknesses: [errorMsg], 
-          opportunities: [errorMsg],
-          threats: [errorMsg]
-        };
-      
-      case 'marketAnalysis':
-        return {
-          marketContext: errorMsg,
-          marketSize: {
-            tam: errorMsg,
-            sam: errorMsg,
-            som: errorMsg
-          },
-          competitiveLandscape: errorMsg,
-          marketTiming: errorMsg
-        };
-      
-      case 'productAnalysis': 
-        return {
-          productOverview: errorMsg,
-          technologyAdvantage: errorMsg,
-          competitiveEdge: errorMsg,
-          developmentStage: errorMsg
-        };
-      
-      case 'teamAssessment':
-        return {
-          management: errorMsg,
-          keyPersonnel: [errorMsg],
-          advisors: errorMsg,
-          boardComposition: errorMsg
-        };
-      
-      case 'financialAnalysis':
-        return {
-          currentFinancials: errorMsg,
-          projections: errorMsg,
-          fundingHistory: errorMsg,
-          useOfFunds: errorMsg
-        };
-      
-      case 'legalAssessment':
-        return {
-          corporateStructure: errorMsg,
-          ipProtection: errorMsg,
-          regulatoryCompliance: errorMsg,
-          contractualObligations: errorMsg
-        };
-      
-      case 'riskAssessment':
-        return {
-          technicalRisks: [errorMsg],
-          marketRisks: [errorMsg], 
-          competitiveRisks: [errorMsg],
-          regulatoryRisks: [errorMsg],
-          managementRisks: [errorMsg]
-        };
-      
-      case 'businessModel':
-        return {
-          revenueModel: errorMsg,
-          pricingStrategy: errorMsg,
-          salesChannels: errorMsg,
-          customerAcquisition: errorMsg
-        };
-      
-      case 'investmentTerms':
-        return {
-          valuation: errorMsg,
-          fundingAmount: errorMsg,
-          securities: errorMsg,
-          boardRights: errorMsg,
-          liquidationPreference: errorMsg
-        };
-      
-      case 'recommendation':
-        return {
-          investment_recommendation: errorMsg,
-          rationale: errorMsg,
-          keyMilestones: [errorMsg],
-          exitStrategy: errorMsg
-        };
-      
-      // String sections (coverPage, executiveSummary, etc.)
-      default:
-        return errorMsg;
-    }
-  }
-
-  /**
-   * OPTIMIZED: Smart document filtering and token-budgeted context extraction
-   * Filters documents by relevance and creates efficient, section-specific contexts
-   */
-  private filterAndPrioritizeDocuments(documents: any[]): any[] {
-    console.log(`🔍 Processing ALL ${documents.length} documents for comprehensive analysis`);
-    
-    // COMPREHENSIVE: Use ALL documents with valid content, no arbitrary limits
-    const validDocuments = documents.filter(doc => {
-      const name = doc.name?.toLowerCase() || '';
-      const path = doc.path?.toLowerCase() || '';
-      
-      // Only exclude truly obsolete files (keep drafts as they may contain important info)
-      if (path.includes('obsolete') || path.includes('/old/') || path.includes('backup')) {
-        console.log(`⚠️ Excluding obsolete file: ${doc.name}`);
-        return false;
-      }
-      
-      // Include document if it has OCR text OR AI summary (use everything available)
-      const hasOCR = doc.ocrText && doc.ocrText.trim().length > 0;
-      const hasSummary = doc.aiSummary && doc.aiSummary.length > 0;
-      
-      if (!hasOCR && !hasSummary) {
-        console.log(`⚠️ Skipping ${doc.name}: No OCR text or AI summary available`);
-        return false;
-      }
-      
-      return true;
-    });
-    
-    // Prioritize by document type for better organization (but keep ALL documents)
-    const prioritized = validDocuments.sort((a, b) => {
-      const aName = a.name?.toLowerCase() || '';
-      const bName = b.name?.toLowerCase() || '';
-      
-      // Executive/summary documents first
-      if (aName.includes('executive') || aName.includes('summary')) return -1;
-      if (bName.includes('executive') || bName.includes('summary')) return 1;
-      
-      // Financial documents high priority
-      if (aName.includes('financial') || aName.includes('forecast')) return -1;
-      if (bName.includes('financial') || bName.includes('forecast')) return 1;
-      
-      // Agreements and final documents
-      if (aName.includes('agreement') || aName.includes('executed') || aName.includes('signed')) return -1;
-      if (bName.includes('agreement') || bName.includes('executed') || bName.includes('signed')) return 1;
-      
-      return 0;
-    });
-    
-    // NO LIMIT - USE ALL VALID DOCUMENTS FOR COMPREHENSIVE ANALYSIS
-    console.log(`✅ Using ALL ${prioritized.length} documents with valid content (from ${documents.length} total)`);
-    console.log(`📊 Document coverage: ${((prioritized.length / documents.length) * 100).toFixed(1)}% of all documents have usable content`);
-    
-    return prioritized; // Return ALL valid documents, not just 50!
-  }
-  
-  /**
-   * OPTIMIZED: Section-specific context retrieval with token budgets
-   * Replaces massive context extraction with smart, targeted retrieval
-   */
-  private getSectionContext(documents: any[], agentAnalyses: any[], sectionKey: string, maxTokens: number = 3333): string {
-    const sectionKeywords = this.getSectionKeywords(sectionKey);
-    const targetChars = maxTokens * 4; // Rough token-to-char conversion
-    
-    console.log(`📊 Getting optimized context for ${sectionKey} (max ${maxTokens} tokens, ~${targetChars} chars)`);
-    
-    // Get relevant chunks from documents and analyses
-    const chunks: { content: string; score: number; source: string }[] = [];
-    
-    // Extract from agent analyses (high priority)
-    agentAnalyses.forEach(analysis => {
-      const content = this.extractAnalysisContent(analysis);
-      if (content.length > 100) {
-        const score = this.scoreRelevance(content, sectionKeywords);
-        if (score > 0.3) {
-          chunks.push({ content: content.substring(0, 1000), score: score + 0.5, source: `${analysis.agentType} Analysis` });
-        }
-      }
-    });
-    
-    // Extract from filtered documents
-    documents.forEach(doc => {
-      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
-      if (ocrText && typeof ocrText === 'string') {
-        // Split into smaller chunks for better relevance scoring
-        const docChunks = this.chunkText(ocrText, 800);
-        docChunks.forEach(chunk => {
-          const score = this.scoreRelevance(chunk, sectionKeywords);
-          if (score > 0.2) {
-            chunks.push({ content: chunk, score, source: doc.name });
-          }
-        });
-      }
-    });
-    
-    // Sort by relevance and build context within token budget
-    chunks.sort((a, b) => b.score - a.score);
-    
-    let context = '';
-    let currentLength = 0;
-    const usedSources = new Set<string>();
-    
-    for (const chunk of chunks) {
-      if (currentLength + chunk.content.length > targetChars) break;
-      
-      // Avoid duplicate content from same source
-      if (!usedSources.has(chunk.source + chunk.content.substring(0, 50))) {
-        context += `\n=== ${chunk.source} ===\n${chunk.content}\n`;
-        currentLength += chunk.content.length;
-        usedSources.add(chunk.source + chunk.content.substring(0, 50));
-      }
-    }
-    
-    console.log(`✅ Built ${sectionKey} context: ${context.length} chars from ${usedSources.size} sources`);
-    return context;
-  }
-  
-  private getSectionKeywords(sectionKey: string): string[] {
-    const keywordMap: { [key: string]: string[] } = {
-      'executiveSummary': ['executive', 'summary', 'overview', 'company', 'business', 'opportunity'],
-      'marketAnalysis': ['market', 'competitive', 'industry', 'TAM', 'SAM', 'SOM', 'customer', 'segment'],
-      'financialAnalysis': ['revenue', 'financial', 'projection', 'funding', 'valuation', 'growth'],
-      'productAnalysis': ['product', 'technology', 'platform', 'technical', 'innovation', 'development'],
-      'teamAssessment': ['management', 'team', 'CEO', 'CTO', 'executive', 'leadership', 'founder'],
-      'riskAssessment': ['risk', 'challenge', 'regulatory', 'competitive', 'technical', 'barrier'],
-      'legalAssessment': ['legal', 'IP', 'patent', 'regulatory', 'compliance', 'agreement']
-    };
-    
-    return keywordMap[sectionKey] || ['investment', 'analysis', 'assessment'];
-  }
-  
-  private scoreRelevance(text: string, keywords: string[]): number {
-    const lowerText = text.toLowerCase();
-    let score = 0;
-    
-    keywords.forEach(keyword => {
-      const count = (lowerText.match(new RegExp(keyword.toLowerCase(), 'g')) || []).length;
-      score += count * (1 / text.length) * 1000; // Normalize by text length
-    });
-    
-    return Math.min(score, 1); // Cap at 1
-  }
-  
-  private chunkText(text: string, chunkSize: number): string[] {
-    const chunks: string[] = [];
-    for (let i = 0; i < text.length; i += chunkSize) {
-      chunks.push(text.substring(i, i + chunkSize));
-    }
-    return chunks;
-  }
-  
-  /**
-   * OPTIMIZED: Compact context preparation using new filtering and token-budgeted retrieval
-   * Replaces massive 8.4M character processing with smart, efficient context building
+   * MULTI-PASS COMPREHENSIVE DATA EXTRACTION - Uses ALL documents, every line of OCR text, and all agent analyses
+   * This method processes documents in multiple passes to ensure maximum information extraction
    */
   private async prepareComprehensiveAnalysisContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`🚀 Starting COMPREHENSIVE context preparation for ${data.companyName}`);
+    console.log(`🔍 Starting MULTI-PASS extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
     
-    // USE ALL DOCUMENTS - No arbitrary filtering!
-    const allDocuments = this.filterAndPrioritizeDocuments(data.documents);
+    // First pass: Extract and log all OCR content lengths
+    let totalOcrLength = 0;
+    const documentOcrLengths: number[] = [];
     
-    // EXPANDED: All sections for comprehensive coverage
-    const sections = [
-      'executiveSummary', 'marketAnalysis', 'financialAnalysis', 'productAnalysis', 
-      'teamAssessment', 'riskAssessment', 'legalAssessment', 'clinicalAssessment',
-      'ipAnalysis', 'commercialStrategy', 'regulatoryAnalysis', 'competitiveAnalysis',
-      'technologyAssessment', 'businessModel', 'investmentHighlights'
-    ];
+    data.documents.forEach((doc, index) => {
+      // Fix field mapping: database uses snake_case but code expects camelCase
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
+        const ocrLength = ocrText.length;
+        documentOcrLengths.push(ocrLength);
+        totalOcrLength += ocrLength;
+        console.log(`📄 Document ${index + 1} (${doc.name}): ${ocrLength.toLocaleString()} characters of OCR text`);
+      } else {
+        documentOcrLengths.push(0);
+        console.log(`📄 Document ${index + 1} (${doc.name}): No OCR text available - Field check: ocrText=${!!doc.ocrText}, ocr_text=${!!doc.ocr_text}, type=${typeof doc.ocrText}`);
+      }
+    });
     
-    // MASSIVELY INCREASED BUDGET: 50,000 tokens (~200k characters) for comprehensive analysis
-    const totalBudget = 50000; // 8x increase from 6000!
-    const budgetPer = Math.floor(totalBudget / sections.length); // ~3333 tokens per section
+    console.log(`📊 TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters across ${data.documents.length} documents`);
     
-    console.log(`📊 Building COMPREHENSIVE context: ${allDocuments.length} docs, ${sections.length} sections, ${budgetPer} tokens each`);
-    console.log(`📈 Using ${((allDocuments.length / data.documents.length) * 100).toFixed(1)}% of all documents`);
-    
-    // Build comprehensive context with ALL available data
-    let context = `COMPREHENSIVE INVESTMENT ANALYSIS CONTEXT FOR ${data.companyName}\n`;
-    context += `===============================================\n`;
-    context += `TOTAL DOCUMENTS ANALYZED: ${allDocuments.length} of ${data.documents.length}\n`;
-    context += `AGENT ANALYSES INCLUDED: ${data.agentAnalyses.length}\n`;
-    context += `CONTEXT SIZE: Up to ${totalBudget} tokens (~${(totalBudget * 4 / 1000).toFixed(0)}k characters)\n`;
-    context += `===============================================\n\n`;
-    
-    // Include ALL agent analyses comprehensively
-    if (data.agentAnalyses.length > 0) {
-      context += `=== COMPREHENSIVE AGENT ANALYSES ===\n`;
-      data.agentAnalyses.forEach(analysis => {
-        context += `\n[${analysis.agentType.toUpperCase()} AGENT ANALYSIS]\n`;
-        context += `Status: ${analysis.status}\n`;
+    // Build comprehensive context with ALL content
+    let context = `
+COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
+=========================================================
+TOTAL OCR CONTENT: ${totalOcrLength.toLocaleString()} characters
+TOTAL DOCUMENTS: ${data.documents.length}
+TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
+=========================================================
+
+=== COMPLETE DOCUMENT OCR CONTENT - ALL ${data.documents.length} DOCUMENTS ===
+`;
+
+    // Second pass: Include COMPLETE OCR content from ALL documents
+    data.documents.forEach((doc, index) => {
+      // Fix field mapping: database uses snake_case but code expects camelCase
+      const ocrText = doc.ocrText || doc.ocr_text || doc['ocr_text'];
+      if (ocrText && typeof ocrText === 'string' && ocrText.trim().length > 100) {
+        context += `
+
+>>>>>>> DOCUMENT ${index + 1}: ${doc.name} <<<<<<<
+OCR LENGTH: ${ocrText.length.toLocaleString()} characters
+FILE TYPE: ${doc.contentType || doc.content_type || doc.type || 'Unknown'}
+
+COMPLETE OCR CONTENT:
+${ocrText}
+
+`;
         
-        // Include all agent findings and recommendations
-        if (analysis.findings) {
-          context += `Findings: ${JSON.stringify(analysis.findings, null, 2)}\n`;
-        }
-        if (analysis.recommendations) {
-          context += `Recommendations: ${JSON.stringify(analysis.recommendations, null, 2)}\n`;
-        }
-        
-        // Include all agent-specific answers
-        ['legalAnswers', 'clinicalAnswers', 'commercialAnswers', 'financialAnswers', 'ipAnswers', 'hrAnswers', 'researchAnswers'].forEach(field => {
-          if (analysis[field]) {
-            context += `${field}: ${JSON.stringify(analysis[field], null, 2)}\n`;
+        // Also include AI summary if available
+        if (doc.aiSummary) {
+          try {
+            let summaryText = '';
+            if (typeof doc.aiSummary === 'string') {
+              summaryText = doc.aiSummary;
+            } else if (typeof doc.aiSummary === 'object') {
+              if (doc.aiSummary.executiveSummary) summaryText += `EXECUTIVE SUMMARY: ${doc.aiSummary.executiveSummary}\n`;
+              if (doc.aiSummary.criticalFindings) summaryText += `CRITICAL FINDINGS: ${Array.isArray(doc.aiSummary.criticalFindings) ? doc.aiSummary.criticalFindings.join('\n') : doc.aiSummary.criticalFindings}\n`;
+              if (doc.aiSummary.keyFinancialData) summaryText += `FINANCIAL DATA: ${Array.isArray(doc.aiSummary.keyFinancialData) ? doc.aiSummary.keyFinancialData.join('\n') : doc.aiSummary.keyFinancialData}\n`;
+              if (doc.aiSummary.strategicImplications) summaryText += `STRATEGIC IMPLICATIONS: ${doc.aiSummary.strategicImplications}\n`;
+            }
+            if (summaryText.trim().length > 50) {
+              context += `AI ANALYSIS SUMMARY:
+${summaryText}
+
+`;
+            }
+          } catch (e) {
+            console.warn(`Error extracting AI summary for document ${index + 1}:`, e);
           }
+        }
+        
+        context += `======================================\n`;
+      }
+    });
+
+    // Third pass: Include ALL agent analysis content
+    context += `\n\n=== COMPLETE AGENT ANALYSES - ALL ${data.agentAnalyses.length} ANALYSES ===\n`;
+    
+    data.agentAnalyses.forEach(analysis => {
+      context += `\n>>>>>>> ${analysis.agentType.toUpperCase()} AGENT ANALYSIS <<<<<<<\n`;
+      context += `STATUS: ${analysis.status}\n`;
+      context += `FINDINGS COUNT: ${analysis.findings?.length || 0}\n`;
+      context += `RECOMMENDATIONS COUNT: ${analysis.recommendations?.length || 0}\n\n`;
+
+      // Extract COMPLETE analysis content for each agent type
+      const extractCompleteAnalysisContent = (answers: any, label: string) => {
+        if (!answers) return;
+        
+        try {
+          const data = typeof answers === 'string' ? JSON.parse(answers) : answers;
+          context += `${label} COMPLETE ANALYSIS:\n`;
+          
+          if (typeof data === 'object' && data !== null) {
+            Object.entries(data).forEach(([key, value]) => {
+              const content = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+              context += `${key.toUpperCase()}: ${content}\n\n`;
+            });
+          } else {
+            context += `${data}\n\n`;
+          }
+        } catch (e) {
+          if (answers) {
+            context += `${label} RAW CONTENT: ${answers.toString()}\n\n`;
+          }
+        }
+      };
+
+      // Extract COMPLETE content from all agent types (no truncation)
+      extractCompleteAnalysisContent(analysis.legalAnswers, 'LEGAL');
+      extractCompleteAnalysisContent(analysis.clinicalAnswers, 'CLINICAL');
+      extractCompleteAnalysisContent(analysis.commercialAnswers, 'COMMERCIAL');
+      extractCompleteAnalysisContent(analysis.hrAnswers, 'HR');
+      extractCompleteAnalysisContent(analysis.financialAnswers, 'FINANCIAL');
+      extractCompleteAnalysisContent(analysis.ipAnswers, 'IP');
+      extractCompleteAnalysisContent(analysis.researchAnswers, 'RESEARCH');
+
+      // Include ALL findings with complete content
+      if (analysis.findings && Array.isArray(analysis.findings)) {
+        context += `COMPLETE FINDINGS (${analysis.findings.length}):\n`;
+        analysis.findings.forEach((finding: any, index: number) => {
+          const content = typeof finding === 'string' ? finding : (finding.content || JSON.stringify(finding, null, 2));
+          context += `FINDING ${index + 1}: ${content}\n\n`;
         });
-      });
-      context += `\n===============================================\n`;
-    }
-    
-    // Generate comprehensive section-specific contexts with increased budgets
-    for (const sectionKey of sections) {
-      const sectionContext = this.getSectionContext(allDocuments, data.agentAnalyses, sectionKey, budgetPer);
-      context += `\n\n=== ${sectionKey.toUpperCase()} COMPREHENSIVE CONTEXT ===\n${sectionContext}`;
-    }
-    
-    console.log(`✅ COMPREHENSIVE context built: ${context.length.toLocaleString()} characters (target: ~${(totalBudget * 4 / 1000).toFixed(0)}k)`);
-    console.log(`📊 Context includes: ${allDocuments.length} documents + ${data.agentAnalyses.length} agent analyses`);
+      }
+      
+      // Include ALL recommendations with complete content  
+      if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
+        context += `COMPLETE RECOMMENDATIONS (${analysis.recommendations.length}):\n`;
+        analysis.recommendations.forEach((rec: any, index: number) => {
+          const content = typeof rec === 'string' ? rec : (rec.content || rec.description || JSON.stringify(rec, null, 2));
+          context += `RECOMMENDATION ${index + 1}: ${content}\n\n`;
+        });
+      }
+      
+      context += `=======================================\n`;
+    });
+
+    const finalContextLength = context.length;
+    console.log(`📊 FINAL CONTEXT LENGTH: ${finalContextLength.toLocaleString()} characters for comprehensive analysis`);
     
     return context;
   }
@@ -639,60 +400,12 @@ class InvestmentMemoService {
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
     
-    const config: UltraIntelligentConfig = {
-      domain: 'financial',
-      complexity: 'ultra',
-      speedPriority: 'quality',
-      qualityThreshold: 0.95,
-      maxTokens: 16384
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{
-      role: "system",
-      content: `You are a world-class investment analyst specializing in comprehensive company information extraction.
-      
-Your task is to analyze all provided data sources and extract detailed company information for: ${data.companyName}
-
-Sources to analyze:
-- Document OCR content (${totalOcrChars.toLocaleString()} characters)
-- Agent analyses (Legal, Clinical, Commercial, Financial, Research)
-- Company research data
-- AI evaluation results
-
-Extract comprehensive information about:
-1. Company overview and business model
-2. Products/services and technology
-3. Market positioning and competitive advantage
-4. Financial performance and projections
-5. Leadership team and governance
-6. Risk factors and challenges
-7. Growth strategy and expansion plans
-8. Regulatory and compliance status
-9. Intellectual property and patents
-10. Partnership and customer relationships
-
-Be thorough and specific. Include exact figures, dates, names, and quotes when available.
-If information is not available in the sources, explicitly state "Information not available in provided documents."`
-    }, {
-      role: "user", 
-      content: fullContext
-    }], config);
-
-    return response.content;
-  }
-
-  private async generateCoverPageFromCompanyInfo(data: ComprehensiveMemoData, companyInfo: string): Promise<string> {
-    const config: UltraIntelligentConfig = {
-      domain: 'financial',
-      complexity: 'ultra',
-      speedPriority: 'quality',
-      qualityThreshold: 0.95,
-      maxTokens: 16384
-    };
-
-    const response = await ultraIntelligentAI.createUltraIntelligentCompletion([{
-      role: "system",
-      content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
+    return await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
 
 LEFT COLUMN - "The Company":
 - Headquarters: [Extract exact address from documents]
@@ -717,16 +430,23 @@ CRITICAL REQUIREMENTS:
 6. Include investment-specific language (liquidation preferences, board rights, etc.)
 
 Format as professional markdown with clear headers and bullet points.`
-    }, {
-      role: "user",
-      content: `Generate comprehensive cover page for ${data.companyName} investment memo.
+        }, {
+          role: "user",
+          content: `Generate comprehensive cover page for ${data.companyName} investment memo.
 
 Use this extracted company information:
 
 ${companyInfo}`
-    }], config);
-
-    return response.content;
+        }],
+        temperature: 0.2,
+        max_tokens: 2500
+      }).then(response => response.choices[0].message.content || ''),
+      {
+        description: 'Cover Page Generation',
+        priority: 'high',
+        fallbackContent: getMemoFallback('coverPage', data.companyName)
+      }
+    ) as Promise<string>;
   }
 
   private async extractComprehensiveCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
@@ -788,41 +508,26 @@ ${companyInfo}`
       
       let batchContent = '';
       batch.forEach((doc, index) => {
-        batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
-        
-        // PRIORITY 1: Use FULL OCR TEXT (most comprehensive data source)
-        if (doc.ocrText && doc.ocrText.trim().length > 0) {
-          const ocrLength = doc.ocrText.length;
-          console.log(`📄 Using OCR text for ${doc.name}: ${ocrLength.toLocaleString()} characters`);
-          
-          // Include FULL OCR text for maximum information extraction
-          batchContent += `FULL OCR TEXT (${ocrLength} chars):\n${doc.ocrText}\n`;
-        }
-        
-        // PRIORITY 2: Also include AI Summary for additional insights
+        // Use AI summary as primary content source (OCR text field not available)
         if (doc.aiSummary) {
+          batchContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
           try {
             const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary, null, 2);
-            batchContent += `\nAI SUMMARY ANALYSIS:\n${summary}\n`;
+            batchContent += `AI SUMMARY CONTENT (${summary.length} chars):\n${summary}\n`;
+            
+            // Add additional document metadata
+            if (doc.documentType) {
+              batchContent += `DOCUMENT TYPE: ${doc.documentType}\n`;
+            }
+            if (doc.category) {
+              batchContent += `CATEGORY: ${doc.category}\n`;
+            }
           } catch (e) {
             console.warn(`Error extracting AI summary for ${doc.name}:`, e);
+            batchContent += `AI SUMMARY: ${String(doc.aiSummary)}\n`;
           }
+          batchContent += `\n`;
         }
-        
-        // PRIORITY 3: Include document metadata for context
-        if (doc.documentType) {
-          batchContent += `DOCUMENT TYPE: ${doc.documentType}\n`;
-        }
-        if (doc.category) {
-          batchContent += `CATEGORY: ${doc.category}\n`;
-        }
-        
-        // Log if document has no useful content
-        if ((!doc.ocrText || doc.ocrText.trim().length === 0) && !doc.aiSummary) {
-          console.warn(`⚠️ Document ${doc.name} has no OCR text or AI summary - skipping`);
-        }
-        
-        batchContent += `\n`;
       });
       
       if (batchContent.trim().length > 100) {
@@ -998,57 +703,13 @@ Format as JSON object with "highlights" array of detailed strings.`
     return result.highlights || [];
   }
 
-  // Generate SWOT analysis only and update existing memo
-  async generateSWOTOnly(dealId: number): Promise<InvestmentMemoSections['swotAnalysis']> {
-    console.log(`🎯 Starting SWOT-only generation for deal ${dealId}`);
-    
-    try {
-      // Get comprehensive deal data
-      const data = await this.gatherComprehensiveDataWithFullOCR(dealId);
-      
-      // Prepare analysis context
-      const context = await this.prepareComprehensiveAnalysisContext(data);
-      
-      // Generate SWOT analysis
-      const swotAnalysis = await this.generateSWOTAnalysis(context);
-      
-      // Update existing memo with SWOT analysis
-      const existingMemo = await storage.getMemoByDealId(dealId);
-      if (existingMemo && existingMemo.memo) {
-        const updatedMemo = {
-          ...existingMemo.memo as any,
-          swotAnalysis
-        };
-        
-        await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
-        console.log(`✅ Updated existing memo ${existingMemo.id} with SWOT analysis`);
-      } else {
-        console.log(`⚠️ No existing memo found for deal ${dealId}, SWOT not saved to memo`);
-      }
-      
-      return swotAnalysis;
-    } catch (error) {
-      console.error(`❌ Error generating SWOT analysis for deal ${dealId}:`, error);
-      throw new Error(`Failed to generate SWOT analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
   private async generateSWOTAnalysis(context: string): Promise<InvestmentMemoSections['swotAnalysis']> {
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional SWOT analysis in STRICT JSON format only. Return a JSON object with exactly this structure:
-
-{
-  "strengths": ["specific strength 1", "specific strength 2", ...],
-  "weaknesses": ["specific weakness 1", "specific weakness 2", ...], 
-  "opportunities": ["specific opportunity 1", "specific opportunity 2", ...],
-  "threats": ["specific threat 1", "specific threat 2", ...]
-}
-
-**CONTENT REQUIREMENTS:**
+          content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
 
 **STRENGTHS** - Extract authentic competitive advantages:
 - IP position (specific patents, AI training data size)
@@ -1075,7 +736,7 @@ Format as JSON object with "highlights" array of detailed strings.`
 - Competitive threats and barriers
 - Technical or operational risks
 
-CRITICAL: Return ONLY the JSON object with no additional text, markdown, or formatting.`
+Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
         }, {
           role: "user",
           content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
@@ -1090,37 +751,13 @@ CRITICAL: Return ONLY the JSON object with no additional text, markdown, or form
       }
     ) as Promise<string>;
 
-    try {
-      const result = JSON.parse(await response);
-      
-      // Ensure arrays are clean and contain no error messages
-      const cleanArray = (arr: any): string[] => {
-        if (!Array.isArray(arr)) return [];
-        return arr.filter((item: any) => 
-          typeof item === 'string' && 
-          item.length > 0 && 
-          !item.includes('[Generation failed') &&
-          !item.includes('temporarily unavailable') &&
-          !item.includes('No information available')
-        );
-      };
-
-      return {
-        strengths: cleanArray(result.strengths),
-        weaknesses: cleanArray(result.weaknesses), 
-        opportunities: cleanArray(result.opportunities),
-        threats: cleanArray(result.threats)
-      };
-    } catch (parseError) {
-      console.error('❌ Failed to parse SWOT analysis JSON:', parseError);
-      // Return empty arrays on parsing failure to prevent error strings in UI
-      return {
-        strengths: [],
-        weaknesses: [],
-        opportunities: [],
-        threats: []
-      };
-    }
+    const result = JSON.parse(await response);
+    return {
+      strengths: result.strengths || [],
+      weaknesses: result.weaknesses || [],
+      opportunities: result.opportunities || [],
+      threats: result.threats || []
+    };
   }
 
   private async generateMarketAnalysis(context: string): Promise<InvestmentMemoSections['marketAnalysis']> {
@@ -2356,16 +1993,34 @@ ${fullContext.substring(0, 45000)}`
     return response.choices[0].message.content || '';
   }
 
-  // DEPRECATED: Replaced with optimized getSectionContext method
-  // This method is kept for backward compatibility but should not be used
+  // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
   private extractRelevantContext(fullContext: string, keywords: string[], maxLength: number): string {
-    console.warn('⚠️ Using deprecated extractRelevantContext - should use getSectionContext instead');
+    const sections: string[] = [];
+    const lowerContext = fullContext.toLowerCase();
+    const lowerKeywords = keywords.map(k => k.toLowerCase());
     
-    // Return a much smaller subset to avoid performance issues
-    const limitedContext = fullContext.substring(0, Math.min(maxLength, 6000));
-    console.log(`📊 Legacy context extraction: ${limitedContext.length} characters (limited for performance)`);
+    // Split context into chunks for processing
+    const chunkSize = 10000;
+    for (let i = 0; i < fullContext.length; i += chunkSize) {
+      const chunk = fullContext.substring(i, i + chunkSize);
+      const lowerChunk = chunk.toLowerCase();
+      
+      // Check if chunk contains any keywords
+      const hasKeywords = lowerKeywords.some(keyword => lowerChunk.includes(keyword));
+      
+      if (hasKeywords) {
+        // Expand context around keyword matches
+        const start = Math.max(0, i - 500);
+        const end = Math.min(fullContext.length, i + chunkSize + 500);
+        sections.push(fullContext.substring(start, end));
+      }
+    }
     
-    return limitedContext;
+    // Join and trim to max length
+    const relevantContext = sections.join('\n\n').substring(0, maxLength);
+    console.log(`📊 Context extraction: Found ${sections.length} relevant sections, total ${relevantContext.length} characters`);
+    
+    return relevantContext;
   }
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
@@ -2434,13 +2089,13 @@ ${fullContext.substring(0, 45000)}`
   }
 
   /**
-   * OPTIMIZED: Fast OCR extraction using existing database OCR text (NO API calls)
+   * NEW: Intelligent OCR extraction system that processes EVERY character of OCR text
    */
   private async prepareIntelligentOCRExtractionContext(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`⚡ FAST OCR extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses (using existing OCR)`);
+    console.log(`🔍 MULTI-PASS company information extraction from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
     
-    // OPTIMIZED: Extract from agent analyses (structured data)
-    console.log(`📊 Processing ${data.agentAnalyses.length} agent analyses`);
+    // PASS 1: Extract from agent analyses first (structured data)
+    console.log(`🔍 PASS 1: Extracting from ${data.agentAnalyses.length} agent analyses`);
     let agentContext = '';
     let totalAgentChars = 0;
     
@@ -2452,47 +2107,75 @@ ${fullContext.substring(0, 45000)}`
       }
     });
     
-    console.log(`📊 Processed ${data.agentAnalyses.length} agent analyses (${totalAgentChars.toLocaleString()} characters)`);
+    console.log(`🔍 Extracting from agent analyses (${totalAgentChars.toLocaleString()} characters)`);
 
-    // OPTIMIZED: Directly use existing OCR text from database (NO API calls)
-    console.log(`📄 Using existing OCR text from ${data.documents.length} documents`);
+    // PASS 2: Process ALL documents with OCR text in intelligent batches
+    console.log(`🔍 PASS 2: Processing ${data.documents.length} documents in 10 batches of 10`);
     const documentsWithOCR = data.documents.filter(doc => {
       const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
       return ocrText && typeof ocrText === 'string' && ocrText.length > 100;
     });
+    const totalBatches = Math.ceil(documentsWithOCR.length / 10);
+    console.log(`📄 Found ${documentsWithOCR.length} documents with substantial OCR content`);
     
-    let allOcrContent = '';
+    let allExtractions: string[] = [];
     let totalOcrChars = 0;
     
-    // Build OCR content directly from database (no batching or API calls needed)
-    documentsWithOCR.forEach((doc) => {
-      const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
-      if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
-        totalOcrChars += ocrText.length;
-        allOcrContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
-        allOcrContent += `${ocrText}\n`;
-        console.log(`📄 Using OCR text for ${doc.name}: ${ocrText.length.toLocaleString()} characters`);
-      }
-    });
-    
-    console.log(`✅ Fast OCR extraction completed for ${data.companyName}: ${totalOcrChars.toLocaleString()} characters processed instantly`);
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIndex = batchIndex * 10;
+      const endIndex = Math.min(startIndex + 10, documentsWithOCR.length);
+      const batch = documentsWithOCR.slice(startIndex, endIndex);
+      
+      console.log(`🔍 Processing batch ${batchIndex + 1}/${totalBatches}: documents ${startIndex + 1}-${endIndex}`);
+      
+      let batchOcrContent = '';
+      batch.forEach((doc) => {
+        // Handle both camelCase and snake_case field names
+        const ocrText = doc.ocrText || doc.ocr_text || (doc as any)['ocr_text'];
+        if (ocrText && typeof ocrText === 'string' && ocrText.length > 100) {
+          totalOcrChars += ocrText.length;
+          batchOcrContent += `\n=== DOCUMENT: ${doc.name} ===\n`;
+          batchOcrContent += `OCR CONTENT (${ocrText.length} chars):\n${ocrText}\n`;
+          console.log(`📄 Document ${doc.name}: ${ocrText.length.toLocaleString()} OCR characters`);
+        }
+      });
 
-    // Build final comprehensive context using existing OCR data
+      // Extract specific company information from this batch
+      if (batchOcrContent.length > 500) {
+        try {
+          const extraction = await this.extractCompanyDetailsFromBatch(batchOcrContent, data.companyName);
+          if (extraction && extraction.length > 200) {
+            allExtractions.push(extraction);
+          }
+        } catch (error) {
+          console.warn(`Batch ${batchIndex + 1} extraction failed:`, error);
+        }
+      }
+    }
+
+    // PASS 3: Synthesize all extractions into comprehensive company profile
+    console.log(`🔍 PASS 3: Synthesizing ${allExtractions.length} extraction results`);
+    const synthesizedProfile = await this.synthesizeCompanyProfile(allExtractions, data.companyName);
+    console.log(`✅ Multi-pass extraction completed for ${data.companyName} IM`);
+
+    // Build final comprehensive context
     const finalContext = `
 COMPREHENSIVE INVESTMENT ANALYSIS FOR ${data.companyName}
 =========================================================
-TOTAL OCR PROCESSED: ${totalOcrChars.toLocaleString()} characters (from existing database)
+TOTAL OCR PROCESSED: ${totalOcrChars.toLocaleString()} characters
 TOTAL DOCUMENTS: ${data.documents.length}
-TOTAL DOCUMENTS WITH OCR: ${documentsWithOCR.length}
 TOTAL AGENT ANALYSES: ${data.agentAnalyses.length}
-PROCESSING METHOD: Optimized (using existing OCR, no API calls)
+EXTRACTION PASSES: 3 (Agent Analyses → Document Batches → Synthesis)
 =========================================================
+
+=== SYNTHESIZED COMPANY PROFILE ===
+${synthesizedProfile}
 
 === AGENT ANALYSES SUMMARY ===
 ${agentContext}
 
-=== COMPREHENSIVE DOCUMENT OCR CONTENT ===
-${allOcrContent}
+=== EXTRACTED COMPANY INFORMATION ===
+${allExtractions.join('\n\n')}
 `;
 
     return finalContext;
@@ -2650,30 +2333,7 @@ Generate only the content for this specific section based on your custom enhance
       const existingMemo = await storage.getMemoByDealId(dealId);
       if (existingMemo) {
         const updatedMemo = { ...existingMemo.memo };
-        
-        // Special handling for structured sections to parse JSON
-        if (sectionKey === 'swotAnalysis' || sectionKey === 'legalAssessment') {
-          try {
-            // Extract JSON from code blocks and parse it
-            const jsonMatch = regeneratedContent.match(/```json\n([\s\S]*?)\n```/);
-            if (jsonMatch) {
-              const parsedContent = JSON.parse(jsonMatch[1]);
-              // Extract the nested object or use the root level
-              updatedMemo[sectionKey] = parsedContent[sectionKey] || parsedContent;
-              console.log(`✅ Parsed ${sectionKey} JSON structure successfully`);
-            } else {
-              // Try to parse as direct JSON
-              const directParsed = JSON.parse(regeneratedContent);
-              updatedMemo[sectionKey] = directParsed[sectionKey] || directParsed;
-              console.log(`✅ Parsed direct ${sectionKey} JSON successfully`);
-            }
-          } catch (parseError) {
-            console.warn(`⚠️ Failed to parse ${sectionKey} JSON, saving as text:`, parseError);
-            updatedMemo[sectionKey] = regeneratedContent;
-          }
-        } else {
-          updatedMemo[sectionKey] = regeneratedContent;
-        }
+        updatedMemo[sectionKey] = regeneratedContent;
         
         await storage.updateMemo(existingMemo.id, { memo: updatedMemo });
         console.log(`✅ Updated section "${sectionKey}" in database for deal ${dealId}`);
