@@ -1,4 +1,3 @@
-https://ai.intellywave.de/api/oauth/google/callback
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 

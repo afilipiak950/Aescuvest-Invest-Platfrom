@@ -82,76 +82,540 @@ CRITICAL RULES:
   },
   { 
     id: 'trial_2', 
-    question: 'What are primary and secondary endpoints?', 
+    question: 'Study Endpoints and Success Criteria', 
     category: 'Clinical Trial Protocols',
-    analysisPrompt: 'Identify primary and secondary endpoints, efficacy measures, clinical outcomes, and endpoint definitions.',
-    keywords: ['primary endpoint', 'secondary endpoint', 'efficacy endpoint', 'primary outcome', 'secondary outcome', 'clinical endpoint', 'surrogate endpoint']
+    subQuestions: [
+      {
+        id: 'trial_2a',
+        question: 'What are the primary endpoints?',
+        expectedFormat: 'YES/NO - If YES: List primary endpoints with measurement methods and target values'
+      },
+      {
+        id: 'trial_2b',
+        question: 'What are the secondary endpoints?',
+        expectedFormat: 'YES/NO - If YES: List secondary endpoints with measurement methods'
+      },
+      {
+        id: 'trial_2c',
+        question: 'Are success criteria/targets specified for endpoints?',
+        expectedFormat: 'YES/NO - If YES: Specify numerical targets (e.g., >90% accuracy, <5% error rate)'
+      }
+    ],
+    analysisPrompt: `Extract SPECIFIC ENDPOINT DATA with concrete metrics:
+
+SUB-QUESTION 1: Primary Endpoints
+- List ALL primary endpoints mentioned in documents
+- Include measurement method for each (e.g., heart rate accuracy, respiratory rate precision)
+- Specify target values if available (e.g., "Sensitivity >95%", "Accuracy within ±3 bpm")
+- Format: "YES - Primary endpoints: [1) Endpoint A (Method: X, Target: Y), 2) Endpoint B...]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Secondary Endpoints
+- List ALL secondary endpoints mentioned
+- Include measurement methods
+- Note if exploratory vs confirmatory
+- Format: "YES - Secondary endpoints: [1) Endpoint A, 2) Endpoint B...]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Success Criteria
+- Extract numerical success thresholds (e.g., "95% sensitivity required for approval")
+- Include statistical power calculations if mentioned (e.g., "80% power to detect difference")
+- Note regulatory endpoints vs clinical endpoints
+- Format: "YES - Success criteria: [Endpoint A: >90%, Endpoint B: <5% error]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract ONLY concrete endpoints and numerical targets from documents
+2. Return "NOT SPECIFIED" for missing data
+3. Include source document names
+4. Distinguish between primary, secondary, and exploratory endpoints`,
+    keywords: [
+      'primary endpoint', 'primary outcome', 'primary objective',
+      'secondary endpoint', 'secondary outcome', 'secondary objective',
+      'efficacy endpoint', 'clinical endpoint', 'surrogate endpoint', 'exploratory endpoint',
+      'success criteria', 'target value', 'threshold', 'acceptance criteria',
+      'sensitivity', 'specificity', 'accuracy', 'precision', 'ppv', 'npv',
+      'performance metric', 'clinical outcome', 'endpoint definition'
+    ]
   },
   { 
     id: 'trial_3', 
-    question: 'How is efficacy/safety assessed?', 
+    question: 'Safety and Efficacy Assessment Methods', 
     category: 'Clinical Trial Protocols',
-    analysisPrompt: 'Find safety and efficacy assessment methods, adverse event reporting, toxicity monitoring, and safety committees.',
-    keywords: ['safety', 'efficacy', 'adverse events', 'side effects', 'toxicity', 'dose limiting', 'safety monitoring', 'dsmb', 'safety committee']
+    subQuestions: [
+      {
+        id: 'trial_3a',
+        question: 'What safety metrics and monitoring procedures are defined?',
+        expectedFormat: 'YES/NO - If YES: List safety metrics (e.g., device malfunctions, user errors) and monitoring frequency'
+      },
+      {
+        id: 'trial_3b',
+        question: 'What efficacy measures and performance metrics are used?',
+        expectedFormat: 'YES/NO - If YES: Specify efficacy metrics with target values (e.g., diagnostic accuracy >95%)'
+      },
+      {
+        id: 'trial_3c',
+        question: 'Are adverse event reporting procedures documented?',
+        expectedFormat: 'YES/NO - If YES: Describe AE classification system and reporting timelines'
+      }
+    ],
+    analysisPrompt: `Extract SPECIFIC SAFETY AND EFFICACY DATA:
+
+SUB-QUESTION 1: Safety Metrics
+- List all safety metrics tracked (device malfunctions, user errors, patient harm)
+- Include monitoring frequency (e.g., "Daily safety checks", "Weekly review")
+- Note safety committees or oversight (DSMB, Safety Monitoring Board)
+- Format: "YES - Safety metrics: [1) Device malfunctions (monitored daily), 2) User errors (reviewed weekly)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Efficacy Measures
+- List performance metrics (accuracy, sensitivity, specificity, precision)
+- Include target values (e.g., "Heart rate accuracy: ±3 bpm vs reference")
+- Note comparison to gold standard or predicate device
+- Format: "YES - Efficacy: [HR accuracy >95% vs ECG, RR precision ±2 breaths/min]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Adverse Event Procedures
+- Extract AE classification system (mild/moderate/severe, device-related/not related)
+- Include reporting timelines (e.g., "SAEs within 24hrs", "AEs within 5 days")
+- Note causality assessment methods
+- Format: "YES - AE reporting: [Severity: mild/moderate/severe, Timeline: SAEs <24hrs, Device-related assessed]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract concrete safety and efficacy metrics with numerical targets
+2. Distinguish between device safety (malfunctions) and patient safety (harm)
+3. Include source documents for all metrics`,
+    keywords: [
+      'safety', 'safety monitoring', 'safety assessment', 'safety metrics', 'safety profile',
+      'efficacy', 'effectiveness', 'performance', 'accuracy', 'precision',
+      'sensitivity', 'specificity', 'ppv', 'npv', 'diagnostic accuracy',
+      'adverse events', 'adverse event', 'ae', 'side effects', 'complications',
+      'device malfunction', 'device failure', 'user error', 'usability',
+      'dsmb', 'safety committee', 'safety monitoring board', 'safety review',
+      'reporting', 'causality', 'severity', 'sae', 'serious adverse event'
+    ]
   },
   // Regulatory Filings
   { 
     id: 'regulatory_1', 
-    question: 'What is current approval status?', 
+    question: 'Regulatory Approval Status', 
     category: 'Regulatory Filings (FDA, EMA)',
-    analysisPrompt: 'Identify regulatory approval status, FDA/EMA submissions, clearances, and marketing authorizations.',
-    keywords: ['fda', 'ema', 'regulatory', 'approval', 'clearance', '510k', 'pma', 'ide', 'ind', 'regulatory submission', 'marketing authorization']
+    subQuestions: [
+      {
+        id: 'regulatory_1a',
+        question: 'What FDA/EMA approvals or clearances have been obtained?',
+        expectedFormat: 'YES/NO - If YES: List approvals with dates (e.g., "510(k) K123456 cleared March 2022")'
+      },
+      {
+        id: 'regulatory_1b',
+        question: 'What regulatory submissions are pending or in progress?',
+        expectedFormat: 'YES/NO - If YES: List submissions with status and expected timelines'
+      },
+      {
+        id: 'regulatory_1c',
+        question: 'What international regulatory approvals exist (CE Mark, ISO, etc.)?',
+        expectedFormat: 'YES/NO - If YES: List certifications with issuing bodies and dates'
+      }
+    ],
+    analysisPrompt: `Extract SPECIFIC REGULATORY DATA with dates and numbers:
+
+SUB-QUESTION 1: FDA/EMA Approvals
+- List all FDA clearances (510(k), De Novo, PMA) with K-numbers and dates
+- List EMA approvals or CE Mark certifications with dates
+- Include indication/intended use for each approval
+- Format: "YES - Approvals: [1) FDA 510(k) K234567 (cleared May 2022, indication: vital sign monitoring), 2) CE Mark (obtained June 2021)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Pending Submissions
+- List submissions in progress (IDE, PMA, 510(k) pending)
+- Include submission dates and expected decision dates
+- Note any FDA feedback or requests for additional information
+- Format: "YES - Pending: [1) 510(k) submitted March 2023 (decision expected Q2 2024)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: International Approvals
+- List CE Mark, ISO certifications, Health Canada, other markets
+- Include certification numbers and validity dates
+- Note certification bodies (Notified Body for CE Mark)
+- Format: "YES - International: [1) CE Mark (NB 1234, valid until 2025), 2) ISO 13485:2016]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract exact approval numbers (K-numbers, CE Mark certificate numbers)
+2. Include all dates (submission, approval, expiration)
+3. Return "NOT SPECIFIED" for missing information
+4. Include source document names`,
+    keywords: [
+      'fda', 'fda clearance', 'fda approval', '510k', '510(k)', 'pma', 'de novo',
+      'ide', 'ind', 'k number', 'k-number', 'premarket',
+      'ema', 'ce mark', 'ce marking', 'mdd', 'mdr', 'notified body',
+      'iso 13485', 'iso 14971', 'iso certification',
+      'regulatory', 'approval', 'clearance', 'submission', 'filing',
+      'marketing authorization', 'conformity assessment', 'regulatory pathway',
+      'health canada', 'tga', 'pmda', 'cfda', 'international approval'
+    ]
   },
   { 
     id: 'regulatory_2', 
-    question: 'Are fast-track or orphan designations received?', 
+    question: 'Regulatory Pathways and Designations', 
     category: 'Regulatory Filings (FDA, EMA)',
-    analysisPrompt: 'Look for special regulatory designations like fast-track, orphan drug, breakthrough therapy, or priority review status.',
-    keywords: ['fast track', 'fast-track', 'orphan drug', 'breakthrough therapy', 'priority review', 'accelerated approval', 'rare disease', 'orphan designation']
+    subQuestions: [
+      {
+        id: 'regulatory_2a',
+        question: 'What regulatory pathway was/is being used?',
+        expectedFormat: 'YES/NO - If YES: Specify pathway (510(k), De Novo, PMA, Traditional) with rationale'
+      },
+      {
+        id: 'regulatory_2b',
+        question: 'Have any special designations been received?',
+        expectedFormat: 'YES/NO - If YES: List designations (Breakthrough Device, Fast Track) with dates'
+      }
+    ],
+    analysisPrompt: `Extract REGULATORY STRATEGY DATA:
+
+SUB-QUESTION 1: Regulatory Pathway
+- Identify pathway: 510(k) Traditional, 510(k) Special, De Novo, PMA, or other
+- Include predicate device if 510(k) pathway
+- Note pathway rationale (substantial equivalence, novel technology)
+- Format: "YES - Pathway: 510(k) Traditional with predicate device XYZ (K123456)" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Special Designations
+- List: Breakthrough Device Designation, Fast Track, Orphan Device
+- Include designation dates and criteria met
+- Note benefits received (expedited review, etc.)
+- Format: "YES - Designations: [Breakthrough Device (granted Jan 2022, for sleep apnea monitoring)]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. For medical devices, focus on device-specific pathways (not drug pathways)
+2. Include predicate devices for 510(k) submissions
+3. Extract dates for all designations`,
+    keywords: [
+      '510k pathway', 'de novo', 'pma', 'traditional 510k', 'special 510k',
+      'predicate device', 'substantial equivalence',
+      'breakthrough device', 'breakthrough designation',
+      'fast track', 'expedited', 'priority review',
+      'orphan device', 'orphan designation', 'humanitarian device',
+      'regulatory strategy', 'regulatory pathway', 'submission strategy'
+    ]
   },
   { 
     id: 'regulatory_3', 
-    question: 'Are adverse events disclosed?', 
+    question: 'Adverse Events and Safety Reporting', 
     category: 'Regulatory Filings (FDA, EMA)',
-    analysisPrompt: 'Find adverse event reporting, safety disclosures, serious adverse events, and safety monitoring reports.',
-    keywords: ['adverse events', 'adverse event', 'sae', 'serious adverse event', 'aesi', 'medwatch', 'safety report', 'susar']
+    subQuestions: [
+      {
+        id: 'regulatory_3a',
+        question: 'How many adverse events have been reported?',
+        expectedFormat: 'YES/NO - If YES: Total AEs: [number], SAEs: [number], Device-related: [number]'
+      },
+      {
+        id: 'regulatory_3b',
+        question: 'What is the severity distribution of adverse events?',
+        expectedFormat: 'YES/NO - If YES: Mild: [number], Moderate: [number], Severe: [number]'
+      },
+      {
+        id: 'regulatory_3c',
+        question: 'Are post-market surveillance or MDR reports documented?',
+        expectedFormat: 'YES/NO - If YES: Specify reporting system (MAUDE, Eudamed) and number of reports'
+      }
+    ],
+    analysisPrompt: `Extract ADVERSE EVENT STATISTICS:
+
+SUB-QUESTION 1: AE Counts
+- Total adverse events: [exact number]
+- Serious adverse events (SAEs): [exact number]
+- Device-related AEs: [exact number] vs non-device-related
+- Format: "YES - AEs: Total N=25 (SAEs: N=3, Device-related: N=8)" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Severity Distribution
+- Mild AEs: [number and percentage]
+- Moderate AEs: [number and percentage]
+- Severe AEs: [number and percentage]
+- Format: "YES - Severity: Mild N=15 (60%), Moderate N=8 (32%), Severe N=2 (8%)" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Post-Market Surveillance
+- MAUDE reports: [number of reports]
+- MDR reports to notified body: [number]
+- Recall history: [any recalls with dates]
+- Format: "YES - Post-market: [MAUDE reports: N=5, No recalls]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract EXACT numbers for all AE counts
+2. Calculate percentages if totals are available
+3. Distinguish between device-related and non-device-related AEs
+4. Include source documents for all statistics`,
+    keywords: [
+      'adverse events', 'adverse event', 'ae', 'aes',
+      'serious adverse event', 'sae', 'saes',
+      'device-related', 'device related', 'causality',
+      'mild', 'moderate', 'severe', 'severity', 'grade',
+      'maude', 'mdr', 'medical device reporting', 'post-market surveillance',
+      'recall', 'field safety notice', 'fsn', 'safety alert',
+      'vigilance', 'safety reporting', 'periodic safety update'
+    ]
   },
   // Investigator Brochures & Study Reports
   { 
     id: 'study_1', 
-    question: 'Are inclusion/exclusion criteria consistent?', 
+    question: 'Patient Selection Criteria', 
     category: 'Investigator Brochures & Study Reports',
-    analysisPrompt: 'Analyze inclusion and exclusion criteria for patient selection, eligibility requirements, and enrollment consistency.',
-    keywords: ['inclusion criteria', 'exclusion criteria', 'patient selection', 'eligibility', 'enrollment criteria', 'screening']
+    subQuestions: [
+      {
+        id: 'study_1a',
+        question: 'What are the key inclusion criteria?',
+        expectedFormat: 'YES/NO - If YES: List criteria (e.g., age range, diagnosis, setting)'
+      },
+      {
+        id: 'study_1b',
+        question: 'What are the key exclusion criteria?',
+        expectedFormat: 'YES/NO - If YES: List criteria (e.g., contraindications, comorbidities)'
+      },
+      {
+        id: 'study_1c',
+        question: 'Are criteria consistent across studies?',
+        expectedFormat: 'YES/NO - If YES: Note any variations between studies'
+      }
+    ],
+    analysisPrompt: `Extract PATIENT SELECTION CRITERIA:
+
+SUB-QUESTION 1: Inclusion Criteria
+- List all inclusion criteria (age, diagnosis, setting, health status)
+- Include specific ranges (e.g., "Age 18-65 years", "Hospitalized patients")
+- Note intended use population
+- Format: "YES - Inclusion: [1) Age ≥18 years, 2) Hospital in-patient setting, 3) Requires continuous monitoring]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Exclusion Criteria
+- List all exclusion criteria (contraindications, pacemakers, pregnancy)
+- Include medical exclusions and device incompatibilities
+- Note safety-based exclusions
+- Format: "YES - Exclusion: [1) Pacemaker/ICD present, 2) Pregnant/breastfeeding, 3) Severe skin conditions]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Consistency
+- Compare criteria across different studies if multiple exist
+- Note any variations or expansions over time
+- Identify if real-world use differs from study criteria
+- Format: "YES - Consistent across 3 studies" OR "NO - Variations: [Study A allowed age 18+, Study B required age 21+]"
+
+CRITICAL RULES:
+1. Extract specific numerical ranges (ages, lab values)
+2. Distinguish medical vs technical exclusions
+3. Note if criteria match intended use population`,
+    keywords: [
+      'inclusion criteria', 'inclusion criterion', 'eligible', 'eligibility',
+      'exclusion criteria', 'exclusion criterion', 'excluded', 'contraindication',
+      'patient selection', 'subject selection', 'enrollment criteria',
+      'age range', 'diagnosis', 'indication', 'setting',
+      'screening', 'screen failure', 'enrollment'
+    ]
   },
   { 
     id: 'study_2', 
-    question: 'What patient population is used?', 
+    question: 'Patient Population Demographics', 
     category: 'Investigator Brochures & Study Reports',
-    analysisPrompt: 'Identify patient demographics, disease characteristics, severity levels, and target population definitions.',
-    keywords: ['patient population', 'demographics', 'disease stage', 'severity', 'baseline characteristics', 'target population']
+    subQuestions: [
+      {
+        id: 'study_2a',
+        question: 'What patient demographics are described?',
+        expectedFormat: 'YES/NO - If YES: Age (mean/median/range), Gender (% male/female), Race/Ethnicity (%)'
+      },
+      {
+        id: 'study_2b',
+        question: 'What clinical characteristics are described?',
+        expectedFormat: 'YES/NO - If YES: Disease severity, comorbidities, vital sign ranges'
+      },
+      {
+        id: 'study_2c',
+        question: 'What is the target market population size?',
+        expectedFormat: 'YES/NO - If YES: Total addressable market size, prevalence data'
+      }
+    ],
+    analysisPrompt: `Extract DEMOGRAPHIC AND CLINICAL DATA:
+
+SUB-QUESTION 1: Demographics
+- Age: mean, median, range, SD (e.g., "Mean 58.3±12.4 years, range 22-89")
+- Gender: % male, % female, total N
+- Race/ethnicity distribution if reported
+- Format: "YES - Demographics: [Age 58.3±12.4 years, 56% male, N=87]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Clinical Characteristics
+- Disease severity (mild/moderate/severe percentages)
+- Comorbidity prevalence (diabetes %, hypertension %)
+- Baseline vital signs or clinical measures
+- Format: "YES - Clinical: [Severity: mild 40%, moderate 45%, severe 15%; Diabetes 30%]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Market Size
+- Total addressable market (e.g., "15M patients in US")
+- Disease prevalence data
+- Target segment size
+- Format: "YES - Market: [Sleep apnea: 30M US adults, target hospital segment: 5,000 facilities]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract exact demographic numbers with standard deviations
+2. Calculate and verify percentages
+3. Distinguish between study population and target market`,
+    keywords: [
+      'demographics', 'demographic', 'patient characteristics',
+      'age', 'gender', 'sex', 'male', 'female', 'race', 'ethnicity',
+      'mean age', 'median age', 'age range',
+      'disease severity', 'comorbidity', 'comorbidities', 'baseline',
+      'prevalence', 'incidence', 'epidemiology',
+      'target population', 'addressable market', 'tam', 'market size'
+    ]
   },
   { 
     id: 'study_3', 
-    question: 'Are SAE (Serious Adverse Events) tracked?', 
+    question: 'Clinical Outcomes and Performance Data', 
     category: 'Investigator Brochures & Study Reports',
-    analysisPrompt: 'Find serious adverse event tracking, safety monitoring procedures, and causality assessment methods.',
-    keywords: ['serious adverse event', 'sae', 'adverse event reporting', 'safety signal', 'causality', 'safety profile']
+    subQuestions: [
+      {
+        id: 'study_3a',
+        question: 'What are the key clinical outcomes or results?',
+        expectedFormat: 'YES/NO - If YES: List outcomes with statistical significance (p-values, confidence intervals)'
+      },
+      {
+        id: 'study_3b',
+        question: 'What performance metrics were achieved?',
+        expectedFormat: 'YES/NO - If YES: Accuracy %, Sensitivity %, Specificity % with confidence intervals'
+      },
+      {
+        id: 'study_3c',
+        question: 'Are real-world evidence or post-market data available?',
+        expectedFormat: 'YES/NO - If YES: Number of devices deployed, patient-hours of use, field performance data'
+      }
+    ],
+    analysisPrompt: `Extract CLINICAL OUTCOMES AND PERFORMANCE:
+
+SUB-QUESTION 1: Clinical Outcomes
+- List primary outcome results with p-values
+- Include confidence intervals (95% CI)
+- Note statistical significance
+- Format: "YES - Outcomes: [HR detection accuracy 96.2% (95% CI: 94.1-98.3%, p<0.001 vs reference)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Performance Metrics
+- Sensitivity: [%] (95% CI: [range])
+- Specificity: [%] (95% CI: [range])
+- Accuracy, PPV, NPV with CIs
+- Format: "YES - Performance: [Sensitivity 95.3% (CI: 92.1-97.8%), Specificity 94.7% (CI: 91.2-97.1%)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Real-World Evidence
+- Number of devices deployed commercially
+- Total patient-hours or patient-days of monitoring
+- Field performance vs study performance
+- Format: "YES - RWE: [>500 devices deployed, >100,000 patient-hours, field accuracy 94.1%]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract exact performance numbers with confidence intervals
+2. Include p-values for statistical significance
+3. Distinguish between study data and real-world data`,
+    keywords: [
+      'clinical outcomes', 'results', 'findings', 'data',
+      'accuracy', 'sensitivity', 'specificity', 'ppv', 'npv',
+      'performance', 'performance metrics', 'diagnostic accuracy',
+      'p value', 'p-value', 'statistical significance', 'confidence interval', 'ci',
+      'real-world evidence', 'rwe', 'post-market', 'field data',
+      'devices deployed', 'commercial experience', 'patient-hours'
+    ]
   },
   // Scientific Advisory Board Notes
   { 
     id: 'advisory_1', 
-    question: 'Are trial results debated by experts?', 
+    question: 'Clinical Validation and Expert Opinion', 
     category: 'Scientific Advisory Board Notes',
-    analysisPrompt: 'Look for expert opinions, advisory board reviews, KOL feedback, and scientific discussions about trial results.',
-    keywords: ['advisory board', 'expert opinion', 'scientific advisory', 'kol', 'key opinion leader', 'expert review', 'scientific review']
+    subQuestions: [
+      {
+        id: 'advisory_1a',
+        question: 'What expert endorsements or validations exist?',
+        expectedFormat: 'YES/NO - If YES: List KOLs/institutions with their credentials and endorsement details'
+      },
+      {
+        id: 'advisory_1b',
+        question: 'Are there peer-reviewed publications or presentations?',
+        expectedFormat: 'YES/NO - If YES: List publications with journal names, dates, and key findings'
+      },
+      {
+        id: 'advisory_1c',
+        question: 'What advisory board feedback has been documented?',
+        expectedFormat: 'YES/NO - If YES: Summarize recommendations and strategic guidance'
+      }
+    ],
+    analysisPrompt: `Extract EXPERT VALIDATION DATA:
+
+SUB-QUESTION 1: Expert Endorsements
+- List key opinion leaders (names, titles, institutions)
+- Include nature of endorsement (advisory board, investigator, consultant)
+- Note prestigious affiliations (Mayo Clinic, Cleveland Clinic, etc.)
+- Format: "YES - Experts: [1) Dr. John Smith, Chief of Cardiology, Mayo Clinic (Principal Investigator), 2) Dr. Jane Doe, Harvard Medical School (Advisory Board)]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Publications
+- List peer-reviewed publications (journal, date, authors)
+- Include conference presentations (venue, date)
+- Note key findings from each publication
+- Format: "YES - Publications: [1) JAMA Cardiology 2022 (Sleep monitoring accuracy), 2) ACC 2023 presentation]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Advisory Board Feedback
+- Summarize strategic recommendations
+- Include clinical validation feedback
+- Note market access or reimbursement guidance
+- Format: "YES - Advisory feedback: [Recommended expanding to ICU setting, validated clinical utility, suggested CPT code strategy]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Include full credentials for KOLs
+2. List exact publication citations
+3. Extract actionable recommendations from advisory boards`,
+    keywords: [
+      'advisory board', 'scientific advisory board', 'medical advisory',
+      'key opinion leader', 'kol', 'thought leader',
+      'expert opinion', 'expert review', 'expert endorsement',
+      'publication', 'peer-reviewed', 'journal', 'paper', 'manuscript',
+      'conference', 'presentation', 'poster', 'abstract',
+      'validation', 'endorsement', 'recommendation'
+    ]
   },
   { 
     id: 'advisory_2', 
-    question: 'Are post-trial steps (e.g. Phase 3 readiness) described?', 
+    question: 'Development Roadmap and Commercialization', 
     category: 'Scientific Advisory Board Notes',
-    analysisPrompt: 'Look for development plans, phase 3 readiness, regulatory strategies, and next steps in clinical development.',
-    keywords: ['phase 3', 'phase iii', 'next steps', 'development plan', 'regulatory strategy', 'go/no-go', 'pivotal trial']
+    subQuestions: [
+      {
+        id: 'advisory_2a',
+        question: 'What are the next development milestones?',
+        expectedFormat: 'YES/NO - If YES: List milestones with target dates (e.g., "FDA submission Q2 2024")'
+      },
+      {
+        id: 'advisory_2b',
+        question: 'What is the commercialization timeline?',
+        expectedFormat: 'YES/NO - If YES: Market launch dates, geographic expansion plans, partnership timeline'
+      },
+      {
+        id: 'advisory_2c',
+        question: 'Are reimbursement and market access strategies defined?',
+        expectedFormat: 'YES/NO - If YES: CPT codes pursued, payer strategies, pricing approach'
+      }
+    ],
+    analysisPrompt: `Extract DEVELOPMENT AND COMMERCIALIZATION PLANS:
+
+SUB-QUESTION 1: Development Milestones
+- List upcoming regulatory milestones with dates
+- Include clinical study plans
+- Note product development timeline
+- Format: "YES - Milestones: [1) FDA 510(k) submission Q2 2024, 2) Pivotal study completion Q4 2023, 3) CE Mark renewal Q1 2024]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 2: Commercialization Timeline
+- Market launch dates (US, EU, other regions)
+- Partnership or distribution agreements with dates
+- Manufacturing scale-up timeline
+- Format: "YES - Launch: [US market Q3 2024, EU Q4 2024, Partnership with Siemens signed March 2023]" OR "NOT SPECIFIED"
+
+SUB-QUESTION 3: Reimbursement Strategy
+- CPT codes applied for or obtained (with dates)
+- Payer coverage strategies (CMS, private payers)
+- Pricing approach (ASP, per-patient, subscription)
+- Format: "YES - Reimbursement: [CPT code application filed Jan 2024, CMS coverage decision expected Q3 2024, Pricing: $350/patient/month]" OR "NOT SPECIFIED"
+
+CRITICAL RULES:
+1. Extract specific dates for all milestones
+2. Include dollar amounts for pricing or deals
+3. Note partnerships with major institutions or companies`,
+    keywords: [
+      'roadmap', 'timeline', 'milestones', 'development plan',
+      'next steps', 'future plans', 'strategy',
+      'commercialization', 'launch', 'market entry', 'go-to-market',
+      'reimbursement', 'cpt code', 'cms', 'payer', 'coverage',
+      'pricing', 'asp', 'price point', 'business model',
+      'partnership', 'distribution', 'channel', 'scale-up'
+    ]
   }
 ];
 
