@@ -50,9 +50,7 @@ function DueDiligenceContent() {
     // Enhanced job finder - matches by agent type (case insensitive)
     const findJobSafely = (jobs: any[], patterns: string[]) => {
       if (!jobs || !Array.isArray(jobs)) return null;
-      
-      // Filter all matching jobs
-      const matchingJobs = jobs.filter((job: any) => {
+      return jobs.find((job: any) => {
         if (!job || !job.agentType) return false;
         const jobAgent = job.agentType.toLowerCase();
         return patterns.some(pattern => {
@@ -60,12 +58,6 @@ function DueDiligenceContent() {
           return jobAgent === searchPattern || jobAgent.includes(searchPattern);
         });
       });
-      
-      if (matchingJobs.length === 0) return null;
-      
-      // ✅ FIX: Always prioritize 'processing' jobs over 'completed' jobs to prevent progress jumping
-      const processingJob = matchingJobs.find(job => job.status === 'processing');
-      return processingJob || matchingJobs[0];
     };
 
     // Parse URL parameters and set selected deal

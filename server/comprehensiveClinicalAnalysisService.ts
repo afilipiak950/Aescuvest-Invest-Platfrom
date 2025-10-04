@@ -651,23 +651,20 @@ interface ClinicalAnswer {
 export class ComprehensiveClinicalAnalysisService {
   
   /**
-   * BUILD COMPREHENSIVE CONTENT FROM FULL AI SUMMARY ONLY
-   * Uses ONLY the structured AI summary (all 5 sections) - NO OCR text
-   * Preserves all quantitative data from AI summaries (N=XX, $XXX, ±X%, etc.)
+   * BUILD COMPREHENSIVE CONTENT FROM AI SUMMARY
+   * Extracts ALL sections of AI summary for maximum context
    */
   private buildComprehensiveContent(document: any): string {
     const parts = [];
     
-    // Use ONLY AI Summary - all 5 sections with quantitative data preservation
+    // PRIORITY 1: AI Summary (FULL STRUCTURE - all sections)
     if (document.aiSummary) {
-      console.log(`📝 Using FULL AI Summary for ${document.name} - All 5 sections`);
+      console.log(`📝 Using AI Summary for ${document.name} - Full structure extraction`);
       
-      // Section 1: Executive Summary
       if (document.aiSummary.executiveSummary) {
         parts.push(`=== EXECUTIVE SUMMARY ===\n${document.aiSummary.executiveSummary}`);
       }
       
-      // Section 2: Critical Information (preserves trial phases, patient numbers)
       if (document.aiSummary.criticalInformation) {
         const criticalInfo = typeof document.aiSummary.criticalInformation === 'string' 
           ? document.aiSummary.criticalInformation 
@@ -675,7 +672,6 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== CRITICAL INFORMATION ===\n${criticalInfo}`);
       }
       
-      // Section 3: Key Financial Data (preserves $XXX, N=XX, cost metrics)
       if (document.aiSummary.keyFinancialData) {
         const financialData = typeof document.aiSummary.keyFinancialData === 'string'
           ? document.aiSummary.keyFinancialData
@@ -683,7 +679,6 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== KEY FINANCIAL DATA ===\n${financialData}`);
       }
       
-      // Section 4: Risk Assessment
       if (document.aiSummary.riskAssessment) {
         const riskData = typeof document.aiSummary.riskAssessment === 'string'
           ? document.aiSummary.riskAssessment
@@ -691,23 +686,23 @@ export class ComprehensiveClinicalAnalysisService {
         parts.push(`=== RISK ASSESSMENT ===\n${riskData}`);
       }
       
-      // Section 5: Background Information
       if (document.aiSummary.backgroundInformation) {
         parts.push(`=== BACKGROUND INFORMATION ===\n${document.aiSummary.backgroundInformation}`);
       }
       
-      // Section 6: Document Type (metadata)
       if (document.aiSummary.documentType) {
         parts.push(`=== DOCUMENT TYPE ===\n${document.aiSummary.documentType}`);
       }
-    } else {
-      // Document has no AI summary - log warning
-      console.log(`⚠️ No AI Summary available for ${document.name} - skipping document`);
-      parts.push(`=== DOCUMENT UNAVAILABLE ===\nNo AI summary available for this document.`);
+    }
+    
+    // PRIORITY 2: OCR Text (FALLBACK ONLY - increased to 8000 chars)
+    if (parts.length === 0 && document.ocrText) {
+      console.log(`📝 Falling back to OCR text for ${document.name} (AI summary not available)`);
+      parts.push(`=== DOCUMENT TEXT ===\n${document.ocrText.substring(0, 8000)}`);
     }
     
     const content = parts.join('\n\n');
-    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} AI Summary sections`);
+    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} sections`);
     return content;
   }
   
@@ -884,7 +879,6 @@ export class ComprehensiveClinicalAnalysisService {
   
   /**
    * Get all documents suitable for clinical analysis
-   * 🚀 COMPREHENSIVE ANALYSIS: Returns ALL documents with AI summaries for thorough due diligence
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -894,26 +888,74 @@ export class ComprehensiveClinicalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // 🚀 NEW STRATEGY: Analyze ALL documents with AI summaries for comprehensive clinical due diligence
-    // Clinical data can appear in unexpected places (ROI analyses, competitive reports, proposals)
-    const clinicalDocuments = allDocuments.filter(doc => doc.aiSummary);
+    // First try documents explicitly assigned to clinical agent
+    let clinicalDocuments = allDocuments.filter(doc => 
+      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
+      (doc.ocrText || doc.aiSummary)
+    );
     
-    console.log(`✅ COMPREHENSIVE ANALYSIS: Will analyze ALL ${clinicalDocuments.length} documents with AI summaries`);
-    console.log(`📊 This ensures clinical data is found across ALL document types (not just "clinical" keywords)`);
+    console.log(`📄 Documents explicitly assigned to clinical: ${clinicalDocuments.length}`);
     
-    // Log data quality distribution for transparency
-    const withAiSummary = clinicalDocuments.filter(doc => doc.aiSummary).length;
-    const withOcrOnly = allDocuments.filter(doc => !doc.aiSummary && doc.ocrText).length;
-    const noContent = allDocuments.filter(doc => !doc.aiSummary && !doc.ocrText).length;
-    
-    console.log(`📊 Document Content Quality Distribution:`);
-    console.log(`  ✅ ${withAiSummary} documents with AI Summary (${Math.round(withAiSummary/allDocuments.length*100)}%) - WILL BE ANALYZED`);
-    console.log(`  📄 ${withOcrOnly} documents with OCR only (${Math.round(withOcrOnly/allDocuments.length*100)}%) - excluded (no AI summary)`);
-    console.log(`  ⚠️  ${noContent} empty documents (${Math.round(noContent/allDocuments.length*100)}%) - excluded`);
-    
+    // If no documents are explicitly assigned to clinical, identify clinical-related documents
     if (clinicalDocuments.length === 0) {
-      console.log('⚠️ WARNING: No documents with AI summaries found. Clinical analysis cannot proceed.');
+      console.log('📄 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
+      
+      clinicalDocuments = allDocuments.filter(doc => {
+        if (!doc.ocrText && !doc.aiSummary) return false;
+        
+        const docName = doc.name.toLowerCase();
+        const docContent = (doc.ocrText || '').toLowerCase();
+        const aiSummary = doc.aiSummary;
+        
+        // Clinical document keywords
+        const clinicalKeywords = [
+          'clinical', 'trial', 'study', 'protocol', 'patient', 'fda', 'ema', 
+          'regulatory', 'phase', 'efficacy', 'safety', 'adverse', 'endpoint',
+          'enrollment', 'randomized', 'blinded', 'placebo', 'investigator',
+          'brochure', 'medical', 'therapeutic', 'treatment', 'drug',
+          'device', 'approval', 'submission', 'ide', 'ind', '510k',
+          'orphan', 'fast-track', 'breakthrough', 'serious adverse event'
+        ];
+        
+        // Check document name and content for clinical keywords
+        const hasClinicalKeywords = clinicalKeywords.some(keyword => 
+          docName.includes(keyword) || docContent.includes(keyword)
+        );
+        
+        // Check AI summary for clinical document type
+        const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
+                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
+        
+        return hasClinicalKeywords || isClinicalDocument;
+      });
+      
+      console.log(`📄 Auto-identified clinical documents: ${clinicalDocuments.length}`);
     }
+    
+    // If still no clinical documents, take documents with meaningful content for analysis
+    if (clinicalDocuments.length === 0) {
+      console.log('📄 No clinical-related documents found, using all documents with OCR text...');
+      clinicalDocuments = allDocuments.filter(doc => 
+        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
+      );
+      console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
+    }
+    
+    // 🚀 IMPROVEMENT: Remove 50-document cap - analyze ALL assigned documents
+    // AI summaries are much shorter than OCR, enabling analysis of all documents
+    console.log(`📊 QA CHECKPOINT: Will analyze ALL ${clinicalDocuments.length} clinical documents (no artificial limit)`);
+    
+    // Log AI summary vs OCR distribution for quality assurance
+    const withAiSummary = clinicalDocuments.filter(doc => doc.aiSummary).length;
+    const withOcrOnly = clinicalDocuments.filter(doc => !doc.aiSummary && doc.ocrText).length;
+    const empty = clinicalDocuments.filter(doc => !doc.aiSummary && !doc.ocrText).length;
+    
+    console.log(`📊 QA CHECKPOINT - Document Quality Distribution:`);
+    console.log(`  ✅ ${withAiSummary} documents with AI Summary (${Math.round(withAiSummary/clinicalDocuments.length*100)}%)`);
+    console.log(`  📄 ${withOcrOnly} documents with OCR only (${Math.round(withOcrOnly/clinicalDocuments.length*100)}%)`);
+    console.log(`  ⚠️  ${empty} empty documents (${Math.round(empty/clinicalDocuments.length*100)}%)`);
     
     return clinicalDocuments;
   }
@@ -1058,7 +1100,7 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 3200  // ✅ INCREASED: More room for detailed clinical metrics and evidence
+        max_tokens: 2500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -1189,7 +1231,7 @@ Return JSON:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 5000  // ✅ INCREASED: More room for comprehensive answers with specific statistics
+        max_tokens: 4096
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');

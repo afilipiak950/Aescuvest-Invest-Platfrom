@@ -47,9 +47,6 @@ export function PersistentClinicalButton({ dealId }: PersistentClinicalButtonPro
     try {
       console.log(`🧬 Starting persistent clinical analysis for deal ${dealId}...`);
       
-      // Trigger custom event to clear old answers immediately
-      window.dispatchEvent(new CustomEvent('clinicalAnalysisStarted'));
-      
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/persistent/start`, {
         method: 'POST',
         body: JSON.stringify({})

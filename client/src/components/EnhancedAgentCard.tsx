@@ -2057,7 +2057,6 @@ interface ClinicalQuestionsSectionProps {
 function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onClinicalAnalysisStart }: ClinicalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
-  const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
 
   // Check if clinical analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -2071,19 +2070,6 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   useEffect(() => {
     refetchComprehensive();
   }, [refetchComprehensive]);
-
-  // Listen for clinical analysis start event to clear old data immediately
-  useEffect(() => {
-    const handleAnalysisStart = () => {
-      setIsAnalysisStarting(true);
-      console.log('🗑️ CLINICAL UI: Clearing old answers immediately for fresh start');
-      // Clear analysis starting flag after a delay
-      setTimeout(() => setIsAnalysisStarting(false), 5000);
-    };
-
-    window.addEventListener('clinicalAnalysisStarted', handleAnalysisStart);
-    return () => window.removeEventListener('clinicalAnalysisStarted', handleAnalysisStart);
-  }, []);
 
   // Use comprehensive results if available, fallback to analysisData
   const clinicalData = comprehensiveResults?.analysis || analysisData || null;
@@ -2137,11 +2123,6 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     recommendations?: string[];
     detailedEvidence?: any[];
   } | null => {
-    // If analysis is starting, return null to show empty state
-    if (isAnalysisStarting) {
-      return null;
-    }
-    
     if (!clinicalData) return null;
     
     console.log(`🧬 Looking for answer to clinical question ${questionId}`);
