@@ -129,6 +129,62 @@ interface ClinicalAnswer {
 export class ComprehensiveClinicalAnalysisService {
   
   /**
+   * BUILD COMPREHENSIVE CONTENT FROM AI SUMMARY
+   * Extracts ALL sections of AI summary for maximum context
+   */
+  private buildComprehensiveContent(document: any): string {
+    const parts = [];
+    
+    // PRIORITY 1: AI Summary (FULL STRUCTURE - all sections)
+    if (document.aiSummary) {
+      console.log(`📝 Using AI Summary for ${document.name} - Full structure extraction`);
+      
+      if (document.aiSummary.executiveSummary) {
+        parts.push(`=== EXECUTIVE SUMMARY ===\n${document.aiSummary.executiveSummary}`);
+      }
+      
+      if (document.aiSummary.criticalInformation) {
+        const criticalInfo = typeof document.aiSummary.criticalInformation === 'string' 
+          ? document.aiSummary.criticalInformation 
+          : JSON.stringify(document.aiSummary.criticalInformation, null, 2);
+        parts.push(`=== CRITICAL INFORMATION ===\n${criticalInfo}`);
+      }
+      
+      if (document.aiSummary.keyFinancialData) {
+        const financialData = typeof document.aiSummary.keyFinancialData === 'string'
+          ? document.aiSummary.keyFinancialData
+          : JSON.stringify(document.aiSummary.keyFinancialData, null, 2);
+        parts.push(`=== KEY FINANCIAL DATA ===\n${financialData}`);
+      }
+      
+      if (document.aiSummary.riskAssessment) {
+        const riskData = typeof document.aiSummary.riskAssessment === 'string'
+          ? document.aiSummary.riskAssessment
+          : JSON.stringify(document.aiSummary.riskAssessment, null, 2);
+        parts.push(`=== RISK ASSESSMENT ===\n${riskData}`);
+      }
+      
+      if (document.aiSummary.backgroundInformation) {
+        parts.push(`=== BACKGROUND INFORMATION ===\n${document.aiSummary.backgroundInformation}`);
+      }
+      
+      if (document.aiSummary.documentType) {
+        parts.push(`=== DOCUMENT TYPE ===\n${document.aiSummary.documentType}`);
+      }
+    }
+    
+    // PRIORITY 2: OCR Text (FALLBACK ONLY - increased to 8000 chars)
+    if (parts.length === 0 && document.ocrText) {
+      console.log(`📝 Falling back to OCR text for ${document.name} (AI summary not available)`);
+      parts.push(`=== DOCUMENT TEXT ===\n${document.ocrText.substring(0, 8000)}`);
+    }
+    
+    const content = parts.join('\n\n');
+    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} sections`);
+    return content;
+  }
+  
+  /**
    * Run comprehensive analysis for all assigned clinical documents
    */
   async runComprehensiveAnalysis(dealId: number, storageService: any, jobId: string): Promise<any> {
@@ -365,17 +421,26 @@ export class ComprehensiveClinicalAnalysisService {
       console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
     }
     
-    // Apply EXACT same document limits as Legal for efficiency
-    if (clinicalDocuments.length > 50) {
-      console.log(`📄 Limiting to first 50 documents for clinical analysis efficiency (found ${clinicalDocuments.length})`);
-      clinicalDocuments = clinicalDocuments.slice(0, 50);
-    }
+    // 🚀 IMPROVEMENT: Remove 50-document cap - analyze ALL assigned documents
+    // AI summaries are much shorter than OCR, enabling analysis of all documents
+    console.log(`📊 QA CHECKPOINT: Will analyze ALL ${clinicalDocuments.length} clinical documents (no artificial limit)`);
+    
+    // Log AI summary vs OCR distribution for quality assurance
+    const withAiSummary = clinicalDocuments.filter(doc => doc.aiSummary).length;
+    const withOcrOnly = clinicalDocuments.filter(doc => !doc.aiSummary && doc.ocrText).length;
+    const empty = clinicalDocuments.filter(doc => !doc.aiSummary && !doc.ocrText).length;
+    
+    console.log(`📊 QA CHECKPOINT - Document Quality Distribution:`);
+    console.log(`  ✅ ${withAiSummary} documents with AI Summary (${Math.round(withAiSummary/clinicalDocuments.length*100)}%)`);
+    console.log(`  📄 ${withOcrOnly} documents with OCR only (${Math.round(withOcrOnly/clinicalDocuments.length*100)}%)`);
+    console.log(`  ⚠️  ${empty} empty documents (${Math.round(empty/clinicalDocuments.length*100)}%)`);
     
     return clinicalDocuments;
   }
   
   /**
    * Extract evidence from ALL documents for a specific question
+   * 🚀 IMPROVEMENT: Increased batch size, added error resilience
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
@@ -383,68 +448,127 @@ export class ComprehensiveClinicalAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system
-    const batchSize = 10;
+    // 🚀 IMPROVEMENT: Increased batch size from 10 to 20 (AI summaries are shorter)
+    const BATCH_SIZE = 20;
     const evidence = [];
+    let successCount = 0;
+    let failureCount = 0;
     
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+      const batch = documents.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(documents.length / BATCH_SIZE);
       
-      const batchResults = await Promise.all(
+      console.log(`📦 Batch ${batchNum}/${totalBatches}: Processing ${batch.length} documents`);
+      
+      // 🚀 IMPROVEMENT: Use Promise.allSettled for error resilience
+      const batchResults = await Promise.allSettled(
         batch.map(async (doc) => {
-          console.log(`🔎 Extracting evidence from: ${doc.name}`);
-          return this.extractEvidenceFromDocument(doc, question);
+          try {
+            return await this.extractEvidenceFromDocument(doc, question);
+          } catch (error) {
+            console.error(`❌ Failed to extract from ${doc.name}:`, error);
+            return null;
+          }
         })
       );
       
-      // Filter out null results and add to evidence
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
+      // Filter successful results with relevant content
+      const validEvidence = batchResults
+        .filter(result => result.status === 'fulfilled' && result.value?.relevantContent?.length > 0)
+        .map(result => result.value);
+      
+      const batchSuccesses = batchResults.filter(r => r.status === 'fulfilled').length;
+      const batchFailures = batchResults.filter(r => r.status === 'rejected').length;
+      
+      successCount += batchSuccesses;
+      failureCount += batchFailures;
+      
       evidence.push(...validEvidence);
       
-      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      console.log(`✅ Batch ${batchNum} completed: ${validEvidence.length}/${batch.length} had relevant evidence (${batchFailures} failures)`);
+      
+      // 🚀 IMPROVEMENT: Rate limiting between batches (1 second)
+      if (i + BATCH_SIZE < documents.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
     
-    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    console.log(`📊 QA CHECKPOINT - Extraction Results: ${evidence.length}/${documents.length} documents with evidence (${successCount} success, ${failureCount} failures)`);
+    
+    // Alert if >20% failure rate
+    if (failureCount / documents.length > 0.2) {
+      console.warn(`⚠️  HIGH FAILURE RATE: ${Math.round(failureCount/documents.length*100)}% of documents failed extraction`);
+    }
+    
     return evidence;
   }
   
   /**
    * Extract specific evidence from a single document
+   * 🚀 IMPROVEMENT: Uses full AI summary structure + enhanced prompt
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    // 🚀 IMPROVEMENT: Use comprehensive content builder (AI summary priority)
+    const content = this.buildComprehensiveContent(document);
     
-    if (!content) return null;
+    if (!content || content.length < 50) {
+      console.log(`⚠️ Skipping ${document.name} - insufficient content`);
+      return null;
+    }
     
-    const prompt = `You are an expert clinical research analyst conducting comprehensive investment analysis. Your task is to find ANY clinical, regulatory, safety, or efficacy information, even if indirectly related.
+    // 🚀 IMPROVEMENT: Enhanced prompt with clinical metrics extraction
+    const prompt = `You are a senior clinical development analyst conducting FDA/EMA-level due diligence. This document has been pre-analyzed with AI summary extraction.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
 
-QUESTION: "${question.question}"
+=== PRE-EXTRACTED AI SUMMARY ===
+${content}
+
+=== CLINICAL QUESTION ===
+"${question.question}"
+
 ANALYSIS TASK: ${question.analysisPrompt}
 
-Instructions:
-- Look for DIRECT clinical terms, trial data, regulatory submissions, safety reports
-- Look for INDIRECT references to medical devices, therapeutics, patient outcomes, regulatory milestones
-- Consider business documents that mention clinical milestones, regulatory matters, safety data
-- Even general business context often has clinical implications for investment due diligence
-- For healthcare companies, most business documents contain clinical information relevant to investors
+KEYWORDS TO PRIORITIZE: ${question.keywords.join(', ')}
 
-Respond in JSON format:
+INSTRUCTIONS:
+1. **Prioritize AI Summary Sections:**
+   - Critical Information section contains pre-extracted key data
+   - Risk Assessment section contains pre-identified risks
+   - Financial Data section contains quantified metrics
+   
+2. **Extract with Clinical Precision:**
+   - Trial phases (Phase I/II/III/IV)
+   - Patient numbers (N=X enrolled, Y completed)
+   - Efficacy metrics (p-values, confidence intervals, effect sizes)
+   - Safety signals (SAE rates, discontinuation rates)
+   - Regulatory milestones (FDA submissions, EMA approvals)
+   
+3. **Confidence Scoring:**
+   - 90-100: Direct clinical data with statistics
+   - 70-89: Clear clinical findings without full statistics
+   - 50-69: Indirect clinical relevance
+   - Below 50: Minimal clinical relevance
+
+Return JSON:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["Exact quote 1 with context", "Exact quote 2 with context"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "clinicalContext": "How this document relates to clinical/regulatory aspects of the business"
+  "keyFindings": ["Finding 1 with specificity", "Finding 2 with numbers"],
+  "documentSummary": "Clinical relevance summary",
+  "clinicalMetrics": {
+    "trialPhase": "Phase I/II/III/IV or null",
+    "patientNumbers": "N=X or null",
+    "efficacyData": "Primary endpoint result or null",
+    "safetyData": "SAE rate or key safety finding or null"
+  },
+  "dataQuality": "high/medium/low",
+  "missingCriticalInfo": ["What's missing for complete clinical assessment"]
 }
 
-Be thorough in finding relevance - most healthcare business documents have clinical implications for investment analysis.`;
+Be thorough and extract specific numbers, percentages, and clinical metrics.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -457,6 +581,7 @@ Be thorough in finding relevance - most healthcare business documents have clini
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
+      // 🚀 IMPROVEMENT: Return enhanced evidence with clinical metrics
       return {
         documentName: document.name,
         documentId: document.id,
@@ -465,6 +590,9 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
+        clinicalMetrics: analysis.clinicalMetrics || {},
+        dataQuality: analysis.dataQuality || 'unknown',
+        missingCriticalInfo: analysis.missingCriticalInfo || [],
         fullContent: content.substring(0, 1000) // Keep sample for reference
       };
       
@@ -478,7 +606,10 @@ Be thorough in finding relevance - most healthcare business documents have clini
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
+        clinicalMetrics: {},
+        dataQuality: 'low',
+        missingCriticalInfo: ['Extraction failed'],
+        fullContent: ''
       };
     }
   }
@@ -504,45 +635,70 @@ Be thorough in finding relevance - most healthcare business documents have clini
       };
     }
 
-    // Prepare evidence summary for AI compilation
+    // 🚀 IMPROVEMENT: Enhanced evidence summary with clinical metrics
     const evidenceSummary = evidence.map(ev => ({
       document: ev.documentName,
-      content: ev.relevantContent.join(' '),
-      findings: ev.keyFindings.join(' '),
-      confidence: ev.confidence
+      content: ev.relevantContent.join(' | '),
+      findings: ev.keyFindings.join(' | '),
+      confidence: ev.confidence,
+      clinicalMetrics: ev.clinicalMetrics || {},
+      dataQuality: ev.dataQuality || 'unknown',
+      missingInfo: ev.missingCriticalInfo || []
     }));
 
-    const prompt = `You are an expert clinical research analyst compiling a comprehensive answer based on evidence from multiple documents.
+    // 🚀 IMPROVEMENT: Enhanced compilation prompt with clinical metrics aggregation
+    const prompt = `You are a senior clinical analyst preparing FDA-level due diligence.
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
-ANALYSIS TASK: ${question.analysisPrompt}
 
-EVIDENCE FROM DOCUMENTS:
-${evidenceSummary.map(ev => `
-DOCUMENT: ${ev.document}
-CONTENT: ${ev.content}
-KEY FINDINGS: ${ev.findings}
-CONFIDENCE: ${ev.confidence}%
+EVIDENCE FROM ${evidence.length} DOCUMENTS:
+${evidenceSummary.map((ev, idx) => `
+[DOCUMENT ${idx + 1}]: ${ev.document}
+- Relevant Content: ${ev.content}
+- Key Findings: ${ev.findings}
+- Clinical Metrics: ${JSON.stringify(ev.clinicalMetrics)}
+- Data Quality: ${ev.dataQuality}
+- Confidence: ${ev.confidence}%
+- Missing Info: ${ev.missingInfo.join(', ')}
 `).join('\n')}
 
-Instructions:
-1. Synthesize ALL evidence into a comprehensive answer
-2. Cite specific documents and quotes
-3. Identify gaps in information
-4. Provide confidence assessment
-5. Include clinical recommendations
+SYNTHESIS INSTRUCTIONS:
+1. **Aggregate All Evidence** - Don't miss any document or finding
+2. **Quantify Clinical Data:**
+   - Count: How many trials/patients/endpoints mentioned across all documents?
+   - Metrics: What are the efficacy/safety numbers?
+   - Timeline: What phases/milestones completed?
+   
+3. **Risk Assessment:**
+   - Red flags: Safety signals, regulatory issues, data quality concerns
+   - Yellow flags: Incomplete data, small sample sizes, missing critical info
+   - Green signals: Strong efficacy, regulatory progress, high data quality
+   
+4. **Data Completeness:**
+   - What's present across documents?
+   - What's missing but should be there?
+   - What additional documents are needed?
 
-Respond in JSON format:
+Return JSON:
 {
-  "answer": "Comprehensive answer synthesizing all evidence",
+  "answer": "Comprehensive clinical answer with specific data points and document citations",
   "confidence": 0-100,
-  "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "gaps": ["Missing information 1", "Missing information 2"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "clinicalAssessment": "Overall clinical assessment based on evidence",
-  "evidenceCount": ${evidence.length}
+  "sources": ["All document names"],
+  "keyFindings": ["Finding 1 with numbers", "Finding 2 with specifics"],
+  "clinicalSummary": {
+    "trialsIdentified": 0,
+    "patientsEnrolled": "N=X total across studies",
+    "regulatoryStatus": "FDA/EMA status summary",
+    "safetyProfile": "SAE summary with rates",
+    "efficacyOutcomes": "Primary endpoint results"
+  },
+  "riskFactors": ["Risk 1 with severity", "Risk 2"],
+  "positiveSignals": ["Positive 1", "Positive 2"],
+  "gaps": ["Missing info 1", "Missing info 2"],
+  "recommendations": ["Actionable recommendation 1", "Recommendation 2"],
+  "evidenceStrength": "strong/moderate/weak",
+  "dataQualityAssessment": "Assessment of overall data quality across documents"
 }`;
 
     try {
@@ -556,6 +712,7 @@ Respond in JSON format:
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
+      // 🚀 IMPROVEMENT: Return enhanced answer with clinical summary
       return {
         question: question.question,
         category: question.category,
@@ -565,7 +722,11 @@ Respond in JSON format:
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
-        clinicalAssessment: compiledAnswer.clinicalAssessment || '',
+        clinicalSummary: compiledAnswer.clinicalSummary || {},
+        riskFactors: compiledAnswer.riskFactors || [],
+        positiveSignals: compiledAnswer.positiveSignals || [],
+        evidenceStrength: compiledAnswer.evidenceStrength || 'unknown',
+        dataQualityAssessment: compiledAnswer.dataQualityAssessment || '',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -581,6 +742,11 @@ Respond in JSON format:
         keyFindings: [],
         gaps: ['Analysis compilation failed'],
         recommendations: ['Manual review required'],
+        clinicalSummary: {},
+        riskFactors: ['Compilation error'],
+        positiveSignals: [],
+        evidenceStrength: 'unknown',
+        dataQualityAssessment: 'Unable to assess due to compilation error',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -589,6 +755,7 @@ Respond in JSON format:
 
   /**
    * Generate comprehensive findings
+   * 🚀 IMPROVEMENT: Enhanced to include clinical data, risk factors, and severity
    */
   private generateComprehensiveFindings(answers: Record<string, any>): any[] {
     const findings = [];
@@ -597,33 +764,71 @@ Respond in JSON format:
       const question = COMPREHENSIVE_CLINICAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // High confidence findings
-      if (answer.confidence > 70) {
+      // 🚀 IMPROVEMENT: High confidence findings with clinical data (>80%)
+      if (answer.confidence > 80 && answer.evidenceStrength === 'strong') {
         findings.push({
           id: findings.length + 1,
           type: 'positive',
-          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
+          severity: 'high',
+          content: answer.answer,
           source: answer.sources.length > 0 ? answer.sources[0] : 'Clinical Documents',
           confidence: answer.confidence / 100,
           category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          evidenceCount: answer.evidenceCount || 0
+          evidenceCount: answer.evidenceCount || 0,
+          clinicalData: answer.clinicalSummary || {},
+          dataQuality: answer.dataQualityAssessment || 'unknown'
         });
       }
       
-      // Risk findings for low confidence or gaps
-      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
+      // 🚀 IMPROVEMENT: Positive signals findings
+      if (answer.positiveSignals && answer.positiveSignals.length > 0) {
+        answer.positiveSignals.forEach(signal => {
+          findings.push({
+            id: findings.length + 1,
+            type: 'positive',
+            severity: 'medium',
+            content: signal,
+            source: answer.sources.join(', '),
+            confidence: answer.confidence / 100,
+            category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            evidenceCount: answer.evidenceCount || 0
+          });
+        });
+      }
+      
+      // 🚀 IMPROVEMENT: Risk factors findings
+      if (answer.riskFactors && answer.riskFactors.length > 0) {
+        answer.riskFactors.forEach(risk => {
+          findings.push({
+            id: findings.length + 1,
+            type: 'risk',
+            severity: answer.confidence > 70 ? 'high' : 'medium',
+            content: risk,
+            source: answer.sources.join(', '),
+            confidence: answer.confidence / 100,
+            category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            evidenceCount: answer.evidenceCount || 0
+          });
+        });
+      }
+      
+      // 🚀 IMPROVEMENT: Data gap findings
+      if (answer.gaps && answer.gaps.length > 0) {
         findings.push({
           id: findings.length + 1,
-          type: 'risk',
-          content: `Insufficient clinical information for: ${question.question}. Additional documentation may be required.`,
+          type: 'gap',
+          severity: 'medium',
+          content: `Missing ${question.category} data: ${answer.gaps.join(', ')}`,
           source: 'Clinical Analysis',
           confidence: 0.3,
-          category: 'gaps',
-          evidenceCount: answer.evidenceCount || 0
+          category: 'data_gaps',
+          evidenceCount: answer.evidenceCount || 0,
+          recommendations: answer.recommendations || []
         });
       }
     }
     
+    console.log(`📊 Generated ${findings.length} comprehensive clinical findings`);
     return findings;
   }
   
