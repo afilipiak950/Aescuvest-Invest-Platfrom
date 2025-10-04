@@ -651,15 +651,21 @@ interface ClinicalAnswer {
 export class ComprehensiveClinicalAnalysisService {
   
   /**
-   * BUILD COMPREHENSIVE CONTENT FROM AI SUMMARY
-   * Extracts ALL sections of AI summary for maximum context
+   * BUILD COMPREHENSIVE CONTENT WITH FULL OCR TEXT
+   * ✅ FIX: Always includes FULL OCR text alongside AI summary to preserve all quantitative data
    */
   private buildComprehensiveContent(document: any): string {
     const parts = [];
     
-    // PRIORITY 1: AI Summary (FULL STRUCTURE - all sections)
+    // PRIORITY 1: FULL OCR TEXT (PRIMARY SOURCE - contains ALL data including numbers and keywords)
+    if (document.ocrText) {
+      console.log(`📝 Using FULL OCR text for ${document.name} - ${document.ocrText.length} characters`);
+      parts.push(`=== FULL DOCUMENT TEXT (OCR) ===\n${document.ocrText}`);
+    }
+    
+    // PRIORITY 2: AI Summary (SUPPLEMENTAL CONTEXT - for structured insights)
     if (document.aiSummary) {
-      console.log(`📝 Using AI Summary for ${document.name} - Full structure extraction`);
+      console.log(`📝 Adding AI Summary for ${document.name} - Supplemental structured analysis`);
       
       if (document.aiSummary.executiveSummary) {
         parts.push(`=== EXECUTIVE SUMMARY ===\n${document.aiSummary.executiveSummary}`);
@@ -695,14 +701,8 @@ export class ComprehensiveClinicalAnalysisService {
       }
     }
     
-    // PRIORITY 2: OCR Text (FALLBACK ONLY - increased to 8000 chars)
-    if (parts.length === 0 && document.ocrText) {
-      console.log(`📝 Falling back to OCR text for ${document.name} (AI summary not available)`);
-      parts.push(`=== DOCUMENT TEXT ===\n${document.ocrText.substring(0, 8000)}`);
-    }
-    
     const content = parts.join('\n\n');
-    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} sections`);
+    console.log(`📊 Content built for ${document.name}: ${content.length} characters from ${parts.length} sections (OCR + AI Summary)`);
     return content;
   }
   
@@ -1100,7 +1100,7 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500
+        max_tokens: 3200  // ✅ INCREASED: More room for detailed clinical metrics and evidence
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -1231,7 +1231,7 @@ Return JSON:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 4096
+        max_tokens: 5000  // ✅ INCREASED: More room for comprehensive answers with specific statistics
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
