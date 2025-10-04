@@ -1847,10 +1847,11 @@ export class DatabaseStorage implements IStorage {
 
   async clearAgentAnalysis(dealId: number, agentType: string): Promise<void> {
     try {
+      // DELETE WITHOUT CAPITALIZATION - database stores 'clinical' not 'Clinical'
       await db.delete(agentAnalyses)
         .where(and(
           eq(agentAnalyses.dealId, dealId), 
-          eq(agentAnalyses.agentType, agentType.charAt(0).toUpperCase() + agentType.slice(1))
+          eq(agentAnalyses.agentType, agentType)
         ));
       
       // CRITICAL: Also clear in-memory cache to force fresh analysis
