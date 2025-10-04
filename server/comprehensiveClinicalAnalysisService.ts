@@ -1100,7 +1100,7 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 4000
+        max_tokens: 2500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -1231,7 +1231,7 @@ Return JSON:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 8000
+        max_tokens: 4096
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
