@@ -17,10 +17,68 @@ export const COMPREHENSIVE_CLINICAL_QUESTIONS = [
   // Clinical Trial Protocols
   { 
     id: 'trial_1', 
-    question: 'Are trial phases and designs clearly defined?', 
+    question: 'Clinical Trial/Study Characteristics', 
     category: 'Clinical Trial Protocols',
-    analysisPrompt: 'Identify clinical trial phases, study designs, randomization methods, blinding procedures, and protocol structure.',
-    keywords: ['phase i', 'phase ii', 'phase iii', 'randomized', 'controlled', 'blinded', 'double-blind', 'placebo', 'trial design', 'protocol', 'enrollment', 'study design']
+    subQuestions: [
+      {
+        id: 'trial_1a',
+        question: 'What phase is the current trial (Phase I, II, III)?',
+        expectedFormat: 'Phase [I/II/III/Pivotal/Validation] - [Study Name/ID] - [Status: Planned/Active/Completed]'
+      },
+      {
+        id: 'trial_1b',
+        question: 'Is the study design (randomized, controlled, blinded) specified?',
+        expectedFormat: 'YES/NO - If YES: [Randomized Y/N], [Controlled Y/N], [Blinding: Double/Single/Open-label], [Sample Size: N=XX]'
+      },
+      {
+        id: 'trial_1c',
+        question: 'Are patient enrollment targets clearly defined?',
+        expectedFormat: 'YES/NO - If YES: Target N=[number], Enrolled N=[number] ([%]% complete), Sites: [number], Timeline: [dates]'
+      }
+    ],
+    analysisPrompt: `Extract SPECIFIC STATISTICS for each sub-question. Return structured answers with concrete numbers:
+
+SUB-QUESTION 1: Trial Phase/Stage
+- Identify exact phase: Phase I, Phase II, Phase III, Pivotal Study, Validation Study, Clinical Validation
+- Extract study name/identifier (e.g., NET-MED-002, Study ABC)
+- Current status: Planned, Recruiting, Active, Completed, or NOT SPECIFIED
+- Format: "Phase [X] [Study Name] - Status: [X]" OR "NOT SPECIFIED in available documents"
+
+SUB-QUESTION 2: Study Design
+- Randomization: YES (ratio: X:X) or NO or NOT SPECIFIED
+- Control group: YES (type: placebo/active/standard of care) or NO or NOT SPECIFIED  
+- Blinding: Double-blind, Single-blind, Open-label, or NOT SPECIFIED
+- Sample size: Target N=[number], Actual N=[number] or NOT SPECIFIED
+- Format: "YES - Randomized 1:1, Double-blind, Placebo-controlled, N=100" OR "NO - Design not specified"
+
+SUB-QUESTION 3: Enrollment Metrics
+- Target enrollment: N=[specific number] or NOT SPECIFIED
+- Current enrollment: N=[number] ([%]% of target) or NOT SPECIFIED
+- Number of sites: [number] sites (list names if available) or NOT SPECIFIED
+- Enrollment period: [start date] to [end date] or NOT SPECIFIED
+- Enrollment rate: [number] patients/month (if calculable) or NOT SPECIFIED
+- Format: "YES - Target N=100, Enrolled N=87 (87%), 3 sites, Jan-Dec 2022" OR "NO - Enrollment targets not disclosed"
+
+CRITICAL RULES:
+1. Extract ONLY concrete numbers and facts found in documents
+2. Return "NOT SPECIFIED" for any missing data - DO NOT make assumptions
+3. For each sub-question, start with YES/NO to indicate if information is available
+4. Use exact numbers from documents (N=87, not "approximately 90")
+5. Include source document names for all statistics`,
+    keywords: [
+      // Phase keywords
+      'phase i', 'phase ii', 'phase iii', 'phase 1', 'phase 2', 'phase 3',
+      'pivotal study', 'pivotal trial', 'validation study', 'clinical validation',
+      'clinical study', 'clinical trial', 'study protocol',
+      // Design keywords
+      'randomized', 'randomised', 'controlled', 'blinded', 'double-blind', 'double blind',
+      'single-blind', 'single blind', 'open-label', 'open label', 'parallel group', 'crossover',
+      'placebo-controlled', 'active-controlled', 'comparative study',
+      // Enrollment keywords
+      'enrollment', 'enrolment', 'sample size', 'n=', 'n =', 'target enrollment',
+      'recruitment', 'subjects enrolled', 'patients enrolled', 'enrollment target',
+      'target sample', 'study population', 'recruitment target', 'recruitment goal'
+    ]
   },
   { 
     id: 'trial_2', 
@@ -475,7 +533,9 @@ export class ComprehensiveClinicalAnalysisService {
       
       // Filter successful results with relevant content
       const validEvidence = batchResults
-        .filter(result => result.status === 'fulfilled' && result.value?.relevantContent?.length > 0)
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled' && result.value?.relevantContent?.length > 0
+        )
         .map(result => result.value);
       
       const batchSuccesses = batchResults.filter(r => r.status === 'fulfilled').length;
