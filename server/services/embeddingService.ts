@@ -137,89 +137,48 @@ export class EmbeddingService {
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  // Search for relevant chunks using semantic similarity with optional intent-based filtering
+  // Search for relevant chunks using semantic similarity
   static async searchSimilarChunks(
     query: string,
     dealId: number | null,
-    topK = TOP_K_RESULTS,
-    agentTypes?: string[] // Optional intent-based filtering
+    topK = TOP_K_RESULTS
   ): Promise<Array<{ chunk: string; metadata: ChunkMetadata; similarity: number; content?: string; documentName?: string }>> {
-    const intentFilter = agentTypes && agentTypes.length > 0 ? ` (filtering by ${agentTypes.join(', ')})` : '';
-    console.log(`🔍 Searching for relevant chunks for query: "${query.substring(0, 50)}..." (dealId: ${dealId || 'global'})${intentFilter}`);
+    console.log(`🔍 Searching for relevant chunks for query: "${query.substring(0, 50)}..." (dealId: ${dealId || 'global'})`);
     
     // Generate query embedding
     const queryEmbedding = await this.generateEmbedding(query);
     const embeddingString = `[${queryEmbedding.join(',')}]`;
     
-    // Build the intent-based filter condition
-    let agentTypeFilter = '';
-    let agentTypeParams: any[] = [];
-    
-    if (agentTypes && agentTypes.length > 0) {
-      agentTypeFilter = `AND d.agent_type = ANY($${agentTypeParams.length + 1})`;
-      agentTypeParams.push(agentTypes);
-    }
-    
     // Use PostgreSQL's native vector similarity search with pgvector
-    // Join with documents table to filter by agent type if specified
+    // The <=> operator calculates L2 distance, 1 - distance gives similarity
+    // For better results, use cosine similarity operator <#> if available
     let results;
     
     if (dealId === null) {
-      // Global search across all deals with optional intent filtering
-      if (agentTypes && agentTypes.length > 0) {
-        results = await db.execute(sql`
-          SELECT 
-            de.chunk_text,
-            de.metadata,
-            de.deal_id,
-            1 - (de.embedding <=> ${embeddingString}::vector) as similarity
-          FROM document_embeddings de
-          JOIN documents d ON de.document_id = d.id
-          WHERE d.agent_type = ANY(${agentTypes}::text[])
-          ORDER BY de.embedding <=> ${embeddingString}::vector
-          LIMIT ${topK}
-        `);
-      } else {
-        results = await db.execute(sql`
-          SELECT 
-            chunk_text,
-            metadata,
-            deal_id,
-            1 - (embedding <=> ${embeddingString}::vector) as similarity
-          FROM document_embeddings
-          ORDER BY embedding <=> ${embeddingString}::vector
-          LIMIT ${topK}
-        `);
-      }
+      // Global search across all deals
+      results = await db.execute(sql`
+        SELECT 
+          chunk_text,
+          metadata,
+          deal_id,
+          1 - (embedding <=> ${embeddingString}::vector) as similarity
+        FROM document_embeddings
+        ORDER BY embedding <=> ${embeddingString}::vector
+        LIMIT ${topK}
+      `);
     } else {
-      // Deal-specific search with optional intent filtering
-      if (agentTypes && agentTypes.length > 0) {
-        results = await db.execute(sql`
-          SELECT 
-            de.chunk_text,
-            de.metadata,
-            de.deal_id,
-            1 - (de.embedding <=> ${embeddingString}::vector) as similarity
-          FROM document_embeddings de
-          JOIN documents d ON de.document_id = d.id
-          WHERE de.deal_id = ${dealId}
-          AND d.agent_type = ANY(${agentTypes}::text[])
-          ORDER BY de.embedding <=> ${embeddingString}::vector
-          LIMIT ${topK}
-        `);
-      } else {
-        results = await db.execute(sql`
-          SELECT 
-            chunk_text,
-            metadata,
-            deal_id,
-            1 - (embedding <=> ${embeddingString}::vector) as similarity
-          FROM document_embeddings
-          WHERE deal_id = ${dealId}
-          ORDER BY embedding <=> ${embeddingString}::vector
-          LIMIT ${topK}
-        `);
-      }
+      // Deal-specific search
+      results = await db.execute(sql`
+        SELECT 
+          chunk_text,
+          metadata,
+          deal_id,
+          1 - (embedding <=> ${embeddingString}::vector) as similarity
+        FROM document_embeddings
+        WHERE deal_id = ${dealId}
+        ORDER BY embedding <=> ${embeddingString}::vector
+        LIMIT ${topK}
+      `);
     }
     
     const topResults = results.rows.map((row: any) => ({
@@ -315,7 +274,7 @@ export class EmbeddingService {
       
       // Get documents for this deal that don't have embeddings
       const documentsToEmbed = await db.execute(sql`
-        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.agent_type
+        SELECT d.id, d.deal_id, d.name, d.ocr_text, d.type as agent_type
         FROM documents d
         LEFT JOIN document_embeddings de ON d.id = de.document_id
         WHERE d.deal_id = ${dealId}

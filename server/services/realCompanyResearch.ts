@@ -1,6 +1,9 @@
-import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
+import OpenAI from 'openai';
 
-// All OpenAI calls migrated to Ultra-Intelligent AI system with GPT-5
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 interface CompanyResearchData {
   dealId: number;
@@ -187,25 +190,13 @@ async function researchExecutiveTeam(companyName: string, website?: string) {
     Return comprehensive but factual information only as JSON format. If information is not available, state "Information not publicly available" rather than making assumptions.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Executive Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function researchFinancialData(companyName: string, website?: string) {
@@ -232,25 +223,13 @@ async function researchFinancialData(companyName: string, website?: string) {
     Format as JSON with specific funding rounds and amounts.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Financial Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function researchBusinessIntelligence(companyName: string, website?: string) {
@@ -277,25 +256,13 @@ async function researchBusinessIntelligence(companyName: string, website?: strin
     Return as structured JSON with arrays for competitors, partnerships, news items.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Business Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function researchTechnicalCapabilities(companyName: string, website?: string) {
@@ -322,25 +289,13 @@ async function researchTechnicalCapabilities(companyName: string, website?: stri
     Return factual technical information only.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Technical Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function gatherExternalSources(companyName: string, website?: string) {
@@ -378,25 +333,13 @@ async function analyzeMarketPosition(companyName: string, website?: string, busi
     Return structured market analysis.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Market Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function generateInvestmentHighlights(companyName: string, businessData: any, financialData: any) {
@@ -419,25 +362,13 @@ async function generateInvestmentHighlights(companyName: string, businessData: a
     Return as structured investment highlights.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Investment Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function performRiskAssessment(companyName: string, website?: string, businessData: any) {
@@ -459,25 +390,13 @@ async function performRiskAssessment(companyName: string, website?: string, busi
     Return structured risk assessment with mitigation strategies.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent Risk Assessment: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }
 
 async function researchSocialMediaPresence(companyName: string) {
@@ -514,23 +433,11 @@ async function analyzeESGFactors(companyName: string, website?: string) {
     Return factual ESG information only.
   `;
 
-  const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-    { role: "user", content: prompt }
-  ], {
-    responseFormat: { type: "json_object" },
-    qualityThreshold: 0.90
-  } as UltraIntelligentConfig);
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
 
-  console.log(`🤖 Ultra-Intelligent ESG Analysis: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-
-  // Clean response content and strip markdown code blocks before parsing
-  let cleanContent = response.content;
-  if (cleanContent.includes('```json')) {
-    cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-  }
-  if (cleanContent.includes('```')) {
-    cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-  }
-
-  return JSON.parse(cleanContent || '{}');
+  return JSON.parse(response.choices[0].message.content || '{}');
 }

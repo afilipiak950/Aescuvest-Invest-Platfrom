@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PageHeader from '@/components/layout/page-header';
@@ -10,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Brain, TrendingUp, Download, Save } from 'lucide-react';
+import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
@@ -104,95 +103,8 @@ export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
-  const [editingMemoId, setEditingMemoId] = useState<string>('');
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [savedMemoId, setSavedMemoId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [location] = useLocation();
-
-  // Handle URL parameters for editing existing memos
-  useEffect(() => {
-    console.log('🔧 URL Parameter useEffect triggered!', { location });
-    console.log('🔧 window.location.search:', window.location.search);
-    console.log('🔧 window.location.href:', window.location.href);
-    
-    const searchParams = new URLSearchParams(window.location.search);
-    const dealParam = searchParams.get('deal');
-    const editParam = searchParams.get('edit');
-    
-    console.log('📝 URL Parameters Parsed:', { 
-      deal: dealParam, 
-      edit: editParam, 
-      currentLocation: location,
-      searchString: window.location.search,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-    
-    // Set the deal if provided in URL
-    if (dealParam) {
-      console.log('🎯 Preselecting deal from URL:', dealParam);
-      setSelectedDeal(dealParam);
-    } else {
-      console.log('❌ No deal parameter found in URL');
-    }
-    
-    // Set the memo ID for editing if provided
-    if (editParam) {
-      console.log('✏️ Setting edit mode for memo:', editParam);
-      setEditingMemoId(editParam);
-    } else {
-      console.log('❌ No edit parameter found in URL');
-    }
-  }, [location]); // Removed selectedDeal from dependencies to avoid circular dependency
-
-  // Load existing memo content when editing
-  useEffect(() => {
-    if (editingMemoId && selectedDeal) {
-      const loadExistingMemo = async () => {
-        try {
-          console.log(`📖 Loading existing memo ${editingMemoId} for deal ${selectedDeal}`);
-          const response = await apiRequest(`/api/memos/id/${editingMemoId}`);
-          if (response.success && response.memo) {
-            console.log('✅ Loaded existing memo record:', response.memo);
-            
-            // Extract the actual comprehensive memo content from the database record
-            const comprehensiveMemo = response.memo.memo;
-            if (comprehensiveMemo) {
-              console.log('✅ Setting comprehensive memo for editing:', Object.keys(comprehensiveMemo));
-              setGeneratedMemo(comprehensiveMemo);
-              
-              // Ensure editingMemoId is set if not already
-              if (!editingMemoId) {
-                setEditingMemoId(response.memo.id.toString());
-              }
-              
-              toast({
-                title: "Memo Loaded",
-                description: `Loaded existing memo for editing`,
-              });
-            } else {
-              console.error('❌ No memo content found in record');
-              toast({
-                title: "Load Warning",
-                description: "Memo record found but no content available",
-                variant: "destructive",
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Failed to load existing memo:', error);
-          toast({
-            title: "Load Failed",
-            description: "Failed to load existing memo for editing",
-            variant: "destructive",
-          });
-        }
-      };
-      
-      loadExistingMemo();
-    }
-  }, [editingMemoId, selectedDeal, toast]);
 
   // Load section sources when deal is selected (with cache busting)
   useEffect(() => {
@@ -200,7 +112,7 @@ export default function MemoGenerator() {
       const loadSectionSources = async () => {
         try {
           console.log(`🔄 Loading section sources for deal ${selectedDeal}`);
-          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'swotAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
+          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
           const sourcePromises = mainSections.map(async (sectionKey) => {
             try {
               // Add cache busting parameter to ensure fresh data
@@ -237,13 +149,12 @@ export default function MemoGenerator() {
   }, [selectedDeal]);
   
   // Clear generated memo state when deal changes to ensure fresh loading from database
-  // But don't clear when in edit mode to prevent race conditions
   useEffect(() => {
-    if (selectedDeal && !editingMemoId) {
+    if (selectedDeal) {
       setGeneratedMemo(null); // Clear local state to force database fetch
       console.log(`🔄 Deal changed to ${selectedDeal}, clearing local memo state`);
     }
-  }, [selectedDeal, editingMemoId]);
+  }, [selectedDeal]);
   
   // Fetch real deals from API with document and analysis counts
   const { data: deals, isLoading: isLoadingDeals } = useQuery({
@@ -414,99 +325,11 @@ export default function MemoGenerator() {
 
     generateMemoMutation.mutate(selectedDeal);
   };
-
-  const handleSaveMemo = async () => {
-    if (!currentMemo || !selectedDeal) {
-      toast({
-        title: "Cannot Save",
-        description: "No memo to save or deal not selected.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      
-      const isUpdating = !!editingMemoId;
-      console.log('💾 Saving memo for deal:', selectedDeal, { isUpdating, editingMemoId });
-
-      // Transform memo data to match database schema
-      const memoData = {
-        dealId: parseInt(selectedDeal),
-        executiveSummary: currentMemo.executiveSummary || '',
-        memo: currentMemo, // Store the full comprehensive memo in JSON field
-        status: 'Draft'
-      };
-
-      console.log('📝 Memo data prepared for save:', { 
-        dealId: memoData.dealId, 
-        hasExecutiveSummary: !!memoData.executiveSummary,
-        hasMemo: !!memoData.memo,
-        memoKeys: memoData.memo ? Object.keys(memoData.memo) : [],
-        isUpdating
-      });
-
-      // Choose endpoint and method based on whether we're updating or creating
-      const endpoint = isUpdating ? `/api/memos/${editingMemoId}` : '/api/memos';
-      const method = isUpdating ? 'PATCH' : 'POST';
-
-      const response = await apiRequest(endpoint, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(memoData)
-      });
-
-      console.log('✅ Save response:', response);
-
-      // Handle different response structures: response.id or response.memo?.id
-      const memoId = response?.id || response?.memo?.id;
-      
-      if (memoId) {
-        setSavedMemoId(memoId);
-        
-        // Set editingMemoId if this was a new memo
-        if (!isUpdating) {
-          setEditingMemoId(memoId.toString());
-        }
-        
-        toast({
-          title: "Success!",
-          description: isUpdating 
-            ? `Investment memo updated successfully`
-            : `Investment memo saved successfully with ID ${memoId}`,
-        });
-
-        // Comprehensive cache invalidation to ensure memos list updates
-        queryClient.invalidateQueries({ queryKey: ['/api/memos'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/memos', 'list'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/memos', selectedDeal] });
-        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        
-        console.log('🔄 Cache invalidated, memo should appear in memos list');
-      } else {
-        throw new Error('Save succeeded but no memo ID returned in response');
-      }
-    } catch (error) {
-      console.error('❌ Failed to save memo:', error);
-      toast({
-        title: isUpdating ? "Update Failed" : "Save Failed",
-        description: error instanceof Error ? error.message : "Failed to save investment memo",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
   
   const isLoading = isLoadingDeals || isLoadingMemo || isLoadingCounts;
   const isGenerating = generateMemoMutation.isPending;
-  
-  // Fix critical memo shape derivation - extract comprehensive memo from database record
-  const dbMemo = existingMemo?.memo?.memo; // existingMemo.memo is database record, .memo is comprehensive memo
-  const currentMemo = dbMemo || generatedMemo;
+  // Use existing memo from database first, then fallback to newly generated memo
+  const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
   // Debug logging
@@ -582,8 +405,21 @@ export default function MemoGenerator() {
           <div className="lg:col-span-2">
             <Card className="bg-dark-light border-dark-lighter mb-6">
               <CardContent className="pt-6">
-                <div className="mb-6">
+                <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold">Investment Memo</h2>
+                  <div>
+                    <Select defaultValue="standard">
+                      <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white focus:ring-primary">
+                        <SelectValue placeholder="Select format" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-dark-lighter border-dark-lighter">
+                        <SelectItem value="standard">Standard VC Memo</SelectItem>
+                        <SelectItem value="term-sheet">Term Sheet Memo</SelectItem>
+                        <SelectItem value="executive">Executive Brief (2-3 pages)</SelectItem>
+                        <SelectItem value="comprehensive">Comprehensive Analysis</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 
 {!selectedDeal ? (
@@ -1362,139 +1198,72 @@ export default function MemoGenerator() {
                       )}
 
                       {/* SWOT Analysis */}
-                      {currentMemo?.swotAnalysis && currentMemo.swotAnalysis !== null && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">SWOT Analysis</CardTitle>
-                                  <p className="text-slate-400 text-sm">Strengths, weaknesses, opportunities, and threats analysis</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.swotAnalysis || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="swotAnalysis"
-                                  sectionTitle="SWOT Analysis"
-                                  currentContent={typeof currentMemo.swotAnalysis === 'object' ? JSON.stringify(currentMemo.swotAnalysis, null, 2) : currentMemo.swotAnalysis}
-                                  onUpdate={(newContent) => {
-                                    try {
-                                      // Parse JSON and validate SWOT structure
-                                      const parsedContent = JSON.parse(newContent);
-                                      
-                                      // Validate required SWOT structure
-                                      if (typeof parsedContent === 'object' && parsedContent !== null) {
-                                        const validatedSWOT = {
-                                          strengths: Array.isArray(parsedContent.strengths) ? parsedContent.strengths : [],
-                                          weaknesses: Array.isArray(parsedContent.weaknesses) ? parsedContent.weaknesses : [],
-                                          opportunities: Array.isArray(parsedContent.opportunities) ? parsedContent.opportunities : [],
-                                          threats: Array.isArray(parsedContent.threats) ? parsedContent.threats : []
-                                        };
-                                        setGeneratedMemo(prev => prev ? { ...prev, swotAnalysis: validatedSWOT } : null);
-                                      } else {
-                                        throw new Error('Invalid SWOT structure');
-                                      }
-                                    } catch (error) {
-                                      // Show error and don't save invalid content
-                                      console.error('Invalid SWOT JSON format:', error);
-                                      toast({
-                                        title: "Invalid SWOT Format",
-                                        description: "SWOT Analysis must be valid JSON with strengths, weaknesses, opportunities, and threats arrays.",
-                                        variant: "destructive",
-                                      });
-                                      return; // Don't update state with invalid content
-                                    }
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
+                      {currentMemo?.swotAnalysis && (
+                        <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
+                          <h3 className="text-xl font-bold text-white mb-4">SWOT Analysis</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                              <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
+                              {Array.isArray(currentMemo.swotAnalysis.strengths) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.strengths.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-green-400 mr-2">+</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.strengths) || 'No strengths identified'}</div>
+                              )}
                             </div>
-                          </CardHeader>
-                          <CardContent>
-                            {(() => {
-                              // Runtime normalization to ensure SWOT structure
-                              const normalizedSWOT = typeof currentMemo.swotAnalysis === 'object' && currentMemo.swotAnalysis !== null ? {
-                                strengths: Array.isArray(currentMemo.swotAnalysis.strengths) ? currentMemo.swotAnalysis.strengths : [],
-                                weaknesses: Array.isArray(currentMemo.swotAnalysis.weaknesses) ? currentMemo.swotAnalysis.weaknesses : [],
-                                opportunities: Array.isArray(currentMemo.swotAnalysis.opportunities) ? currentMemo.swotAnalysis.opportunities : [],
-                                threats: Array.isArray(currentMemo.swotAnalysis.threats) ? currentMemo.swotAnalysis.threats : []
-                              } : {
-                                strengths: typeof currentMemo.swotAnalysis === 'string' ? [currentMemo.swotAnalysis] : [],
-                                weaknesses: [],
-                                opportunities: [],
-                                threats: []
-                              };
-                              
-                              return (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div>
-                                <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
-                                {Array.isArray(normalizedSWOT.strengths) && normalizedSWOT.strengths.length > 0 ? (
-                                  <ul className="space-y-2">
-                                    {normalizedSWOT.strengths.map((item: any, index: number) => (
-                                      <li key={index} className="text-gray-300 text-sm flex items-start">
-                                        <span className="text-green-400 mr-2">+</span>
-                                        {typeof item === 'object' && item.description ? item.description : item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-gray-400 text-sm italic">No strengths identified yet. Generate memo or edit to add content.</div>
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
-                                {Array.isArray(normalizedSWOT.weaknesses) && normalizedSWOT.weaknesses.length > 0 ? (
-                                  <ul className="space-y-2">
-                                    {normalizedSWOT.weaknesses.map((item: any, index: number) => (
-                                      <li key={index} className="text-gray-300 text-sm flex items-start">
-                                        <span className="text-red-400 mr-2">-</span>
-                                        {typeof item === 'object' && item.description ? item.description : item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-gray-400 text-sm italic">No weaknesses identified yet. Generate memo or edit to add content.</div>
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
-                                {Array.isArray(normalizedSWOT.opportunities) && normalizedSWOT.opportunities.length > 0 ? (
-                                  <ul className="space-y-2">
-                                    {normalizedSWOT.opportunities.map((item: any, index: number) => (
-                                      <li key={index} className="text-gray-300 text-sm flex items-start">
-                                        <span className="text-blue-400 mr-2">↗</span>
-                                        {typeof item === 'object' && item.description ? item.description : item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-gray-400 text-sm italic">No opportunities identified yet. Generate memo or edit to add content.</div>
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
-                                {Array.isArray(normalizedSWOT.threats) && normalizedSWOT.threats.length > 0 ? (
-                                  <ul className="space-y-2">
-                                    {normalizedSWOT.threats.map((item: any, index: number) => (
-                                      <li key={index} className="text-gray-300 text-sm flex items-start">
-                                        <span className="text-yellow-400 mr-2">⚠</span>
-                                        {typeof item === 'object' && item.description ? item.description : item}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-gray-400 text-sm italic">No threats identified yet. Generate memo or edit to add content.</div>
-                                )}
-                              </div>
+                            <div>
+                              <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
+                              {Array.isArray(currentMemo.swotAnalysis.weaknesses) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.weaknesses.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-red-400 mr-2">-</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.weaknesses) || 'No weaknesses identified'}</div>
+                              )}
                             </div>
-                              );
-                            })()}
-                          </CardContent>
-                        </Card>
+                            <div>
+                              <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
+                              {Array.isArray(currentMemo.swotAnalysis.opportunities) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.opportunities.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-blue-400 mr-2">↗</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.opportunities) || 'No opportunities identified'}</div>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
+                              {Array.isArray(currentMemo.swotAnalysis.threats) ? (
+                                <ul className="space-y-2">
+                                  {currentMemo.swotAnalysis.threats.map((item: string, index: number) => (
+                                    <li key={index} className="text-gray-300 text-sm flex items-start">
+                                      <span className="text-yellow-400 mr-2">⚠</span>
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.threats) || 'No threats identified'}</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       )}
                       
                       {/* Fallback content if no risk sections exist */}
@@ -1774,25 +1543,6 @@ export default function MemoGenerator() {
                   
                   {currentMemo && (
                     <div className="space-y-2">
-                      <Button 
-                        onClick={handleSaveMemo}
-                        disabled={isSaving}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        data-testid="button-save-memo"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save Memo
-                          </>
-                        )}
-                      </Button>
-
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"

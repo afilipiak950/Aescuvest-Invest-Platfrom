@@ -85,7 +85,8 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const [input, setInput] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  // isPreloading now handled by React Query (isContextPreloading)
+  const [isContextLoaded, setIsContextLoaded] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showMetrics, setShowMetrics] = useState(false);
   const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
@@ -94,7 +95,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // OPTIMIZED: Consolidated context preload with React Query caching
+  // Fetch context stats
   const { data: contextStats, isLoading: statsLoading } = useQuery({
     queryKey: ['/api/deals', dealId, 'ai-assistant/stats'],
     queryFn: async () => {
@@ -102,43 +103,8 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
       if (!response.ok) throw new Error('Failed to fetch AI context stats');
       return response.json();
     },
-    enabled: !!dealId,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    gcTime: 10 * 60 * 1000 // Keep in cache for 10 minutes
+    enabled: !!dealId
   });
-
-  // OPTIMIZED: Smart preload with caching and deduplication
-  const { data: preloadResult, isLoading: isContextPreloading } = useQuery({
-    queryKey: ['/api/deals', dealId, 'ai-assistant/preload'],
-    queryFn: async () => {
-      console.log(`🚀 Smart pre-loading AI context for deal ${dealId}...`);
-      const response = await fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        console.warn(`⚠️ Context pre-loading failed, will load on first query`);
-        throw new Error('Preload failed');
-      }
-      
-      const result = await response.json();
-      console.log(`✅ AI context pre-loaded successfully for deal ${dealId}:`, result.contextStats);
-      return result;
-    },
-    enabled: !!dealId,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes - avoid repeated preloads
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    retry: 1, // Only retry once on failure
-    refetchOnWindowFocus: false // Don't refetch when window regains focus
-  });
-
-  // OPTIMIZED: Derive context readiness from React Query state instead of manual state
-  const isContextLoaded = preloadResult?.success || contextStats?.stats;
 
   // Fetch smart suggestions
   const { data: suggestions } = useQuery({
@@ -202,7 +168,37 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     }
   ];
   
-  // OPTIMIZED: Context loading now handled by React Query above
+  // PERFORMANCE OPTIMIZATION: Pre-load AI context when component mounts
+  useEffect(() => {
+    if (dealId && !isPreloading) {
+      setIsPreloading(true);
+      console.log(`🚀 Pre-loading AI context for deal ${dealId}...`);
+      
+      // Trigger background context loading for instant responses
+      fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          console.log(`✅ AI context pre-loaded successfully for deal ${dealId}`);
+          setIsContextLoaded(true);
+          setIsPreloading(false);
+        } else {
+          console.warn(`⚠️ Context pre-loading failed, will load on first query`);
+          setIsPreloading(false);
+        }
+      })
+      .catch(error => {
+        console.error(`❌ Context pre-loading error:`, error);
+        setIsPreloading(false);
+      });
+    }
+  }, [dealId]);
 
   // Update smart suggestions when data changes
   useEffect(() => {
@@ -220,7 +216,54 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
     }
   }, [metrics]);
 
-  // OPTIMIZED: Preloading now handled by React Query above
+  // Pre-load context when component mounts for instant responses
+  useEffect(() => {
+    if (dealId && !isContextLoaded) {
+      // Immediately mark as loading started
+      setIsPreloading(true);
+      
+      // Set a hard timeout to guarantee we exit loading state
+      const timeout = setTimeout(() => {
+        console.log('⚡ AI Assistant ready (timeout fallback)');
+        setIsPreloading(false);
+        setIsContextLoaded(true);
+      }, 2000); // Reduced to 2 seconds for better UX
+      
+      // Pre-load context in the background
+      fetch(`/api/deals/${dealId}/ai-assistant/preload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => {
+        // Check if response is HTML (Vite blocking)
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          console.warn('Vite blocked preload endpoint, continuing anyway');
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.success) {
+          console.log('🚀 AI Assistant context pre-loaded:', data.contextStats);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to pre-load context:', err);
+      })
+      .finally(() => {
+        // Always clear loading state
+        clearTimeout(timeout);
+        setIsPreloading(false);
+        setIsContextLoaded(true);
+      });
+      
+      // Cleanup function
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+  }, [dealId]); // Simplified dependencies to prevent re-runs
 
   // Mutation for sending queries
   // Handle smart suggestion click
@@ -311,73 +354,30 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
 
         if (reader) {
           let fullContent = '';
-          let sseBuffer = ''; // Buffer for partial SSE frames
-          let streamingDone = false;
-          
-          while (!streamingDone) {
+          while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            // Accumulate chunks in buffer for robust SSE parsing
-            sseBuffer += decoder.decode(value, { stream: true });
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
             
-            // Split by double newlines to separate SSE events
-            const events = sseBuffer.split('\n\n');
-            
-            // Keep the last partial event in buffer
-            sseBuffer = events.pop() || '';
-            
-            for (const event of events) {
-              const lines = event.split('\n');
-              let data = '';
-              
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  data = line.slice(6);
-                } else if (line.startsWith(':')) {
-                  // Skip comment lines (heartbeat)
-                  continue;
-                }
-              }
-              
-              if (data) {
-                try {
-                  const parsed = JSON.parse(data);
-                  
-                  // ⚡ REAL-TIME TOKEN STREAMING for 50-80% speed improvement
-                  if (parsed.type === 'status') {
-                    console.log(`📊 Status update: ${parsed.message} (setup: ${parsed.setupTime}ms)`);
-                  } else if (parsed.type === 'content') {
-                    // Add individual token immediately for real-time response
-                    fullContent += parsed.content;
-                    setMessages(prev => prev.map(msg => 
-                      msg.id === assistantId 
-                        ? { ...msg, content: fullContent }
-                        : msg
-                    ));
-                    
-                    // Performance logging every 50 tokens
-                    if (fullContent.length % 100 === 0) {
-                      console.log(`⚡ Streaming progress: ${fullContent.length} characters received`);
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data) {
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.type === 'content') {
+                      fullContent += parsed.content;
+                      setMessages(prev => prev.map(msg => 
+                        msg.id === assistantId 
+                          ? { ...msg, content: fullContent }
+                          : msg
+                      ));
                     }
-                  } else if (parsed.type === 'done') {
-                    console.log(`✅ Streaming completed: ${parsed.timing?.tokensPerSecond || 0} tokens/sec`);
-                    console.log(`📊 Total time: ${parsed.timing?.total}ms (setup: ${parsed.timing?.setup}ms, query: ${parsed.timing?.query}ms)`);
-                    
-                    // Update with final response and exit
-                    setMessages(prev => prev.map(msg => 
-                      msg.id === assistantId 
-                        ? { ...msg, content: parsed.fullResponse || fullContent }
-                        : msg
-                    ));
-                    streamingDone = true;
-                    break;
-                  } else if (parsed.type === 'error') {
-                    console.error(`❌ SSE Error: ${parsed.message}`);
-                    throw new Error(parsed.message || 'Streaming error occurred');
+                  } catch (e) {
+                    console.error('Failed to parse SSE data:', e);
                   }
-                } catch (e) {
-                  console.error('Failed to parse SSE data:', e, 'Raw data:', data);
                 }
               }
             }
@@ -435,7 +435,9 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isStreaming) {
-      // Reset streaming state (context readiness derived from React Query)
+      // Force clear any stuck state
+      setIsPreloading(false);
+      setIsContextLoaded(true);
       setIsStreaming(false);
       
       const query = input;
@@ -459,10 +461,12 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
 
   const handleExampleQuery = (query: string) => {
     console.log('🎯 Example query clicked:', query);
-    console.log('📊 Current state:', { isStreaming, isContextPreloading, isContextLoaded });
+    console.log('📊 Current state:', { isStreaming, isPreloading, isContextLoaded });
     
-    // Reset streaming state (context readiness derived from React Query)
+    // Force clear any stuck state
     setIsStreaming(false);
+    setIsPreloading(false);
+    setIsContextLoaded(true);
     setIsExpanded(true);
     
     // Directly submit without setting input first
@@ -522,7 +526,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                   Aescuvest AI Assistant
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  {isContextPreloading ? (
+                  {isPreloading ? (
                     <span className="flex items-center gap-1">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Loading AI context...
@@ -843,7 +847,7 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={
-                  isContextPreloading 
+                  isPreloading 
                     ? "Loading AI context (max 2 seconds)..." 
                     : "Request institutional-grade analysis: financial projections, regulatory pathway, IP assessment, clinical data..."
                 }

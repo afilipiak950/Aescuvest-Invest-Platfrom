@@ -758,7 +758,7 @@ Respond in JSON format:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      hr_answers: JSON.stringify(hrAnswers), // FIXED: Use snake_case for database field
+      hrAnswers: JSON.stringify(hrAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()

@@ -20,8 +20,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
-import { FormattedAnswer } from './FormattedAnswer';
-import { ProfessionalFormattedContent } from './ProfessionalFormattedContent';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -297,7 +295,7 @@ export default function EnhancedAgentCard({
 
     // Check for comprehensive commercial analysis progress
     const { data: commercialProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
-      queryKey: [`/api/deals/${dealId}/agents/commercial/progress`],
+      queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/progress`],
       refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
@@ -887,12 +885,10 @@ export default function EnhancedAgentCard({
   };
 
   const positiveInsights = (findings || []).filter((f: any) => 
-    f.severity === 'positive' || f.type === 'positive' || f.category === 'positive' ||
-    f.type === 'organizational_strength' // ✅ FIXED: HR agent specific positive findings
+    f.severity === 'positive' || f.type === 'positive' || f.category === 'positive'
   ).length;
   const riskFactors = (findings || []).filter((f: any) => 
-    f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk' ||
-    f.type === 'organizational_risk' // ✅ FIXED: HR agent specific risk findings
+    f.severity === 'risk' || f.severity === 'negative' || f.type === 'risk' || f.category === 'risk'
   ).length;
   
   // Debug KPI calculations for verification
@@ -1757,191 +1753,47 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     // Check if findings exist before filtering
     if (!legalData?.findings || !Array.isArray(legalData.findings)) return null;
     
-    // Search through findings for relevant content with question-specific keywords
+    // Search through findings for relevant content
     const relevantFindings = legalData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
-      // FIXED: Question-specific keywords for ALL 13 legal questions
-      const getQuestionSpecificKeywords = (qId: string): string[] => {
-        switch (qId) {
-          // Contracts & Agreements (3 questions)
-          case 'contracts_1': // "Are key commercial contracts clearly defined?"
-            return ['commercial', 'contract', 'agreement', 'terms', 'payment', 'deliverables', 'scope', 'defined', 'clear'];
-          case 'contracts_2': // "What are the key contractual obligations and terms?"
-            return ['obligations', 'terms', 'conditions', 'performance', 'requirements', 'duties', 'responsibilities', 'covenants'];
-          case 'contracts_3': // "Are there any concerning contract provisions or risks?"
-            return ['risk', 'provisions', 'liability', 'termination', 'breach', 'penalties', 'indemnification', 'limitation'];
-          
-          // Corporate Governance (3 questions)
-          case 'governance_1': // "What is the corporate governance structure?"
-            return ['board', 'governance', 'directors', 'officers', 'composition', 'structure', 'bylaws', 'charter'];
-          case 'governance_2': // "Are there adequate governance controls and oversight?"
-            return ['controls', 'oversight', 'compliance', 'internal', 'audit', 'monitoring', 'procedures', 'framework'];
-          case 'governance_3': // "What are the key governance risks and mitigation strategies?"
-            return ['governance', 'risks', 'mitigation', 'control', 'weaknesses', 'remediation', 'strategy', 'safeguards'];
-          
-          // Intellectual Property (3 questions)
-          case 'ip_1': // "What is the intellectual property portfolio?"
-            return ['patent', 'trademark', 'copyright', 'trade secret', 'portfolio', 'ip', 'intellectual property', 'registration'];
-          case 'ip_2': // "Are there any IP ownership or infringement issues?"
-            return ['ownership', 'infringement', 'freedom to operate', 'assignment', 'license', 'dispute', 'chain of title'];
-          case 'ip_3': // "What IP protection and enforcement strategies are in place?"
-            return ['protection', 'enforcement', 'strategy', 'filing', 'prosecution', 'defense', 'monitoring', 'policing'];
-          
-          // Litigation & Legal Risks (2 questions)
-          case 'litigation_1': // "Are there any pending or threatened litigations?"
-            return ['litigation', 'lawsuit', 'dispute', 'pending', 'threatened', 'claim', 'action', 'proceeding'];
-          case 'litigation_2': // "What are the key legal risks and potential exposures?"
-            return ['legal', 'risk', 'exposure', 'contingent', 'liability', 'damages', 'settlement', 'judgment'];
-          
-          // Regulatory Compliance (2 questions)
-          case 'regulatory_1': // "What regulatory requirements apply to the business?"
-            return ['regulatory', 'requirements', 'compliance', 'regulation', 'fda', 'ema', 'framework', 'standards'];
-          case 'regulatory_2': // "Are there any regulatory compliance issues or violations?"
-            return ['violation', 'non-compliance', 'enforcement', 'warning', 'citation', 'inspection', 'audit', 'deficiency'];
-          
-          default:
-            return ['legal', 'agreement', 'contract']; // Basic fallback
-        }
-      };
+      // Check for keyword matches
+      const keywordMatches = [
+        'shares', 'liquidation', 'preferences', 'anti-dilution', 'drag-along', 'tag-along', 
+        'board', 'voting', 'veto', 'warrants', 'valuation', 'interest', 'maturity',
+        'conversion', 'ip assignment', 'founders', 'personnel', 'commercial', 'sla',
+        'distributor', 'termination', 'exclusivity', 'nda', 'confidentiality', 'litigation',
+        'regulatory', 'fda', 'clinical', 'data use'
+      ];
       
-      const questionSpecificKeywords = getQuestionSpecificKeywords(questionId);
-      
-      // Match finding text against question-specific keywords OR exact question text similarity
-      const keywordMatch = questionSpecificKeywords.some(keyword => 
-        findingText.includes(keyword)
+      return keywordMatches.some(keyword => 
+        findingText.includes(keyword) || questionText.includes(keyword)
       );
-      
-      const questionMatch = findingText.includes(questionText.replace(/\?/g, '')) || 
-                           questionText.replace(/\?/g, '').split(' ').some(word => 
-                             word.length > 3 && findingText.includes(word.toLowerCase())
-                           );
-      
-      return keywordMatch || questionMatch;
     });
     
-    // IMPROVED: Better handling for empty findings with question-specific messages
-    if (relevantFindings.length === 0) {
-      const getQuestionSpecificEmptyMessage = (qId: string): string => {
-        switch (qId) {
-          // Contracts & Agreements
-          case 'contracts_1':
-            return 'Key commercial contracts are not clearly documented in the available materials. Additional contract documentation may be required.';
-          case 'contracts_2':
-            return 'Contractual obligations and terms are not adequately detailed in the reviewed documents. Comprehensive contract review is needed.';
-          case 'contracts_3':
-            return 'Contract risk provisions and concerning terms are not sufficiently documented for assessment.';
-          
-          // Corporate Governance
-          case 'governance_1':
-            return 'Corporate governance structure is not clearly defined in the available documentation. Board composition and governance policies need review.';
-          case 'governance_2':
-            return 'Governance controls and oversight mechanisms are not adequately documented. Internal control documentation is needed.';
-          case 'governance_3':
-            return 'Governance risks and mitigation strategies are not sufficiently detailed in the available materials.';
-          
-          // Intellectual Property
-          case 'ip_1':
-            return 'Intellectual property portfolio is not comprehensively documented. Patent, trademark, and trade secret inventories are needed.';
-          case 'ip_2':
-            return 'IP ownership and potential infringement issues are not clearly addressed in the available documentation.';
-          case 'ip_3':
-            return 'IP protection and enforcement strategies are not adequately described in the reviewed materials.';
-          
-          // Litigation & Legal Risks
-          case 'litigation_1':
-            return 'No pending or threatened litigation is documented in the available materials. Legal dispute disclosure may be incomplete.';
-          case 'litigation_2':
-            return 'Legal risks and potential exposures are not comprehensively assessed in the available documentation.';
-          
-          // Regulatory Compliance
-          case 'regulatory_1':
-            return 'Applicable regulatory requirements are not clearly documented. Regulatory framework analysis is needed.';
-          case 'regulatory_2':
-            return 'Regulatory compliance status and any violations are not adequately documented in the available materials.';
-          
-          default:
-            return 'Relevant legal information for this question is not available in the current documentation.';
-        }
-      };
-      
-      return {
-        answer: getQuestionSpecificEmptyMessage(questionId),
-        confidence: 30,
-        sources: [],
-        keyFindings: [`Legal analysis pending for: ${questionKeywords.question}. Analysis may be in progress or additional documentation may be needed.`],
-        recommendations: ['Obtain detailed legal documentation and contracts for comprehensive review'],
-        legalAssessment: 'Analysis limited by availability of legal documentation.'
-      };
-    }
+    if (relevantFindings.length === 0) return null;
     
     // Combine relevant findings into a comprehensive answer
     const combinedAnswer = relevantFindings
       .map((finding: any) => finding.content || finding.description || finding.title)
-      .filter(content => content && content.length > 0)
       .join(' ');
     
-    // Calculate average confidence based on finding quality
+    // Calculate average confidence
     const avgConfidence = relevantFindings.length > 0 
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
-      : 60;
+      : 80;
     
     // Extract source document names
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-; // ENTERPRISE FIX: Show ALL sources without limits
-    
-    // Extract key findings specific to this question
-    const keyFindings = relevantFindings
-      .map((finding: any) => finding.content || finding.description)
-      .filter(content => content && content.length > 20)
-      .slice(0, 3)
-      .map(content => content.substring(0, 150) + (content.length > 150 ? '...' : ''));
-    
-    // Function to get question-specific empty message (same as above)
-    const getQuestionSpecificEmptyMessage = (qId: string): string => {
-      switch (qId) {
-        case 'contracts_1':
-          return 'Key commercial contracts are not clearly documented in the available materials.';
-        case 'contracts_2':
-          return 'Contractual obligations and terms are not adequately detailed in the reviewed documents.';
-        case 'contracts_3':
-          return 'Contract risk provisions and concerning terms are not sufficiently documented for assessment.';
-        case 'governance_1':
-          return 'Corporate governance structure is not clearly defined in the available documentation.';
-        case 'governance_2':
-          return 'Governance controls and oversight mechanisms are not adequately documented.';
-        case 'governance_3':
-          return 'Governance risks and mitigation strategies are not sufficiently detailed in the available materials.';
-        case 'ip_1':
-          return 'Intellectual property portfolio is not comprehensively documented.';
-        case 'ip_2':
-          return 'IP ownership and potential infringement issues are not clearly addressed in the available documentation.';
-        case 'ip_3':
-          return 'IP protection and enforcement strategies are not adequately described in the reviewed materials.';
-        case 'litigation_1':
-          return 'No pending or threatened litigation is documented in the available materials.';
-        case 'litigation_2':
-          return 'Legal risks and potential exposures are not comprehensively assessed in the available documentation.';
-        case 'regulatory_1':
-          return 'Applicable regulatory requirements are not clearly documented.';
-        case 'regulatory_2':
-          return 'Regulatory compliance status and any violations are not adequately documented in the available materials.';
-        default:
-          return 'Relevant legal information for this question is not available in the current documentation.';
-      }
-    };
+      .slice(0, 3); // Limit to 3 sources
     
     return {
-      answer: combinedAnswer.length > 10 ? 
-        (combinedAnswer.substring(0, 800) + (combinedAnswer.length > 800 ? '...' : '')) :
-        getQuestionSpecificEmptyMessage(questionId),
+      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
       confidence: avgConfidence,
-      sources: sources,
-      keyFindings: keyFindings.length > 0 ? keyFindings : [`Limited information available for: ${questionKeywords.question}`],
-      legalAssessment: `Analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from legal documentation.`
+      sources: sources
     };
   };
 
@@ -2011,14 +1863,14 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <FormattedAnswer text={answer.answer} />
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Legal Assessment */}
                               {answer.legalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Legal Assessment</h5>
-                                  <FormattedAnswer text={answer.legalAssessment} />
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.legalAssessment}</p>
                                 </div>
                               )}
 
@@ -2299,157 +2151,46 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     // Check if findings exist before filtering
     if (!clinicalData?.findings || !Array.isArray(clinicalData.findings)) return null;
     
-    // Search through findings for relevant content with question-specific keywords
+    // Search through findings for relevant content
     const relevantFindings = clinicalData.findings.filter((finding: any) => {
       const findingText = (finding.content || finding.description || finding.title || '').toLowerCase();
       const questionText = questionKeywords.question.toLowerCase();
       
-      // FIXED: Question-specific keywords for ALL 11 clinical questions
-      const getQuestionSpecificKeywords = (qId: string): string[] => {
-        switch (qId) {
-          // Clinical Trial Protocols (3 questions)
-          case 'trial_1': // "Are trial phases and designs clearly defined?"
-            return ['phase', 'design', 'protocol', 'randomized', 'controlled', 'blinded', 'study design', 'methodology', 'recruitment'];
-          case 'trial_2': // "What are primary and secondary endpoints?"
-            return ['endpoint', 'primary', 'secondary', 'outcome', 'measurement', 'assessment', 'metric', 'target'];
-          case 'trial_3': // "How is efficacy/safety assessed?"
-            return ['efficacy', 'safety', 'adverse', 'sae', 'monitoring', 'assessment', 'evaluation', 'toxicity'];
-          
-          // Regulatory Filings (3 questions)  
-          case 'regulatory_1': // "What is current approval status?"
-            return ['approval', 'status', 'regulatory', 'fda', 'ema', 'submission', 'clearance', 'pending', 'granted'];
-          case 'regulatory_2': // "Are fast-track or orphan designations received?"
-            return ['fast-track', 'orphan', 'designation', 'breakthrough', 'priority', 'review', 'incentive', 'therapy'];
-          case 'regulatory_3': // "Are adverse events disclosed?"
-            return ['adverse', 'events', 'disclosed', 'reported', 'safety', 'sae', 'serious', 'disclosure', 'documentation'];
-          
-          // Investigator Brochures & Study Reports (3 questions)
-          case 'study_1': // "Are inclusion/exclusion criteria consistent?"
-            return ['inclusion', 'exclusion', 'criteria', 'patient', 'selection', 'eligibility', 'enrollment', 'population'];
-          case 'study_2': // "What patient population is used?"
-            return ['population', 'patient', 'demographic', 'characteristics', 'disease', 'stage', 'severity', 'cohort'];
-          case 'study_3': // "Are SAE (Serious Adverse Events) tracked?"
-            return ['sae', 'serious', 'adverse', 'events', 'tracked', 'reporting', 'procedures', 'classification', 'signals'];
-          
-          // Scientific Advisory Board Notes (2 questions)
-          case 'advisory_1': // "Are trial results debated by experts?"
-            return ['results', 'debated', 'experts', 'advisory', 'independent', 'opinions', 'concerns', 'feedback'];
-          case 'advisory_2': // "Are post-trial steps described?"
-            return ['post-trial', 'next', 'steps', 'phase', 'readiness', 'development', 'planning', 'strategy'];
-          
-          default:
-            return ['clinical', 'trial', 'study']; // Basic fallback
-        }
-      };
+      // Clinical-specific keywords
+      const keywordMatches = [
+        'trial', 'phase', 'clinical', 'regulatory', 'fda', 'ema', 'endpoint', 
+        'efficacy', 'safety', 'adverse', 'patient', 'study', 'protocol',
+        'approval', 'designation', 'orphan', 'breakthrough', 'inclusion',
+        'exclusion', 'population', 'advisory', 'sae', 'serious adverse'
+      ];
       
-      const questionSpecificKeywords = getQuestionSpecificKeywords(questionId);
-      
-      // Match finding text against question-specific keywords OR exact question text similarity
-      const keywordMatch = questionSpecificKeywords.some(keyword => 
-        findingText.includes(keyword)
+      return keywordMatches.some(keyword => 
+        findingText.includes(keyword) || questionText.includes(keyword)
       );
-      
-      const questionMatch = findingText.includes(questionText.replace(/\?/g, '')) || 
-                           questionText.replace(/\?/g, '').split(' ').some(word => 
-                             word.length > 3 && findingText.includes(word.toLowerCase())
-                           );
-      
-      return keywordMatch || questionMatch;
     });
     
-    // IMPROVED: Better handling for empty findings with question-specific messages
-    if (relevantFindings.length === 0) {
-      const getQuestionSpecificEmptyMessage = (qId: string): string => {
-        switch (qId) {
-          // Clinical Trial Protocols
-          case 'trial_1':
-            return 'Clinical trial phases and study designs are not clearly documented in the available materials. Additional protocol documentation may be required.';
-          case 'trial_2':
-            return 'Primary and secondary endpoints are not clearly defined in the reviewed documents. Detailed study protocol documentation is needed.';
-          case 'trial_3':
-            return 'Efficacy and safety assessment methodologies are not adequately described in the available documentation.';
-          
-          // Regulatory Filings
-          case 'regulatory_1':
-            return 'Current regulatory approval status is not documented in the available materials. Regulatory correspondence and submission tracking is needed.';
-          case 'regulatory_2':
-            return 'No evidence of fast-track, orphan, or breakthrough therapy designations found in the regulatory documentation.';
-          case 'regulatory_3':
-            return 'Adverse event disclosure documentation is not available or adequately detailed in the reviewed materials.';
-          
-          // Investigator Brochures & Study Reports
-          case 'study_1':
-            return 'Patient inclusion and exclusion criteria are not consistently documented across study materials. Detailed protocol review is needed.';
-          case 'study_2':
-            return 'Patient population characteristics and demographics are not clearly described in the available study documentation.';
-          case 'study_3':
-            return 'Serious Adverse Event (SAE) tracking and reporting procedures are not adequately documented in the available materials.';
-          
-          // Scientific Advisory Board Notes
-          case 'advisory_1':
-            return 'Expert opinions and advisory board discussions regarding trial results are not documented in the available materials.';
-          case 'advisory_2':
-            return 'Post-trial development steps and Phase 3 readiness planning are not described in the advisory documentation.';
-          
-          default:
-            return 'Relevant clinical information for this question is not available in the current documentation.';
-        }
-      };
-      
-      return {
-        answer: getQuestionSpecificEmptyMessage(questionId),
-        confidence: 30,
-        sources: [],
-        keyFindings: [`Insufficient clinical information for: ${questionKeywords.question}. Additional documentation may be required.`],
-        recommendations: ['Obtain detailed clinical trial protocols and regulatory documentation'],
-        clinicalAssessment: 'Analysis limited by availability of clinical documentation.'
-      };
-    }
+    if (relevantFindings.length === 0) return null;
     
-    // ✅ FIXED: Extract clean answers from RAG findings by removing question repetition
-    const cleanAnswers = relevantFindings
-      .map((finding: any) => {
-        const content = finding.content || finding.description || finding.title || '';
-        
-        // Remove question prefix if present (e.g. "Are trial phases...?: Answer")
-        const questionSeparatorIndex = content.indexOf(': ');
-        if (questionSeparatorIndex > 0) {
-          // Extract everything after the first ": " separator
-          return content.substring(questionSeparatorIndex + 2).trim();
-        }
-        
-        return content.trim();
-      })
-      .filter(content => content && content.length > 0);
+    // Combine relevant findings into a comprehensive answer
+    const combinedAnswer = relevantFindings
+      .map((finding: any) => finding.content || finding.description || finding.title)
+      .join(' ');
     
-    // ✅ FIXED: Show FULL answer without truncation for complete RAG responses
-    const combinedAnswer = cleanAnswers.join(' ');
-    
-    // Calculate average confidence based on finding quality
+    // Calculate average confidence
     const avgConfidence = relevantFindings.length > 0 
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
-      : 60;
+      : 80;
     
     // Extract source document names
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
       .filter((source: string) => source)
-; // ENTERPRISE FIX: Show ALL sources without limits
-    
-    // ✅ FIXED: Extract key findings with clean content (no question repetition)
-    const keyFindings = cleanAnswers
-      .filter(content => content && content.length > 20)
-      .slice(0, 3)
-      .map(content => content.substring(0, 200) + (content.length > 200 ? '...' : ''));
+      .slice(0, 3); // Limit to 3 sources
     
     return {
-      answer: combinedAnswer.length > 10 ? 
-        combinedAnswer : // ✅ FIXED: No truncation - show full RAG answer
-        getQuestionSpecificEmptyMessage(questionId),
+      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
       confidence: avgConfidence,
-      sources: sources,
-      keyFindings: keyFindings.length > 0 ? keyFindings : [`Limited information available for: ${questionKeywords.question}`],
-      clinicalAssessment: `RAG-powered analysis based on ${relevantFindings.length} relevant finding${relevantFindings.length > 1 ? 's' : ''} from clinical documentation.`
+      sources: sources
     };
   };
 
@@ -2514,14 +2255,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <FormattedAnswer text={answer.answer} />
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Clinical Assessment */}
                               {answer.clinicalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Clinical Assessment</h5>
-                                  <FormattedAnswer text={answer.clinicalAssessment} />
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.clinicalAssessment}</p>
                                 </div>
                               )}
 
@@ -4133,7 +3874,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/start`, {
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/comprehensive`, {
         method: 'POST'
       });
       return response;
@@ -4146,7 +3887,7 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
       }
       
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+        queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
         queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
@@ -4177,18 +3918,18 @@ function ComprehensiveCommercialAnalysisButton({ dealId }: { dealId: number }) {
         attempts++;
         
         try {
-          const response = await fetch(`/api/deals/${dealId}/agents/commercial/results?_t=${Date.now()}`, {
+          const response = await fetch(`/api/deals/${dealId}/commercial-analysis/comprehensive/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
           
           console.log(`Commercial analysis attempt ${attempts}...`);
           
-          if (data.success && data.analysis && data.analysis.commercialAnswers && Object.keys(data.analysis.commercialAnswers).length > 0) {
+          if (data.success && data.commercialAnswers && Object.keys(data.commercialAnswers).length > 0) {
             console.log('Commercial analysis completed!');
             
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
+              queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`]
             });
             queryClient.invalidateQueries({
               queryKey: [`/api/deals/${dealId}/agents/commercial/results`]
@@ -4269,7 +4010,7 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
 
   const comprehensiveAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/persistent/start`, {
+      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/comprehensive`, {
         method: 'POST'
       });
       return response;
@@ -4282,10 +4023,10 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
       }
       
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`]
+        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
       });
       queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
@@ -4313,21 +4054,21 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
         attempts++;
         
         try {
-          const response = await fetch(`/api/deals/${dealId}/agents/hr/results?_t=${Date.now()}`, {
+          const response = await fetch(`/api/deals/${dealId}/hr-analysis/comprehensive/results?_t=${Date.now()}`, {
             cache: 'no-cache'
           });
           const data = await response.json();
           
           console.log(`HR analysis attempt ${attempts}...`);
           
-          if (data.success && data.analysis && data.analysis.questions && data.analysis.questions.length > 0) {
+          if (data.success && data.hrAnswers && Object.keys(data.hrAnswers).length > 0) {
             console.log('HR analysis completed!');
             
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
+              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
             });
             queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`]
+              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -4399,10 +4140,12 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
 
-  // FIXED: Use working endpoint like HR agent  
+  // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/financial/results`],
+    queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+    staleTime: 0, // Always treat as stale to force fresh data like Legal
+    gcTime: 0, // Don't cache results like Legal
   });
 
   // Force refetch on component mount to ensure fresh data like Legal
@@ -4410,13 +4153,13 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     refetchComprehensive();
   }, [refetchComprehensive]);
 
-  // FIXED: Use working data structure like HR agent
+  // Use comprehensive results if available, fallback to analysisData like Legal
   const financialData = comprehensiveResults?.analysis || analysisData || null;
 
   console.log('💰 Financial Analysis Available:', !!financialData);
   console.log('💰 Comprehensive Results Available:', !!comprehensiveResults?.analysis);  
-  console.log('💰 Financial Data from Comprehensive:', !!financialData);
-  console.log('💰 Financial Findings:', financialData?.findings?.length || 0);
+  console.log('💰 Financial Data from Comprehensive:', !!financialData?.financialAnswers);
+  console.log('💰 Financial Answers Keys:', financialData?.financialAnswers ? Object.keys(financialData.financialAnswers) : 'No answers');
   console.log('💰 DEBUGGING: Full financialData structure:', JSON.stringify(financialData, null, 2));
 
   const toggleCategory = (category: string) => {
@@ -4462,25 +4205,22 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     if (!financialData) return null;
     
     console.log(`💰 Looking for answer to financial question ${questionId}`);
-    console.log(`💰 Financial findings available:`, !!financialData.findings);
+    console.log(`💰 Financial Answers exists:`, !!financialData.financialAnswers);
     
-    // FIXED: Use findings array like HR agent, not financialAnswers object  
-    if (financialData?.findings && Array.isArray(financialData.findings)) {
-      // Get the first few findings as the answer (simplified approach)
-      const relevantFindings = financialData.findings.slice(0, 3);
-      if (relevantFindings.length > 0) {
-        return {
-          answer: relevantFindings.map(f => f.description || f.title || f.content).join('\n\n'),
-          confidence: 0.8,
-          sources: relevantFindings.map(f => f.documentSource || f.source).filter(Boolean),
-          quotes: [],
-          keyFindings: relevantFindings.map(f => f.title || f.category),
-          evidenceSummary: `Found ${financialData.findings.length} financial findings`,
-          financialAssessment: relevantFindings[0]?.description || '',
-          recommendations: [],
-          detailedEvidence: []
-        };
-      }
+    // First try to get answer from financialAnswers structure - EXACTLY like Clinical
+    if (financialData?.financialAnswers && financialData.financialAnswers[questionId]) {
+      const answer = financialData.financialAnswers[questionId];
+      return {
+        answer: answer.answer || 'Analysis in progress...',
+        confidence: answer.confidence || 0,
+        sources: Array.isArray(answer.sources) ? answer.sources : answer.sources ? [answer.sources] : [],
+        quotes: answer.quotes || [],
+        keyFindings: answer.keyFindings || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        financialAssessment: answer.financialAssessment || '',
+        recommendations: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || []
+      };
     }
 
     return null; // Return null for empty state like Clinical agent
@@ -4991,9 +4731,6 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
 
-  // Use comprehensive results if available, fallback to analysisData (SAME AS LEGAL)
-  const commercialData = comprehensiveResults?.analysis || analysisData || null;
-
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(category)) {
@@ -5029,9 +4766,8 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   }, {} as Record<string, typeof COMMERCIAL_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // FIXED: Use commercialData instead of comprehensiveResults directly (SAME AS LEGAL)
-    if (!commercialData?.commercialAnswers) return null;
-    return commercialData.commercialAnswers[questionId] || null;
+    if (!comprehensiveResults?.analysis?.commercialAnswers) return null;
+    return comprehensiveResults.analysis.commercialAnswers[questionId] || null;
   };
 
   return (
@@ -5082,14 +4818,14 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Main Finding - Clinical style */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <FormattedAnswer text={answer.answer} />
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Commercial Assessment */}
                               {answer.commercialAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-indigo-400 mb-2">Commercial Assessment</h5>
-                                  <FormattedAnswer text={answer.commercialAssessment} />
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.commercialAssessment}</p>
                                 </div>
                               )}
 
@@ -5129,7 +4865,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <ProfessionalFormattedContent content={answer.evidenceSummary} className="text-gray-300" variant="small" />
+                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
                                 </div>
                               )}
 
@@ -5315,9 +5051,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   }, {} as Record<string, typeof HR_QUESTIONS>);
 
   const getAnswerForQuestion = (questionId: string) => {
-    // FIXED: Use the correct data structure from working endpoint
-    if (!comprehensiveResults?.analysis?.questions) return null;
-    return comprehensiveResults.analysis.questions.find((q: any) => q.questionId === questionId) || null;
+    if (!comprehensiveResults?.analysis?.hrAnswers) return null;
+    return comprehensiveResults.analysis.hrAnswers[questionId] || null;
   };
 
   return (
@@ -5368,7 +5103,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Analysis Response - Commercial style matching */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <ProfessionalFormattedContent content={answer.answer} className="text-gray-300" variant="small" />
+                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced HR Assessment - mimic Commercial's commercialAssessment */}

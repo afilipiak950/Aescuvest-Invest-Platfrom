@@ -1,7 +1,8 @@
-import { ultraIntelligentAI, UltraIntelligentConfig } from './ultraIntelligentAI';
+import OpenAI from "openai";
 import { storage } from "../storage";
 
-// All OpenAI calls migrated to Ultra-Intelligent AI system with GPT-5
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface CompanyIntelligence {
   ceoProfile?: {
@@ -121,24 +122,23 @@ export class CompanyResearchService {
       Focus on information that would be critical for investor due diligence and decision-making.
       `;
       
-      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-        {
-          role: "system",
-          content: "You are a senior venture capital analyst with expertise in startup due diligence. Provide comprehensive, factual research based on publicly available information. Structure your response clearly and include specific details that investors need for decision-making."
-        },
-        {
-          role: "user",
-          content: researchPrompt
-        }
-      ], {
-        qualityThreshold: 0.90,
-        maxTokens: 4000,
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a senior venture capital analyst with expertise in startup due diligence. Provide comprehensive, factual research based on publicly available information. Structure your response clearly and include specific details that investors need for decision-making."
+          },
+          {
+            role: "user",
+            content: researchPrompt
+          }
+        ],
+        max_tokens: 4000,
         temperature: 0.2
-      } as UltraIntelligentConfig);
+      });
       
-      console.log(`🤖 Ultra-Intelligent Company Research: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-      
-      const researchText = response.content || '';
+      const researchText = response.choices[0].message.content || '';
       
       // Structure the research findings
       const structuredData = await this.structureFindings(researchText, companyName);
@@ -216,34 +216,24 @@ export class CompanyResearchService {
     `;
     
     try {
-      const response = await ultraIntelligentAI.createUltraIntelligentCompletion([
-        {
-          role: "system",
-          content: "You are a data extraction expert. Convert research text into structured JSON format."
-        },
-        {
-          role: "user",
-          content: structuringPrompt
-        }
-      ], {
-        responseFormat: { type: "json_object" },
-        qualityThreshold: 0.90,
-        maxTokens: 2000,
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a data extraction expert. Convert research text into structured JSON format."
+          },
+          {
+            role: "user",
+            content: structuringPrompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
         temperature: 0.1
-      } as UltraIntelligentConfig);
+      });
       
-      console.log(`🤖 Ultra-Intelligent Data Structuring: ${response.intelligenceLevel} | Quality: ${response.qualityScore.toFixed(3)} | Model: ${response.model}`);
-      
-      // Clean response content and strip markdown code blocks before parsing
-      let cleanContent = response.content;
-      if (cleanContent.includes('```json')) {
-        cleanContent = cleanContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-      }
-      if (cleanContent.includes('```')) {
-        cleanContent = cleanContent.replace(/```[a-zA-Z]*\s*/g, '').replace(/```\s*$/g, '');
-      }
-      
-      return JSON.parse(cleanContent || '{}');
+      return JSON.parse(response.choices[0].message.content || '{}');
     } catch (error) {
       console.error('Failed to structure research data:', error);
       return {};

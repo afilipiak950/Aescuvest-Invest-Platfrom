@@ -5,7 +5,7 @@
  */
 
 import { storage } from '../storage';
-import { ComprehensiveResearchAnalysisService, STRATEGIC_INTELLIGENCE_QUESTIONS } from '../comprehensiveResearchAnalysisService';
+import { ComprehensiveResearchAnalysisService, RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
 import { websocketManager } from './websocketManager';
 
 interface ResearchJobState {
@@ -91,7 +91,7 @@ export class PersistentResearchAnalysisService {
       jobId,
       progress: 0,
       currentQuestionIndex: 0,
-      totalQuestions: STRATEGIC_INTELLIGENCE_QUESTIONS.length,
+      totalQuestions: RESEARCH_QUESTIONS.length,
       currentBatch: 1,
       totalBatches: 1,
       currentStep: 'Initializing research analysis',
@@ -139,7 +139,7 @@ export class PersistentResearchAnalysisService {
       jobId,
       progress: 0,
       currentQuestionIndex: 0,
-      totalQuestions: STRATEGIC_INTELLIGENCE_QUESTIONS.length,
+      totalQuestions: RESEARCH_QUESTIONS.length,
       currentBatch: 1,
       totalBatches: 1,
       currentStep: 'Resuming research analysis',

@@ -182,7 +182,7 @@ export class IntelligentAssignmentService {
       */
 
       // Extract content for analysis
-      const content = await this.extractDocumentContent(document);
+      const content = this.extractDocumentContent(document);
       if (!content) {
         console.log(`⚠️ No content available for document ${documentId} - assigning to Research by default`);
         return this.createDefaultAssignment(documentId, userId);
@@ -211,7 +211,7 @@ export class IntelligentAssignmentService {
   }
 
   // Extract relevant content from document for analysis
-  private async extractDocumentContent(document: any): Promise<string> {
+  private extractDocumentContent(document: any): string {
     const parts: string[] = [];
     
     // Add document name (important for context)

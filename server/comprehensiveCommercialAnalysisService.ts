@@ -3,131 +3,85 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
-import { ENTERPRISE_AGENT_PROMPTS, ENTERPRISE_PROMPT_FRAMEWORK } from './utils/enterprisePrompts';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const MARKET_STRATEGY_QUESTIONS = [
-  // Competitive Positioning Matrix
+const COMMERCIAL_QUESTIONS = [
+  // Competitive Analysis Decks
   { 
-    id: 'competitive_positioning_1', 
-    question: 'What is the company\'s market share percentage in its primary market segment?', 
-    category: 'Competitive Positioning Matrix',
-    analysisPrompt: 'Quantify market share percentages, competitive position analysis, and market leadership assessment.',
-    keywords: ['market share', 'market position', 'competitive position', 'market leader', 'market penetration', 'segment share', 'market dominance'],
-    outputField: 'marketPosition'
+    id: 'competitive_1', 
+    question: 'Is the differentiation clearly articulated?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['competitive', 'differentiation', 'competitive advantage', 'unique value', 'positioning', 'competitor', 'comparison', 'market position', 'value prop', 'usp']
   },
   { 
-    id: 'competitive_positioning_2', 
-    question: 'How does pricing compare to top 3 competitors (premium/discount percentage)?', 
-    category: 'Competitive Positioning Matrix',
-    analysisPrompt: 'Analyze competitive pricing positioning, premium/discount analysis, and pricing differentiation strategies.',
-    keywords: ['competitive pricing', 'pricing comparison', 'price premium', 'price discount', 'pricing position', 'competitor pricing'],
-    outputField: 'competitiveAdvantage'
+    id: 'competitive_2', 
+    question: 'Are comparison matrices based on price/features?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['comparison matrix', 'price comparison', 'feature comparison', 'competitive matrix', 'pricing table', 'feature set', 'competitive analysis', 'benchmark']
   },
   { 
-    id: 'competitive_positioning_3', 
-    question: 'What are the key competitive advantages and their sustainability (1-5 years)?', 
-    category: 'Competitive Positioning Matrix',
-    analysisPrompt: 'Identify sustainable competitive advantages, competitive moats, and differentiation factors with timeline analysis.',
-    keywords: ['competitive advantage', 'competitive moat', 'differentiation', 'sustainability', 'competitive barriers', 'unique value'],
-    outputField: 'competitiveAdvantage'
+    id: 'competitive_3', 
+    question: 'Is switching cost vs. competitors assessed?', 
+    category: 'Competitive Analysis Decks',
+    keywords: ['switching cost', 'migration cost', 'switching barrier', 'customer retention', 'lock-in', 'stickiness', 'churn prevention', 'switching friction']
   },
-  
-  // Pricing Strategy Optimization
+  // Pricing Models
   { 
-    id: 'pricing_strategy_1', 
-    question: 'What is the price elasticity of demand for core products/services?', 
-    category: 'Pricing Strategy Optimization',
-    analysisPrompt: 'Analyze price elasticity, demand sensitivity, and optimal pricing strategies with quantitative analysis.',
-    keywords: ['price elasticity', 'demand elasticity', 'pricing sensitivity', 'optimal pricing', 'price optimization', 'elasticity analysis'],
-    outputField: 'pricingAnalysis'
+    id: 'pricing_1', 
+    question: 'What pricing logic is used (usage-based, tiered, per-seat)?', 
+    category: 'Pricing Models',
+    keywords: ['pricing model', 'usage-based', 'tiered pricing', 'per-seat', 'subscription', 'freemium', 'pricing strategy', 'pricing tier', 'billing model']
   },
   { 
-    id: 'pricing_strategy_2', 
-    question: 'How does pricing strategy impact customer acquisition cost (CAC) and lifetime value (LTV)?', 
-    category: 'Pricing Strategy Optimization',
-    analysisPrompt: 'Evaluate pricing impact on unit economics, CAC/LTV ratios, and customer economics optimization.',
-    keywords: ['pricing impact', 'customer acquisition cost', 'lifetime value', 'unit economics', 'cac ltv ratio', 'customer economics'],
-    outputField: 'pricingAnalysis'
+    id: 'pricing_2', 
+    question: 'Are discount policies documented?', 
+    category: 'Pricing Models',
+    keywords: ['discount policy', 'pricing discount', 'volume discount', 'enterprise discount', 'promotional pricing', 'pricing flexibility', 'discount structure']
   },
   { 
-    id: 'pricing_strategy_3', 
-    question: 'What pricing models are used and their revenue optimization potential?', 
-    category: 'Pricing Strategy Optimization',
-    analysisPrompt: 'Assess pricing model effectiveness, revenue optimization opportunities, and monetization strategy analysis.',
-    keywords: ['pricing model', 'revenue optimization', 'monetization strategy', 'pricing structure', 'billing model', 'pricing tiers'],
-    outputField: 'pricingAnalysis'
+    id: 'pricing_3', 
+    question: 'Is net revenue retention tracked?', 
+    category: 'Pricing Models',
+    keywords: ['net revenue retention', 'nrr', 'revenue retention', 'expansion revenue', 'upsell', 'cross-sell', 'customer growth', 'retention rate']
   },
-  
-  // Sales Channel Effectiveness
+  // Sales Pipeline & CRM Data
   { 
-    id: 'sales_channel_1', 
-    question: 'What are the conversion rates by sales channel (direct, partner, online)?', 
-    category: 'Sales Channel Effectiveness',
-    analysisPrompt: 'Analyze sales channel performance, conversion rates, and channel effectiveness metrics with ROI analysis.',
-    keywords: ['sales channel', 'conversion rate', 'channel effectiveness', 'sales performance', 'channel roi', 'channel conversion'],
-    outputField: 'salesEfficiency'
+    id: 'sales_1', 
+    question: 'What are win/loss rates?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['win rate', 'loss rate', 'conversion rate', 'close rate', 'win/loss', 'sales conversion', 'deal closure', 'sales performance']
   },
   { 
-    id: 'sales_channel_2', 
-    question: 'What is the average sales cycle length and quota attainment by channel?', 
-    category: 'Sales Channel Effectiveness',
-    analysisPrompt: 'Evaluate sales cycle efficiency, quota performance, and sales productivity metrics across channels.',
-    keywords: ['sales cycle', 'quota attainment', 'sales productivity', 'sales efficiency', 'deal velocity', 'sales performance'],
-    outputField: 'salesEfficiency'
+    id: 'sales_2', 
+    question: 'What\'s the sales cycle per segment?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['sales cycle', 'sales process', 'deal cycle', 'time to close', 'sales velocity', 'pipeline velocity', 'segment analysis', 'sales funnel']
   },
   { 
-    id: 'sales_channel_3', 
-    question: 'How effective are different sales channels at customer retention and expansion?', 
-    category: 'Sales Channel Effectiveness',
-    analysisPrompt: 'Assess channel effectiveness for customer retention, expansion revenue, and long-term customer value creation.',
-    keywords: ['customer retention', 'expansion revenue', 'channel retention', 'customer expansion', 'retention rates', 'channel loyalty'],
-    outputField: 'salesEfficiency'
+    id: 'sales_3', 
+    question: 'Are conversion rates stable or improving?', 
+    category: 'Sales Pipeline & CRM Data',
+    keywords: ['conversion rate', 'conversion trend', 'sales trend', 'performance trend', 'improvement', 'optimization', 'sales metrics', 'kpi trend']
   },
-  
-  // Customer Metrics & LTV Analysis
+  // Customer Lists / Key Account Summaries
   { 
-    id: 'customer_ltv_1', 
-    question: 'What is the customer lifetime value (LTV) by segment and cohort?', 
-    category: 'Customer Metrics & LTV Analysis',
-    analysisPrompt: 'Calculate customer lifetime value, segment analysis, and cohort performance with revenue attribution.',
-    keywords: ['customer lifetime value', 'ltv analysis', 'customer segments', 'cohort analysis', 'customer value', 'revenue per customer'],
-    outputField: 'marketPosition'
+    id: 'customer_1', 
+    question: 'What share of revenue is concentrated on top 10 customers?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['customer concentration', 'revenue concentration', 'top customers', 'key accounts', 'customer dependence', 'revenue distribution', 'customer risk']
   },
   { 
-    id: 'customer_ltv_2', 
-    question: 'What are the customer acquisition costs (CAC) and payback periods by channel?', 
-    category: 'Customer Metrics & LTV Analysis',
-    analysisPrompt: 'Analyze customer acquisition economics, payback periods, and channel efficiency metrics.',
-    keywords: ['customer acquisition cost', 'cac analysis', 'payback period', 'acquisition efficiency', 'customer economics', 'acquisition roi'],
-    outputField: 'salesEfficiency'
+    id: 'customer_2', 
+    question: 'What is churn over last 12 months?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['churn', 'churn rate', 'customer churn', 'attrition', 'customer retention', 'customer loss', 'retention rate', 'customer lifetime']
   },
   { 
-    id: 'customer_ltv_3', 
-    question: 'What is the net revenue retention (NRR) and expansion revenue percentage?', 
-    category: 'Customer Metrics & LTV Analysis',
-    analysisPrompt: 'Evaluate net revenue retention, expansion revenue performance, and customer growth metrics.',
-    keywords: ['net revenue retention', 'nrr', 'expansion revenue', 'customer growth', 'revenue retention', 'customer expansion'],
-    outputField: 'marketPosition'
-  },
-  
-  // Market Penetration & Growth
-  { 
-    id: 'market_penetration_1', 
-    question: 'What is the total addressable market (TAM) penetration rate and growth trajectory?', 
-    category: 'Market Penetration Analysis',
-    analysisPrompt: 'Assess market penetration rates, TAM analysis, and growth trajectory with market opportunity quantification.',
-    keywords: ['total addressable market', 'tam penetration', 'market penetration', 'growth trajectory', 'market opportunity', 'market size'],
-    outputField: 'marketPosition'
-  },
-  { 
-    id: 'market_penetration_2', 
-    question: 'How does customer concentration risk impact market position (top 10 customer revenue %)?', 
-    category: 'Market Penetration Analysis',
-    analysisPrompt: 'Evaluate customer concentration risk, revenue diversification, and market position stability.',
-    keywords: ['customer concentration', 'revenue concentration', 'concentration risk', 'customer diversification', 'revenue distribution'],
-    outputField: 'marketPosition'
+    id: 'customer_3', 
+    question: 'Are customer satisfaction/NPS tracked?', 
+    category: 'Customer Lists / Key Account Summaries',
+    keywords: ['customer satisfaction', 'nps', 'net promoter score', 'customer feedback', 'satisfaction score', 'customer survey', 'customer experience', 'csat']
   }
 ];
 
@@ -148,7 +102,7 @@ interface CommercialEvidence {
   confidence: number;
 }
 
-interface MarketStrategyAnswer {
+interface CommercialAnswer {
   question: string;
   answer: string;
   confidence: number;
@@ -158,15 +112,9 @@ interface MarketStrategyAnswer {
   evidenceSummary: string;
   commercialAssessment: string;
   recommendations: string[];
-  category: string;
-  outputField: string;
-  marketPosition?: any;
-  pricingAnalysis?: any;
-  salesEfficiency?: any;
-  competitiveAdvantage?: any;
 }
 
-export class MarketStrategyExpertService {
+export class ComprehensiveCommercialAnalysisService {
   private progressData: Map<number, CommercialAnalysisProgress> = new Map();
 
   getProgress(dealId: number): CommercialAnalysisProgress {
@@ -195,27 +143,15 @@ export class MarketStrategyExpertService {
   }
 
   async getAssignedCommercialDocuments(dealId: number): Promise<any[]> {
-    console.log(`🏢 FIXED: Finding assigned commercial documents for deal ${dealId}`);
+    console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
     
     try {
-      // ✅ CORRECT: Use proper storage method that fetches OCR text correctly
-      const allDocuments = await storage.getDocumentsWithOCRByDealId(dealId);
+      // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
+      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
-      // Log OCR text availability for debugging
-      const docsWithOCR = allDocuments.filter(doc => doc.ocrText && doc.ocrText.length > 0);
-      const docsWithSummary = allDocuments.filter(doc => doc.aiSummary);
-      console.log(`📊 Commercial: Documents with OCR text: ${docsWithOCR.length}/${allDocuments.length}`);
-      console.log(`📊 Commercial: Documents with AI summary: ${docsWithSummary.length}/${allDocuments.length}`);
-      
-      // Filter to include documents with OCR text OR AI summaries for analysis
-      const documentsWithContent = allDocuments.filter(doc => {
-        // Prioritize OCR text, fallback to AI summary
-        if (doc.ocrText && doc.ocrText.length > 100) {
-          console.log(`📄 Commercial: Document ${doc.name}: Using OCR text (${doc.ocrText.length} chars)`);
-          return true;
-        }
-        
+      // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
+      const documentsWithAI = allDocuments.filter(doc => {
         // Check if aiSummary exists and is valid (could be object or string)
         if (!doc.aiSummary) return false;
         
@@ -232,10 +168,10 @@ export class MarketStrategyExpertService {
         return false;
       });
       
-      console.log(`🏢 Commercial analysis will process ALL ${documentsWithContent.length} documents with content (OCR + AI summaries)`);
+      console.log(`🏢 Commercial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
       
-      // Return ALL documents with content for maximum coverage
-      return documentsWithContent;
+      // Return ALL documents with AI summaries for maximum coverage
+      return documentsWithAI;
       
     } catch (error) {
       console.error(`❌ Error finding commercial documents:`, error);
@@ -276,33 +212,33 @@ export class MarketStrategyExpertService {
       // Initialize progress - EXACT Clinical approach
       await storageService.updateBackgroundJob(jobId, {
         progress: 5,
-        currentStep: 'Starting Market Strategy Expert analysis',
+        currentStep: 'Starting commercial analysis',
         processedDocuments: 0,
-        totalDocuments: MARKET_STRATEGY_QUESTIONS.length
+        totalDocuments: COMMERCIAL_QUESTIONS.length
       });
       
       // Process each question systematically - EXACT Clinical approach
-      const marketStrategyAnswers: Record<string, any> = {};
+      const commercialAnswers: Record<string, any> = {};
       
-      for (let i = 0; i < MARKET_STRATEGY_QUESTIONS.length; i++) {
-        const question = MARKET_STRATEGY_QUESTIONS[i];
-        console.log(`📊 Processing market strategy question ${i + 1}/${MARKET_STRATEGY_QUESTIONS.length}: ${question.question}`);
+      for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+        const question = COMMERCIAL_QUESTIONS[i];
+        console.log(`📊 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
         
         // CRITICAL: Update progress for each question - EXACT Clinical micro-step architecture
         await storageService.updateBackgroundJob(jobId, {
-          progress: Math.round(((i + 1) / MARKET_STRATEGY_QUESTIONS.length) * 100),
+          progress: Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100),
           processedDocuments: i,
           currentStep: `Analyzing: ${question.question}`,
           currentDocumentName: question.category
         });
-        console.log(`💾 Updated background job ${jobId} to ${Math.round(((i + 1) / MARKET_STRATEGY_QUESTIONS.length) * 100)}%`);
+        console.log(`💾 Updated background job ${jobId} to ${Math.round(((i + 1) / COMMERCIAL_QUESTIONS.length) * 100)}%`);
         
         try {
-          console.log(`📊 Extracting market strategy evidence for: ${question.question}`);
+          console.log(`📊 Extracting commercial evidence for: ${question.question}`);
           
           // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments, // ENTERPRISE FIX: Process ALL documents for comprehensive analysis
+            assignedDocuments.slice(0, 30), // SPEED: Use only first 30 documents for faster processing
             question
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
@@ -310,13 +246,13 @@ export class MarketStrategyExpertService {
           // Compile comprehensive answer with timeout - EXACT Clinical approach
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
           const answer = await Promise.race([
-            this.compileEnterpriseAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 600000)) // 600 second (10 minute) timeout - MASSIVE increase
+            this.compileComprehensiveAnswer(question, documentEvidence),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
           ]);
-          marketStrategyAnswers[question.id] = answer;
+          commercialAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
-          console.log(`✅ Completed question ${i + 1}/${MARKET_STRATEGY_QUESTIONS.length}: ${question.question}`);
+          console.log(`✅ Completed question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
           
           // Brief delay to avoid rate limiting - EXACT Clinical approach
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -324,10 +260,9 @@ export class MarketStrategyExpertService {
           console.error(`❌ Error processing question "${question.question}":`, questionError);
           
           // Store partial answer for this question - EXACT Clinical approach
-          marketStrategyAnswers[question.id] = {
+          commercialAnswers[question.id] = {
             question: question.question,
             category: question.category,
-            outputField: question.outputField,
             answer: `Error processing this question: ${questionError.message}`,
             confidence: 0,
             sources: [],
@@ -337,7 +272,7 @@ export class MarketStrategyExpertService {
           
           // Update progress to continue processing - EXACT Clinical approach
           await storageService.updateBackgroundJob(jobId, {
-            progress: Math.round((i / MARKET_STRATEGY_QUESTIONS.length) * 100),
+            progress: Math.round((i / COMMERCIAL_QUESTIONS.length) * 100),
             processedDocuments: i,
             currentDocumentName: `Error: ${question.question}`,
             currentStep: `Error in: ${question.category}`
@@ -352,17 +287,17 @@ export class MarketStrategyExpertService {
         // Update progress to completion - EXACT Clinical approach
         await storageService.updateBackgroundJob(jobId, {
           progress: 100,
-          processedDocuments: MARKET_STRATEGY_QUESTIONS.length,
-          currentStep: 'Generating Market Strategy findings and recommendations',
+          processedDocuments: COMMERCIAL_QUESTIONS.length,
+          currentStep: 'Generating findings and recommendations',
           status: 'completing'
         });
         
         // Generate comprehensive findings and recommendations - EXACT Clinical approach
-        const findings = this.generateMarketStrategyFindings(marketStrategyAnswers);
-        const recommendations = this.generateMarketStrategyRecommendations(marketStrategyAnswers);
+        const findings = this.generateComprehensiveFindings(commercialAnswers);
+        const recommendations = this.generateComprehensiveRecommendations(commercialAnswers);
         
         // Store the analysis results - EXACT Clinical approach
-        await this.storeMarketStrategyResults(dealId, marketStrategyAnswers, findings, recommendations, assignedDocuments);
+        await this.storeComprehensiveResults(dealId, commercialAnswers, findings, recommendations, assignedDocuments);
         
         // Mark job as completed - EXACT Clinical approach
         await storageService.updateBackgroundJob(jobId, {
@@ -375,7 +310,7 @@ export class MarketStrategyExpertService {
         return {
           success: true,
           documentsAnalyzed: assignedDocuments.length,
-          questionsAnswered: Object.keys(marketStrategyAnswers).length,
+          questionsAnswered: Object.keys(commercialAnswers).length,
           findings: findings.length,
           recommendations: recommendations.length
         };
@@ -384,9 +319,9 @@ export class MarketStrategyExpertService {
         
         // Still try to save what we have - EXACT Clinical approach
         try {
-          const partialFindings = this.generateMarketStrategyFindings(marketStrategyAnswers);
-          const partialRecommendations = this.generateMarketStrategyRecommendations(marketStrategyAnswers);
-          await this.storeMarketStrategyResults(dealId, marketStrategyAnswers, partialFindings, partialRecommendations, assignedDocuments);
+          const partialFindings = this.generateComprehensiveFindings(commercialAnswers);
+          const partialRecommendations = this.generateComprehensiveRecommendations(commercialAnswers);
+          await this.storeComprehensiveResults(dealId, commercialAnswers, partialFindings, partialRecommendations, assignedDocuments);
           
           // Mark as completed with error - EXACT Clinical approach
           await storageService.updateBackgroundJob(jobId, {
@@ -398,7 +333,7 @@ export class MarketStrategyExpertService {
           return {
             success: true,
             documentsAnalyzed: assignedDocuments.length,
-            questionsAnswered: Object.keys(marketStrategyAnswers).length,
+            questionsAnswered: Object.keys(commercialAnswers).length,
             findings: partialFindings.length,
             recommendations: partialRecommendations.length,
             warning: 'Analysis completed with some errors'
@@ -433,19 +368,20 @@ export class MarketStrategyExpertService {
   ): Promise<any[]> {
     console.log(`📄 SPEED MODE: Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // ENTERPRISE FIX: Process all documents for comprehensive institutional analysis  
-    console.log(`📊 Processing ALL ${documents.length} documents for comprehensive enterprise analysis`);
+    // CRITICAL SPEED FIX: Process only top 30 most relevant documents to match Clinical speed
+    const topDocuments = documents.slice(0, 30);
+    console.log(`🚀 SPEED OPTIMIZATION: Processing top ${topDocuments.length} documents (reduced from ${documents.length} for speed)`);
     
     const evidence = [];
     const batchSize = 20; // Larger batches for speed
     
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < topDocuments.length; i += batchSize) {
+      const batch = topDocuments.slice(i, i + batchSize);
+      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(topDocuments.length / batchSize)} (${batch.length} documents)`);
       
       // Parallel processing with reduced timeout for speed
       const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 Extracting evidence from: ${doc.name}`);
+        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
         try {
           return await Promise.race([
             this.extractEvidenceFromDocument(doc, question),
@@ -466,7 +402,7 @@ export class MarketStrategyExpertService {
       console.log(`✅ FAST Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
     }
     
-    console.log(`🎯 ENTERPRISE: Extracted evidence from ${evidence.length}/${documents.length} documents in comprehensive mode`);
+    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${topDocuments.length} documents in FAST mode`);
     return evidence;
   }
 
@@ -478,38 +414,32 @@ export class MarketStrategyExpertService {
     
     if (!content) return null;
     
-    const prompt = `${ENTERPRISE_AGENT_PROMPTS.COMMERCIAL.SYSTEM_PROMPT}
+    const prompt = `You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 100000)} ${content.length > 100000 ? '\n[Document truncated - processing first 100k characters for comprehensive analysis...]' : ''}
+CONTENT: ${content.substring(0, 4000)}
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
-OUTPUT FIELD: ${question.outputField}
-ANALYSIS TASK: ${question.analysisPrompt}
-
-${ENTERPRISE_PROMPT_FRAMEWORK.QUANTITATIVE_FOCUS}
 
 Instructions:
-- Focus on QUANTITATIVE data: specific percentages, dollar amounts, growth rates, market share numbers
-- Look for competitive positioning data: market share %, pricing comparisons, competitive advantages
-- Identify pricing strategy information: elasticity data, pricing models, revenue optimization
-- Find sales channel metrics: conversion rates, sales cycle data, channel effectiveness
-- Extract customer metrics: LTV, CAC, retention rates, expansion revenue percentages
-- Prioritize institutional-grade commercial intelligence
+- Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
+- Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
+- Consider business documents that mention commercial milestones, market positioning, competitive advantages
+- Even general business context often has commercial implications for investment due diligence
+- For investment companies, most business documents contain commercial information relevant to investors
 
 Respond in JSON format:
 {
   "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1 with specific metrics", "Finding 2 with quantitative data"],
-  "documentSummary": "Brief summary focusing on quantitative commercial insights",
-  "marketStrategyContext": "How this document relates to market strategy and competitive positioning",
-  "quantitativeInsights": ["Specific metric 1", "Specific metric 2"]
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "documentSummary": "Brief summary of what this document contains relevant to the question",
+  "commercialContext": "How this document relates to commercial/business aspects"
 }
 
-${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}`;
+Be thorough in finding relevance - most business documents have commercial implications for investment analysis.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -517,7 +447,7 @@ ${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}`;
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500 // Increased for full document comprehensive extraction
+        max_tokens: 1500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -530,7 +460,7 @@ ${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}`;
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 2000) // Keep larger sample for reference
+        fullContent: content.substring(0, 1000) // Keep sample for reference
       };
       
     } catch (error) {
@@ -549,9 +479,9 @@ ${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}`;
   }
 
   /**
-   * Compile enterprise-grade answer based on all evidence using Market Strategy Expert framework
+   * Compile comprehensive answer based on all evidence - EXACT Clinical approach
    */
-  private async compileEnterpriseAnswer(question: any, evidence: any[]): Promise<any> {
+  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
     console.log(`🔍 Compiling answer for: ${question.question}`);
     console.log(`📋 Evidence count: ${evidence.length}`);
     
@@ -577,11 +507,10 @@ ${ENTERPRISE_PROMPT_FRAMEWORK.EVIDENCE_STANDARDS}`;
       confidence: ev.confidence
     }));
 
-    const prompt = `${ENTERPRISE_AGENT_PROMPTS.COMMERCIAL.SYSTEM_PROMPT}
+    const prompt = `You are an expert commercial due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
-OUTPUT FIELD: ${question.outputField}
 
 EVIDENCE FROM DOCUMENTS:
 ${evidenceSummary.map(ev => `
@@ -591,45 +520,23 @@ KEY FINDINGS: ${ev.findings}
 CONFIDENCE: ${ev.confidence}%
 `).join('\n')}
 
-${ENTERPRISE_AGENT_PROMPTS.COMMERCIAL.ANALYSIS_PROMPT}
-
-Synthesize evidence with institutional-grade rigor:
-1. Provide quantitative analysis with specific metrics
-2. Include competitive positioning assessment with market share data
-3. Analyze pricing strategy with elasticity implications
-4. Evaluate sales channel effectiveness with conversion metrics
-5. Calculate customer metrics including LTV analysis
+Instructions:
+1. Synthesize ALL evidence into a comprehensive answer
+2. Cite specific documents and quotes
+3. Identify gaps in information
+4. Provide confidence assessment
+5. Include commercial recommendations
 
 Respond in JSON format:
 {
-  "answer": "Institutional-grade analysis with quantitative insights",
+  "answer": "Comprehensive answer synthesizing all evidence",
   "confidence": 0-100,
   "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Quantitative finding 1", "Quantitative finding 2"],
-  "gaps": ["Missing data 1", "Missing data 2"],
-  "recommendations": ["Strategic recommendation 1", "Strategic recommendation 2"],
-  "marketStrategyAssessment": "Market strategy evaluation based on evidence",
-  "evidenceCount": ${evidence.length},
-  "marketPosition": {
-    "marketShare": "Percentage if available",
-    "competitivePosition": "Market position analysis",
-    "growthTrajectory": "Growth rate and trajectory"
-  },
-  "pricingAnalysis": {
-    "pricingStrategy": "Current pricing approach",
-    "elasticity": "Price elasticity insights",
-    "optimization": "Pricing optimization opportunities"
-  },
-  "salesEfficiency": {
-    "conversionRates": "Channel conversion data",
-    "salesCycle": "Sales cycle metrics",
-    "channelEffectiveness": "Channel performance analysis"
-  },
-  "competitiveAdvantage": {
-    "advantages": "Key competitive advantages",
-    "sustainability": "Advantage sustainability assessment",
-    "threats": "Competitive threats and risks"
-  }
+  "keyFindings": ["Finding 1", "Finding 2"],
+  "gaps": ["Missing information 1", "Missing information 2"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "commercialAssessment": "Overall commercial assessment based on evidence",
+  "evidenceCount": ${evidence.length}
 }`;
 
     try {
@@ -637,8 +544,8 @@ Respond in JSON format:
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        temperature: 0.1,
-        max_tokens: 4000 // Increased for comprehensive commercial analysis synthesis
+        temperature: 0.2,
+        max_tokens: 2000
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
@@ -646,20 +553,15 @@ Respond in JSON format:
       return {
         question: question.question,
         category: question.category,
-        outputField: question.outputField,
         answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
         confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
-        marketStrategyAssessment: compiledAnswer.marketStrategyAssessment || '',
+        commercialAssessment: compiledAnswer.commercialAssessment || '',
         evidenceCount: evidence.length,
-        detailedEvidence: evidence,
-        marketPosition: compiledAnswer.marketPosition || {},
-        pricingAnalysis: compiledAnswer.pricingAnalysis || {},
-        salesEfficiency: compiledAnswer.salesEfficiency || {},
-        competitiveAdvantage: compiledAnswer.competitiveAdvantage || {}
+        detailedEvidence: evidence
       };
       
     } catch (error) {
@@ -667,7 +569,6 @@ Respond in JSON format:
       return {
         question: question.question,
         category: question.category,
-        outputField: question.outputField,
         answer: `Error compiling answer: ${error.message}`,
         confidence: 0,
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
@@ -675,23 +576,19 @@ Respond in JSON format:
         gaps: ['Analysis compilation failed'],
         recommendations: ['Manual review required'],
         evidenceCount: evidence.length,
-        detailedEvidence: evidence,
-        marketPosition: {},
-        pricingAnalysis: {},
-        salesEfficiency: {},
-        competitiveAdvantage: {}
+        detailedEvidence: evidence
       };
     }
   }
 
   /**
-   * Generate Market Strategy findings with enterprise framework
+   * Generate comprehensive findings - EXACT Clinical approach
    */
-  private generateMarketStrategyFindings(answers: Record<string, any>): any[] {
+  private generateComprehensiveFindings(answers: Record<string, any>): any[] {
     const findings = [];
     
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = MARKET_STRATEGY_QUESTIONS.find(q => q.id === questionId);
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
       // High confidence findings
@@ -725,13 +622,13 @@ Respond in JSON format:
   }
 
   /**
-   * Generate Market Strategy recommendations with enterprise framework
+   * Generate comprehensive recommendations - EXACT Clinical approach
    */
-  private generateMarketStrategyRecommendations(answers: Record<string, any>): any[] {
+  private generateComprehensiveRecommendations(answers: Record<string, any>): any[] {
     const recommendations = [];
     
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = MARKET_STRATEGY_QUESTIONS.find(q => q.id === questionId);
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
       // Add specific recommendations from the answer
@@ -767,16 +664,16 @@ Respond in JSON format:
   }
 
   /**
-   * Store Market Strategy analysis results with enterprise format
+   * Store comprehensive analysis results - EXACT Clinical approach
    */
-  private async storeMarketStrategyResults(
+  private async storeComprehensiveResults(
     dealId: number, 
-    marketStrategyAnswers: Record<string, any>, 
+    commercialAnswers: Record<string, any>, 
     findings: any[], 
     recommendations: any[], 
     assignedDocuments: any[]
   ): Promise<void> {
-    console.log(`💾 Storing Market Strategy Expert analysis results for deal ${dealId}`);
+    console.log(`💾 Storing comprehensive commercial analysis results for deal ${dealId}`);
     
     try {
       // Store in agent_analyses table - EXACT LEGAL APPROACH matching their working database structure
@@ -787,9 +684,9 @@ Respond in JSON format:
           eq(agentAnalyses.agentType, 'commercial')
         ));
       
-      console.log(`🗑️ Cleared existing Market Strategy analysis for deal ${dealId}`);
+      console.log(`🗑️ Cleared existing commercial analysis for deal ${dealId}`);
       
-      // Create the new Market Strategy analysis with enhanced format
+      // Create the new comprehensive analysis - EXACT copy of Legal structure
       const analysisData = {
         dealId,
         agentType: 'commercial' as const,
@@ -797,7 +694,7 @@ Respond in JSON format:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        commercialAnswers: this.formatEnterpriseOutput(marketStrategyAnswers), // Enhanced enterprise format
+        commercialAnswers: JSON.stringify(commercialAnswers),
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()
@@ -807,36 +704,11 @@ Respond in JSON format:
         .insert(agentAnalyses)
         .values(analysisData);
       
-      console.log(`📊 Created fresh Market Strategy Expert analysis for deal ${dealId} with ${Object.keys(marketStrategyAnswers).length} questions answered`);
+      console.log(`📊 Created fresh comprehensive commercial analysis for deal ${dealId} with ${Object.keys(commercialAnswers).length} questions answered`);
     } catch (error) {
       console.error(`❌ Error storing commercial analysis results:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Format enterprise output with enhanced structure
-   */
-  private formatEnterpriseOutput(marketStrategyAnswers: Record<string, any>): any {
-    const enterpriseOutput = {
-      marketPosition: {},
-      pricingAnalysis: {},
-      salesEfficiency: {},
-      competitiveAdvantage: {},
-      questionAnswers: marketStrategyAnswers
-    };
-
-    // Aggregate data by output field
-    for (const [questionId, answer] of Object.entries(marketStrategyAnswers)) {
-      if (answer.outputField && answer[answer.outputField]) {
-        enterpriseOutput[answer.outputField] = {
-          ...enterpriseOutput[answer.outputField],
-          ...answer[answer.outputField]
-        };
-      }
-    }
-
-    return enterpriseOutput;
   }
 
   /**
@@ -860,14 +732,14 @@ Respond in JSON format:
       confidence: evidence.length > 0 ? 0.6 : 0.1,
       sources: evidence.map(e => e.documentName),
       detailedEvidence: evidence,
-      keyFindings: evidence.flatMap(e => e.keyFindings), // ENTERPRISE: Show ALL findings without limits
+      keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
       evidenceSummary: `Analyzed ${evidence.length} commercial documents`,
       commercialAssessment: 'Commercial analysis completed with available documentation',
       recommendations: ['Consider additional commercial documentation for more comprehensive analysis']
     };
   }
 
-  async storeAnalysisResults(dealId: number, answers: {[key: string]: MarketStrategyAnswer}, evidenceMap: Map<string, CommercialEvidence[]>): Promise<void> {
+  async storeAnalysisResults(dealId: number, answers: {[key: string]: CommercialAnswer}, evidenceMap: Map<string, CommercialEvidence[]>): Promise<void> {
     // Generate findings and recommendations
     const findings = Object.values(answers).flatMap(answer => 
       answer.keyFindings.map((finding, index) => ({
@@ -937,5 +809,5 @@ Respond in JSON format:
   }
 }
 
-export const marketStrategyExpertService = new MarketStrategyExpertService();
-export { MARKET_STRATEGY_QUESTIONS };
+export const comprehensiveCommercialAnalysisService = new ComprehensiveCommercialAnalysisService();
+export { COMMERCIAL_QUESTIONS };

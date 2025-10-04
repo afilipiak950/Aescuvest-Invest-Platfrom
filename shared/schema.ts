@@ -1167,22 +1167,6 @@ export const insertComprehensiveHrAnalysisSchema = createInsertSchema(comprehens
 export type ComprehensiveHrAnalysis = typeof comprehensiveHrAnalyses.$inferSelect;
 export type InsertComprehensiveHrAnalysis = z.infer<typeof insertComprehensiveHrAnalysisSchema>;
 
-// AI Query Cache table for semantic caching
-export const aiQueryCache = pgTable("ai_query_cache", {
-  id: text("id").primaryKey(),
-  dealId: integer("deal_id").notNull().references(() => deals.id),
-  queryEmbedding: vector("query_embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small
-  query: text("query").notNull(),
-  response: text("response").notNull(),
-  language: text("language").notNull().default("English"),
-  contextHash: text("context_hash").notNull(), // Hash of context for invalidation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-});
 
-export const insertAiQueryCacheSchema = createInsertSchema(aiQueryCache).omit({
-  createdAt: true,
-});
 
-export type AiQueryCache = typeof aiQueryCache.$inferSelect;
-export type InsertAiQueryCache = z.infer<typeof insertAiQueryCacheSchema>;
+

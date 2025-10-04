@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import PageHeader from '@/components/layout/page-header';
@@ -22,19 +23,55 @@ interface InvestmentMemo {
 }
 
 export default function Memos() {
+  const [filter, setFilter] = useState<string>('all');
 
   const { data: memos = [], isLoading } = useQuery({
     queryKey: ['/api/memos'],
     enabled: true
   });
 
-  // Detailed logging for debugging API response
-  console.log('📝 Memos Query Debug:', {
-    isLoading,
-    memosLength: memos?.length || 0,
-    memosData: memos?.slice(0, 2), // Show first 2 memos for debugging
-    queryKey: '/api/memos'
-  });
+  // Mock data for demonstration
+  const mockMemos: InvestmentMemo[] = [
+    {
+      id: 1,
+      dealId: 21,
+      companyName: 'Tesla Company',
+      executiveSummary: 'Tesla is a leading electric vehicle and clean energy company with strong market position...',
+      investmentThesis: 'Compelling investment opportunity in the rapidly growing EV market with innovative technology...',
+      recommendation: 'INVEST',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      updatedAt: new Date(Date.now() - 3600000).toISOString(),
+      status: 'REVIEW',
+      aiScore: 92,
+      riskLevel: 'MEDIUM'
+    },
+    {
+      id: 2,
+      dealId: 20,
+      companyName: 'NeuroTech Solutions',
+      executiveSummary: 'Innovative medical technology company developing brain-computer interfaces...',
+      investmentThesis: 'Revolutionary technology with significant medical applications and market potential...',
+      recommendation: 'WATCH',
+      createdAt: new Date(Date.now() - 172800000).toISOString(),
+      updatedAt: new Date(Date.now() - 86400000).toISOString(),
+      status: 'DRAFT',
+      aiScore: 78,
+      riskLevel: 'HIGH'
+    },
+    {
+      id: 3,
+      dealId: 19,
+      companyName: 'GreenEnergy Systems',
+      executiveSummary: 'Renewable energy infrastructure company with focus on solar and wind solutions...',
+      investmentThesis: 'Strong fundamentals in growing renewable energy sector with proven technology...',
+      recommendation: 'INVEST',
+      createdAt: new Date(Date.now() - 259200000).toISOString(),
+      updatedAt: new Date(Date.now() - 172800000).toISOString(),
+      status: 'APPROVED',
+      aiScore: 88,
+      riskLevel: 'LOW'
+    }
+  ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -64,19 +101,8 @@ export default function Memos() {
     }
   };
 
-  // Use real data from API, or empty array if loading/error
-  const displayMemos = memos || [];
-  
-  // Enhanced debugging for display logic
-  console.log('🔍 Display Logic Debug:', {
-    isLoading,
-    hasRealData: !!memos,
-    realMemosCount: memos?.length || 0,
-    displayMemosCount: displayMemos.length,
-    willShowRealData: !isLoading && memos && memos.length > 0,
-    willShowEmptyState: !isLoading && (!memos || memos.length === 0)
-  });
-  const filteredMemos = displayMemos;
+  const displayMemos = mockMemos;
+  const filteredMemos = filter === 'all' ? displayMemos : displayMemos.filter((memo: InvestmentMemo) => memo.status.toLowerCase() === filter);
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -84,10 +110,30 @@ export default function Memos() {
         title="Investment Memos" 
         description="Comprehensive investment analysis and recommendations"
         actions={[
-          { label: 'New Memo', icon: 'Plus', href: '/memo-generator', variant: 'default' }
+          { label: 'New Memo', icon: 'Plus', href: '/memo-generator', variant: 'default' },
+          { label: 'Templates', icon: 'FileText', href: '/memo-templates', variant: 'outline' }
         ]}
       />
 
+      {/* Filters */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-300">Filter by status:</span>
+          <div className="flex gap-2">
+            {['all', 'draft', 'review', 'approved', 'published'].map((status) => (
+              <Button
+                key={status}
+                variant={filter === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter(status)}
+                className="capitalize"
+              >
+                {status}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Memos Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -188,7 +234,10 @@ export default function Memos() {
           <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-300 mb-2">No memos found</h3>
           <p className="text-gray-500 mb-4">
-            No investment memos have been created yet.
+            {filter === 'all' 
+              ? 'No investment memos have been created yet.' 
+              : `No memos with status "${filter}" found.`
+            }
           </p>
           <Link href="/memo-generator">
             <Button>
