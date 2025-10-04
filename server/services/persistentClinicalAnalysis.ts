@@ -165,8 +165,8 @@ export class PersistentClinicalAnalysisService {
         dealId,
         jobId,
         progress: startProgress,
-        currentQuestionIndex: Math.floor(startProgress / 100 * 13), // 13 total questions
-        totalQuestions: 13,
+        currentQuestionIndex: Math.floor(startProgress / 100 * COMPREHENSIVE_CLINICAL_QUESTIONS.length),
+        totalQuestions: COMPREHENSIVE_CLINICAL_QUESTIONS.length,
         currentBatch: 0,
         totalBatches: 0,
         currentStep: 'Processing clinical analysis...',

@@ -1401,7 +1401,7 @@ function DueDiligenceContent() {
                     
                     // Correct questions per agent - matching actual question counts in services  
                     const questionCounts = {
-                      'Legal': 13, 'Clinical': 6, 'Commercial': 11, 
+                      'Legal': 13, 'Clinical': 11, 'Commercial': 11, 
                       'HR': 12, 'Financial': 12, 'IP': 12, 'Research': 19
                     };
                     const totalQuestions = questionCounts[agentType] || 5;
