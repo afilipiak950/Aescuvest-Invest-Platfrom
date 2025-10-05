@@ -1650,6 +1650,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Check if legal analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -1695,7 +1696,16 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     },
     onSuccess: (data, questionId) => {
       console.log(`✅ Successfully re-ran question ${questionId}`, data);
-      // Invalidate and refetch the analysis
+      
+      // If the backend returned the full updated analysis, update the cache directly
+      if (data.fullAnalysis) {
+        queryClient.setQueryData(
+          [`/api/deals/${dealId}/legal-analysis/comprehensive/results`],
+          { success: true, analysis: data.fullAnalysis }
+        );
+      }
+      
+      // Also invalidate and refetch as backup
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`] });
       refetchComprehensive();
       setRerunningQuestionId(null);
