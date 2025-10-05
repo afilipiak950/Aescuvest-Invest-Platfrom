@@ -1666,6 +1666,42 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     refetchComprehensive();
   }, [refetchComprehensive]);
 
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          // Filter for legal question rerun jobs that are still running
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'legal_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            // Initialize questionProgress state with current progress values
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              // Extract question ID from jobId format: "legal-question-rerun-{dealId}-{questionId}"
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running jobs:', initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
   // Use comprehensive results if available, fallback to analysisData
   const legalData = comprehensiveResults?.analysis || analysisData || null;
 
