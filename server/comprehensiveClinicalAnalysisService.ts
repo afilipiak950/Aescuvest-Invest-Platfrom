@@ -1431,5 +1431,277 @@ Return JSON:
   }
 }
 
+/**
+ * Re-run a single Clinical question with full persistence and progress tracking
+ * Uses database-backed progress tracking that survives page refreshes and server restarts
+ */
+export async function rerunSingleClinicalQuestion(
+  dealId: number,
+  questionId: string
+): Promise<any> {
+  const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+  
+  console.log(`🧬 Starting Clinical question rerun: ${questionId} for deal ${dealId}`);
+  
+  try {
+    // Find the question definition
+    const question = COMPREHENSIVE_CLINICAL_QUESTIONS.find(q => q.id === questionId);
+    if (!question) {
+      throw new Error(`Question ${questionId} not found in COMPREHENSIVE_CLINICAL_QUESTIONS`);
+    }
+    
+    // Initial progress: 0% - Job started
+    await storage.updateQuestionRerunProgress(jobId, 0, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: 0,
+      totalDocuments: 0,
+      currentDocument: ''
+    });
+    
+    // Step 1: Fetch documents assigned to Clinical agent (30% progress)
+    console.log(`🧬 Fetching documents for deal ${dealId}`);
+    const documents = await storage.getDocumentsByDealId(dealId);
+    const clinicalDocuments = documents.filter(doc => doc.assignedAgent === 'Clinical');
+    
+    await storage.updateQuestionRerunProgress(jobId, 30, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: 0,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`🧬 Found ${clinicalDocuments.length} Clinical documents`);
+    
+    // Step 2: Extract AI summaries from documents (60% progress)
+    console.log(`🧬 Extracting AI summaries from ${clinicalDocuments.length} documents`);
+    const documentSummaries = clinicalDocuments
+      .filter(doc => doc.aiSummary && doc.aiSummary.trim().length > 0)
+      .map(doc => ({
+        name: doc.name,
+        summary: doc.aiSummary
+      }));
+    
+    await storage.updateQuestionRerunProgress(jobId, 60, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: documentSummaries.length,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`📊 Progress update (DB): ${questionId} = 60%`);
+    
+    if (documentSummaries.length === 0) {
+      console.warn(`⚠️ No AI summaries found for Clinical documents`);
+      await storage.updateQuestionRerunProgress(jobId, 100, 'failed', {
+        agentType: 'Clinical',
+        error: 'No AI summaries available for analysis'
+      });
+      return null;
+    }
+    
+    // Step 3: Compile comprehensive answer using GPT-4o (70% progress)
+    console.log(`🤖 Compiling answer for: ${question.question}`);
+    await storage.updateQuestionRerunProgress(jobId, 70, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: documentSummaries.length,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`📊 Progress update (DB): ${questionId} = 70%`);
+    console.log(`Compiling comprehensive answer for: ${question.question} with ${documentSummaries.length} documents`);
+    
+    const prompt = `You are a Clinical Due Diligence expert analyzing medical device and healthcare companies.
+
+Question: ${question.question}
+${question.subQuestions ? `Sub-questions:\n${question.subQuestions.map((sq: any) => `- ${sq.question || sq}`).join('\n')}` : ''}
+
+Document Summaries (${documentSummaries.length} documents):
+${documentSummaries.map((doc, idx) => `
+Document ${idx + 1}: ${doc.name}
+Summary: ${doc.summary}
+`).join('\n---\n')}
+
+Please provide a comprehensive clinical analysis that includes:
+1. A detailed answer addressing the main question and all sub-questions
+2. Key clinical findings from the documents (as an array)
+3. Clinical assessment of the findings
+4. Evidence summary
+5. Specific recommendations for clinical due diligence (as an array)
+6. Confidence level (0-100)
+7. Source documents used (as an array of document names)
+
+Respond in valid JSON format:
+{
+  "answer": "Detailed comprehensive answer...",
+  "keyFindings": ["Finding 1", "Finding 2", ...],
+  "clinicalAssessment": "Clinical assessment...",
+  "evidenceSummary": "Evidence summary...",
+  "recommendations": ["Recommendation 1", "Recommendation 2", ...],
+  "confidence": 85,
+  "sources": ["document1.pdf", "document2.pdf", ...]
+}`;
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+    });
+    
+    const responseText = completion.choices[0]?.message?.content;
+    if (!responseText) {
+      throw new Error('No response from OpenAI');
+    }
+    
+    const analysisResult = JSON.parse(responseText);
+    
+    console.log(`✅ Answer compiled successfully`);
+    
+    // Step 4: Update database with new answer (85% progress)
+    await storage.updateQuestionRerunProgress(jobId, 85, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: documentSummaries.length,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`📊 Progress update (DB): ${questionId} = 85%`);
+    
+    // Get existing Clinical analysis
+    const existingAnalysis = await storage.getAgentAnalysisByDealAndType(dealId, 'Clinical');
+    
+    let clinicalAnswers: any = {};
+    
+    if (existingAnalysis) {
+      console.log(`✅ Found Clinical analysis for deal ${dealId}: ${JSON.stringify({
+        id: existingAnalysis.id,
+        agentType: existingAnalysis.agentType,
+        status: existingAnalysis.status,
+        findingsLength: existingAnalysis.findings?.length || 0,
+        recommendationsLength: existingAnalysis.recommendations?.length || 0
+      })}`);
+      
+      // Parse existing clinicalAnswers if they exist
+      if (existingAnalysis.clinicalAnswers && typeof existingAnalysis.clinicalAnswers === 'object') {
+        clinicalAnswers = existingAnalysis.clinicalAnswers;
+      }
+    }
+    
+    // Update the specific question
+    clinicalAnswers[questionId] = {
+      answer: analysisResult.answer || '',
+      confidence: analysisResult.confidence || 0,
+      sources: analysisResult.sources || [],
+      keyFindings: analysisResult.keyFindings || [],
+      evidenceSummary: analysisResult.evidenceSummary || '',
+      clinicalAssessment: analysisResult.clinicalAssessment || '',
+      recommendations: analysisResult.recommendations || [],
+      detailedEvidence: []
+    };
+    
+    // Step 5: Save to database (95% progress)
+    await storage.updateQuestionRerunProgress(jobId, 95, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: documentSummaries.length,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`📊 Progress update (DB): ${questionId} = 95%`);
+    
+    if (existingAnalysis) {
+      // Clear existing analysis to ensure fresh data
+      console.log(`🗑️ Cleared existing clinical analysis for deal ${dealId}`);
+      await storage.deleteAgentAnalysis(existingAnalysis.id);
+    }
+    
+    // Create fresh comprehensive clinical analysis
+    const newAnalysis = await storage.createAgentAnalysis({
+      dealId,
+      agentType: 'Clinical',
+      status: 'completed',
+      findings: existingAnalysis?.findings || [],
+      recommendations: existingAnalysis?.recommendations || [],
+      clinicalAnswers
+    });
+    
+    console.log(`📊 Created fresh comprehensive clinical analysis for deal ${dealId} with ${Object.keys(clinicalAnswers).length} questions answered`);
+    console.log(`✅ Successfully updated question ${questionId} in clinical analysis`);
+    
+    // Step 6: Mark as complete (100% progress)
+    await storage.updateQuestionRerunProgress(jobId, 100, 'completed', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: documentSummaries.length,
+      totalDocuments: clinicalDocuments.length,
+      currentDocument: ''
+    });
+    
+    console.log(`📊 Progress update (DB): ${questionId} = 100%`);
+    console.log(`✅ Background rerun completed for question ${questionId} on deal ${dealId}`);
+    
+    // Schedule cleanup after 1 hour
+    setTimeout(async () => {
+      try {
+        // Check if job still exists and is completed before deleting
+        const jobStatus = await storage.getQuestionRerunProgress(jobId);
+        if (jobStatus && (jobStatus.progress === 100 || jobStatus.status === 'failed')) {
+          await storage.deleteBackgroundJob(jobId);
+          console.log(`🗑️ Cleaned up completed Clinical job: ${jobId}`);
+        } else {
+          console.log(`⏭️ Skipping cleanup for active Clinical job: ${jobId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error cleaning up Clinical job ${jobId}:`, error);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+    
+    return {
+      success: true,
+      questionId,
+      answer: analysisResult,
+      fullAnalysis: newAnalysis
+    };
+    
+  } catch (error) {
+    console.error(`❌ Error rerunning Clinical question ${questionId}:`, error);
+    
+    // Mark as failed
+    await storage.updateQuestionRerunProgress(jobId, 0, 'failed', {
+      agentType: 'Clinical',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Schedule cleanup after 1 hour even for failed jobs
+    setTimeout(async () => {
+      try {
+        const jobStatus = await storage.getQuestionRerunProgress(jobId);
+        if (jobStatus && jobStatus.status === 'failed') {
+          await storage.deleteBackgroundJob(jobId);
+          console.log(`🗑️ Cleaned up failed Clinical job: ${jobId}`);
+        }
+      } catch (cleanupError) {
+        console.error(`❌ Error cleaning up failed Clinical job ${jobId}:`, cleanupError);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+    
+    throw error;
+  }
+}
+
 // Export the service instance
 export const comprehensiveClinicalAnalysisService = new ComprehensiveClinicalAnalysisService();
