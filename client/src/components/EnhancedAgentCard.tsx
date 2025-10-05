@@ -2278,6 +2278,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale Clinical question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
