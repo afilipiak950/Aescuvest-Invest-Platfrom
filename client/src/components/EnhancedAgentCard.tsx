@@ -1784,14 +1784,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
       : 80;
     
-    // Extract source document names
+    // Extract ALL source document names - NO LIMIT
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
-      .filter((source: string) => source)
-      .slice(0, 3); // Limit to 3 sources
+      .filter((source: string) => source);
     
     return {
-      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      answer: combinedAnswer, // NO TRUNCATION - Show full answer
       confidence: avgConfidence,
       sources: sources
     };
@@ -2184,14 +2183,13 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       ? Math.round(relevantFindings.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0) / relevantFindings.length * 100)
       : 80;
     
-    // Extract source document names
+    // Extract ALL source document names - NO LIMIT
     const sources = relevantFindings
       .map((finding: any) => finding.source || finding.document)
-      .filter((source: string) => source)
-      .slice(0, 3); // Limit to 3 sources
+      .filter((source: string) => source);
     
     return {
-      answer: combinedAnswer.substring(0, 500) + (combinedAnswer.length > 500 ? '...' : ''),
+      answer: combinedAnswer, // NO TRUNCATION - Show full answer
       confidence: avgConfidence,
       sources: sources
     };
@@ -2258,7 +2256,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Clinical Assessment */}
@@ -4821,7 +4819,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Main Finding - Clinical style */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced Commercial Assessment */}
@@ -5106,7 +5104,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Analysis Response - Commercial style matching */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
                               </div>
 
                               {/* Enhanced HR Assessment - mimic Commercial's commercialAssessment */}
@@ -5437,7 +5435,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">
+                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
                                   {typeof answer.answer === 'string' ? answer.answer : 
                                    typeof answer.answer === 'object' ? JSON.stringify(answer.answer, null, 2) :
                                    String(answer.answer || 'No analysis available')}
