@@ -1429,6 +1429,50 @@ Return JSON:
     
     console.log(`📊 Created fresh comprehensive clinical analysis for deal ${dealId} with ${Object.keys(clinicalAnswers).length} questions answered`);
   }
+  
+  /**
+   * Get all active question progress for a deal from database
+   */
+  async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+    
+    const jobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.jobType, 'clinical_question_rerun')
+      )
+    });
+    
+    const result: Record<string, number> = {};
+    for (const job of jobs) {
+      // Extract question ID from jobId format: "clinical-question-rerun-{dealId}-{questionId}"
+      if (job.jobId) {
+        const questionId = job.jobId.split('-').slice(4).join('-');
+        // Only include in-progress jobs (not completed)
+        if (job.progress < 100) {
+          result[questionId] = job.progress;
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Check if a question is currently being rerun in database
+   */
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    // Consider it running if job exists and progress is not 100
+    return job !== undefined && job.progress < 100;
+  }
 }
 
 /**
