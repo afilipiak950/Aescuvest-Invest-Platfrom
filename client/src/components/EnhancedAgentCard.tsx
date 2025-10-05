@@ -2238,6 +2238,8 @@ interface ClinicalQuestionsSectionProps {
 function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onClinicalAnalysisStart }: ClinicalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
 
   // Check if clinical analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -2251,6 +2253,97 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   useEffect(() => {
     refetchComprehensive();
   }, [refetchComprehensive]);
+
+  // Load existing clinical jobs from database on mount
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const allQuestionIds = CLINICAL_QUESTIONS.map(q => q.id);
+        
+        for (const questionId of allQuestionIds) {
+          const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+          const response = await fetch(`/api/background-job/${jobId}`);
+          
+          if (response.ok) {
+            const job = await response.json();
+            if (job && (job.status === 'processing' || (job.progress > 0 && job.progress < 100))) {
+              console.log(`🧬 Restored Clinical job progress: ${questionId} = ${job.progress}%`);
+              setQuestionProgress(prev => ({ ...prev, [questionId]: job.progress }));
+              
+              if (job.progress < 100) {
+                setRerunningQuestionId(questionId);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading Clinical jobs:', error);
+      }
+    };
+
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for Clinical question progress updates
+  useEffect(() => {
+    if (rerunningQuestionId) {
+      const jobId = `clinical-question-rerun-${dealId}-${rerunningQuestionId}`;
+      
+      const pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/background-job/${jobId}`);
+          if (!response.ok) {
+            console.log(`⚠️ Clinical job ${jobId} not found (likely completed and cleaned up)`);
+            clearInterval(pollInterval);
+            setRerunningQuestionId(null);
+            setQuestionProgress(prev => ({ ...prev, [rerunningQuestionId]: 100 }));
+            refetchComprehensive();
+            return;
+          }
+          
+          const job = await response.json();
+          console.log(`📊 Clinical progress poll: ${rerunningQuestionId} = ${job.progress}%`);
+          
+          setQuestionProgress(prev => ({ ...prev, [rerunningQuestionId]: job.progress }));
+          
+          if (job.progress >= 100 || job.status === 'completed') {
+            console.log(`✅ Clinical job completed: ${rerunningQuestionId}`);
+            clearInterval(pollInterval);
+            setRerunningQuestionId(null);
+            refetchComprehensive();
+          } else if (job.status === 'failed') {
+            console.error(`❌ Clinical job failed: ${rerunningQuestionId}`);
+            clearInterval(pollInterval);
+            setRerunningQuestionId(null);
+          }
+        } catch (error) {
+          console.error('❌ Error polling Clinical job:', error);
+        }
+      }, 500);
+      
+      return () => clearInterval(pollInterval);
+    }
+  }, [rerunningQuestionId, dealId, refetchComprehensive]);
+
+  // Mutation for re-running a single Clinical question
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      const response = await apiRequest('POST', `/api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`);
+      if (!response.ok) {
+        throw new Error('Failed to rerun Clinical question');
+      }
+      return response.json();
+    },
+    onSuccess: (data, questionId) => {
+      console.log(`🎯 Clinical question rerun started: ${questionId}`);
+      setRerunningQuestionId(questionId);
+      setQuestionProgress(prev => ({ ...prev, [questionId]: 0 }));
+    },
+    onError: (error, questionId) => {
+      console.error(`❌ Failed to rerun Clinical question ${questionId}:`, error);
+      setRerunningQuestionId(null);
+    }
+  });
 
   // Use comprehensive results if available, fallback to analysisData
   const clinicalData = comprehensiveResults?.analysis || analysisData || null;
@@ -2446,6 +2539,22 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               )}
                             </button>
                           </div>
+                          
+                          {/* Progress bar for question rerun */}
+                          {rerunningQuestionId === question.id && questionProgress[question.id] !== undefined && questionProgress[question.id] < 100 && (
+                            <div className="mt-2 space-y-1" data-testid={`progress-${question.id}`}>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-blue-400">Re-analyzing question...</span>
+                                <span className="text-blue-400">{questionProgress[question.id]}%</span>
+                              </div>
+                              <div className="w-full bg-dark-lighter rounded-full h-1.5 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-blue-400 to-green-400 h-full transition-all duration-300 ease-out"
+                                  style={{ width: `${questionProgress[question.id]}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
                           
                           {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
