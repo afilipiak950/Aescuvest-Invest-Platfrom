@@ -2238,8 +2238,8 @@ interface ClinicalQuestionsSectionProps {
 function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onClinicalAnalysisStart }: ClinicalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  // Track progress for multiple concurrent reruns - if a question has progress, it's running
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
-  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
 
   // Check if clinical analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -2254,94 +2254,143 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
     refetchComprehensive();
   }, [refetchComprehensive]);
 
-  // Load existing clinical jobs from database on mount
+  // Load existing running jobs from database on mount to restore progress bars after refresh
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
-        const allQuestionIds = CLINICAL_QUESTIONS.map(q => q.id);
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
         
-        for (const questionId of allQuestionIds) {
-          const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
-          const response = await fetch(`/api/background-job/${jobId}`);
+        if (data.success && data.jobs) {
+          // Filter for clinical question rerun jobs that are still running
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'clinical_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
           
-          if (response.ok) {
-            const job = await response.json();
-            if (job && (job.status === 'processing' || (job.progress > 0 && job.progress < 100))) {
-              console.log(`🧬 Restored Clinical job progress: ${questionId} = ${job.progress}%`);
-              setQuestionProgress(prev => ({ ...prev, [questionId]: job.progress }));
-              
-              if (job.progress < 100) {
-                setRerunningQuestionId(questionId);
-              }
-            }
+          if (runningJobs.length > 0) {
+            // Initialize questionProgress state with current progress values
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              // Extract question ID from jobId format: "clinical-question-rerun-{dealId}-{questionId}"
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running Clinical jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('❌ Error loading Clinical jobs:', error);
+        console.error('Error loading existing Clinical jobs:', error);
       }
     };
-
+    
     loadExistingJobs();
   }, [dealId]);
 
-  // Poll for Clinical question progress updates
+  // Poll for progress for all running questions
   useEffect(() => {
-    if (rerunningQuestionId) {
-      const jobId = `clinical-question-rerun-${dealId}-${rerunningQuestionId}`;
-      
-      const pollInterval = setInterval(async () => {
-        try {
-          const response = await fetch(`/api/background-job/${jobId}`);
-          if (!response.ok) {
-            console.log(`⚠️ Clinical job ${jobId} not found (likely completed and cleaned up)`);
-            clearInterval(pollInterval);
-            setRerunningQuestionId(null);
-            setQuestionProgress(prev => ({ ...prev, [rerunningQuestionId]: 100 }));
-            refetchComprehensive();
-            return;
-          }
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        // Poll for all active questions in one request
+        const response = await fetch(`/api/deals/${dealId}/clinical-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
           
-          const job = await response.json();
-          console.log(`📊 Clinical progress poll: ${rerunningQuestionId} = ${job.progress}%`);
-          
-          setQuestionProgress(prev => ({ ...prev, [rerunningQuestionId]: job.progress }));
-          
-          if (job.progress >= 100 || job.status === 'completed') {
-            console.log(`✅ Clinical job completed: ${rerunningQuestionId}`);
-            clearInterval(pollInterval);
-            setRerunningQuestionId(null);
-            refetchComprehensive();
-          } else if (job.status === 'failed') {
-            console.error(`❌ Clinical job failed: ${rerunningQuestionId}`);
-            clearInterval(pollInterval);
-            setRerunningQuestionId(null);
-          }
-        } catch (error) {
-          console.error('❌ Error polling Clinical job:', error);
+          // Merge backend updates into existing state
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            // Update with backend values
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+            }
+            
+            // Only remove questions that backend no longer tracks AND have reached 100%
+            // This prevents premature removal during transient gaps
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                // Question completed and backend cleaned it up
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
         }
-      }, 500);
-      
-      return () => clearInterval(pollInterval);
-    }
-  }, [rerunningQuestionId, dealId, refetchComprehensive]);
+      } catch (error) {
+        console.error('Error polling Clinical progress:', error);
+      }
+    };
+    
+    // Poll immediately and then every 500ms
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
 
   // Mutation for re-running a single Clinical question
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
-      const response = await apiRequest('POST', `/api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`);
-      if (!response.ok) {
-        throw new Error('Failed to rerun Clinical question');
+      // Check if already running (duplicate prevention on frontend)
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
       }
-      return response.json();
+      
+      // Reset progress to 0 when starting
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return { ...response, questionId };
     },
-    onSuccess: (data, questionId) => {
-      console.log(`🎯 Clinical question rerun started: ${questionId}`);
-      setRerunningQuestionId(questionId);
-      setQuestionProgress(prev => ({ ...prev, [questionId]: 0 }));
+    onSuccess: (data) => {
+      const questionId = data.questionId;
+      console.log(`✅ Successfully re-ran Clinical question ${questionId}`, data);
+      
+      // Don't manually clear progress - let the backend polling handle it
+      // The backend will return 100% and then eventually stop tracking it
+      // This allows concurrent reruns to work correctly
+      
+      // If the backend returned the full updated analysis, update the cache directly
+      if (data.fullAnalysis) {
+        queryClient.setQueryData(
+          [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
+          { success: true, analysis: data.fullAnalysis }
+        );
+      }
+      
+      // Also invalidate and refetch as backup
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`] });
+      refetchComprehensive();
     },
-    onError: (error, questionId) => {
-      console.error(`❌ Failed to rerun Clinical question ${questionId}:`, error);
-      setRerunningQuestionId(null);
+    onError: (error: Error, questionId: string) => {
+      console.error(`❌ Error re-running Clinical question ${questionId}:`, error);
+      
+      // Show toast for duplicate rerun attempts
+      if (error.message && error.message.includes('already being rerun')) {
+        // User tried to rerun a question that's already running
+        console.log(`⚠️ Clinical question ${questionId} is already running`);
+      }
+      
+      // Clear progress to allow retry
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
     }
   });
 
@@ -2518,15 +2567,12 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                             {/* Re-run button for individual question */}
                             <button
                               data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setRerunningQuestionId(question.id);
-                                rerunQuestionMutation.mutate(question.id);
-                              }}
-                              disabled={rerunningQuestionId === question.id}
-                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                              title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
                             >
-                              {rerunningQuestionId === question.id ? (
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
                                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                                   <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
@@ -2541,7 +2587,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                           </div>
                           
                           {/* Progress bar for question rerun */}
-                          {rerunningQuestionId === question.id && questionProgress[question.id] !== undefined && questionProgress[question.id] < 100 && (
+                          {questionProgress[question.id] !== undefined && questionProgress[question.id] < 100 && (
                             <div className="mt-2 space-y-1" data-testid={`progress-${question.id}`}>
                               <div className="flex items-center justify-between text-xs">
                                 <span className="text-blue-400">Re-analyzing question...</span>

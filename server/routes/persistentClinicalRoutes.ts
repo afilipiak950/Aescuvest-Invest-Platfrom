@@ -195,4 +195,39 @@ router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', a
   }
 });
 
+/**
+ * GET /api/deals/:dealId/clinical-analysis/questions/progress
+ * Get progress for ALL active question reruns for a deal
+ */
+router.get('/api/deals/:dealId/clinical-analysis/questions/progress', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    // Import the comprehensive service
+    const { comprehensiveClinicalAnalysisService } = await import('../comprehensiveClinicalAnalysisService');
+    
+    // Get all active progress for this deal
+    const allProgress = await comprehensiveClinicalAnalysisService.getAllQuestionProgress(dealId);
+    
+    res.json({
+      success: true,
+      progress: allProgress
+    });
+    
+  } catch (error) {
+    console.error('Error getting Clinical question progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export default router;
