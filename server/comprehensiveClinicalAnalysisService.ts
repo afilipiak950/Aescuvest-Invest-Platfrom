@@ -1582,27 +1582,17 @@ export async function rerunSingleClinicalQuestion(
       throw new Error(`Question ${questionId} not found in COMPREHENSIVE_CLINICAL_QUESTIONS`);
     }
     
-    // Step 1: Fetch documents assigned to Clinical agent (30% progress)
-    console.log(`🧬 Fetching documents for deal ${dealId}`);
+    // Step 1: Fetch ALL documents for comprehensive analysis (30% progress)
+    console.log(`🧬 Fetching all documents for deal ${dealId}`);
     const documents = await storage.getDocumentsByDealId(dealId);
-    // Filter for documents that have 'Clinical' in their assigned_agents array
-    const clinicalDocuments = documents.filter(doc => {
-      if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents)) {
-        return false;
-      }
-      // Case-insensitive check if 'clinical' is in the array
-      return doc.assignedAgents.some(agent => 
-        agent.toLowerCase() === 'clinical'
-      );
-    });
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
     
-    console.log(`🧬 Found ${clinicalDocuments.length} Clinical documents (from ${documents.length} total)`);
+    console.log(`🧬 Using all ${documents.length} documents for comprehensive analysis`);
     
     // Step 2: Extract AI summaries from documents (60% progress)
-    console.log(`🧬 Extracting AI summaries from ${clinicalDocuments.length} documents`);
-    const documentSummaries = clinicalDocuments
+    console.log(`🧬 Extracting AI summaries from ${documents.length} documents`);
+    const documentSummaries = documents
       .filter(doc => doc.aiSummary && doc.aiSummary.trim().length > 0)
       .map(doc => ({
         name: doc.name,
@@ -1614,7 +1604,7 @@ export async function rerunSingleClinicalQuestion(
     console.log(`📊 Progress update (DB): ${questionId} = 60%`);
     
     if (documentSummaries.length === 0) {
-      console.warn(`⚠️ No AI summaries found for Clinical documents`);
+      console.warn(`⚠️ No AI summaries found in any documents`);
       await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
       return null;
     }
