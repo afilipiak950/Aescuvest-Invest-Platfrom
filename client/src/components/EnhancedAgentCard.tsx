@@ -1649,7 +1649,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
 function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
-  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
+  // Track progress for multiple concurrent reruns - if a question has progress, it's running
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
 
@@ -1687,20 +1687,40 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     console.log('⚖️ Has recommendations:', !!legalData?.recommendations);
   }
 
-  // Poll for progress while rerunning
+  // Poll for progress for all running questions
   useEffect(() => {
-    if (!rerunningQuestionId) return;
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
     
     const pollProgress = async () => {
       try {
-        const response = await fetch(`/api/deals/${dealId}/legal-analysis/question/${rerunningQuestionId}/progress`);
+        // Poll for all active questions in one request
+        const response = await fetch(`/api/deals/${dealId}/legal-analysis/questions/progress`);
         const data = await response.json();
         
         if (data.success) {
-          setQuestionProgress(prev => ({
-            ...prev,
-            [rerunningQuestionId]: data.progress
-          }));
+          const backendProgress = data.progress || {};
+          
+          // Merge backend updates into existing state
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            // Update with backend values
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+            }
+            
+            // Only remove questions that backend no longer tracks AND have reached 100%
+            // This prevents premature removal during transient gaps
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                // Question completed and backend cleaned it up
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
         }
       } catch (error) {
         console.error('Error polling progress:', error);
@@ -1712,11 +1732,16 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     const interval = setInterval(pollProgress, 500);
     
     return () => clearInterval(interval);
-  }, [rerunningQuestionId, dealId]);
+  }, [Object.keys(questionProgress).length, dealId]);
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
+      // Check if already running (duplicate prevention on frontend)
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
       // Reset progress to 0 when starting
       setQuestionProgress(prev => ({
         ...prev,
@@ -1726,16 +1751,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/question/${questionId}/rerun`, {
         method: 'POST',
       });
-      return response;
+      return { ...response, questionId };
     },
-    onSuccess: (data, questionId) => {
+    onSuccess: (data) => {
+      const questionId = data.questionId;
       console.log(`✅ Successfully re-ran question ${questionId}`, data);
       
-      // Set progress to 100%
-      setQuestionProgress(prev => ({
-        ...prev,
-        [questionId]: 100
-      }));
+      // Don't manually clear progress - let the backend polling handle it
+      // The backend will return 100% and then eventually stop tracking it
+      // This allows concurrent reruns to work correctly
       
       // If the backend returned the full updated analysis, update the cache directly
       if (data.fullAnalysis) {
@@ -1748,19 +1772,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       // Also invalidate and refetch as backup
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`] });
       refetchComprehensive();
-      
-      // Clear progress after a short delay
-      setTimeout(() => {
-        setQuestionProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[questionId];
-          return newProgress;
-        });
-        setRerunningQuestionId(null);
-      }, 1000);
     },
-    onError: (error: Error, questionId) => {
+    onError: (error: Error, questionId: string) => {
       console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      // Show toast for duplicate rerun attempts
+      if (error.message && error.message.includes('already being rerun')) {
+        // User tried to rerun a question that's already running
+        console.log(`⚠️ Question ${questionId} is already running`);
+      }
       
       // Clear progress on error
       setQuestionProgress(prev => {
@@ -1768,7 +1788,6 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         delete newProgress[questionId];
         return newProgress;
       });
-      setRerunningQuestionId(null);
     },
   });
 
@@ -1940,7 +1959,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                             <p className="text-white font-medium text-sm flex-1">{question.question}</p>
                             <div className="flex items-center gap-2">
                               {/* Progress bar - shown when question is being rerun */}
-                              {rerunningQuestionId === question.id && questionProgress[question.id] !== undefined && (
+                              {questionProgress[question.id] !== undefined && (
                                 <div className="flex items-center gap-2">
                                   <div className="w-24 bg-dark-lighter rounded-full h-2">
                                     <div 
@@ -1956,15 +1975,12 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Re-run button for individual question */}
                               <button
                                 data-testid={`rerun-question-${question.id}`}
-                                onClick={() => {
-                                  setRerunningQuestionId(question.id);
-                                  rerunQuestionMutation.mutate(question.id);
-                                }}
-                                disabled={rerunningQuestionId === question.id}
+                                onClick={() => rerunQuestionMutation.mutate(question.id)}
+                                disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                                 className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                                title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                                title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
                               >
-                                {rerunningQuestionId === question.id ? (
+                                {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
                                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                                     <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
