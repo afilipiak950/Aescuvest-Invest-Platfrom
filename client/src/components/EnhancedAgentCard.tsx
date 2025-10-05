@@ -2354,10 +2354,16 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   // Mutation for re-running a single Clinical question
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
+      console.log(`🚀 RERUN CLICKED: Starting rerun for question ${questionId}`);
+      console.log(`📊 Current progress state:`, questionProgress);
+      
       // Check if already running (duplicate prevention on frontend)
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        console.log(`❌ BLOCKED: Question ${questionId} is already running (progress: ${questionProgress[questionId]}%)`);
         throw new Error(`Question ${questionId} is already being rerun`);
       }
+      
+      console.log(`✅ Starting rerun for question ${questionId} - setting progress to 0%`);
       
       // Reset progress to 0 when starting
       setQuestionProgress(prev => ({
@@ -2365,9 +2371,11 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
         [questionId]: 0
       }));
       
+      console.log(`📡 Making API request to: /api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`);
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`, {
         method: 'POST',
       });
+      console.log(`✅ API response received:`, response);
       return { ...response, questionId };
     },
     onSuccess: (data) => {
