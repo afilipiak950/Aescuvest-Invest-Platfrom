@@ -136,14 +136,6 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
 
     console.log(`✅ Found comprehensive legal analysis - ${Object.keys(analysis.legalAnswers || {}).length} questions, ${analysis.findings?.length || 0} findings, ${analysis.recommendations?.length || 0} recommendations`);
 
-    // 🔍 ULTRA-DEBUG: Check answer lengths at API level
-    if (analysis.legalAnswers && analysis.legalAnswers.contracts_1) {
-      const answer = analysis.legalAnswers.contracts_1.answer;
-      console.log(`🔍 API LEVEL - contracts_1 answer length: ${answer?.length || 0} chars`);
-      console.log(`🔍 API LEVEL - contracts_1 answer preview: ${answer?.substring(0, 100)}...`);
-      console.log(`🔍 API LEVEL - contracts_1 answer ends with: ...${answer?.substring(answer.length - 100)}`);
-    }
-
     res.json({
       success: true,
       analysis: {
