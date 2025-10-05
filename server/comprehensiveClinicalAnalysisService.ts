@@ -1445,13 +1445,25 @@ Return JSON:
     });
     
     const result: Record<string, number> = {};
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    
     for (const job of jobs) {
       // Extract question ID from jobId format: "clinical-question-rerun-{dealId}-{questionId}"
       if (job.jobId) {
         const questionId = job.jobId.split('-').slice(4).join('-');
-        // Include ALL jobs (in-progress AND completed) so frontend can see when jobs finish
-        // Cleanup happens automatically after 1 hour via the background job cleanup process
-        result[questionId] = job.progress;
+        
+        // Only include jobs that are:
+        // 1. Still in progress (progress < 100), OR
+        // 2. Completed within the last 5 minutes
+        if (job.progress < 100) {
+          // In-progress job - always include
+          result[questionId] = job.progress;
+        } else if (job.updatedAt && job.updatedAt > fiveMinutesAgo) {
+          // Recently completed job - include for frontend visibility
+          result[questionId] = job.progress;
+        }
+        // Skip jobs completed more than 5 minutes ago
       }
     }
     
