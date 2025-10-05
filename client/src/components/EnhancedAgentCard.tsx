@@ -1653,9 +1653,12 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
 
-  // Check if legal analysis is available from comprehensive endpoint
+  // Check if analysis is available from comprehensive endpoint (dynamic based on agent type)
+  const agentTypeLower = agent.agentType.toLowerCase();
+  const comprehensiveResultsKey = `/api/deals/${dealId}/${agentTypeLower}-analysis/comprehensive/results`;
+  
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`],
+    queryKey: [comprehensiveResultsKey],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data
     gcTime: 0, // Don't cache results (replaces cacheTime in newer versions)
@@ -1730,8 +1733,12 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     
     const pollProgress = async () => {
       try {
+        // Use the correct endpoint based on agent type
+        const agentTypeLower = agent.agentType.toLowerCase();
+        const progressEndpoint = `/api/deals/${dealId}/${agentTypeLower}-analysis/questions/progress`;
+        
         // Poll for all active questions in one request
-        const response = await fetch(`/api/deals/${dealId}/legal-analysis/questions/progress`);
+        const response = await fetch(progressEndpoint);
         const data = await response.json();
         
         if (data.success) {
@@ -1773,10 +1780,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
+      console.log(`🚀 RERUN MUTATION TRIGGERED for agent ${agent.agentType}, question ${questionId}`);
+      
       // Check if already running (duplicate prevention on frontend)
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        console.log(`❌ BLOCKED: Question ${questionId} is already running (progress: ${questionProgress[questionId]}%)`);
         throw new Error(`Question ${questionId} is already being rerun`);
       }
+      
+      console.log(`✅ Starting rerun for ${agent.agentType} question ${questionId} - setting progress to 0%`);
       
       // Reset progress to 0 when starting
       setQuestionProgress(prev => ({
@@ -1784,9 +1796,15 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
         [questionId]: 0
       }));
       
-      const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/question/${questionId}/rerun`, {
+      // Use the correct endpoint based on agent type
+      const agentTypeLower = agent.agentType.toLowerCase();
+      const endpoint = `/api/deals/${dealId}/${agentTypeLower}-analysis/question/${questionId}/rerun`;
+      
+      console.log(`📡 Making API request to: ${endpoint}`);
+      const response = await apiRequest(endpoint, {
         method: 'POST',
       });
+      console.log(`✅ API response received for ${agent.agentType}:`, response);
       return { ...response, questionId };
     },
     onSuccess: (data) => {
@@ -1800,13 +1818,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       // If the backend returned the full updated analysis, update the cache directly
       if (data.fullAnalysis) {
         queryClient.setQueryData(
-          [`/api/deals/${dealId}/legal-analysis/comprehensive/results`],
+          [comprehensiveResultsKey],
           { success: true, analysis: data.fullAnalysis }
         );
       }
       
       // Also invalidate and refetch as backup
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
       refetchComprehensive();
     },
     onError: (error: Error, questionId: string) => {
