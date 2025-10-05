@@ -1021,6 +1021,7 @@ export default function EnhancedAgentCard({
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
             dealId={dealId}
+            agent={agent}
             analysisData={analysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
@@ -1334,6 +1335,7 @@ export default function EnhancedAgentCard({
 // Legal Questions Section Component
 interface LegalQuestionsSectionProps {
   dealId: number;
+  agent: any;
   analysisData: any;
   findings: any[];
   assignedDocuments: number;
@@ -1646,7 +1648,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   }
 ];
 
-function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
+function LegalQuestionsSection({ dealId, agent, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Track progress for multiple concurrent reruns - if a question has progress, it's running
