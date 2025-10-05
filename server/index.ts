@@ -24,6 +24,8 @@ import gcsDirectUploadRouter from './routes/gcs-direct-upload';
 import gcsProxyUploadRouter from './routes/gcs-proxy-upload';
 import gcsSignedUploadRouter from './routes/gcs-signed-upload';
 import persistentUploadRouter from './routes/persistent-upload';
+import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
+import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 
 const app = express();
 
@@ -1071,6 +1073,13 @@ app.use((req, res, next) => {
   // 🎯 REGISTER PERSISTENT UPLOAD ROUTES
   app.use(persistentUploadRouter);
   console.log('✅ Persistent upload routes registered (Complete background processing)');
+  
+  // 🎯 REGISTER PERSISTENT ANALYSIS ROUTES
+  app.use(persistentLegalRoutes);
+  console.log('✅ Persistent Legal question rerun routes registered');
+  
+  app.use(persistentClinicalRoutes);
+  console.log('✅ Persistent Clinical question rerun routes registered');
   
   // 🚨 PRODUCTION CHUNKED UPLOAD WITH RAW BODY HANDLING
   // Register production routes with special middleware for Cloud Run
