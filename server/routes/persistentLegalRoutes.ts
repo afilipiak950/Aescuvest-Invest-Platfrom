@@ -186,13 +186,29 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     // Import the comprehensive service
     const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
     
-    // Run single question analysis
+    // Import storage here to avoid circular dependency
+    const { storage } = await import('../storage');
+    
+    // Run single question analysis (this updates the database)
     const updatedAnswer = await comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, questionId);
+    
+    // Get the full updated analysis from database
+    const updatedAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
     
     res.json({
       success: true,
       questionId,
-      answer: updatedAnswer
+      answer: updatedAnswer,
+      fullAnalysis: updatedAnalysis ? {
+        dealId,
+        agentType: updatedAnalysis.agentType,
+        status: updatedAnalysis.status,
+        findings: updatedAnalysis.findings || [],
+        recommendations: updatedAnalysis.recommendations || [],
+        confidence: updatedAnalysis.confidence || 0,
+        completedAt: updatedAnalysis.completedAt,
+        legalAnswers: updatedAnalysis.legalAnswers || {}
+      } : null
     });
     
   } catch (error) {
