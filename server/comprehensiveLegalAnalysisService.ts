@@ -327,12 +327,46 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
+   * Get all active question progress for a deal
+   */
+  getAllQuestionProgress(dealId: number): Record<string, number> {
+    const dealPrefix = `${dealId}-`;
+    const result: Record<string, number> = {};
+    
+    // Convert iterator to array to avoid downlevelIteration issues
+    const entries = Array.from(this.questionRerunProgress.entries());
+    for (const [key, progress] of entries) {
+      if (key.startsWith(dealPrefix)) {
+        const questionId = key.substring(dealPrefix.length);
+        result[questionId] = progress;
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Check if a question is currently being rerun
+   */
+  isQuestionRunning(dealId: number, questionId: string): boolean {
+    const key = `${dealId}-${questionId}`;
+    const progress = this.questionRerunProgress.get(key);
+    // Consider it running if progress exists and is not 100
+    return progress !== undefined && progress < 100;
+  }
+  
+  /**
    * Re-run a single legal question analysis
    * Useful for retrying failed/timeout questions without re-running entire analysis
    */
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
     const progressKey = `${dealId}-${questionId}`;
+    
+    // Check if already running
+    if (this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
+    }
     
     try {
       // Initialize progress

@@ -160,6 +160,40 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
 });
 
 /**
+ * Get progress for ALL active question reruns for a deal
+ */
+persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/questions/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    // Import the comprehensive service
+    const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
+    
+    // Get all active progress for this deal
+    const allProgress = comprehensiveLegalAnalysisService.getAllQuestionProgress(dealId);
+    
+    res.json({
+      success: true,
+      progress: allProgress
+    });
+    
+  } catch (error) {
+    console.error('Error getting all question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
  * Get progress for a question rerun
  */
 persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/question/:questionId/progress', async (req, res) => {
@@ -255,6 +289,15 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     
   } catch (error) {
     console.error('Error re-running legal question:', error);
+    
+    // Check if it's a duplicate rerun error
+    if (error.message && error.message.includes('already being rerun')) {
+      return res.status(409).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
       error: error.message || 'Failed to re-run question analysis' 
