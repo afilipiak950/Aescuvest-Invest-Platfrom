@@ -1666,6 +1666,16 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   // Use comprehensive results if available, fallback to analysisData
   const legalData = comprehensiveResults?.analysis || analysisData || null;
 
+  // 🔍 ULTRA-DEBUG: Check what React Query receives
+  useEffect(() => {
+    if (comprehensiveResults?.analysis?.legalAnswers?.contracts_1) {
+      const answer = comprehensiveResults.analysis.legalAnswers.contracts_1.answer;
+      console.log(`🔍 REACT QUERY RECEIVED - contracts_1 answer length:`, answer?.length || 0);
+      console.log(`🔍 REACT QUERY RECEIVED - contracts_1 answer preview:`, answer?.substring(0, 100));
+      console.log(`🔍 REACT QUERY RECEIVED - contracts_1 answer ends:`, answer?.substring(answer.length - 100));
+    }
+  }, [comprehensiveResults]);
+
   // Check if legal analysis is available  
   const hasLegalAnalysis = legalData && (
     (legalData?.legalAnswers && typeof legalData.legalAnswers === 'object' && Object.keys(legalData.legalAnswers).length > 0) ||
@@ -1733,6 +1743,13 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     // First try to get answer from legalAnswers structure
     if (legalData?.legalAnswers && legalData.legalAnswers[questionId]) {
       const answer = legalData.legalAnswers[questionId];
+      
+      // 🔍 ULTRA-DEBUG: Check answer at extraction point
+      console.log(`🔍 FRONTEND EXTRACTION - ${questionId} answer type:`, typeof answer.answer);
+      console.log(`🔍 FRONTEND EXTRACTION - ${questionId} answer length:`, answer.answer?.length || 0);
+      console.log(`🔍 FRONTEND EXTRACTION - ${questionId} answer preview:`, answer.answer?.substring(0, 100));
+      console.log(`🔍 FRONTEND EXTRACTION - ${questionId} answer ends with:`, answer.answer?.substring(answer.answer.length - 100));
+      
       return {
         answer: answer.answer || 'Analysis in progress...',
         confidence: answer.confidence || 0,
