@@ -23,12 +23,12 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Drizzle ORM
 - **File Handling**: Multer for multipart uploads
 - **Authentication**: Passport.js with Express sessions
-- **Background Processing**: Custom job queue with WebSocket updates
+- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and automatic cleanup
 
 ### Key Features
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
-- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring.
+- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. Legal agent features persistent question reruns with database-backed progress tracking that survives page refreshes and server restarts.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
