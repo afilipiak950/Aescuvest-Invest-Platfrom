@@ -1585,10 +1585,16 @@ export async function rerunSingleClinicalQuestion(
     // Step 1: Fetch documents assigned to Clinical agent (30% progress)
     console.log(`🧬 Fetching documents for deal ${dealId}`);
     const documents = await storage.getDocumentsByDealId(dealId);
-    // Case-insensitive filter for both 'clinical' and 'Clinical'
-    const clinicalDocuments = documents.filter(doc => 
-      doc.assignedAgent?.toLowerCase() === 'clinical'
-    );
+    // Filter for documents that have 'Clinical' in their assigned_agents array
+    const clinicalDocuments = documents.filter(doc => {
+      if (!doc.assignedAgents || !Array.isArray(doc.assignedAgents)) {
+        return false;
+      }
+      // Case-insensitive check if 'clinical' is in the array
+      return doc.assignedAgents.some(agent => 
+        agent.toLowerCase() === 'clinical'
+      );
+    });
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
     
