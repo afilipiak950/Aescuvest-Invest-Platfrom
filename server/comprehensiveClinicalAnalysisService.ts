@@ -1570,29 +1570,12 @@ export async function rerunSingleClinicalQuestion(
       throw new Error(`Question ${questionId} not found in COMPREHENSIVE_CLINICAL_QUESTIONS`);
     }
     
-    // Initial progress: 0% - Job started
-    await storage.updateQuestionRerunProgress(jobId, 0, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: 0,
-      totalDocuments: 0,
-      currentDocument: ''
-    });
-    
     // Step 1: Fetch documents assigned to Clinical agent (30% progress)
     console.log(`🧬 Fetching documents for deal ${dealId}`);
     const documents = await storage.getDocumentsByDealId(dealId);
     const clinicalDocuments = documents.filter(doc => doc.assignedAgent === 'Clinical');
     
-    await storage.updateQuestionRerunProgress(jobId, 30, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: 0,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
     
     console.log(`🧬 Found ${clinicalDocuments.length} Clinical documents`);
     
@@ -1605,36 +1588,19 @@ export async function rerunSingleClinicalQuestion(
         summary: doc.aiSummary
       }));
     
-    await storage.updateQuestionRerunProgress(jobId, 60, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: documentSummaries.length,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 60);
     
     console.log(`📊 Progress update (DB): ${questionId} = 60%`);
     
     if (documentSummaries.length === 0) {
       console.warn(`⚠️ No AI summaries found for Clinical documents`);
-      await storage.updateQuestionRerunProgress(jobId, 100, 'failed', {
-        agentType: 'Clinical',
-        error: 'No AI summaries available for analysis'
-      });
+      await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
       return null;
     }
     
     // Step 3: Compile comprehensive answer using GPT-4o (70% progress)
     console.log(`🤖 Compiling answer for: ${question.question}`);
-    await storage.updateQuestionRerunProgress(jobId, 70, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: documentSummaries.length,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 70);
     
     console.log(`📊 Progress update (DB): ${questionId} = 70%`);
     console.log(`Compiling comprehensive answer for: ${question.question} with ${documentSummaries.length} documents`);
@@ -1687,14 +1653,7 @@ Respond in valid JSON format:
     console.log(`✅ Answer compiled successfully`);
     
     // Step 4: Update database with new answer (85% progress)
-    await storage.updateQuestionRerunProgress(jobId, 85, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: documentSummaries.length,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 85);
     
     console.log(`📊 Progress update (DB): ${questionId} = 85%`);
     
@@ -1731,14 +1690,7 @@ Respond in valid JSON format:
     };
     
     // Step 5: Save to database (95% progress)
-    await storage.updateQuestionRerunProgress(jobId, 95, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: documentSummaries.length,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 95);
     
     console.log(`📊 Progress update (DB): ${questionId} = 95%`);
     
@@ -1762,33 +1714,10 @@ Respond in valid JSON format:
     console.log(`✅ Successfully updated question ${questionId} in clinical analysis`);
     
     // Step 6: Mark as complete (100% progress)
-    await storage.updateQuestionRerunProgress(jobId, 100, 'completed', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: documentSummaries.length,
-      totalDocuments: clinicalDocuments.length,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
     
     console.log(`📊 Progress update (DB): ${questionId} = 100%`);
     console.log(`✅ Background rerun completed for question ${questionId} on deal ${dealId}`);
-    
-    // Schedule cleanup after 1 hour
-    setTimeout(async () => {
-      try {
-        // Check if job still exists and is completed before deleting
-        const jobStatus = await storage.getQuestionRerunProgress(jobId);
-        if (jobStatus && (jobStatus.progress === 100 || jobStatus.status === 'failed')) {
-          await storage.deleteBackgroundJob(jobId);
-          console.log(`🗑️ Cleaned up completed Clinical job: ${jobId}`);
-        } else {
-          console.log(`⏭️ Skipping cleanup for active Clinical job: ${jobId}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error cleaning up Clinical job ${jobId}:`, error);
-      }
-    }, 60 * 60 * 1000); // 1 hour
     
     return {
       success: true,
@@ -1801,23 +1730,7 @@ Respond in valid JSON format:
     console.error(`❌ Error rerunning Clinical question ${questionId}:`, error);
     
     // Mark as failed
-    await storage.updateQuestionRerunProgress(jobId, 0, 'failed', {
-      agentType: 'Clinical',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    
-    // Schedule cleanup after 1 hour even for failed jobs
-    setTimeout(async () => {
-      try {
-        const jobStatus = await storage.getQuestionRerunProgress(jobId);
-        if (jobStatus && jobStatus.status === 'failed') {
-          await storage.deleteBackgroundJob(jobId);
-          console.log(`🗑️ Cleaned up failed Clinical job: ${jobId}`);
-        }
-      } catch (cleanupError) {
-        console.error(`❌ Error cleaning up failed Clinical job ${jobId}:`, cleanupError);
-      }
-    }, 60 * 60 * 1000); // 1 hour
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
     
     throw error;
   }
