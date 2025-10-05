@@ -1582,8 +1582,8 @@ export async function rerunSingleClinicalQuestion(
       throw new Error(`Question ${questionId} not found in COMPREHENSIVE_CLINICAL_QUESTIONS`);
     }
     
-    // Step 1: Fetch documents for analysis - AI SUMMARY ONLY (30% progress)
-    console.log(`🧬 Fetching documents for deal ${dealId}`);
+    // Step 1: Fetch ALL documents with AI summaries (30% progress)
+    console.log(`🧬 Fetching ALL documents with AI summaries for deal ${dealId}`);
     const { db } = await import('./db');
     const { documents: documentsTable } = await import('@shared/schema');
     const { eq } = await import('drizzle-orm');
@@ -1595,63 +1595,13 @@ export async function rerunSingleClinicalQuestion(
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to Clinical agent - AI SUMMARY ONLY
-    let documents = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('Clinical')) && 
-      doc.aiSummary  // ONLY documents with AI summaries
-    );
+    // Use ALL documents with AI summaries - NO filtering by assignment
+    const documents = allDocuments.filter(doc => doc.aiSummary);
     
-    console.log(`📄 Documents explicitly assigned to Clinical (with AI summaries): ${documents.length}`);
-    
-    // If no documents are explicitly assigned, identify clinical-related documents
-    if (documents.length === 0) {
-      console.log('📄 No documents explicitly assigned to Clinical agent, identifying clinical-related documents...');
-      
-      documents = allDocuments.filter(doc => {
-        if (!doc.aiSummary) return false;  // ONLY AI summaries
-        
-        const docName = doc.name.toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Clinical document keywords - AI summary based identification
-        const clinicalKeywords = [
-          'clinical', 'trial', 'study', 'patient', 'medical', 'device', 'fda', 'ce mark',
-          'regulatory', 'approval', 'clearance', 'efficacy', 'safety', 'adverse', 'endpoint',
-          'protocol', 'irb', 'ethics', 'consent', 'enrollment', 'pivotal', 'phase',
-          'diagnosis', 'treatment', 'therapy', 'clinical evaluation', 'performance',
-          'validation', 'verification', 'biocompatibility', 'sterilization'
-        ];
-        
-        // Check document name for clinical keywords
-        const hasClinicalKeywords = clinicalKeywords.some(keyword => 
-          docName.includes(keyword)
-        );
-        
-        // Check AI summary for clinical document type
-        const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
-                                   aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
-                                   aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
-                                   aiSummary?.executiveSummary?.toLowerCase().includes('study');
-        
-        return hasClinicalKeywords || isClinicalDocument;
-      });
-      
-      console.log(`📄 Auto-identified clinical documents: ${documents.length}`);
-    }
-    
-    // If still no clinical documents, use ALL documents with AI summaries
-    if (documents.length === 0) {
-      console.log('📄 No clinical-related documents found, using ALL documents with AI summaries...');
-      documents = allDocuments.filter(doc => doc.aiSummary);
-      console.log(`📄 Documents with AI summaries available: ${documents.length}`);
-    }
-    
-    // NO DOCUMENT LIMIT - Process ALL documents with AI summaries
+    console.log(`📄 Documents with AI summaries available: ${documents.length}`);
     console.log(`📄 Processing ALL ${documents.length} documents with AI summaries for comprehensive clinical analysis`);
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
-    
-    console.log(`🧬 Using ${documents.length} documents for comprehensive analysis`);
     
     // Step 2: Extract AI summaries from documents (60% progress)
     console.log(`🧬 Extracting AI summaries from ${documents.length} documents`);
