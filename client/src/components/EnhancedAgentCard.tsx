@@ -1862,9 +1862,6 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                {console.log(`🔍 LEGAL ANSWER LENGTH: ${answer.answer?.length || 0} characters`)}
-                                {console.log(`🔍 LEGAL ANSWER PREVIEW: ${answer.answer?.substring(0, 100)}...`)}
-                                {console.log(`🔍 LEGAL ANSWER ENDS WITH: ...${answer.answer?.substring(answer.answer.length - 100)}`)}
                                 <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
                               </div>
 
