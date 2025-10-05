@@ -1593,10 +1593,14 @@ export async function rerunSingleClinicalQuestion(
     // Step 2: Extract AI summaries from documents (60% progress)
     console.log(`🧬 Extracting AI summaries from ${documents.length} documents`);
     const documentSummaries = documents
-      .filter(doc => doc.aiSummary && doc.aiSummary.trim().length > 0)
+      .filter(doc => {
+        if (!doc.aiSummary) return false;
+        const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary);
+        return summary.trim().length > 0;
+      })
       .map(doc => ({
         name: doc.name,
-        summary: doc.aiSummary
+        summary: typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary)
       }));
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 60);
