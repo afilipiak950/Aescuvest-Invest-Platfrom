@@ -2357,24 +2357,28 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       return { ...response, questionId };
     },
     onSuccess: (data) => {
-      const questionId = data.questionId;
-      console.log(`✅ Successfully re-ran Clinical question ${questionId}`, data);
-      
-      // Don't manually clear progress - let the backend polling handle it
-      // The backend will return 100% and then eventually stop tracking it
-      // This allows concurrent reruns to work correctly
-      
-      // If the backend returned the full updated analysis, update the cache directly
-      if (data.fullAnalysis) {
-        queryClient.setQueryData(
-          [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
-          { success: true, analysis: data.fullAnalysis }
-        );
+      try {
+        const questionId = data.questionId;
+        console.log(`✅ Successfully re-ran Clinical question ${questionId}`, data);
+        
+        // Don't manually clear progress - let the backend polling handle it
+        // The backend will return 100% and then eventually stop tracking it
+        // This allows concurrent reruns to work correctly
+        
+        // If the backend returned the full updated analysis, update the cache directly
+        if (data.fullAnalysis) {
+          queryClient.setQueryData(
+            [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`],
+            { success: true, analysis: data.fullAnalysis }
+          );
+        }
+        
+        // Also invalidate and refetch as backup
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`] });
+        refetchComprehensive();
+      } catch (error) {
+        console.warn('⚠️ Non-critical error in onSuccess handler:', error);
       }
-      
-      // Also invalidate and refetch as backup
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`] });
-      refetchComprehensive();
     },
     onError: (error: Error, questionId: string) => {
       console.error(`❌ Error re-running Clinical question ${questionId}:`, error);
