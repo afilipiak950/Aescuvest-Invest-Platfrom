@@ -432,7 +432,7 @@ class ComprehensiveLegalAnalysisService {
     
     if (!content) return null;
     
-    const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
+    const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC DETAILS from this document.
 
 DOCUMENT: ${document.name}
 AI SUMMARY (COMPLETE): ${content}
@@ -440,24 +440,53 @@ AI SUMMARY (COMPLETE): ${content}
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
 
-Instructions:
-- Look for DIRECT legal terms, contracts, agreements, regulatory filings, compliance matters
-- Look for INDIRECT references to intellectual property, corporate governance, litigation risks, regulatory requirements
-- Consider business documents that mention legal milestones, compliance matters, contractual obligations
-- Even general business context often has legal implications for investment due diligence
-- For companies, most business documents contain legal information relevant to investors
+CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
+
+1. EXTRACT SPECIFIC NUMBERS & AMOUNTS:
+   - Payment amounts (e.g., "$50,000 annual fee", "4,000 warrants at $18.0777")
+   - Vesting schedules (e.g., "333 warrants quarterly over 36 months")
+   - Percentages (e.g., "15% commission", "51% ownership")
+   - Deadlines and dates (e.g., "Due by Q4 2024", "Signed January 15, 2023")
+
+2. EXTRACT COMPLETE CONTRACTUAL TERMS:
+   - Party names (EXACT legal entity names, not abbreviations)
+   - All payment structures (base + milestone + equity + warrants)
+   - All deliverables and performance obligations
+   - Termination clauses (notice periods, conditions, penalties)
+   - Intellectual property terms (what's licensed, exclusive vs non-exclusive)
+   - Liability limits and indemnification caps
+   - Governing law and jurisdiction
+
+3. EXTRACT COMPLIANCE & REGULATORY DETAILS:
+   - Specific regulations referenced (e.g., "FDA 510(k)", "ISO 13485")
+   - Compliance requirements and deadlines
+   - Regulatory approvals obtained or pending
+   - Audit rights and inspection provisions
+
+4. DO NOT PARAPHRASE - COPY VERBATIM:
+   - If the summary says "4,000 warrants at $18.0777", copy it EXACTLY
+   - If it says "Vesting 333 every 3 months", copy it EXACTLY
+   - Do NOT convert to summaries like "stock-based compensation" or "vesting schedule"
+
+5. EXTRACT EVERYTHING RELEVANT:
+   - If this document mentions contracts, extract EVERY contract detail
+   - If it mentions payments, extract EVERY payment amount
+   - If it mentions dates, extract EVERY date
+   - Include ALL parties, ALL amounts, ALL deadlines
+
+Your relevantContent array should contain 5-20+ detailed extractions per document (not 1-2 generic quotes).
 
 Respond in JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["DETAILED extraction 1 with specific amounts and dates", "DETAILED extraction 2 with party names and terms", "DETAILED extraction 3...", ...],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "legalContext": "How this document relates to legal/regulatory aspects of the business"
+  "keyFindings": ["Specific finding with amounts", "Specific finding with dates", ...],
+  "documentSummary": "COMPREHENSIVE breakdown of ALL relevant information from this document",
+  "legalContext": "How this document relates to legal/regulatory aspects with SPECIFIC details"
 }
 
-Be thorough in finding relevance - most business documents have legal implications for investment analysis.`;
+REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -527,19 +556,42 @@ KEY FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.k
 CONFIDENCE: ${ev.confidence}%
 `).join('\n')}
 
-Instructions:
-1. Synthesize ALL evidence into a comprehensive legal answer
-2. Cite specific documents and quotes
-3. Identify legal gaps in information
-4. Provide confidence assessment
-5. Include legal recommendations
+CRITICAL INSTRUCTIONS - YOU MUST EXTRACT EVERY SPECIFIC DETAIL:
+1. EXTRACT GRANULAR CONTRACT DETAILS: For every contract mentioned, extract:
+   - Exact payment amounts (e.g., "$50,000 per year", "4,000 warrants at $18.0777")
+   - Specific vesting schedules (e.g., "333 warrants every 3 months over 36 months")
+   - Precise dates and deadlines (e.g., "Agreement dated June 15, 2023")
+   - Exact deliverables and milestones (e.g., "Phase 1: System design by Q1 2024")
+   - Specific termination clauses and notice periods (e.g., "90 days written notice required")
+   - Exact liability limits (e.g., "Limited to $1M per incident, $3M aggregate")
+   - Precise intellectual property terms (e.g., "Exclusive license to Field A, non-exclusive to Field B")
+
+2. COMPREHENSIVE BREAKDOWN BY DOCUMENT: For each document, provide a complete breakdown:
+   - Document name and date
+   - All parties involved with exact legal names
+   - Complete payment structures (base fees, milestones, equity, warrants, stock options)
+   - All key obligations of each party
+   - All rights granted or restricted
+   - All termination and renewal provisions
+
+3. DO NOT SUMMARIZE - EXTRACT VERBATIM DETAILS:
+   - Instead of "advisory agreements with stock compensation", write:
+     "Dan Ginzburg Advisory Agreement (May 2, 2022): 4,000 warrants at $18.0777 per share, vesting 333 warrants quarterly over 36 months; Rhonda Binda Advisory Agreement (Oct 18, 2020): [specific terms]"
+   - Instead of "distribution agreement with commercial terms", write:
+     "Artech Distribution Agreement: Artech receives [exact commission %], exclusive rights to [specific territories], minimum purchase obligation of [exact units/amount], termination requires [exact notice period]"
+
+4. CITE SPECIFIC SECTIONS: Reference exact contract sections (e.g., "Section 3.2 Payment Terms states...")
+
+5. PROVIDE EXHAUSTIVE LISTS: If there are 10 contracts, list ALL 10 with complete details for each
+
+Your answer must be a COMPREHENSIVE, DETAILED extraction of ALL specific terms, amounts, dates, and obligations found in the evidence. A proper answer should be 3-10x longer than a summary.
 
 Respond in JSON format:
 {
-  "answer": "Comprehensive legal answer synthesizing all evidence",
+  "answer": "ULTRA-DETAILED extraction with every specific contract term, amount, date, obligation, and deliverable from ALL documents - minimum 2000+ characters for complex questions",
   "confidence": 0-100,
   "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1", "Finding 2"],
+  "keyFindings": ["Finding 1 with specific details", "Finding 2 with exact amounts"],
   "gaps": ["Missing information 1", "Missing information 2"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
   "legalAssessment": "Overall legal assessment based on evidence",
