@@ -481,12 +481,22 @@ class ComprehensiveLegalAnalysisService {
       console.error(`❌ Error re-running question ${questionId}:`, error);
       throw error;
     } finally {
-      // Clean up completed job after 1 hour (for both success and error)
+      // Schedule cleanup of completed job after 1 hour
+      // Only delete if job is still in completed/failed status (prevents deleting active reruns)
       setTimeout(async () => {
         try {
-          await db.delete(backgroundJobs)
-            .where(eq(backgroundJobs.jobId, jobId));
-          console.log(`🧹 Cleaned up database record for question ${questionId}`);
+          const jobToClean = await db.query.backgroundJobs.findFirst({
+            where: eq(backgroundJobs.jobId, jobId)
+          });
+          
+          // Only delete if job exists and is completed (100%) or failed
+          if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            await db.delete(backgroundJobs)
+              .where(eq(backgroundJobs.jobId, jobId));
+            console.log(`🧹 Cleaned up completed database record for question ${questionId}`);
+          } else if (jobToClean) {
+            console.log(`⏭️ Skipping cleanup for question ${questionId} - job still active (progress: ${jobToClean.progress}%)`);
+          }
         } catch (cleanupError) {
           console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
         }
