@@ -2310,7 +2310,21 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             
             // Update with backend values
             for (const questionId in backendProgress) {
-              newProgress[questionId] = backendProgress[questionId];
+              const progress = backendProgress[questionId];
+              newProgress[questionId] = progress;
+              
+              // Auto-clear progress bar 2 seconds after reaching 100%
+              if (progress >= 100 && prev[questionId] !== 100) {
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    if (updated[questionId] === 100) {
+                      delete updated[questionId];
+                    }
+                    return updated;
+                  });
+                }, 2000); // 2 second delay so user sees completion
+              }
             }
             
             // Only remove questions that backend no longer tracks AND have reached 100%
