@@ -465,7 +465,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 2500
+        max_tokens: 8000 // INCREASED: Prevent any truncation of evidence extraction
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -552,7 +552,7 @@ Respond in JSON format:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 4096
+        max_tokens: 16000 // MASSIVELY INCREASED: Ensure comprehensive answers with NO truncation
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
