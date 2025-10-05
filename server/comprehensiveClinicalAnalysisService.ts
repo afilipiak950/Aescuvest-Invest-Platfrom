@@ -1585,11 +1585,14 @@ export async function rerunSingleClinicalQuestion(
     // Step 1: Fetch documents assigned to Clinical agent (30% progress)
     console.log(`🧬 Fetching documents for deal ${dealId}`);
     const documents = await storage.getDocumentsByDealId(dealId);
-    const clinicalDocuments = documents.filter(doc => doc.assignedAgent === 'Clinical');
+    // Case-insensitive filter for both 'clinical' and 'Clinical'
+    const clinicalDocuments = documents.filter(doc => 
+      doc.assignedAgent?.toLowerCase() === 'clinical'
+    );
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
     
-    console.log(`🧬 Found ${clinicalDocuments.length} Clinical documents`);
+    console.log(`🧬 Found ${clinicalDocuments.length} Clinical documents (from ${documents.length} total)`);
     
     // Step 2: Extract AI summaries from documents (60% progress)
     console.log(`🧬 Extracting AI summaries from ${clinicalDocuments.length} documents`);
