@@ -2337,8 +2337,12 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
               const progress = backendProgress[questionId];
               newProgress[questionId] = progress;
               
-              // Auto-clear progress bar 2 seconds after reaching 100%
+              // Auto-clear progress bar 2 seconds after reaching 100% AND refetch results
               if (progress >= 100 && prev[questionId] !== 100) {
+                console.log(`✅ Question ${questionId} completed! Refetching results...`);
+                // Refetch comprehensive results immediately to show new answer
+                refetchComprehensive();
+                
                 setTimeout(() => {
                   setQuestionProgress(current => {
                     const updated = { ...current };
