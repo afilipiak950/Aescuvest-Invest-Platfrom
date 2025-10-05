@@ -1632,21 +1632,36 @@ Summary: ${doc.summary}
 `).join('\n---\n')}
 
 Please provide a comprehensive clinical analysis that includes:
-1. A detailed answer addressing the main question and all sub-questions
-2. Key clinical findings from the documents (as an array)
-3. Clinical assessment of the findings
-4. Evidence summary
-5. Specific recommendations for clinical due diligence (as an array)
+1. A detailed answer addressing the main question and all sub-questions (as a well-formatted paragraph)
+2. Key clinical findings from the documents (as an array of 5-7 SHORT, DISCRETE bullet points)
+3. Clinical assessment of the findings (as a well-formatted paragraph)
+4. Evidence summary (as a well-formatted paragraph)
+5. Specific recommendations for clinical due diligence (as an array of 3-5 SHORT, DISCRETE bullet points)
 6. Confidence level (0-100)
 7. Source documents used (as an array of document names)
+
+IMPORTANT: 
+- Each keyFinding must be a SHORT, single sentence (max 150 characters)
+- Each recommendation must be a SHORT, actionable item (max 150 characters)
+- DO NOT concatenate multiple findings into one string
+- Return 5-7 separate keyFindings items
+- Return 3-5 separate recommendations items
 
 Respond in valid JSON format:
 {
   "answer": "Detailed comprehensive answer...",
-  "keyFindings": ["Finding 1", "Finding 2", ...],
+  "keyFindings": [
+    "Neteera's technology is FDA-cleared and CE MDR certified, ensuring regulatory compliance.",
+    "The technology provides contactless, continuous monitoring of vital signs, reducing infection risk.",
+    "Clinical studies have focused on evaluating the feasibility and accuracy of the Neteera 130H device."
+  ],
   "clinicalAssessment": "Clinical assessment...",
   "evidenceSummary": "Evidence summary...",
-  "recommendations": ["Recommendation 1", "Recommendation 2", ...],
+  "recommendations": [
+    "Conduct further studies to establish long-term clinical outcomes and success criteria.",
+    "Ensure ongoing compliance with regulatory standards to maintain FDA and CE certifications.",
+    "Develop clear clinical success criteria and endpoints for future studies."
+  ],
   "confidence": 85,
   "sources": ["document1.pdf", "document2.pdf", ...]
 }`;
