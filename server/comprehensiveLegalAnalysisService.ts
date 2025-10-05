@@ -307,6 +307,70 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
+   * Re-run a single legal question analysis
+   * Useful for retrying failed/timeout questions without re-running entire analysis
+   */
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
+    console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
+    
+    // Find the question
+    const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
+    if (!question) {
+      throw new Error(`Question ${questionId} not found`);
+    }
+    
+    // Get legal documents
+    const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
+    console.log(`📄 Found ${assignedDocuments.length} documents for question re-run`);
+    
+    if (assignedDocuments.length === 0) {
+      throw new Error('No documents available for legal analysis');
+    }
+    
+    // Extract evidence for this specific question
+    console.log(`📊 Extracting evidence for: ${question.question}`);
+    const documentEvidence = await this.extractEvidenceFromAllDocuments(
+      assignedDocuments, 
+      question
+    );
+    console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
+    
+    // Compile answer
+    console.log(`🤖 Compiling answer for: ${question.question}`);
+    const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+    console.log(`✅ Answer compiled successfully`);
+    
+    // Get existing analysis to update
+    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
+    if (!existingAnalysis) {
+      throw new Error('No existing legal analysis found. Run full analysis first.');
+    }
+    
+    // Update only this question's answer in the legal analysis
+    const updatedLegalAnswers = {
+      ...existingAnalysis.legalAnswers,
+      [questionId]: answer
+    };
+    
+    // Regenerate findings and recommendations with updated answers
+    const findings = this.generateComprehensiveLegalFindings(updatedLegalAnswers);
+    const recommendations = this.generateComprehensiveLegalRecommendations(updatedLegalAnswers);
+    
+    // Update the database with new answer
+    await this.storeComprehensiveLegalResults(
+      dealId, 
+      updatedLegalAnswers, 
+      findings, 
+      recommendations, 
+      assignedDocuments
+    );
+    
+    console.log(`✅ Successfully updated question ${questionId} in legal analysis`);
+    
+    return answer;
+  }
+  
+  /**
    * Get all documents suitable for legal analysis - AI SUMMARY ONLY VERSION
    * Uses ONLY AI summaries (not OCR) and processes ALL documents (no 50 doc limit)
    */
