@@ -160,6 +160,48 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
 });
 
 /**
+ * Get progress for a question rerun
+ */
+persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/question/:questionId/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    // Import the comprehensive service
+    const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
+    
+    // Get progress
+    const progress = comprehensiveLegalAnalysisService.getQuestionRerunProgress(dealId, questionId);
+    
+    res.json({
+      success: true,
+      progress
+    });
+    
+  } catch (error) {
+    console.error('Error getting question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
  * Re-run a single legal question
  */
 persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:questionId/rerun', async (req, res) => {

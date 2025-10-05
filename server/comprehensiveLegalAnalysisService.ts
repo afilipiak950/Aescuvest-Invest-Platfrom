@@ -306,68 +306,113 @@ class ComprehensiveLegalAnalysisService {
     }
   }
   
+  // Progress tracking for individual question reruns
+  private questionRerunProgress: Map<string, number> = new Map();
+  
+  /**
+   * Get progress for a specific question rerun
+   */
+  getQuestionRerunProgress(dealId: number, questionId: string): number {
+    const key = `${dealId}-${questionId}`;
+    return this.questionRerunProgress.get(key) || 0;
+  }
+  
+  /**
+   * Update progress for a specific question rerun
+   */
+  private updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): void {
+    const key = `${dealId}-${questionId}`;
+    this.questionRerunProgress.set(key, progress);
+    console.log(`📊 Progress update: ${questionId} = ${progress}%`);
+  }
+  
   /**
    * Re-run a single legal question analysis
    * Useful for retrying failed/timeout questions without re-running entire analysis
    */
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
+    const progressKey = `${dealId}-${questionId}`;
     
-    // Find the question
-    const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
-    if (!question) {
-      throw new Error(`Question ${questionId} not found`);
+    try {
+      // Initialize progress
+      this.updateQuestionRerunProgress(dealId, questionId, 0);
+      
+      // Find the question
+      const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
+      if (!question) {
+        throw new Error(`Question ${questionId} not found`);
+      }
+      this.updateQuestionRerunProgress(dealId, questionId, 10);
+      
+      // Get legal documents
+      const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} documents for question re-run`);
+      
+      if (assignedDocuments.length === 0) {
+        throw new Error('No documents available for legal analysis');
+      }
+      this.updateQuestionRerunProgress(dealId, questionId, 20);
+      
+      // Extract evidence for this specific question
+      console.log(`📊 Extracting evidence for: ${question.question}`);
+      this.updateQuestionRerunProgress(dealId, questionId, 30);
+      
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(
+        assignedDocuments, 
+        question
+      );
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
+      this.updateQuestionRerunProgress(dealId, questionId, 60);
+      
+      // Compile answer
+      console.log(`🤖 Compiling answer for: ${question.question}`);
+      this.updateQuestionRerunProgress(dealId, questionId, 70);
+      
+      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+      console.log(`✅ Answer compiled successfully`);
+      this.updateQuestionRerunProgress(dealId, questionId, 85);
+      
+      // Get existing analysis to update
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
+      if (!existingAnalysis) {
+        throw new Error('No existing legal analysis found. Run full analysis first.');
+      }
+      
+      // Update only this question's answer in the legal analysis
+      const updatedLegalAnswers = {
+        ...existingAnalysis.legalAnswers,
+        [questionId]: answer
+      };
+      
+      // Regenerate findings and recommendations with updated answers
+      const findings = this.generateComprehensiveLegalFindings(updatedLegalAnswers);
+      const recommendations = this.generateComprehensiveLegalRecommendations(updatedLegalAnswers);
+      this.updateQuestionRerunProgress(dealId, questionId, 95);
+      
+      // Update the database with new answer
+      await this.storeComprehensiveLegalResults(
+        dealId, 
+        updatedLegalAnswers, 
+        findings, 
+        recommendations, 
+        assignedDocuments
+      );
+      
+      console.log(`✅ Successfully updated question ${questionId} in legal analysis`);
+      this.updateQuestionRerunProgress(dealId, questionId, 100);
+      
+      return answer;
+    } catch (error) {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      throw error;
+    } finally {
+      // Clean up progress after 5 seconds (for both success and error)
+      setTimeout(() => {
+        this.questionRerunProgress.delete(progressKey);
+        console.log(`🧹 Cleaned up progress tracking for question ${questionId}`);
+      }, 5000);
     }
-    
-    // Get legal documents
-    const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
-    console.log(`📄 Found ${assignedDocuments.length} documents for question re-run`);
-    
-    if (assignedDocuments.length === 0) {
-      throw new Error('No documents available for legal analysis');
-    }
-    
-    // Extract evidence for this specific question
-    console.log(`📊 Extracting evidence for: ${question.question}`);
-    const documentEvidence = await this.extractEvidenceFromAllDocuments(
-      assignedDocuments, 
-      question
-    );
-    console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
-    
-    // Compile answer
-    console.log(`🤖 Compiling answer for: ${question.question}`);
-    const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
-    console.log(`✅ Answer compiled successfully`);
-    
-    // Get existing analysis to update
-    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
-    if (!existingAnalysis) {
-      throw new Error('No existing legal analysis found. Run full analysis first.');
-    }
-    
-    // Update only this question's answer in the legal analysis
-    const updatedLegalAnswers = {
-      ...existingAnalysis.legalAnswers,
-      [questionId]: answer
-    };
-    
-    // Regenerate findings and recommendations with updated answers
-    const findings = this.generateComprehensiveLegalFindings(updatedLegalAnswers);
-    const recommendations = this.generateComprehensiveLegalRecommendations(updatedLegalAnswers);
-    
-    // Update the database with new answer
-    await this.storeComprehensiveLegalResults(
-      dealId, 
-      updatedLegalAnswers, 
-      findings, 
-      recommendations, 
-      assignedDocuments
-    );
-    
-    console.log(`✅ Successfully updated question ${questionId} in legal analysis`);
-    
-    return answer;
   }
   
   /**

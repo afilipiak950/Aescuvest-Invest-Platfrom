@@ -1650,6 +1650,7 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
 
   // Check if legal analysis is available from comprehensive endpoint
@@ -1686,9 +1687,42 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     console.log('⚖️ Has recommendations:', !!legalData?.recommendations);
   }
 
+  // Poll for progress while rerunning
+  useEffect(() => {
+    if (!rerunningQuestionId) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/legal-analysis/question/${rerunningQuestionId}/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setQuestionProgress(prev => ({
+            ...prev,
+            [rerunningQuestionId]: data.progress
+          }));
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    // Poll immediately and then every 500ms
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [rerunningQuestionId, dealId]);
+
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
+      // Reset progress to 0 when starting
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
       const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/question/${questionId}/rerun`, {
         method: 'POST',
       });
@@ -1696,6 +1730,12 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     },
     onSuccess: (data, questionId) => {
       console.log(`✅ Successfully re-ran question ${questionId}`, data);
+      
+      // Set progress to 100%
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 100
+      }));
       
       // If the backend returned the full updated analysis, update the cache directly
       if (data.fullAnalysis) {
@@ -1708,10 +1748,26 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
       // Also invalidate and refetch as backup
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`] });
       refetchComprehensive();
-      setRerunningQuestionId(null);
+      
+      // Clear progress after a short delay
+      setTimeout(() => {
+        setQuestionProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[questionId];
+          return newProgress;
+        });
+        setRerunningQuestionId(null);
+      }, 1000);
     },
     onError: (error: Error, questionId) => {
       console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      // Clear progress on error
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
       setRerunningQuestionId(null);
     },
   });
@@ -1882,29 +1938,45 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                         <div className="flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-white font-medium text-sm flex-1">{question.question}</p>
-                            {/* Re-run button for individual question */}
-                            <button
-                              data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setRerunningQuestionId(question.id);
-                                rerunQuestionMutation.mutate(question.id);
-                              }}
-                              disabled={rerunningQuestionId === question.id}
-                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
-                            >
-                              {rerunningQuestionId === question.id ? (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
-                                  <path d="M15 9h6v-6"/>
-                                </svg>
+                            <div className="flex items-center gap-2">
+                              {/* Progress bar - shown when question is being rerun */}
+                              {rerunningQuestionId === question.id && questionProgress[question.id] !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${questionProgress[question.id]}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                    {questionProgress[question.id]}%
+                                  </span>
+                                </div>
                               )}
-                            </button>
+                              {/* Re-run button for individual question */}
+                              <button
+                                data-testid={`rerun-question-${question.id}`}
+                                onClick={() => {
+                                  setRerunningQuestionId(question.id);
+                                  rerunQuestionMutation.mutate(question.id);
+                                }}
+                                disabled={rerunningQuestionId === question.id}
+                                className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                                title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                              >
+                                {rerunningQuestionId === question.id ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                    <path d="M15 9h6v-6"/>
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
                           
                           {question.subQuestions && Array.isArray(question.subQuestions) && (
