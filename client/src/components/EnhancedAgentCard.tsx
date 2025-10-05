@@ -2031,7 +2031,14 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
                               {/* Re-run button for individual question */}
                               <button
                                 data-testid={`rerun-question-${question.id}`}
-                                onClick={() => rerunQuestionMutation.mutate(question.id)}
+                                onClick={(e) => {
+                                  console.log('🔥🔥🔥 BUTTON CLICKED!!!', question.id);
+                                  console.log('Event:', e);
+                                  console.log('Disabled:', questionProgress[question.id] !== undefined && questionProgress[question.id] < 100);
+                                  console.log('Progress state:', questionProgress);
+                                  e.stopPropagation();
+                                  rerunQuestionMutation.mutate(question.id);
+                                }}
                                 disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                                 className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                                 title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
@@ -2636,7 +2643,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Re-run button for individual question */}
                               <button
                                 data-testid={`rerun-question-${question.id}`}
-                                onClick={() => rerunQuestionMutation.mutate(question.id)}
+                                onClick={(e) => {
+                                  console.log('🔥🔥🔥 BUTTON CLICKED!!!', question.id);
+                                  console.log('Event:', e);
+                                  console.log('Disabled:', questionProgress[question.id] !== undefined && questionProgress[question.id] < 100);
+                                  console.log('Progress state:', questionProgress);
+                                  e.stopPropagation();
+                                  rerunQuestionMutation.mutate(question.id);
+                                }}
                                 disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                                 className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                                 title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
