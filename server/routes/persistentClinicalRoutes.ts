@@ -120,4 +120,79 @@ router.get('/api/clinical-analysis/persistent/jobs', async (req: Request, res: R
   }
 });
 
+/**
+ * POST /api/deals/:dealId/clinical-analysis/question/:questionId/rerun
+ * Re-run a single Clinical question with database-backed progress tracking
+ * Response time: <50ms (background processing)
+ */
+router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', async (req: Request, res: Response) => {
+  try {
+    const { rerunSingleClinicalQuestion } = await import('../comprehensiveClinicalAnalysisService');
+    const { storage } = await import('../storage');
+    
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+    
+    console.log(`🎯 Clinical question rerun requested: ${questionId} for deal ${dealId}`);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+    }
+    
+    if (!questionId) {
+      return res.status(400).json({ success: false, error: 'Question ID is required' });
+    }
+    
+    // Check if this question is already being rerun (prevent duplicates)
+    const isRunning = await storage.isQuestionRunning(jobId);
+    if (isRunning) {
+      console.log(`⏭️ Clinical question ${questionId} already running for deal ${dealId}`);
+      return res.status(409).json({ 
+        success: false, 
+        error: 'Question is already being rerun',
+        jobId 
+      });
+    }
+    
+    // Register job in database immediately (atomic operation)
+    await storage.updateQuestionRerunProgress(jobId, 0, 'processing', {
+      agentType: 'Clinical',
+      startTime: new Date().toISOString(),
+      lastUpdate: new Date().toISOString(),
+      processedDocuments: 0,
+      totalDocuments: 0,
+      currentDocument: ''
+    });
+    
+    console.log(`✅ Clinical job registered: ${jobId}`);
+    
+    // Defer actual processing to next event loop tick (non-blocking)
+    // This ensures we respond to the client in <50ms
+    setImmediate(async () => {
+      try {
+        await rerunSingleClinicalQuestion(dealId, questionId);
+      } catch (error) {
+        console.error(`❌ Background Clinical rerun failed for question ${questionId}:`, error);
+      }
+    });
+    
+    // Return immediate success response
+    res.json({
+      success: true,
+      message: `Clinical question ${questionId} rerun started`,
+      jobId,
+      questionId,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error starting Clinical question rerun:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
 export default router;
