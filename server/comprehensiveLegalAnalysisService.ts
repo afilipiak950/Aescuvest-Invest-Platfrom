@@ -5,7 +5,7 @@
  */
 
 import { db } from './db';
-import { documents, agentAnalyses } from '../shared/schema';
+import { documents, agentAnalyses, backgroundJobs } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
@@ -306,39 +306,69 @@ class ComprehensiveLegalAnalysisService {
     }
   }
   
-  // Progress tracking for individual question reruns
-  public questionRerunProgress: Map<string, number> = new Map();
-  
   /**
-   * Get progress for a specific question rerun
+   * Get progress for a specific question rerun from database
    */
-  getQuestionRerunProgress(dealId: number, questionId: string): number {
-    const key = `${dealId}-${questionId}`;
-    return this.questionRerunProgress.get(key) || 0;
+  async getQuestionRerunProgress(dealId: number, questionId: string): Promise<number> {
+    const jobId = `legal-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    return job?.progress || 0;
   }
   
   /**
-   * Update progress for a specific question rerun
+   * Update progress for a specific question rerun in database
    */
-  public updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): void {
-    const key = `${dealId}-${questionId}`;
-    this.questionRerunProgress.set(key, progress);
-    console.log(`📊 Progress update: ${questionId} = ${progress}%`);
-  }
-  
-  /**
-   * Get all active question progress for a deal
-   */
-  getAllQuestionProgress(dealId: number): Record<string, number> {
-    const dealPrefix = `${dealId}-`;
-    const result: Record<string, number> = {};
+  public async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
-    // Convert iterator to array to avoid downlevelIteration issues
-    const entries = Array.from(this.questionRerunProgress.entries());
-    for (const [key, progress] of entries) {
-      if (key.startsWith(dealPrefix)) {
-        const questionId = key.substring(dealPrefix.length);
-        result[questionId] = progress;
+    // Check if job exists
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (existingJob) {
+      // Update existing job
+      await db.update(backgroundJobs)
+        .set({ 
+          progress,
+          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+          updatedAt: new Date(),
+          completedAt: progress === 100 ? new Date() : null
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+    } else {
+      // Create new job
+      await db.insert(backgroundJobs).values({
+        jobId,
+        jobType: 'legal_question_rerun',
+        dealId,
+        status: progress === 0 ? 'pending' : 'processing',
+        progress,
+        runId: questionId,
+        currentStep: `Rerunning question: ${questionId}`
+      });
+    }
+    
+    console.log(`📊 Progress update (DB): ${questionId} = ${progress}%`);
+  }
+  
+  /**
+   * Get all active question progress for a deal from database
+   */
+  async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
+    const jobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.jobType, 'legal_question_rerun')
+      )
+    });
+    
+    const result: Record<string, number> = {};
+    for (const job of jobs) {
+      if (job.runId) {
+        result[job.runId] = job.progress;
       }
     }
     
@@ -346,13 +376,15 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Check if a question is currently being rerun
+   * Check if a question is currently being rerun in database
    */
-  isQuestionRunning(dealId: number, questionId: string): boolean {
-    const key = `${dealId}-${questionId}`;
-    const progress = this.questionRerunProgress.get(key);
-    // Consider it running if progress exists and is not 100
-    return progress !== undefined && progress < 100;
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const jobId = `legal-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    // Consider it running if job exists and progress is not 100
+    return job !== undefined && job.progress < 100;
   }
   
   /**
@@ -361,20 +393,23 @@ class ComprehensiveLegalAnalysisService {
    */
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
-    const progressKey = `${dealId}-${questionId}`;
+    const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
     // Check if already initialized by route (atomic registration pattern)
-    const alreadyInitialized = this.questionRerunProgress.has(progressKey);
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    const alreadyInitialized = existingJob !== undefined;
     
     // Only check for duplicates if not already initialized
-    if (!alreadyInitialized && this.isQuestionRunning(dealId, questionId)) {
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
       throw new Error(`Question ${questionId} is already being rerun`);
     }
     
     try {
       // Initialize progress only if not already set by route
       if (!alreadyInitialized) {
-        this.updateQuestionRerunProgress(dealId, questionId, 0);
+        await this.updateQuestionRerunProgress(dealId, questionId, 0);
       }
       
       // Find the question
@@ -382,7 +417,7 @@ class ComprehensiveLegalAnalysisService {
       if (!question) {
         throw new Error(`Question ${questionId} not found`);
       }
-      this.updateQuestionRerunProgress(dealId, questionId, 10);
+      await this.updateQuestionRerunProgress(dealId, questionId, 10);
       
       // Get legal documents
       const assignedDocuments = await this.getAssignedLegalDocuments(dealId);
@@ -391,26 +426,26 @@ class ComprehensiveLegalAnalysisService {
       if (assignedDocuments.length === 0) {
         throw new Error('No documents available for legal analysis');
       }
-      this.updateQuestionRerunProgress(dealId, questionId, 20);
+      await this.updateQuestionRerunProgress(dealId, questionId, 20);
       
       // Extract evidence for this specific question
       console.log(`📊 Extracting evidence for: ${question.question}`);
-      this.updateQuestionRerunProgress(dealId, questionId, 30);
+      await this.updateQuestionRerunProgress(dealId, questionId, 30);
       
       const documentEvidence = await this.extractEvidenceFromAllDocuments(
         assignedDocuments, 
         question
       );
       console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
-      this.updateQuestionRerunProgress(dealId, questionId, 60);
+      await this.updateQuestionRerunProgress(dealId, questionId, 60);
       
       // Compile answer
       console.log(`🤖 Compiling answer for: ${question.question}`);
-      this.updateQuestionRerunProgress(dealId, questionId, 70);
+      await this.updateQuestionRerunProgress(dealId, questionId, 70);
       
       const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
       console.log(`✅ Answer compiled successfully`);
-      this.updateQuestionRerunProgress(dealId, questionId, 85);
+      await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
       // Get existing analysis to update
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Legal');
@@ -427,7 +462,7 @@ class ComprehensiveLegalAnalysisService {
       // Regenerate findings and recommendations with updated answers
       const findings = this.generateComprehensiveLegalFindings(updatedLegalAnswers);
       const recommendations = this.generateComprehensiveLegalRecommendations(updatedLegalAnswers);
-      this.updateQuestionRerunProgress(dealId, questionId, 95);
+      await this.updateQuestionRerunProgress(dealId, questionId, 95);
       
       // Update the database with new answer
       await this.storeComprehensiveLegalResults(
@@ -439,18 +474,23 @@ class ComprehensiveLegalAnalysisService {
       );
       
       console.log(`✅ Successfully updated question ${questionId} in legal analysis`);
-      this.updateQuestionRerunProgress(dealId, questionId, 100);
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
       
       return answer;
     } catch (error) {
       console.error(`❌ Error re-running question ${questionId}:`, error);
       throw error;
     } finally {
-      // Clean up progress after 5 seconds (for both success and error)
-      setTimeout(() => {
-        this.questionRerunProgress.delete(progressKey);
-        console.log(`🧹 Cleaned up progress tracking for question ${questionId}`);
-      }, 5000);
+      // Clean up completed job after 1 hour (for both success and error)
+      setTimeout(async () => {
+        try {
+          await db.delete(backgroundJobs)
+            .where(eq(backgroundJobs.jobId, jobId));
+          console.log(`🧹 Cleaned up database record for question ${questionId}`);
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
+        }
+      }, 3600000); // 1 hour
     }
   }
   

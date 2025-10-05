@@ -177,7 +177,7 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/questions/progress'
     const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
     
     // Get all active progress for this deal
-    const allProgress = comprehensiveLegalAnalysisService.getAllQuestionProgress(dealId);
+    const allProgress = await comprehensiveLegalAnalysisService.getAllQuestionProgress(dealId);
     
     res.json({
       success: true,
@@ -263,7 +263,7 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
     
     // ATOMIC REGISTRATION: Check and register the job in one step to prevent race conditions
-    if (comprehensiveLegalAnalysisService.isQuestionRunning(dealId, questionId)) {
+    if (await comprehensiveLegalAnalysisService.isQuestionRunning(dealId, questionId)) {
       console.log(`⚠️ Question ${questionId} for deal ${dealId} is already being rerun`);
       return res.status(409).json({ 
         success: false, 
@@ -273,7 +273,7 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     
     // Immediately initialize progress to 0 (atomically registers the job)
     // This prevents concurrent requests from bypassing the duplicate check
-    comprehensiveLegalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
+    await comprehensiveLegalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
     
     // Schedule background job execution on next event loop tick
     // HTTP response will be sent BEFORE the heavy database/AI work begins
@@ -282,11 +282,9 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
         .then(() => {
           console.log(`✅ Background rerun completed for question ${questionId} on deal ${dealId}`);
         })
-        .catch(error => {
+        .catch(async error => {
           console.error(`❌ Background rerun failed for question ${questionId} on deal ${dealId}:`, error);
           // Error is logged but doesn't affect the HTTP response (already sent)
-          // Clean up progress on error since rerunSingleQuestion won't reach finally block
-          comprehensiveLegalAnalysisService.questionRerunProgress.delete(`${dealId}-${questionId}`);
         });
     });
     
