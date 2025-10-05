@@ -307,7 +307,7 @@ class ComprehensiveLegalAnalysisService {
   }
   
   // Progress tracking for individual question reruns
-  private questionRerunProgress: Map<string, number> = new Map();
+  public questionRerunProgress: Map<string, number> = new Map();
   
   /**
    * Get progress for a specific question rerun
@@ -320,7 +320,7 @@ class ComprehensiveLegalAnalysisService {
   /**
    * Update progress for a specific question rerun
    */
-  private updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): void {
+  public updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): void {
     const key = `${dealId}-${questionId}`;
     this.questionRerunProgress.set(key, progress);
     console.log(`📊 Progress update: ${questionId} = ${progress}%`);
@@ -363,14 +363,19 @@ class ComprehensiveLegalAnalysisService {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
     const progressKey = `${dealId}-${questionId}`;
     
-    // Check if already running
-    if (this.isQuestionRunning(dealId, questionId)) {
+    // Check if already initialized by route (atomic registration pattern)
+    const alreadyInitialized = this.questionRerunProgress.has(progressKey);
+    
+    // Only check for duplicates if not already initialized
+    if (!alreadyInitialized && this.isQuestionRunning(dealId, questionId)) {
       throw new Error(`Question ${questionId} is already being rerun`);
     }
     
     try {
-      // Initialize progress
-      this.updateQuestionRerunProgress(dealId, questionId, 0);
+      // Initialize progress only if not already set by route
+      if (!alreadyInitialized) {
+        this.updateQuestionRerunProgress(dealId, questionId, 0);
+      }
       
       // Find the question
       const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
