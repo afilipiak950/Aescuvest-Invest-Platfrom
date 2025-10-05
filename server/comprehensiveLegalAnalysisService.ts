@@ -307,7 +307,8 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for legal analysis - EXACT COPY from Clinical
+   * Get all documents suitable for legal analysis - AI SUMMARY ONLY VERSION
+   * Uses ONLY AI summaries (not OCR) and processes ALL documents (no 50 doc limit)
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -317,26 +318,25 @@ class ComprehensiveLegalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to legal agent
+    // First try documents explicitly assigned to legal agent - AI SUMMARY ONLY
     let legalDocuments = allDocuments.filter(doc => 
       (doc.assignedAgents && doc.assignedAgents.includes('Legal')) && 
-      (doc.ocrText || doc.aiSummary)
+      doc.aiSummary  // ONLY documents with AI summaries
     );
     
-    console.log(`📄 Documents explicitly assigned to legal: ${legalDocuments.length}`);
+    console.log(`📄 Documents explicitly assigned to legal (with AI summaries): ${legalDocuments.length}`);
     
     // If no documents are explicitly assigned to legal, identify legal-related documents
     if (legalDocuments.length === 0) {
       console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
       
       legalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.aiSummary) return false;  // ONLY AI summaries
         
         const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
         const aiSummary = doc.aiSummary;
         
-        // Legal document keywords - EXACT Clinical approach
+        // Legal document keywords - AI summary based identification
         const legalKeywords = [
           'legal', 'contract', 'agreement', 'license', 'patent', 'trademark', 'copyright',
           'litigation', 'lawsuit', 'compliance', 'regulatory', 'governance', 'corporate',
@@ -345,9 +345,9 @@ class ComprehensiveLegalAnalysisService {
           'terms of service', 'privacy policy', 'data protection', 'gdpr'
         ];
         
-        // Check document name and content for legal keywords
+        // Check document name for legal keywords
         const hasLegalKeywords = legalKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword)
+          docName.includes(keyword)
         );
         
         // Check AI summary for legal document type
@@ -362,20 +362,15 @@ class ComprehensiveLegalAnalysisService {
       console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
     }
     
-    // If still no legal documents, take documents with meaningful content for analysis
+    // If still no legal documents, use ALL documents with AI summaries
     if (legalDocuments.length === 0) {
-      console.log('📄 No legal-related documents found, using all documents with OCR text...');
-      legalDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
-      );
-      console.log(`📄 Documents with content available: ${legalDocuments.length}`);
+      console.log('📄 No legal-related documents found, using ALL documents with AI summaries...');
+      legalDocuments = allDocuments.filter(doc => doc.aiSummary);
+      console.log(`📄 Documents with AI summaries available: ${legalDocuments.length}`);
     }
     
-    // Apply EXACT same document limits as Clinical
-    if (legalDocuments.length > 50) {
-      console.log(`📄 Limiting to first 50 documents for legal analysis efficiency (found ${legalDocuments.length})`);
-      legalDocuments = legalDocuments.slice(0, 50);
-    }
+    // NO DOCUMENT LIMIT - Process ALL documents with AI summaries
+    console.log(`📄 Processing ALL ${legalDocuments.length} documents with AI summaries for comprehensive legal analysis`);
     
     return legalDocuments;
   }
@@ -418,17 +413,29 @@ class ComprehensiveLegalAnalysisService {
   }
 
   /**
-   * Extract specific evidence from a single document - EXACT COPY from Clinical
+   * Extract specific evidence from a single document - AI SUMMARY ONLY VERSION
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    // Use ONLY AI summary - combine ALL fields for complete context
+    const aiSummary = document.aiSummary;
+    if (!aiSummary) return null;
+    
+    const content = [
+      aiSummary.executiveSummary || '',
+      aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+      aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+      aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+      aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+      aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+      aiSummary.strategicImplications || ''
+    ].filter(s => s).join('\n\n');
     
     if (!content) return null;
     
     const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to find ANY legal, regulatory, contractual, or compliance information, even if indirectly related.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+AI SUMMARY (COMPLETE): ${content}
 
 QUESTION: "${question.question}"
 ANALYSIS TASK: ${question.analysisPrompt}
@@ -458,7 +465,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 2500
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -471,7 +478,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        fullContent: content // Keep full AI summary for reference
       };
       
     } catch (error) {
@@ -484,7 +491,7 @@ Be thorough in finding relevance - most business documents have legal implicatio
         confidence: 0,
         keyFindings: [],
         documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
+        fullContent: content || ''
       };
     }
   }
@@ -545,7 +552,7 @@ Respond in JSON format:
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 2000
+        max_tokens: 4096
       });
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
