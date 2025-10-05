@@ -127,7 +127,7 @@ router.get('/api/clinical-analysis/persistent/jobs', async (req: Request, res: R
  */
 router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', async (req: Request, res: Response) => {
   try {
-    const { rerunSingleClinicalQuestion } = await import('../comprehensiveClinicalAnalysisService');
+    const { rerunSingleClinicalQuestion, comprehensiveClinicalAnalysisService } = await import('../comprehensiveClinicalAnalysisService');
     const { storage } = await import('../storage');
     
     const dealId = parseInt(req.params.dealId);
@@ -145,8 +145,7 @@ router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', a
     }
     
     // Check if this question is already being rerun (prevent duplicates)
-    const isRunning = await storage.isQuestionRunning(jobId);
-    if (isRunning) {
+    if (await comprehensiveClinicalAnalysisService.isQuestionRunning(dealId, questionId)) {
       console.log(`⏭️ Clinical question ${questionId} already running for deal ${dealId}`);
       return res.status(409).json({ 
         success: false, 
@@ -156,25 +155,20 @@ router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', a
     }
     
     // Register job in database immediately (atomic operation)
-    await storage.updateQuestionRerunProgress(jobId, 0, 'processing', {
-      agentType: 'Clinical',
-      startTime: new Date().toISOString(),
-      lastUpdate: new Date().toISOString(),
-      processedDocuments: 0,
-      totalDocuments: 0,
-      currentDocument: ''
-    });
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
     
     console.log(`✅ Clinical job registered: ${jobId}`);
     
     // Defer actual processing to next event loop tick (non-blocking)
     // This ensures we respond to the client in <50ms
-    setImmediate(async () => {
-      try {
-        await rerunSingleClinicalQuestion(dealId, questionId);
-      } catch (error) {
-        console.error(`❌ Background Clinical rerun failed for question ${questionId}:`, error);
-      }
+    setImmediate(() => {
+      comprehensiveClinicalAnalysisService.rerunSingleQuestion(dealId, questionId)
+        .then(() => {
+          console.log(`✅ Background Clinical rerun completed for question ${questionId}`);
+        })
+        .catch(error => {
+          console.error(`❌ Background Clinical rerun failed for question ${questionId}:`, error);
+        });
     });
     
     // Return immediate success response

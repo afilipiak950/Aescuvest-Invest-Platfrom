@@ -1473,6 +1473,83 @@ Return JSON:
     // Consider it running if job exists and progress is not 100
     return job !== undefined && job.progress < 100;
   }
+  
+  /**
+   * Update progress for a specific question rerun in database
+   */
+  async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+    
+    // Check if job exists
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (existingJob) {
+      // Update existing job
+      await db.update(backgroundJobs)
+        .set({ 
+          progress,
+          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+          updatedAt: new Date(),
+          completedAt: progress === 100 ? new Date() : null
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+    } else {
+      // Create new job
+      await db.insert(backgroundJobs).values({
+        jobId,
+        jobType: 'clinical_question_rerun',
+        dealId,
+        status: progress === 0 ? 'pending' : 'processing',
+        progress,
+        runId: questionId,
+        currentStep: `Rerunning question: ${questionId}`
+      });
+    }
+    
+    console.log(`📊 Progress update (DB): ${questionId} = ${progress}%`);
+  }
+  
+  /**
+   * Re-run a single clinical question with full persistence
+   */
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
+    console.log(`🔄 Re-running single clinical question ${questionId} for deal ${dealId}`);
+    const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+    
+    // Check if already initialized by route (atomic registration pattern)
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    const alreadyInitialized = existingJob !== undefined;
+    
+    // Only check for duplicates if not already initialized
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
+    }
+    
+    try {
+      // Initialize progress only if not already set by route
+      if (!alreadyInitialized) {
+        await this.updateQuestionRerunProgress(dealId, questionId, 0);
+      }
+      
+      // Call the standalone rerun function
+      return await rerunSingleClinicalQuestion(dealId, questionId);
+      
+    } catch (error) {
+      console.error(`❌ Failed to rerun clinical question ${questionId}:`, error);
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      throw error;
+    }
+  }
 }
 
 /**
