@@ -489,13 +489,20 @@ Respond in JSON format:
 REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Add 60-second timeout for OpenAI calls
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
+      );
+      
+      const apiPromise = openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 8000 // INCREASED: Prevent any truncation of evidence extraction
       });
+      
+      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -512,14 +519,15 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
       
     } catch (error) {
       console.error(`Error extracting evidence from ${document.name}:`, error);
+      // Return partial data even on timeout - use AI summary directly
       return {
         documentName: document.name,
         documentId: document.id,
-        relevantContent: [],
-        hasRelevantInfo: false,
-        confidence: 0,
-        keyFindings: [],
-        documentSummary: 'Analysis failed',
+        relevantContent: [content.substring(0, 500)], // Use first 500 chars of AI summary as fallback
+        hasRelevantInfo: true,
+        confidence: 50,
+        keyFindings: ['Partial analysis - timeout occurred'],
+        documentSummary: 'Analysis timeout - using AI summary excerpt',
         fullContent: content || ''
       };
     }
@@ -599,13 +607,20 @@ Respond in JSON format:
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Add 90-second timeout for final answer compilation (longer than evidence extraction)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI compilation timeout after 90s')), 90000)
+      );
+      
+      const apiPromise = openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
         max_tokens: 16000 // MASSIVELY INCREASED: Ensure comprehensive answers with NO truncation
       });
+      
+      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
       
       const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -624,16 +639,39 @@ Respond in JSON format:
       };
       
     } catch (error) {
+      const isTimeout = error.message?.includes('timeout');
       console.error(`Error compiling answer for "${question.question}":`, error);
+      
+      // For timeouts, try to create a basic answer from evidence
+      if (isTimeout && evidence.length > 0) {
+        const basicAnswer = evidence
+          .slice(0, 10) // Use first 10 documents
+          .map(e => `${e.documentName}: ${e.documentSummary || e.relevantContent.join('; ')}`)
+          .join('\n\n');
+        
+        return {
+          question: question.question,
+          category: question.category,
+          answer: `Analysis timeout - Partial results from ${evidence.length} documents:\n\n${basicAnswer}`,
+          confidence: 60,
+          sources: evidence.map(e => e.documentName),
+          keyFindings: evidence.slice(0, 5).flatMap(e => e.keyFindings || []),
+          gaps: ['Analysis incomplete due to timeout'],
+          recommendations: ['Complete analysis manually', 'Review partial evidence provided'],
+          evidenceCount: evidence.length,
+          detailedEvidence: evidence
+        };
+      }
+      
       return {
         question: question.question,
         category: question.category,
-        answer: `Error compiling answer: ${error.message}`,
+        answer: `Error processing this question: ${isTimeout ? 'OpenAI analysis timeout' : error.message}`,
         confidence: 0,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: [],
         gaps: ['Analysis compilation failed'],
-        recommendations: ['Manual review required'],
+        recommendations: ['Retry analysis', 'Manual review required'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
