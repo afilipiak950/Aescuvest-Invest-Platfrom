@@ -158,3 +158,48 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
     });
   }
 });
+
+/**
+ * Re-run a single legal question
+ */
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:questionId/rerun', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    console.log(`🔄 Re-running legal question ${questionId} for deal ${dealId}`);
+    
+    // Import the comprehensive service
+    const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
+    
+    // Run single question analysis
+    const updatedAnswer = await comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, questionId);
+    
+    res.json({
+      success: true,
+      questionId,
+      answer: updatedAnswer
+    });
+    
+  } catch (error) {
+    console.error('Error re-running legal question:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to re-run question analysis' 
+    });
+  }
+});
