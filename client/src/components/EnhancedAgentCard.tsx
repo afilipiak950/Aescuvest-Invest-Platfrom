@@ -1021,7 +1021,7 @@ export default function EnhancedAgentCard({
         {agentType.toLowerCase() === 'legal' ? (
           <LegalQuestionsSection 
             dealId={dealId}
-            agent={agent}
+            agent={{ agentType: agentType }}
             analysisData={analysisData} 
             findings={findings} 
             assignedDocuments={assignedDocuments}
