@@ -1449,10 +1449,9 @@ Return JSON:
       // Extract question ID from jobId format: "clinical-question-rerun-{dealId}-{questionId}"
       if (job.jobId) {
         const questionId = job.jobId.split('-').slice(4).join('-');
-        // Only include in-progress jobs (not completed)
-        if (job.progress < 100) {
-          result[questionId] = job.progress;
-        }
+        // Include ALL jobs (in-progress AND completed) so frontend can see when jobs finish
+        // Cleanup happens automatically after 1 hour via the background job cleanup process
+        result[questionId] = job.progress;
       }
     }
     
