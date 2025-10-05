@@ -2564,43 +2564,43 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                         <div className="flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-white font-medium text-sm flex-1">{question.question}</p>
-                            {/* Re-run button for individual question */}
-                            <button
-                              data-testid={`rerun-question-${question.id}`}
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
-                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
-                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                              title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
-                            >
-                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
-                                  <path d="M15 9h6v-6"/>
-                                </svg>
+                            <div className="flex items-center gap-2">
+                              {/* Progress bar - shown when question is being rerun */}
+                              {questionProgress[question.id] !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${questionProgress[question.id]}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                    {questionProgress[question.id]}%
+                                  </span>
+                                </div>
                               )}
-                            </button>
-                          </div>
-                          
-                          {/* Progress bar for question rerun */}
-                          {questionProgress[question.id] !== undefined && questionProgress[question.id] < 100 && (
-                            <div className="mt-2 space-y-1" data-testid={`progress-${question.id}`}>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-blue-400">Re-analyzing question...</span>
-                                <span className="text-blue-400">{questionProgress[question.id]}%</span>
-                              </div>
-                              <div className="w-full bg-dark-lighter rounded-full h-1.5 overflow-hidden">
-                                <div 
-                                  className="bg-gradient-to-r from-blue-400 to-green-400 h-full transition-all duration-300 ease-out"
-                                  style={{ width: `${questionProgress[question.id]}%` }}
-                                />
-                              </div>
+                              {/* Re-run button for individual question */}
+                              <button
+                                data-testid={`rerun-question-${question.id}`}
+                                onClick={() => rerunQuestionMutation.mutate(question.id)}
+                                disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                                className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                                title={(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? "Re-running..." : "Re-run this question"}
+                              >
+                                {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                    <path d="M15 9h6v-6"/>
+                                  </svg>
+                                )}
+                              </button>
                             </div>
-                          )}
+                          </div>
                           
                           {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
