@@ -1709,21 +1709,26 @@ Respond in valid JSON format:
     
     console.log(`📊 Progress update (DB): ${questionId} = 95%`);
     
+    let newAnalysis;
     if (existingAnalysis) {
-      // Clear existing analysis to ensure fresh data
-      console.log(`🗑️ Cleared existing clinical analysis for deal ${dealId}`);
-      await storage.deleteAgentAnalysis(existingAnalysis.id);
+      // Update existing analysis with new clinical answers
+      console.log(`🔄 Updating existing clinical analysis for deal ${dealId}`);
+      newAnalysis = await storage.updateAgentAnalysis(existingAnalysis.id, {
+        clinicalAnswers,
+        updatedAt: new Date()
+      });
+    } else {
+      // Create fresh comprehensive clinical analysis
+      console.log(`✨ Creating new clinical analysis for deal ${dealId}`);
+      newAnalysis = await storage.createAgentAnalysis({
+        dealId,
+        agentType: 'Clinical',
+        status: 'completed',
+        findings: [],
+        recommendations: [],
+        clinicalAnswers
+      });
     }
-    
-    // Create fresh comprehensive clinical analysis
-    const newAnalysis = await storage.createAgentAnalysis({
-      dealId,
-      agentType: 'Clinical',
-      status: 'completed',
-      findings: existingAnalysis?.findings || [],
-      recommendations: existingAnalysis?.recommendations || [],
-      clinicalAnswers
-    });
     
     console.log(`📊 Created fresh comprehensive clinical analysis for deal ${dealId} with ${Object.keys(clinicalAnswers).length} questions answered`);
     console.log(`✅ Successfully updated question ${questionId} in clinical analysis`);
