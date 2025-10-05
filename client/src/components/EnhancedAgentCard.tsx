@@ -1649,6 +1649,7 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
 function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
 
   // Check if legal analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -1683,6 +1684,27 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
     console.log('⚖️ Has findings:', !!legalData?.findings);
     console.log('⚖️ Has recommendations:', !!legalData?.recommendations);
   }
+
+  // Mutation for re-running individual questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: (data, questionId) => {
+      console.log(`✅ Successfully re-ran question ${questionId}`, data);
+      // Invalidate and refetch the analysis
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/legal-analysis/comprehensive/results`] });
+      refetchComprehensive();
+      setRerunningQuestionId(null);
+    },
+    onError: (error: Error, questionId) => {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      setRerunningQuestionId(null);
+    },
+  });
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -1848,7 +1870,32 @@ function LegalQuestionsSection({ dealId, analysisData, findings, assignedDocumen
                           hasAnswer ? 'bg-green-400' : 'bg-gray-400'
                         }`} />
                         <div className="flex-1">
-                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-white font-medium text-sm flex-1">{question.question}</p>
+                            {/* Re-run button for individual question */}
+                            <button
+                              data-testid={`rerun-question-${question.id}`}
+                              onClick={() => {
+                                setRerunningQuestionId(question.id);
+                                rerunQuestionMutation.mutate(question.id);
+                              }}
+                              disabled={rerunningQuestionId === question.id}
+                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                            >
+                              {rerunningQuestionId === question.id ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
@@ -2239,7 +2286,32 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                           hasAnswer ? 'bg-green-400' : 'bg-gray-400'
                         }`} />
                         <div className="flex-1">
-                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-white font-medium text-sm flex-1">{question.question}</p>
+                            {/* Re-run button for individual question */}
+                            <button
+                              data-testid={`rerun-question-${question.id}`}
+                              onClick={() => {
+                                setRerunningQuestionId(question.id);
+                                rerunQuestionMutation.mutate(question.id);
+                              }}
+                              disabled={rerunningQuestionId === question.id}
+                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                            >
+                              {rerunningQuestionId === question.id ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {question.subQuestions && Array.isArray(question.subQuestions) && (
                             <div className="mt-2 space-y-1">
@@ -5426,7 +5498,32 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                           hasAnswer ? 'bg-green-400' : 'bg-gray-400'
                         }`} />
                         <div className="flex-1">
-                          <p className="text-white font-medium text-sm">{question.question}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-white font-medium text-sm flex-1">{question.question}</p>
+                            {/* Re-run button for individual question */}
+                            <button
+                              data-testid={`rerun-question-${question.id}`}
+                              onClick={() => {
+                                setRerunningQuestionId(question.id);
+                                rerunQuestionMutation.mutate(question.id);
+                              }}
+                              disabled={rerunningQuestionId === question.id}
+                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                            >
+                              {rerunningQuestionId === question.id ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {hasAnswer ? (
                             <div className="mt-3 space-y-3">
