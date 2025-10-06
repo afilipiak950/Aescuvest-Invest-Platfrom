@@ -539,7 +539,8 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
   }
 
   /**
-   * Compile comprehensive answer based on all evidence - EXACT Clinical approach
+   * Compile comprehensive answer based on all evidence - BATCHED APPROACH
+   * Prevents token limit issues by processing evidence in chunks
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
     console.log(`🔍 Compiling answer for: ${question.question}`);
@@ -559,20 +560,35 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
       };
     }
 
-    // Prepare evidence summary for AI compilation - EXACT Clinical approach
-    const evidenceSummary = evidence.map(ev => ({
-      document: ev.documentName,
-      content: ev.relevantContent.join(' '),
-      findings: ev.keyFindings.join(' '),
-      confidence: ev.confidence
-    }));
+    // BATCHED APPROACH: Process evidence in chunks to avoid token limit
+    const BATCH_SIZE = 20; // Process 20 documents per batch
+    const batches: any[][] = [];
+    for (let i = 0; i < evidence.length; i += BATCH_SIZE) {
+      batches.push(evidence.slice(i, i + BATCH_SIZE));
+    }
 
-    const prompt = `You are an expert commercial due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
+    console.log(`📦 Processing ${evidence.length} pieces of evidence in ${batches.length} batches`);
+
+    const batchAnswers: any[] = [];
+
+    // Process each batch separately
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Compiling batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+
+      const evidenceSummary = batch.map(ev => ({
+        document: ev.documentName,
+        content: ev.relevantContent.join(' '),
+        findings: ev.keyFindings.join(' '),
+        confidence: ev.confidence
+      }));
+
+      const batchPrompt = `You are an expert commercial due diligence analyst compiling evidence from ${batch.length} documents (Batch ${i + 1}/${batches.length}).
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
 
-EVIDENCE FROM DOCUMENTS:
+EVIDENCE FROM DOCUMENTS (Batch ${i + 1}/${batches.length}):
 ${evidenceSummary.map(ev => `
 DOCUMENT: ${ev.document}
 CONTENT: ${ev.content}
@@ -581,35 +597,96 @@ CONFIDENCE: ${ev.confidence}%
 `).join('\n')}
 
 Instructions:
-1. Synthesize ALL evidence into a comprehensive answer
+1. Extract ALL specific commercial data from this batch
 2. Cite specific documents and quotes
-3. Identify gaps in information
+3. Identify any gaps in information
 4. Provide confidence assessment
+
+Respond in JSON format:
+{
+  "batchSummary": "Summary of evidence from this batch",
+  "keyFindings": ["Finding 1 from this batch", "Finding 2", ...],
+  "sources": ["Document 1", "Document 2", ...],
+  "confidence": 0-100,
+  "gaps": ["Gap 1", "Gap 2", ...]
+}`;
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 4000
+        });
+
+        const batchResult = JSON.parse(response.choices[0].message.content || '{}');
+        batchAnswers.push(batchResult);
+        console.log(`✅ Batch ${i + 1}/${batches.length} compiled successfully`);
+      } catch (error) {
+        console.error(`❌ Error compiling batch ${i + 1}:`, error);
+        batchAnswers.push({
+          batchSummary: `Error processing batch ${i + 1}`,
+          keyFindings: [],
+          sources: batch.map(ev => ev.documentName),
+          confidence: 0,
+          gaps: ['Batch processing error']
+        });
+      }
+
+      // Small delay between batches to avoid rate limits
+      if (i < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // FINAL SYNTHESIS: Combine all batch answers into final comprehensive answer
+    console.log(`🤖 Synthesizing final answer from ${batchAnswers.length} batch results`);
+
+    const synthesisPrompt = `You are an expert commercial due diligence analyst synthesizing evidence from ${batches.length} batch analyses covering ${evidence.length} total documents.
+
+QUESTION: "${question.question}"
+CATEGORY: ${question.category}
+
+BATCH ANALYSES:
+${batchAnswers.map((batch, idx) => `
+BATCH ${idx + 1}/${batches.length}:
+Summary: ${batch.batchSummary}
+Key Findings: ${batch.keyFindings.join('; ')}
+Confidence: ${batch.confidence}%
+Gaps: ${batch.gaps.join('; ')}
+`).join('\n')}
+
+Instructions:
+1. Synthesize ALL batch analyses into ONE comprehensive answer
+2. Integrate all key findings across batches
+3. Provide overall confidence assessment
+4. Identify comprehensive gaps
 5. Include commercial recommendations
 
 Respond in JSON format:
 {
-  "answer": "Comprehensive answer synthesizing all evidence",
+  "answer": "Comprehensive answer synthesizing all ${batches.length} batches",
   "confidence": 0-100,
-  "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "gaps": ["Missing information 1", "Missing information 2"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "commercialAssessment": "Overall commercial assessment based on evidence",
-  "evidenceCount": ${evidence.length}
+  "keyFindings": ["Combined finding 1", "Combined finding 2", ...],
+  "gaps": ["Overall gap 1", "Overall gap 2", ...],
+  "recommendations": ["Recommendation 1", "Recommendation 2", ...],
+  "commercialAssessment": "Overall commercial assessment"
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
+      const finalResponse = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 2000
+        max_tokens: 8000
       });
-      
-      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
-      
+
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
+
+      console.log(`✅ Final synthesis completed`);
+
       return {
         question: question.question,
         category: question.category,
@@ -625,16 +702,18 @@ Respond in JSON format:
       };
       
     } catch (error) {
-      console.error(`Error compiling answer for "${question.question}":`, error);
+      console.error(`Error in final synthesis for "${question.question}":`, error);
+      // Fallback: return combined batch results
       return {
         question: question.question,
         category: question.category,
-        answer: `Error compiling answer: ${error.message}`,
-        confidence: 0,
+        answer: batchAnswers.map(b => b.batchSummary).join('\n\n'),
+        confidence: Math.round(batchAnswers.reduce((sum, b) => sum + (b.confidence || 0), 0) / batchAnswers.length),
         sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: [],
-        gaps: ['Analysis compilation failed'],
-        recommendations: ['Manual review required'],
+        keyFindings: batchAnswers.flatMap(b => b.keyFindings || []),
+        gaps: batchAnswers.flatMap(b => b.gaps || []),
+        recommendations: ['Final synthesis failed - manual review recommended'],
+        commercialAssessment: 'Partial analysis - synthesis error occurred',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
