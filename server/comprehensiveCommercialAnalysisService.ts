@@ -236,9 +236,9 @@ export class ComprehensiveCommercialAnalysisService {
         try {
           console.log(`📊 Extracting commercial evidence for: ${question.question}`);
           
-          // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
+          // Extract evidence from ALL documents for this question - EXACT Clinical approach
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments.slice(0, 30), // SPEED: Use only first 30 documents for faster processing
+            assignedDocuments, // Process ALL documents with AI summaries
             question
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
@@ -360,95 +360,152 @@ export class ComprehensiveCommercialAnalysisService {
   }
 
   /**
-   * Extract evidence from ALL documents for a specific question - EXACT Clinical approach
+   * Extract evidence from ALL documents for a specific question - BATCH PROCESSING
+   * Processes documents in batches of 10 to avoid overwhelming the system
+   * EXACT MATCH to Legal/Clinical approach
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 SPEED MODE: Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // CRITICAL SPEED FIX: Process only top 30 most relevant documents to match Clinical speed
-    const topDocuments = documents.slice(0, 30);
-    console.log(`🚀 SPEED OPTIMIZATION: Processing top ${topDocuments.length} documents (reduced from ${documents.length} for speed)`);
-    
+    // Process documents in batches to avoid overwhelming the system
+    const batchSize = 10;
     const evidence = [];
-    const batchSize = 20; // Larger batches for speed
     
-    for (let i = 0; i < topDocuments.length; i += batchSize) {
-      const batch = topDocuments.slice(i, i + batchSize);
-      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(topDocuments.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      // Parallel processing with reduced timeout for speed
-      const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
-        try {
-          return await Promise.race([
-            this.extractEvidenceFromDocument(doc, question),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Document timeout')), 10000)) // 10 second timeout per document
-          ]);
-        } catch (error) {
-          console.log(`⚠️ Skipping ${doc.name} due to timeout/error`);
-          return null;
-        }
-      });
+      const batchResults = await Promise.all(
+        batch.map(async (doc) => {
+          console.log(`🔎 Extracting commercial evidence from: ${doc.name}`);
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
       
-      const batchResults = await Promise.all(batchPromises);
+      // Filter out null results and add to evidence
       const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
+        docEvidence && docEvidence.relevantContent.length > 0
       );
       evidence.push(...validEvidence);
       
-      console.log(`✅ FAST Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant commercial evidence`);
     }
     
-    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${topDocuments.length} documents in FAST mode`);
+    console.log(`📋 Extracted commercial evidence from ${evidence.length}/${documents.length} documents`);
     return evidence;
   }
 
   /**
-   * Extract specific evidence from a single document - EXACT Clinical approach
+   * Extract specific commercial evidence from a single document
+   * Makes ONE API call per document to extract relevant commercial information
+   * Uses AI summaries ONLY - handles both string and object formats
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    // Use ONLY AI summary - handle BOTH string and object formats
+    const aiSummary = document.aiSummary;
+    if (!aiSummary) return null;
     
-    if (!content) return null;
+    let content: string;
     
-    const prompt = `You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY commercial, business, market, sales, competitive, or strategic information, even if indirectly related.
+    // Handle STRING summaries (most common in production)
+    if (typeof aiSummary === 'string') {
+      content = aiSummary;
+    } 
+    // Handle OBJECT summaries (structured format)
+    else if (typeof aiSummary === 'object') {
+      content = [
+        aiSummary.executiveSummary || '',
+        aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+        aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+        aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+        aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+        aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+        aiSummary.strategicImplications || ''
+      ].filter(s => s).join('\n\n');
+      
+      // Fallback: if all fields are empty, stringify the entire object
+      if (!content || content.trim().length === 0) {
+        content = JSON.stringify(aiSummary);
+      }
+    }
+    // Fallback: stringify anything else
+    else {
+      content = String(aiSummary);
+    }
+    
+    if (!content || content.trim().length === 0) return null;
+    
+    const prompt = `You are an expert commercial due diligence analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC COMMERCIAL DETAILS from this document.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+AI SUMMARY (COMPLETE): ${content}
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
 
-Instructions:
-- Look for DIRECT commercial terms: pricing, sales, customers, competition, market share, revenue, partnerships
-- Look for INDIRECT business information: company performance, growth metrics, business relationships, strategic initiatives
-- Consider business documents that mention commercial milestones, market positioning, competitive advantages
-- Even general business context often has commercial implications for investment due diligence
-- For investment companies, most business documents contain commercial information relevant to investors
+CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
+
+1. EXTRACT SPECIFIC COMMERCIAL DATA:
+   - Pricing models (e.g., "Usage-based pricing at $0.50/unit", "Tiered pricing: $999/month starter")
+   - Sales metrics (e.g., "Q4 revenue $2.3M", "150 customers acquired", "Win rate 35%")
+   - Customer data (e.g., "Top 10 customers represent 60% revenue", "Churn rate 5% annually")
+   - Competitive positioning (e.g., "20% market share in SMB segment", "3x cheaper than CompetitorX")
+   - Market data (e.g., "TAM $5B growing 25% YoY", "60% market penetration in region")
+
+2. EXTRACT SALES & PIPELINE DETAILS:
+   - Sales cycle length (e.g., "Average sales cycle 90 days", "Enterprise deals: 180 days")
+   - Conversion rates (e.g., "Demo-to-close rate 25%", "Trial conversion 15%")
+   - Deal sizes (e.g., "Average deal size $50K", "Enterprise deals $200K+")
+   - Pipeline metrics (e.g., "$10M in qualified pipeline", "120 active opportunities")
+
+3. EXTRACT GROWTH & RETENTION METRICS:
+   - Revenue growth (e.g., "150% YoY revenue growth", "MRR grew from $500K to $1.2M")
+   - Customer retention (e.g., "NRR 120%", "Gross retention 95%")
+   - Expansion revenue (e.g., "40% of revenue from upsells", "Average expansion 35%")
+
+4. DO NOT PARAPHRASE - COPY VERBATIM:
+   - If the summary says "Win rate 35%", copy it EXACTLY
+   - If it says "$2.3M ARR", copy it EXACTLY
+   - Do NOT convert to generic summaries like "strong sales" or "good growth"
+
+5. EXTRACT EVERYTHING RELEVANT:
+   - If this document mentions pricing, extract EVERY pricing detail
+   - If it mentions customers, extract EVERY customer metric
+   - If it mentions sales, extract EVERY sales data point
+   - Include ALL numbers, percentages, dates, dollar amounts
+
+Your relevantContent array should contain 5-20+ detailed extractions per document (not 1-2 generic quotes).
 
 Respond in JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["DETAILED commercial extraction 1 with specific metrics", "DETAILED extraction 2 with numbers", "DETAILED extraction 3...", ...],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "commercialContext": "How this document relates to commercial/business aspects"
+  "keyFindings": ["Specific commercial finding with data", "Specific finding with numbers", ...],
+  "documentSummary": "COMPREHENSIVE breakdown of ALL relevant commercial information from this document",
+  "commercialContext": "How this document relates to commercial aspects with SPECIFIC details"
 }
 
-Be thorough in finding relevance - most business documents have commercial implications for investment analysis.`;
+REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Add 60-second timeout for OpenAI calls
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
+      );
+      
+      const apiPromise = openai.chat.completions.create({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 8000
       });
+      
+      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -460,20 +517,23 @@ Be thorough in finding relevance - most business documents have commercial impli
         confidence: analysis.confidence || 0,
         keyFindings: analysis.keyFindings || [],
         documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        commercialContext: analysis.commercialContext || '',
+        fullContent: content
       };
       
     } catch (error) {
-      console.error(`Error extracting evidence from ${document.name}:`, error);
+      console.error(`Error extracting commercial evidence from ${document.name}:`, error);
+      // Return partial data even on timeout - use AI summary directly
       return {
         documentName: document.name,
         documentId: document.id,
-        relevantContent: [],
-        hasRelevantInfo: false,
-        confidence: 0,
-        keyFindings: [],
-        documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
+        relevantContent: [content.substring(0, 500)],
+        hasRelevantInfo: true,
+        confidence: 50,
+        keyFindings: ['Partial analysis - timeout occurred'],
+        documentSummary: 'Analysis timeout - using AI summary excerpt',
+        commercialContext: 'Timeout occurred',
+        fullContent: content || ''
       };
     }
   }
@@ -709,6 +769,214 @@ Respond in JSON format:
       console.error(`❌ Error storing commercial analysis results:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Re-run a single commercial question with full persistence
+   * EXACT MATCH to Legal/Clinical rerun architecture
+   */
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
+    console.log(`🔄 Re-running single commercial question ${questionId} for deal ${dealId}`);
+    const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
+    
+    // Check if already initialized by route (atomic registration pattern)
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    const alreadyInitialized = existingJob !== undefined;
+    
+    // Only check for duplicates if not already initialized
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
+    }
+    
+    try {
+      // Initialize progress only if not already set by route
+      if (!alreadyInitialized) {
+        await this.updateQuestionRerunProgress(dealId, questionId, 0);
+      }
+      
+      // Find the question
+      const question = COMMERCIAL_QUESTIONS.find(q => q.id === questionId);
+      if (!question) {
+        throw new Error(`Question ${questionId} not found`);
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 10);
+      
+      // Get commercial documents
+      const assignedDocuments = await this.getAssignedCommercialDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} documents for question re-run`);
+      
+      if (assignedDocuments.length === 0) {
+        throw new Error('No documents available for commercial analysis');
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 20);
+      
+      // Extract evidence for this specific question
+      console.log(`📊 Extracting evidence for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 30);
+      
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(
+        assignedDocuments, 
+        question
+      );
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 60);
+      
+      // Compile answer
+      console.log(`🤖 Compiling answer for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 70);
+      
+      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+      console.log(`✅ Answer compiled successfully`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 85);
+      
+      // Get existing analysis to update
+      const existingAnalysis = await db.query.agentAnalyses.findFirst({
+        where: and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'commercial')
+        )
+      });
+      
+      if (existingAnalysis) {
+        const commercialAnswers = existingAnalysis.commercialAnswers 
+          ? JSON.parse(existingAnalysis.commercialAnswers as string)
+          : {};
+        
+        commercialAnswers[questionId] = answer;
+        
+        await db
+          .update(agentAnalyses)
+          .set({
+            commercialAnswers: JSON.stringify(commercialAnswers),
+            updatedAt: new Date()
+          })
+          .where(eq(agentAnalyses.id, existingAnalysis.id));
+        
+        console.log(`✅ Updated commercial analysis with new answer for question ${questionId}`);
+      } else {
+        const commercialAnswers = { [questionId]: answer };
+        await db.insert(agentAnalyses).values({
+          dealId,
+          agentType: 'commercial',
+          status: 'completed',
+          progress: 100,
+          commercialAnswers: JSON.stringify(commercialAnswers),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        console.log(`✅ Created new commercial analysis with answer for question ${questionId}`);
+      }
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      
+      return {
+        success: true,
+        questionId,
+        answer
+      };
+      
+    } catch (error) {
+      console.error(`❌ Failed to rerun commercial question ${questionId}:`, error);
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a question is currently being rerun
+   */
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
+    const jobs = await storage.getBackgroundJobsByDealId(dealId);
+    return jobs.some(job => 
+      job.jobId === jobId && 
+      job.status === 'processing' && 
+      job.progress < 100
+    );
+  }
+
+  /**
+   * Update progress for a specific question rerun in database
+   * EXACT MATCH to Legal implementation with proper persistence
+   */
+  async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    // Check if job exists
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (existingJob) {
+      // Update existing job
+      await db.update(backgroundJobs)
+        .set({ 
+          progress,
+          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+          updatedAt: new Date(),
+          completedAt: progress === 100 ? new Date() : null
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+    } else {
+      // Create new job with full database persistence
+      await db.insert(backgroundJobs).values({
+        jobId,
+        jobType: 'commercial_question_rerun',
+        dealId,
+        status: progress === 0 ? 'pending' : 'processing',
+        progress,
+        runId: questionId,
+        currentStep: `Rerunning commercial question: ${questionId}`
+      });
+    }
+    
+    console.log(`📊 Commercial Progress update (DB): ${questionId} = ${progress}%`);
+  }
+
+  /**
+   * Get progress for a single question rerun from database
+   */
+  async getQuestionRerunProgress(dealId: number, questionId: string): Promise<number> {
+    const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    return job?.progress || 0;
+  }
+
+  /**
+   * Get all active question progress for a deal from database
+   * EXACT MATCH to Legal implementation
+   */
+  async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { and, eq } = await import('drizzle-orm');
+    
+    const jobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.jobType, 'commercial_question_rerun')
+      )
+    });
+    
+    const result: Record<string, number> = {};
+    for (const job of jobs) {
+      if (job.runId) {
+        result[job.runId] = job.progress;
+      }
+    }
+    
+    return result;
   }
 
   /**
