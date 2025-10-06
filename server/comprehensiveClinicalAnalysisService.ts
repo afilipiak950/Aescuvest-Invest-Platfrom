@@ -1471,12 +1471,45 @@ Return JSON:
   }
   
   /**
+   * Auto-cleanup stuck or failed jobs before checking if running
+   * Prevents old failed jobs from blocking new reruns
+   */
+  private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (!job) return; // No job to cleanup
+    
+    // Auto-cleanup conditions:
+    // 1. Job status is 'failed'
+    // 2. Job is stuck (updated > 30 minutes ago and not completed)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const isStuck = job.updatedAt < thirtyMinutesAgo && job.status !== 'completed';
+    const isFailed = job.status === 'failed';
+    
+    if (isFailed || isStuck) {
+      console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId} (last updated: ${job.updatedAt})`);
+      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
+      console.log(`✅ Cleaned up ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
+    }
+  }
+  
+  /**
    * Check if a question is currently being rerun in database
    */
   async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
     const { backgroundJobs } = await import('../shared/schema');
     const { eq } = await import('drizzle-orm');
     
+    // First, auto-cleanup any stuck or failed jobs
+    await this.cleanupStuckJob(dealId, questionId);
+    
+    // Now check if job is actually running
     const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
     const job = await db.query.backgroundJobs.findFirst({
       where: eq(backgroundJobs.jobId, jobId)
