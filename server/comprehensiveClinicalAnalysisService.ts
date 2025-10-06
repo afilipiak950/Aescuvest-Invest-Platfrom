@@ -1564,6 +1564,265 @@ Return JSON:
 }
 
 /**
+ * Extract evidence from ALL documents for a specific question - BATCH PROCESSING
+ * Processes documents in batches of 10 to avoid overwhelming the system
+ */
+async function extractEvidenceFromAllDocuments(
+  documents: any[], 
+  question: any
+): Promise<any[]> {
+  console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+  
+  // Process documents in batches to avoid overwhelming the system
+  const batchSize = 10;
+  const evidence = [];
+  
+  for (let i = 0; i < documents.length; i += batchSize) {
+    const batch = documents.slice(i, i + batchSize);
+    console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+    
+    const batchResults = await Promise.all(
+      batch.map(async (doc) => {
+        console.log(`🔎 Extracting clinical evidence from: ${doc.name}`);
+        return extractEvidenceFromDocument(doc, question);
+      })
+    );
+    
+    // Filter out null results and add to evidence
+    const validEvidence = batchResults.filter(docEvidence => 
+      docEvidence && docEvidence.relevantContent.length > 0
+    );
+    evidence.push(...validEvidence);
+    
+    console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant clinical evidence`);
+  }
+  
+  console.log(`📋 Extracted clinical evidence from ${evidence.length}/${documents.length} documents`);
+  return evidence;
+}
+
+/**
+ * Extract specific clinical evidence from a single document
+ * Makes ONE API call per document to extract relevant clinical information
+ */
+async function extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+  // Use ONLY AI summary - handle BOTH string and object formats
+  const aiSummary = document.aiSummary;
+  if (!aiSummary) return null;
+  
+  let content: string;
+  
+  // Handle STRING summaries (most common in production)
+  if (typeof aiSummary === 'string') {
+    content = aiSummary;
+  } 
+  // Handle OBJECT summaries (structured format)
+  else if (typeof aiSummary === 'object') {
+    content = [
+      aiSummary.executiveSummary || '',
+      aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+      aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+      aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+      aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+      aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+      aiSummary.strategicImplications || ''
+    ].filter(s => s).join('\n\n');
+    
+    // Fallback: if all fields are empty, stringify the entire object
+    if (!content || content.trim().length === 0) {
+      content = JSON.stringify(aiSummary);
+    }
+  }
+  // Fallback: stringify anything else
+  else {
+    content = String(aiSummary);
+  }
+  
+  if (!content || content.trim().length === 0) return null;
+  
+  const prompt = `You are an expert Clinical analyst conducting comprehensive medical device/healthcare investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC CLINICAL DETAILS from this document.
+
+DOCUMENT: ${document.name}
+AI SUMMARY (COMPLETE): ${content}
+
+QUESTION: "${question.question}"
+ANALYSIS TASK: ${question.analysisPrompt || 'Extract all clinical information relevant to this question'}
+
+CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
+
+1. EXTRACT SPECIFIC CLINICAL DATA:
+   - Trial phases (e.g., "Phase II trial", "Pivotal study")
+   - Patient enrollment numbers (e.g., "40 subjects", "200 patients enrolled")
+   - Clinical endpoints (e.g., "Primary endpoint: reduction in hospital readmissions", "Secondary: patient satisfaction scores")
+   - Success criteria and statistical significance (e.g., "p<0.05", "95% confidence interval")
+   - Efficacy metrics (e.g., "87% accuracy", "sensitivity 92%, specificity 89%")
+   - Safety data (e.g., "3 adverse events", "No serious adverse events reported")
+
+2. EXTRACT REGULATORY & COMPLIANCE DETAILS:
+   - FDA clearances (e.g., "FDA 510(k) cleared March 2023")
+   - CE certifications (e.g., "CE MDR certified", "Class IIa device")
+   - ISO standards (e.g., "ISO 13485 certified")
+   - Regulatory submissions (e.g., "PMA application pending", "De Novo pathway")
+
+3. EXTRACT STUDY DESIGN INFORMATION:
+   - Study type (e.g., "Single-center", "Multi-center", "Randomized controlled trial")
+   - Blinding (e.g., "Single-blinded", "Double-blinded")
+   - Control groups (e.g., "Compared to FDA-cleared predicate device")
+   - Duration (e.g., "6-month follow-up", "12-week study period")
+
+4. DO NOT PARAPHRASE - COPY VERBATIM:
+   - If the summary says "FDA 510(k) cleared", copy it EXACTLY
+   - If it says "40 subjects enrolled", copy it EXACTLY
+   - Do NOT convert to generic summaries like "regulatory approval" or "clinical study"
+
+5. EXTRACT EVERYTHING RELEVANT:
+   - If this document mentions clinical trials, extract EVERY trial detail
+   - If it mentions regulatory approvals, extract EVERY approval
+   - If it mentions safety data, extract EVERY safety metric
+   - Include ALL study details, ALL approval dates, ALL clinical metrics
+
+Your relevantContent array should contain 5-20+ detailed extractions per document (not 1-2 generic quotes).
+
+Respond in JSON format:
+{
+  "relevantContent": ["DETAILED clinical extraction 1 with specific metrics", "DETAILED extraction 2 with study details", "DETAILED extraction 3...", ...],
+  "hasRelevantInfo": true/false,
+  "confidence": 0-100,
+  "keyFindings": ["Specific clinical finding with data", "Specific finding with dates", ...],
+  "documentSummary": "COMPREHENSIVE breakdown of ALL relevant clinical information from this document",
+  "clinicalContext": "How this document relates to clinical/regulatory aspects with SPECIFIC details"
+}
+
+REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
+
+  try {
+    // Add 60-second timeout for OpenAI calls
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
+    );
+    
+    const apiPromise = openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+      max_tokens: 8000
+    });
+    
+    const response = await Promise.race([apiPromise, timeoutPromise]) as any;
+    
+    const analysis = JSON.parse(response.choices[0].message.content || '{}');
+    
+    return {
+      documentName: document.name,
+      documentId: document.id,
+      relevantContent: analysis.relevantContent || [],
+      hasRelevantInfo: analysis.hasRelevantInfo || false,
+      confidence: analysis.confidence || 0,
+      keyFindings: analysis.keyFindings || [],
+      documentSummary: analysis.documentSummary || '',
+      clinicalContext: analysis.clinicalContext || '',
+      fullContent: content
+    };
+    
+  } catch (error) {
+    console.error(`Error extracting clinical evidence from ${document.name}:`, error);
+    // Return partial data even on timeout - use AI summary directly
+    return {
+      documentName: document.name,
+      documentId: document.id,
+      relevantContent: [content.substring(0, 500)],
+      hasRelevantInfo: true,
+      confidence: 50,
+      keyFindings: ['Partial analysis - timeout occurred'],
+      documentSummary: 'Analysis timeout - using AI summary excerpt',
+      clinicalContext: 'Timeout occurred',
+      fullContent: content || ''
+    };
+  }
+}
+
+/**
+ * Compile comprehensive clinical answer based on extracted evidence from ALL documents
+ * Uses the extracted evidence (not raw summaries) to avoid token limits
+ */
+async function compileComprehensiveClinicalAnswer(question: any, evidence: any[]): Promise<any> {
+  console.log(`🤖 Compiling comprehensive clinical answer for: ${question.question} with evidence from ${evidence.length} documents`);
+  
+  if (evidence.length === 0) {
+    return {
+      answer: 'No relevant clinical documents found for analysis',
+      confidence: 0,
+      sources: [],
+      keyFindings: [],
+      recommendations: ['Obtain relevant clinical documents for analysis'],
+      evidenceSummary: 'No clinical documentation available',
+      clinicalAssessment: 'Unable to perform clinical assessment without documentation'
+    };
+  }
+
+  const prompt = `You are a Clinical Due Diligence expert analyzing medical device and healthcare companies. Analyze the following clinical evidence to answer this question: "${question.question}"
+
+Evidence from ${evidence.length} documents:
+${evidence.map(doc => `
+Document: ${doc.documentName}
+Clinical Findings: ${doc.keyFindings?.join('; ') || 'N/A'}
+Relevant Content: ${doc.relevantContent?.join('; ') || 'N/A'}
+Summary: ${doc.documentSummary}
+---
+`).join('\n')}
+
+Please provide a comprehensive clinical analysis that includes:
+1. A detailed answer addressing the main question (as a well-formatted paragraph)
+2. Key clinical findings from the documents (as an array of 5-7 SHORT, DISCRETE bullet points)
+3. Clinical assessment of the findings (as a well-formatted paragraph)
+4. Evidence summary (as a well-formatted paragraph)
+5. Specific recommendations for clinical due diligence (as an array of 3-5 SHORT, DISCRETE bullet points)
+6. Confidence level (0-100)
+7. Source documents used (as an array of document names)
+
+IMPORTANT: 
+- Each keyFinding must be a SHORT, single sentence (max 150 characters)
+- Each recommendation must be a SHORT, actionable item (max 150 characters)
+- DO NOT concatenate multiple findings into one string
+- Return 5-7 separate keyFindings items
+- Return 3-5 separate recommendations items
+
+Respond in valid JSON format:
+{
+  "answer": "Detailed comprehensive clinical answer...",
+  "keyFindings": [
+    "FDA 510(k) cleared March 2023 for contactless vital sign monitoring.",
+    "Clinical trial enrolled 40 subjects with 87% accuracy vs. predicate device.",
+    "CE MDR certified as Class IIa medical device for EU market."
+  ],
+  "clinicalAssessment": "Clinical assessment paragraph...",
+  "evidenceSummary": "Evidence summary paragraph...",
+  "recommendations": [
+    "Obtain detailed Phase III trial data with long-term safety outcomes.",
+    "Verify ongoing post-market surveillance and adverse event reporting.",
+    "Request complete regulatory submission documentation for all markets."
+  ],
+  "confidence": 85,
+  "sources": ["document1.pdf", "document2.pdf", ...]
+}`;
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    temperature: 0.3,
+  });
+  
+  const responseText = completion.choices[0]?.message?.content;
+  if (!responseText) {
+    throw new Error('No response from OpenAI');
+  }
+  
+  return JSON.parse(responseText);
+}
+
+/**
  * Re-run a single Clinical question with full persistence and progress tracking
  * Uses database-backed progress tracking that survives page refreshes and server restarts
  */
@@ -1603,95 +1862,26 @@ export async function rerunSingleClinicalQuestion(
     
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 30);
     
-    // Step 2: Extract AI summaries from documents (60% progress)
-    console.log(`🧬 Extracting AI summaries from ${documents.length} documents`);
-    const documentSummaries = documents
-      .filter(doc => {
-        if (!doc.aiSummary) return false;
-        const summary = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary);
-        return summary.trim().length > 0;
-      })
-      .map(doc => ({
-        name: doc.name,
-        summary: typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary)
-      }));
-    
-    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 60);
-    
-    console.log(`📊 Progress update (DB): ${questionId} = 60%`);
-    
-    if (documentSummaries.length === 0) {
-      console.warn(`⚠️ No AI summaries found in any documents`);
+    if (documents.length === 0) {
+      console.warn(`⚠️ No documents with AI summaries found`);
       await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
       return null;
     }
     
-    // Step 3: Compile comprehensive answer using GPT-4o (70% progress)
-    console.log(`🤖 Compiling answer for: ${question.question}`);
+    // Step 2: Extract evidence from ALL documents using batched approach (30-60% progress)
+    console.log(`📊 Extracting clinical evidence from ${documents.length} documents for: ${question.question}`);
+    const documentEvidence = await extractEvidenceFromAllDocuments(documents, question);
+    console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence from ${documents.length} documents`);
+    
+    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 60);
+    console.log(`📊 Progress update (DB): ${questionId} = 60%`);
+    
+    // Step 3: Compile comprehensive answer using extracted evidence (70% progress)
+    console.log(`🤖 Compiling comprehensive clinical answer for: ${question.question}`);
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 70);
-    
     console.log(`📊 Progress update (DB): ${questionId} = 70%`);
-    console.log(`Compiling comprehensive answer for: ${question.question} with ${documentSummaries.length} documents`);
     
-    const prompt = `You are a Clinical Due Diligence expert analyzing medical device and healthcare companies.
-
-Question: ${question.question}
-${question.subQuestions ? `Sub-questions:\n${question.subQuestions.map((sq: any) => `- ${sq.question || sq}`).join('\n')}` : ''}
-
-Document Summaries (${documentSummaries.length} documents):
-${documentSummaries.map((doc, idx) => `
-Document ${idx + 1}: ${doc.name}
-Summary: ${doc.summary}
-`).join('\n---\n')}
-
-Please provide a comprehensive clinical analysis that includes:
-1. A detailed answer addressing the main question and all sub-questions (as a well-formatted paragraph)
-2. Key clinical findings from the documents (as an array of 5-7 SHORT, DISCRETE bullet points)
-3. Clinical assessment of the findings (as a well-formatted paragraph)
-4. Evidence summary (as a well-formatted paragraph)
-5. Specific recommendations for clinical due diligence (as an array of 3-5 SHORT, DISCRETE bullet points)
-6. Confidence level (0-100)
-7. Source documents used (as an array of document names)
-
-IMPORTANT: 
-- Each keyFinding must be a SHORT, single sentence (max 150 characters)
-- Each recommendation must be a SHORT, actionable item (max 150 characters)
-- DO NOT concatenate multiple findings into one string
-- Return 5-7 separate keyFindings items
-- Return 3-5 separate recommendations items
-
-Respond in valid JSON format:
-{
-  "answer": "Detailed comprehensive answer...",
-  "keyFindings": [
-    "Neteera's technology is FDA-cleared and CE MDR certified, ensuring regulatory compliance.",
-    "The technology provides contactless, continuous monitoring of vital signs, reducing infection risk.",
-    "Clinical studies have focused on evaluating the feasibility and accuracy of the Neteera 130H device."
-  ],
-  "clinicalAssessment": "Clinical assessment...",
-  "evidenceSummary": "Evidence summary...",
-  "recommendations": [
-    "Conduct further studies to establish long-term clinical outcomes and success criteria.",
-    "Ensure ongoing compliance with regulatory standards to maintain FDA and CE certifications.",
-    "Develop clear clinical success criteria and endpoints for future studies."
-  ],
-  "confidence": 85,
-  "sources": ["document1.pdf", "document2.pdf", ...]
-}`;
-    
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-    });
-    
-    const responseText = completion.choices[0]?.message?.content;
-    if (!responseText) {
-      throw new Error('No response from OpenAI');
-    }
-    
-    const analysisResult = JSON.parse(responseText);
+    const analysisResult = await compileComprehensiveClinicalAnswer(question, documentEvidence);
     
     console.log(`✅ Answer compiled successfully`);
     
