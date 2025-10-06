@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Drizzle ORM
 - **File Handling**: Multer for multipart uploads
 - **Authentication**: Passport.js with Express sessions
-- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and automatic cleanup
+- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and automatic stuck job cleanup (removes failed or stale jobs >30min old)
 
 ### Key Features
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
