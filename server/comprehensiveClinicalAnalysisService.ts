@@ -879,6 +879,8 @@ export class ComprehensiveClinicalAnalysisService {
   
   /**
    * Get all documents suitable for clinical analysis
+   * 🚀 COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (like reruns do)
+   * This ensures full analysis has same quality as reruns
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -888,74 +890,16 @@ export class ComprehensiveClinicalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to clinical agent
-    let clinicalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('clinical')) && 
-      (doc.ocrText || doc.aiSummary)
-    );
+    // 🚀 NEW COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (matching rerun behavior)
+    // This provides cross-agent insights and better evidence synthesis
+    const clinicalDocuments = allDocuments.filter(doc => doc.aiSummary);
     
-    console.log(`📄 Documents explicitly assigned to clinical: ${clinicalDocuments.length}`);
+    console.log(`📄 Using COMPREHENSIVE approach: ALL ${clinicalDocuments.length} documents with AI summaries`);
+    console.log(`📊 This matches rerun behavior for consistent high-quality analysis`);
     
-    // If no documents are explicitly assigned to clinical, identify clinical-related documents
-    if (clinicalDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to clinical agent, identifying clinical-related documents...');
-      
-      clinicalDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
-        
-        const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Clinical document keywords
-        const clinicalKeywords = [
-          'clinical', 'trial', 'study', 'protocol', 'patient', 'fda', 'ema', 
-          'regulatory', 'phase', 'efficacy', 'safety', 'adverse', 'endpoint',
-          'enrollment', 'randomized', 'blinded', 'placebo', 'investigator',
-          'brochure', 'medical', 'therapeutic', 'treatment', 'drug',
-          'device', 'approval', 'submission', 'ide', 'ind', '510k',
-          'orphan', 'fast-track', 'breakthrough', 'serious adverse event'
-        ];
-        
-        // Check document name and content for clinical keywords
-        const hasClinicalKeywords = clinicalKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword)
-        );
-        
-        // Check AI summary for clinical document type
-        const isClinicalDocument = aiSummary?.documentType?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('clinical') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('trial') ||
-                                 aiSummary?.executiveSummary?.toLowerCase().includes('study');
-        
-        return hasClinicalKeywords || isClinicalDocument;
-      });
-      
-      console.log(`📄 Auto-identified clinical documents: ${clinicalDocuments.length}`);
-    }
-    
-    // If still no clinical documents, take documents with meaningful content for analysis
-    if (clinicalDocuments.length === 0) {
-      console.log('📄 No clinical-related documents found, using all documents with OCR text...');
-      clinicalDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.length > 100) || doc.aiSummary
-      );
-      console.log(`📄 Documents with content available: ${clinicalDocuments.length}`);
-    }
-    
-    // 🚀 IMPROVEMENT: Remove 50-document cap - analyze ALL assigned documents
-    // AI summaries are much shorter than OCR, enabling analysis of all documents
-    console.log(`📊 QA CHECKPOINT: Will analyze ALL ${clinicalDocuments.length} clinical documents (no artificial limit)`);
-    
-    // Log AI summary vs OCR distribution for quality assurance
-    const withAiSummary = clinicalDocuments.filter(doc => doc.aiSummary).length;
-    const withOcrOnly = clinicalDocuments.filter(doc => !doc.aiSummary && doc.ocrText).length;
-    const empty = clinicalDocuments.filter(doc => !doc.aiSummary && !doc.ocrText).length;
-    
-    console.log(`📊 QA CHECKPOINT - Document Quality Distribution:`);
-    console.log(`  ✅ ${withAiSummary} documents with AI Summary (${Math.round(withAiSummary/clinicalDocuments.length*100)}%)`);
-    console.log(`  📄 ${withOcrOnly} documents with OCR only (${Math.round(withOcrOnly/clinicalDocuments.length*100)}%)`);
-    console.log(`  ⚠️  ${empty} empty documents (${Math.round(empty/clinicalDocuments.length*100)}%)`);
+    // Log AI summary coverage for quality assurance
+    const aiCoverage = Math.round(clinicalDocuments.length / allDocuments.length * 100);
+    console.log(`📊 AI summary coverage: ${aiCoverage}% (${clinicalDocuments.length}/${allDocuments.length} documents)`);
     
     return clinicalDocuments;
   }
