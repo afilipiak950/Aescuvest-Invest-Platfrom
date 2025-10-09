@@ -535,8 +535,9 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Get all documents suitable for legal analysis - AI SUMMARY ONLY VERSION
-   * Uses ONLY AI summaries (not OCR) and processes ALL documents (no 50 doc limit)
+   * Get all documents suitable for legal analysis
+   * 🚀 COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (like reruns do)
+   * This ensures full analysis has same quality as reruns
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
     const allDocuments = await db
@@ -546,59 +547,16 @@ class ComprehensiveLegalAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to legal agent - AI SUMMARY ONLY
-    let legalDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('Legal')) && 
-      doc.aiSummary  // ONLY documents with AI summaries
-    );
+    // 🚀 NEW COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (matching rerun behavior)
+    // This provides cross-agent insights and better evidence synthesis
+    const legalDocuments = allDocuments.filter(doc => doc.aiSummary);
     
-    console.log(`📄 Documents explicitly assigned to legal (with AI summaries): ${legalDocuments.length}`);
+    console.log(`📄 Using COMPREHENSIVE approach: ALL ${legalDocuments.length} documents with AI summaries`);
+    console.log(`📊 This matches rerun behavior for consistent high-quality analysis`);
     
-    // If no documents are explicitly assigned to legal, identify legal-related documents
-    if (legalDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to legal agent, identifying legal-related documents...');
-      
-      legalDocuments = allDocuments.filter(doc => {
-        if (!doc.aiSummary) return false;  // ONLY AI summaries
-        
-        const docName = doc.name.toLowerCase();
-        const aiSummary = doc.aiSummary;
-        
-        // Legal document keywords - AI summary based identification
-        const legalKeywords = [
-          'legal', 'contract', 'agreement', 'license', 'patent', 'trademark', 'copyright',
-          'litigation', 'lawsuit', 'compliance', 'regulatory', 'governance', 'corporate',
-          'shareholder', 'board', 'bylaws', 'charter', 'liability', 'indemnification',
-          'intellectual property', 'ip', 'employment', 'nda', 'confidentiality',
-          'terms of service', 'privacy policy', 'data protection', 'gdpr'
-        ];
-        
-        // Check document name for legal keywords
-        const hasLegalKeywords = legalKeywords.some(keyword => 
-          docName.includes(keyword)
-        );
-        
-        // Check AI summary for legal document type
-        const isLegalDocument = aiSummary?.documentType?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('legal') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('contract') ||
-                               aiSummary?.executiveSummary?.toLowerCase().includes('agreement');
-        
-        return hasLegalKeywords || isLegalDocument;
-      });
-      
-      console.log(`📄 Auto-identified legal documents: ${legalDocuments.length}`);
-    }
-    
-    // If still no legal documents, use ALL documents with AI summaries
-    if (legalDocuments.length === 0) {
-      console.log('📄 No legal-related documents found, using ALL documents with AI summaries...');
-      legalDocuments = allDocuments.filter(doc => doc.aiSummary);
-      console.log(`📄 Documents with AI summaries available: ${legalDocuments.length}`);
-    }
-    
-    // NO DOCUMENT LIMIT - Process ALL documents with AI summaries
-    console.log(`📄 Processing ALL ${legalDocuments.length} documents with AI summaries for comprehensive legal analysis`);
+    // Log AI summary coverage for quality assurance
+    const aiCoverage = Math.round(legalDocuments.length / allDocuments.length * 100);
+    console.log(`📊 AI summary coverage: ${aiCoverage}% (${legalDocuments.length}/${allDocuments.length} documents)`);
     
     return legalDocuments;
   }
