@@ -720,10 +720,11 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
   }
 
   /**
-   * Compile comprehensive answer based on all evidence - EXACT COPY from Clinical
+   * Compile comprehensive answer based on all evidence - BATCHED APPROACH
+   * Processes evidence in batches of 20 to avoid token limits
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`Compiling comprehensive answer for: ${question.question} with ${evidence.length} documents`);
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
     
     if (evidence.length === 0) {
       return {
@@ -740,82 +741,108 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
       };
     }
 
-    const prompt = `You are a senior legal analyst conducting due diligence review. Analyze the following evidence to answer this question: "${question.question}"
+    // 🚀 BATCHED COMPILATION: Process 20 documents per batch (like Clinical agent)
+    const BATCH_SIZE = 20;
+    const batches = [];
+    for (let i = 0; i < evidence.length; i += BATCH_SIZE) {
+      batches.push(evidence.slice(i, i + BATCH_SIZE));
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} batches of ${BATCH_SIZE}`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior legal analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-Evidence from ${evidence.length} documents:
-${evidence.map(ev => `
+Evidence:
+${batch.map(ev => `
 DOCUMENT: ${ev.documentName}
-RELEVANT CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
-KEY FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
-CONFIDENCE: ${ev.confidence}%
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
 `).join('\n')}
 
-CRITICAL INSTRUCTIONS - YOU MUST EXTRACT EVERY SPECIFIC DETAIL:
-1. EXTRACT GRANULAR CONTRACT DETAILS: For every contract mentioned, extract:
-   - Exact payment amounts (e.g., "$50,000 per year", "4,000 warrants at $18.0777")
-   - Specific vesting schedules (e.g., "333 warrants every 3 months over 36 months")
-   - Precise dates and deadlines (e.g., "Agreement dated June 15, 2023")
-   - Exact deliverables and milestones (e.g., "Phase 1: System design by Q1 2024")
-   - Specific termination clauses and notice periods (e.g., "90 days written notice required")
-   - Exact liability limits (e.g., "Limited to $1M per incident, $3M aggregate")
-   - Precise intellectual property terms (e.g., "Exclusive license to Field A, non-exclusive to Field B")
-
-2. COMPREHENSIVE BREAKDOWN BY DOCUMENT: For each document, provide a complete breakdown:
-   - Document name and date
-   - All parties involved with exact legal names
-   - Complete payment structures (base fees, milestones, equity, warrants, stock options)
-   - All key obligations of each party
-   - All rights granted or restricted
-   - All termination and renewal provisions
-
-3. DO NOT SUMMARIZE - EXTRACT VERBATIM DETAILS:
-   - Instead of "advisory agreements with stock compensation", write:
-     "Dan Ginzburg Advisory Agreement (May 2, 2022): 4,000 warrants at $18.0777 per share, vesting 333 warrants quarterly over 36 months; Rhonda Binda Advisory Agreement (Oct 18, 2020): [specific terms]"
-   - Instead of "distribution agreement with commercial terms", write:
-     "Artech Distribution Agreement: Artech receives [exact commission %], exclusive rights to [specific territories], minimum purchase obligation of [exact units/amount], termination requires [exact notice period]"
-
-4. CITE SPECIFIC SECTIONS: Reference exact contract sections (e.g., "Section 3.2 Payment Terms states...")
-
-5. PROVIDE EXHAUSTIVE LISTS: If there are 10 contracts, list ALL 10 with complete details for each
-
-Your answer must be a COMPREHENSIVE, DETAILED extraction of ALL specific terms, amounts, dates, and obligations found in the evidence. A proper answer should be 3-10x longer than a summary.
-
-Respond in JSON format:
+Extract ALL specific details (amounts, dates, terms, obligations). Respond in JSON:
 {
-  "answer": "ULTRA-DETAILED extraction with every specific contract term, amount, date, obligation, and deliverable from ALL documents - minimum 2000+ characters for complex questions",
+  "answer": "Detailed extraction with specific contract terms, amounts, dates",
   "confidence": 0-100,
-  "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1 with specific details", "Finding 2 with exact amounts"],
-  "gaps": ["Missing information 1", "Missing information 2"],
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed`);
+      } catch (error) {
+        console.error(`❌ Error in batch ${i + 1}:`, error);
+        partialAnswers.push({
+          answer: `Error processing batch ${i + 1}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        });
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior legal analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (amounts, dates, terms) from all batches
+2. Lists ALL contracts/agreements with complete details
+3. Provides exhaustive breakdown of obligations, rights, and terms
+4. Cites specific document sections and dates
+
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "gaps": ["Missing information"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "legalAssessment": "Overall legal assessment based on evidence",
-  "evidenceCount": ${evidence.length}
+  "legalAssessment": "Overall legal assessment"
 }`;
 
     try {
-      // Add 90-second timeout for final answer compilation (longer than evidence extraction)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI compilation timeout after 90s')), 90000)
-      );
-      
-      const apiPromise = openai.chat.completions.create({
+      const finalResponse = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 16000 // MASSIVELY INCREASED: Ensure comprehensive answers with NO truncation
+        max_tokens: 16000
       });
       
-      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
       
-      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
+      console.log(`✅ Final synthesis completed for "${question.question}"`);
       
       return {
         question: question.question,
         category: question.category,
         answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
         confidence: compiledAnswer.confidence || 30,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
@@ -826,38 +853,22 @@ Respond in JSON format:
       
     } catch (error) {
       const isTimeout = error.message?.includes('timeout');
-      console.error(`Error compiling answer for "${question.question}":`, error);
+      console.error(`❌ Error in final synthesis for "${question.question}":`, error);
       
-      // For timeouts, try to create a basic answer from evidence
-      if (isTimeout && evidence.length > 0) {
-        const basicAnswer = evidence
-          .slice(0, 10) // Use first 10 documents
-          .map(e => `${e.documentName}: ${e.documentSummary || e.relevantContent.join('; ')}`)
-          .join('\n\n');
-        
-        return {
-          question: question.question,
-          category: question.category,
-          answer: `Analysis timeout - Partial results from ${evidence.length} documents:\n\n${basicAnswer}`,
-          confidence: 60,
-          sources: evidence.map(e => e.documentName),
-          keyFindings: evidence.slice(0, 5).flatMap(e => e.keyFindings || []),
-          gaps: ['Analysis incomplete due to timeout'],
-          recommendations: ['Complete analysis manually', 'Review partial evidence provided'],
-          evidenceCount: evidence.length,
-          detailedEvidence: evidence
-        };
-      }
+      // Fallback: Combine partial answers directly
+      const combinedAnswer = partialAnswers
+        .map((pa, i) => `Batch ${i + 1}: ${pa.answer}`)
+        .join('\n\n');
       
       return {
         question: question.question,
         category: question.category,
-        answer: `Error processing this question: ${isTimeout ? 'OpenAI analysis timeout' : error.message}`,
-        confidence: 0,
+        answer: `Synthesis error - Combined partial results from ${evidence.length} documents:\n\n${combinedAnswer}`,
+        confidence: 50,
         sources: evidence.map(e => e.documentName),
-        keyFindings: [],
-        gaps: ['Analysis compilation failed'],
-        recommendations: ['Retry analysis', 'Manual review required'],
+        keyFindings: partialAnswers.flatMap(pa => pa.keyFindings || []),
+        gaps: ['Synthesis incomplete due to error'],
+        recommendations: ['Review partial evidence provided', 'Complete analysis manually'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
