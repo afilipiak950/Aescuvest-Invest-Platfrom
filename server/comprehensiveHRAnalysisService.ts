@@ -439,32 +439,69 @@ export class ComprehensiveHRAnalysisService {
     
     if (!content || content.trim().length === 0) return null;
     
-    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY human resources, organizational, team, leadership, or management information, even if indirectly related.
+    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC HR DETAILS from this document.
 
 DOCUMENT: ${document.name}
-CONTENT: ${content.substring(0, 4000)}
+AI SUMMARY (COMPLETE): ${content}
 
 QUESTION: "${question.question}"
 CATEGORY: ${question.category}
 
-Instructions:
-- Look for DIRECT HR terms: team size, employees, leadership, management, hiring, compensation, culture, retention
-- Look for INDIRECT HR information: organizational structure, roles, departments, executives, workforce data
-- Consider business documents that mention HR milestones, team growth, leadership changes, hiring plans
-- Even general business context often has HR implications for investment due diligence
-- For investment companies, most business documents contain HR information relevant to investors
+CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
+
+1. EXTRACT SPECIFIC NUMBERS & HEADCOUNT DATA:
+   - Employee counts (e.g., "50 employees", "Team of 15 engineers", "Hired 8 new staff")
+   - Exact compensation amounts (e.g., "$120,000 salary", "$50K signing bonus", "15% equity")
+   - Turnover data (e.g., "3 employees left in Q1", "20% annual turnover")
+   - Benefits specifics (e.g., "Health insurance $800/month", "4 weeks PTO")
+
+2. EXTRACT COMPLETE ORGANIZATIONAL DETAILS:
+   - Exact job titles (EXACT titles, not abbreviations - "Chief Technology Officer" not "CTO")
+   - All reporting structures (who reports to whom)
+   - All department names and sizes
+   - Leadership team members (FULL names, exact titles, backgrounds)
+   - Vesting schedules (e.g., "4-year vesting, 1-year cliff")
+   - Stock option grants (e.g., "100,000 options at $1.50 strike price")
+
+3. EXTRACT PEOPLE & CULTURE DATA:
+   - Employee satisfaction scores (e.g., "eNPS of 45", "85% engagement")
+   - Training programs (specific names, durations, costs)
+   - Performance review cycles (e.g., "Quarterly 360 reviews")
+   - Diversity metrics (e.g., "30% women in engineering", "5 nationalities")
+   - Work policies (e.g., "Remote-first since 2020", "Hybrid 3 days/week")
+
+4. DO NOT PARAPHRASE - COPY VERBATIM:
+   - If the summary says "hired 12 employees at average $95K salary", copy it EXACTLY
+   - If it says "CEO compensation: $180K base + 2% equity", copy it EXACTLY
+   - Do NOT convert to summaries like "competitive compensation" or "growing team"
+   - Extract NUMBERS, NAMES, TITLES, and AMOUNTS verbatim
+
+5. EXTRACT EVERYTHING RELEVANT TO THIS DOCUMENT:
+   - If this document mentions team structure, extract EVERY organizational detail
+   - If it mentions compensation, extract EVERY salary, bonus, equity figure
+   - If it mentions hiring, extract EVERY role, timeline, compensation package
+   - Include ALL people names, ALL exact titles, ALL compensation figures
+
+6. DOCUMENT-SPECIFIC REQUIREMENT:
+   - Your extraction MUST be unique to THIS specific document (${document.name})
+   - DO NOT provide generic company analysis - extract what THIS document says
+   - Each document has different information - find what makes THIS one unique
+   - If this is a contract, extract the parties and terms FROM THIS CONTRACT
+   - If this is an org chart, extract the structure FROM THIS CHART
+
+Your relevantContent array should contain 5-20+ detailed extractions per document (not 1-2 generic quotes).
 
 Respond in JSON format:
 {
-  "relevantContent": ["Exact quote 1 from document", "Exact quote 2 from document"],
+  "relevantContent": ["DETAILED extraction 1 with specific numbers and names FROM THIS DOCUMENT", "DETAILED extraction 2 with exact titles and comp data FROM THIS DOCUMENT", "DETAILED extraction 3...", ...],
   "hasRelevantInfo": true/false,
   "confidence": 0-100,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "documentSummary": "Brief summary of what this document contains relevant to the question",
-  "commercialContext": "How this document relates to HR/business aspects"
+  "keyFindings": ["Specific finding with exact numbers FROM THIS DOCUMENT", "Specific finding with names and titles FROM THIS DOCUMENT", ...],
+  "documentSummary": "COMPREHENSIVE breakdown of ALL HR information in THIS SPECIFIC DOCUMENT (${document.name})",
+  "hrContext": "How THIS SPECIFIC DOCUMENT relates to HR/organizational aspects with DOCUMENT-SPECIFIC details"
 }
 
-Be thorough in finding relevance - most business documents have HR implications for investment analysis.`;
+REMEMBER: Extract EVERYTHING from THIS document - more is better! A thorough extraction should be 500-2000+ characters with DOCUMENT-SPECIFIC details, not generic company analysis.`;
 
     try {
       const response = await resilientOpenAI.createChatCompletion({
@@ -472,7 +509,7 @@ Be thorough in finding relevance - most business documents have HR implications 
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 1500
+        max_tokens: 8000
       }, {
         maxRetries: 3,
         timeout: 60000
