@@ -213,7 +213,7 @@ class JobProcessor {
         ));
 
       const now = new Date();
-      const stuckThreshold = 5 * 60 * 1000; // 5 minutes (faster cleanup)
+      const stuckThreshold = 30 * 60 * 1000; // 30 minutes - safe for comprehensive analysis with 300+ documents
 
       for (const job of stuckJobs) {
         const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
