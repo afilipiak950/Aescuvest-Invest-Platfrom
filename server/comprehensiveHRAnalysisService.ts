@@ -234,9 +234,9 @@ export class ComprehensiveHRAnalysisService {
         try {
           console.log(`📊 Extracting HR evidence for: ${question.question}`);
           
-          // Extract evidence from ALL documents for this question - EXACT Clinical approach with SPEED OPTIMIZATION
+          // Extract evidence from ALL documents for this question - EXACT Clinical approach
           const documentEvidence = await this.extractEvidenceFromAllDocuments(
-            assignedDocuments.slice(0, 30), // SPEED: Use only first 30 documents for faster processing
+            assignedDocuments, // Process ALL documents (no limit)
             question
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
@@ -361,22 +361,18 @@ export class ComprehensiveHRAnalysisService {
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 SPEED MODE: Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
-    
-    // CRITICAL SPEED FIX: Process only top 30 most relevant documents to match Clinical speed
-    const topDocuments = documents.slice(0, 30);
-    console.log(`🚀 SPEED OPTIMIZATION: Processing top ${topDocuments.length} documents (reduced from ${documents.length} for speed)`);
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
     const evidence = [];
-    const batchSize = 20; // Larger batches for speed
+    const batchSize = 20; // Process in batches for efficiency
     
-    for (let i = 0; i < topDocuments.length; i += batchSize) {
-      const batch = topDocuments.slice(i, i + batchSize);
-      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(topDocuments.length / batchSize)} (${batch.length} documents)`);
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      // Parallel processing with reduced timeout for speed
+      // Parallel processing with timeout per document
       const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
+        console.log(`🔎 Extracting evidence from: ${doc.name}`);
         try {
           return await Promise.race([
             this.extractEvidenceFromDocument(doc, question),
@@ -394,10 +390,10 @@ export class ComprehensiveHRAnalysisService {
       );
       evidence.push(...validEvidence);
       
-      console.log(`✅ FAST Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
     }
     
-    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${topDocuments.length} documents in FAST mode`);
+    console.log(`🎯 Extracted evidence from ${evidence.length}/${documents.length} documents`);
     return evidence;
   }
 
