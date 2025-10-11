@@ -781,6 +781,8 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
     
     // Step 1: Get partial answers from each batch
     const partialAnswers = [];
+    const partialResultsKey = `legal-partial-${question.id}`;
+    
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
       console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
@@ -820,15 +822,30 @@ Extract ALL specific details (amounts, dates, terms, obligations). Respond in JS
         
         const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
         partialAnswers.push(batchAnswer);
-        console.log(`✅ Batch ${i + 1}/${batches.length} completed`);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (in-memory cache for now)
+        // This ensures we don't lose all work if synthesis fails
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
       } catch (error: any) {
         console.error(`❌ Error in batch ${i + 1}:`, error);
-        partialAnswers.push({
+        const errorAnswer = {
           answer: `Error processing batch ${i + 1}: ${error.message}`,
           confidence: 0,
           keyFindings: [],
           sources: batch.map(e => e.documentName)
-        });
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
       }
     }
     
@@ -880,6 +897,12 @@ Respond in JSON:
       
       console.log(`✅ Final synthesis completed for "${question.question}"`);
       
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
+      }
+      
       return {
         question: question.question,
         category: question.category,
@@ -894,24 +917,33 @@ Respond in JSON:
         detailedEvidence: evidence
       };
       
-    } catch (error) {
+    } catch (error: any) {
       const isTimeout = error.message?.includes('timeout');
       console.error(`❌ Error in final synthesis for "${question.question}":`, error);
       
-      // Fallback: Combine partial answers directly
-      const combinedAnswer = partialAnswers
+      // 💾 RECOVERY: Try to use persisted partial results first
+      const persistedResults = global[partialResultsKey] || partialAnswers;
+      console.warn(`📦 Using ${persistedResults.length} persisted batch results as fallback`);
+      
+      // Fallback: Combine partial answers directly (from cache or current session)
+      const combinedAnswer = persistedResults
         .map((pa, i) => `Batch ${i + 1}: ${pa.answer}`)
         .join('\n\n');
+      
+      // Calculate average confidence from partial results
+      const avgConfidence = persistedResults.length > 0
+        ? Math.round(persistedResults.reduce((sum, pa) => sum + (pa.confidence || 0), 0) / persistedResults.length)
+        : 30;
       
       return {
         question: question.question,
         category: question.category,
-        answer: `Synthesis error - Combined partial results from ${evidence.length} documents:\n\n${combinedAnswer}`,
-        confidence: 50,
+        answer: `Synthesis ${isTimeout ? 'timeout' : 'error'} - Combined ${persistedResults.length} batch results from ${evidence.length} documents:\n\n${combinedAnswer}`,
+        confidence: avgConfidence,
         sources: evidence.map(e => e.documentName),
-        keyFindings: partialAnswers.flatMap(pa => pa.keyFindings || []),
-        gaps: ['Synthesis incomplete due to error'],
-        recommendations: ['Review partial evidence provided', 'Complete analysis manually'],
+        keyFindings: persistedResults.flatMap(pa => pa.keyFindings || []),
+        gaps: ['Synthesis incomplete - using partial batch results'],
+        recommendations: ['Review batch evidence provided', isTimeout ? 'Retry with longer timeout' : 'Manual review recommended'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
