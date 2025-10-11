@@ -7,11 +7,8 @@
 import { db } from './db';
 import { documents, agentAnalyses, backgroundJobs } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
-import OpenAI from 'openai';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Enhanced legal questions for comprehensive analysis - EXACT structure as Clinical
 export const COMPREHENSIVE_LEGAL_QUESTIONS = [

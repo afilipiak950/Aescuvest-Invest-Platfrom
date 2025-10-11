@@ -2,10 +2,7 @@ import { storage } from './storage';
 import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
-import OpenAI from 'openai';
 import { resilientOpenAI } from './utils/resilientOpenAI';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const HR_QUESTIONS = [
   // Team Structure
@@ -470,12 +467,15 @@ Respond in JSON format:
 Be thorough in finding relevance - most business documents have HR implications for investment analysis.`;
 
     try {
-      const response = await openai.chat.completions.create({
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 1500
+      }, {
+        maxRetries: 3,
+        timeout: 60000
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
