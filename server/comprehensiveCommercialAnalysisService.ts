@@ -3,6 +3,7 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -243,12 +244,9 @@ export class ComprehensiveCommercialAnalysisService {
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer with timeout - EXACT Clinical approach
+          // Compile comprehensive answer with resilient client (handles timeout internally)
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
-          const answer = await Promise.race([
-            this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
-          ]);
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
           commercialAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
@@ -492,20 +490,20 @@ Respond in JSON format:
 REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
     try {
-      // Add 60-second timeout for OpenAI calls
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
-      );
-      
-      const apiPromise = openai.chat.completions.create({
+      // Use resilient OpenAI client with retry logic and adaptive timeout
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
         max_tokens: 8000
+      }, {
+        maxRetries: 3,
+        timeout: 90000, // 90 seconds with retry
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying evidence extraction for ${document.name} (attempt ${attempt}): ${error.message}`);
+        }
       });
-      
-      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -540,159 +538,183 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
 
   /**
    * Compile comprehensive answer based on all evidence - BATCHED APPROACH
-   * Prevents token limit issues by processing evidence in chunks
+   * Processes evidence in batches of 20 to avoid token limits
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
     
     if (evidence.length === 0) {
-      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant commercial information found in the assigned commercial documents for this question.`,
-        confidence: 10,
+        category: question.category,
+        answer: 'No relevant documents found for commercial analysis',
+        confidence: 0,
         sources: [],
-        evidenceCount: 0,
         keyFindings: [],
-        gaps: ['No relevant commercial information found'],
-        category: question.category
+        gaps: ['No commercial documentation available'],
+        recommendations: ['Obtain relevant commercial documents for analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
       };
     }
 
-    // BATCHED APPROACH: Process evidence in chunks to avoid token limit
-    const BATCH_SIZE = 20; // Process 20 documents per batch
-    const batches: any[][] = [];
-    for (let i = 0; i < evidence.length; i += BATCH_SIZE) {
-      batches.push(evidence.slice(i, i + BATCH_SIZE));
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
+    const batches = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
     }
-
-    console.log(`📦 Processing ${evidence.length} pieces of evidence in ${batches.length} batches`);
-
-    const batchAnswers: any[] = [];
-
-    // Process each batch separately
+    
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    const partialResultsKey = `commercial-partial-${question.id}`;
+    
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
-      console.log(`📦 Compiling batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior commercial analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-      const evidenceSummary = batch.map(ev => ({
-        document: ev.documentName,
-        content: ev.relevantContent.join(' '),
-        findings: ev.keyFindings.join(' '),
-        confidence: ev.confidence
-      }));
-
-      const batchPrompt = `You are an expert commercial due diligence analyst compiling evidence from ${batch.length} documents (Batch ${i + 1}/${batches.length}).
-
-QUESTION: "${question.question}"
-CATEGORY: ${question.category}
-
-EVIDENCE FROM DOCUMENTS (Batch ${i + 1}/${batches.length}):
-${evidenceSummary.map(ev => `
-DOCUMENT: ${ev.document}
-CONTENT: ${ev.content}
-KEY FINDINGS: ${ev.findings}
-CONFIDENCE: ${ev.confidence}%
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
 `).join('\n')}
 
-Instructions:
-1. Extract ALL specific commercial data from this batch
-2. Cite specific documents and quotes
-3. Identify any gaps in information
-4. Provide confidence assessment
-
-Respond in JSON format:
+Extract ALL specific details (amounts, dates, metrics, percentages). Respond in JSON:
 {
-  "batchSummary": "Summary of evidence from this batch",
-  "keyFindings": ["Finding 1 from this batch", "Finding 2", ...],
-  "sources": ["Document 1", "Document 2", ...],
+  "answer": "Detailed extraction with specific commercial data, metrics, and dates",
   "confidence": 0-100,
-  "gaps": ["Gap 1", "Gap 2", ...]
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
 }`;
 
       try {
-        const response = await openai.chat.completions.create({
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
           model: "gpt-4o",
           messages: [{ role: "user", content: batchPrompt }],
           response_format: { type: "json_object" },
           temperature: 0.2,
-          max_tokens: 4000
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
         });
-
-        const batchResult = JSON.parse(response.choices[0].message.content || '{}');
-        batchAnswers.push(batchResult);
-        console.log(`✅ Batch ${i + 1}/${batches.length} compiled successfully`);
-      } catch (error) {
-        console.error(`❌ Error compiling batch ${i + 1}:`, error);
-        batchAnswers.push({
-          batchSummary: `Error processing batch ${i + 1}`,
-          keyFindings: [],
-          sources: batch.map(ev => ev.documentName),
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (in-memory cache for now)
+        // This ensures we don't lose all work if synthesis fails
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
+      } catch (error: any) {
+        console.error(`❌ Error in batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
           confidence: 0,
-          gaps: ['Batch processing error']
-        });
-      }
-
-      // Small delay between batches to avoid rate limits
-      if (i < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
       }
     }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior commercial analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
 
-    // FINAL SYNTHESIS: Combine all batch answers into final comprehensive answer
-    console.log(`🤖 Synthesizing final answer from ${batchAnswers.length} batch results`);
-
-    const synthesisPrompt = `You are an expert commercial due diligence analyst synthesizing evidence from ${batches.length} batch analyses covering ${evidence.length} total documents.
-
-QUESTION: "${question.question}"
-CATEGORY: ${question.category}
-
-BATCH ANALYSES:
-${batchAnswers.map((batch, idx) => `
-BATCH ${idx + 1}/${batches.length}:
-Summary: ${batch.batchSummary}
-Key Findings: ${batch.keyFindings.join('; ')}
-Confidence: ${batch.confidence}%
-Gaps: ${batch.gaps.join('; ')}
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
-Instructions:
-1. Synthesize ALL batch analyses into ONE comprehensive answer
-2. Integrate all key findings across batches
-3. Provide overall confidence assessment
-4. Identify comprehensive gaps
-5. Include commercial recommendations
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (amounts, dates, metrics) from all batches
+2. Lists ALL commercial data with complete details
+3. Provides exhaustive breakdown of pricing, sales, and customer metrics
+4. Cites specific document sections and data points
 
-Respond in JSON format:
+Respond in JSON:
 {
-  "answer": "Comprehensive answer synthesizing all ${batches.length} batches",
+  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
   "confidence": 0-100,
-  "keyFindings": ["Combined finding 1", "Combined finding 2", ...],
-  "gaps": ["Overall gap 1", "Overall gap 2", ...],
-  "recommendations": ["Recommendation 1", "Recommendation 2", ...],
+  "keyFindings": ["All key findings combined"],
+  "gaps": ["Missing information"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
   "commercialAssessment": "Overall commercial assessment"
 }`;
 
     try {
-      const finalResponse = await openai.chat.completions.create({
+      // Use resilient client for final synthesis with extended timeout
+      const finalResponse = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 8000
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
       });
-
+      
       const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
-
-      console.log(`✅ Final synthesis completed`);
-
+      
+      console.log(`✅ Final synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
+      }
+      
       return {
         question: question.question,
         category: question.category,
         answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
         confidence: compiledAnswer.confidence || 30,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
@@ -701,19 +723,33 @@ Respond in JSON format:
         detailedEvidence: evidence
       };
       
-    } catch (error) {
-      console.error(`Error in final synthesis for "${question.question}":`, error);
-      // Fallback: return combined batch results
+    } catch (error: any) {
+      const isTimeout = error.message?.includes('timeout');
+      console.error(`❌ Error in final synthesis for "${question.question}":`, error);
+      
+      // 💾 RECOVERY: Try to use persisted partial results first
+      const persistedResults = global[partialResultsKey] || partialAnswers;
+      console.warn(`📦 Using ${persistedResults.length} persisted batch results as fallback`);
+      
+      // Fallback: Combine partial answers directly (from cache or current session)
+      const combinedAnswer = persistedResults
+        .map((pa, i) => `Batch ${i + 1}: ${pa.answer}`)
+        .join('\n\n');
+      
+      // Calculate average confidence from partial results
+      const avgConfidence = persistedResults.length > 0
+        ? Math.round(persistedResults.reduce((sum, pa) => sum + (pa.confidence || 0), 0) / persistedResults.length)
+        : 30;
+      
       return {
         question: question.question,
         category: question.category,
-        answer: batchAnswers.map(b => b.batchSummary).join('\n\n'),
-        confidence: Math.round(batchAnswers.reduce((sum, b) => sum + (b.confidence || 0), 0) / batchAnswers.length),
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: batchAnswers.flatMap(b => b.keyFindings || []),
-        gaps: batchAnswers.flatMap(b => b.gaps || []),
-        recommendations: ['Final synthesis failed - manual review recommended'],
-        commercialAssessment: 'Partial analysis - synthesis error occurred',
+        answer: `Synthesis ${isTimeout ? 'timeout' : 'error'} - Combined ${persistedResults.length} batch results from ${evidence.length} documents:\n\n${combinedAnswer}`,
+        confidence: avgConfidence,
+        sources: evidence.map(e => e.documentName),
+        keyFindings: persistedResults.flatMap(pa => pa.keyFindings || []),
+        gaps: ['Synthesis incomplete - using partial batch results'],
+        recommendations: ['Review batch evidence provided', isTimeout ? 'Retry with longer timeout' : 'Manual review recommended'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
