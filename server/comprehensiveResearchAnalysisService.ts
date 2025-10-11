@@ -179,21 +179,20 @@ export class ComprehensiveResearchAnalysisService {
 
   private async analyzeQuestion(question: any, docs: any[]) {
     try {
-      // Find relevant documents based on keywords
+      // Find relevant documents based on keywords (AI SUMMARY ONLY like Legal/Clinical)
       const relevantDocs = docs.filter(doc => {
-        const text = (doc.ocrText || '').toLowerCase();
+        // Use ONLY AI summary - handle BOTH string and object formats
+        if (!doc.aiSummary) return false;
         
-        // Handle aiSummary safely - it might be an object or string
-        let summary = '';
+        let summaryText = '';
         if (typeof doc.aiSummary === 'string') {
-          summary = doc.aiSummary.toLowerCase();
-        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          summary = doc.aiSummary.executiveSummary.toLowerCase();
+          summaryText = doc.aiSummary.toLowerCase();
+        } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          summaryText = doc.aiSummary.executiveSummary.toLowerCase();
         }
         
         return question.keywords.some((keyword: string) => 
-          text.includes(keyword.toLowerCase()) || 
-          summary.includes(keyword.toLowerCase())
+          summaryText.includes(keyword.toLowerCase())
         );
       });
       
@@ -201,19 +200,30 @@ export class ComprehensiveResearchAnalysisService {
         return `No relevant documents found for analysis of: ${question.question}`;
       }
       
-      // Prepare context from relevant documents
+      // Prepare context from relevant documents (AI SUMMARY ONLY like Legal/Clinical)
       const context = relevantDocs.map(doc => {
-        // Handle aiSummary safely - it might be an object or string
+        // Use ONLY AI summary - handle BOTH string and object formats
         let summaryText = 'No summary available';
-        if (typeof doc.aiSummary === 'string' && doc.aiSummary.trim()) {
+        let fullContent = '';
+        
+        if (typeof doc.aiSummary === 'string') {
           summaryText = doc.aiSummary;
-        } else if (doc.aiSummary && typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          summaryText = doc.aiSummary.executiveSummary;
+          fullContent = doc.aiSummary;
+        } else if (doc.aiSummary && typeof doc.aiSummary === 'object') {
+          summaryText = doc.aiSummary.executiveSummary || 'No summary available';
+          // Extract comprehensive content from structured AI summary
+          fullContent = [
+            doc.aiSummary.executiveSummary || '',
+            doc.aiSummary.documentType ? `Document Type: ${doc.aiSummary.documentType}` : '',
+            doc.aiSummary.criticalFindings?.length ? `Critical Findings: ${doc.aiSummary.criticalFindings.join('; ')}` : '',
+            doc.aiSummary.keyFinancialData?.length ? `Financial Data: ${doc.aiSummary.keyFinancialData.join('; ')}` : '',
+            doc.aiSummary.riskAssessment?.length ? `Risk Assessment: ${doc.aiSummary.riskAssessment.join('; ')}` : ''
+          ].filter(s => s).join('\n\n');
         }
         
         return {
           filename: doc.filename,
-          content: doc.ocrText || summaryText || 'No content available',
+          content: fullContent || summaryText,
           summary: summaryText
         };
       }).slice(0, 5); // Limit to top 5 relevant docs
