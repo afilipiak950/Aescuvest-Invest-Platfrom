@@ -503,10 +503,10 @@ If no relevant content is found, respond with:
           }
         ],
         temperature: 0.1,
-        max_tokens: 1200
+        max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 60000
+        timeout: 90000
       });
 
       const content_response = response.choices[0].message.content;
@@ -608,10 +608,10 @@ Requirements:
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 90000
+        timeout: 120000
       });
 
       const rawContent = response.choices[0].message.content || '{}';
