@@ -3,6 +3,7 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -240,11 +241,14 @@ Please provide:
 
 Answer format: Provide a comprehensive but concise analysis (200-400 words).`;
 
-      const response = await openai.chat.completions.create({
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
         max_tokens: 800
+      }, {
+        maxRetries: 3,
+        timeout: 60000 // 60 seconds timeout
       });
 
       return response.choices[0]?.message?.content || 'Analysis could not be completed';
@@ -287,11 +291,14 @@ RECOMMENDATIONS (3-5 actionable items):
 
 Format each finding and recommendation as a clear, concise statement (1-2 sentences each).`;
 
-      const response = await openai.chat.completions.create({
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
         max_tokens: 1000
+      }, {
+        maxRetries: 3,
+        timeout: 60000 // 60 seconds timeout
       });
 
       const content = response.choices[0]?.message?.content || '';
