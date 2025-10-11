@@ -55,26 +55,32 @@ class ResilientOpenAIClient {
         // Apply rate limiting
         await this.applyRateLimit();
         
-        // Create abort controller for timeout
-        const abortController = new AbortController();
-        const timeoutId = setTimeout(() => abortController.abort(), timeout);
+        // Create timeout promise with clearable timer
+        let timeoutId: NodeJS.Timeout;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(`Request timeout after ${timeout}ms`)), timeout);
+        });
+        
+        // Race API call against timeout
+        const apiCallPromise = openai.chat.completions.create(params);
         
         try {
-          // Make API call with abort signal
-          const response = await openai.chat.completions.create({
-            ...params,
-            // @ts-ignore - OpenAI types don't include signal but it's supported
-            signal: abortController.signal
-          });
+          const response = await Promise.race([
+            apiCallPromise,
+            timeoutPromise
+          ]) as OpenAI.Chat.ChatCompletion;
           
+          // Clear timeout on success
           clearTimeout(timeoutId);
           
           // Success - update rate limit tracking
           this.updateRateLimitState();
           
           return response;
-        } finally {
+        } catch (error) {
+          // Clear timeout on error too
           clearTimeout(timeoutId);
+          throw error;
         }
         
       } catch (error: any) {
@@ -123,7 +129,7 @@ class ResilientOpenAIClient {
    */
   private shouldRetryError(error: any): boolean {
     // Timeout errors - always retry
-    if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+    if (error.message?.includes('timeout') || error.message?.includes('Request timeout')) {
       return true;
     }
     
