@@ -20,6 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Type definitions for better type safety
 interface JobProgress {
@@ -135,6 +137,35 @@ function FormattedResearchContent({ content }: { content: string }) {
   });
   
   return <div className="space-y-1">{formattedElements}</div>;
+}
+
+// Markdown content renderer for comprehensive analysis answers
+function MarkdownContent({ content }: { content: string }) {
+  if (!content) return <p className="text-gray-400 text-sm">No content available</p>;
+
+  return (
+    <div className="prose prose-sm max-w-none prose-invert">
+      <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="text-gray-300 text-sm leading-relaxed mb-2">{children}</p>,
+          strong: ({ children }) => <strong className="text-white font-semibold">{children}</strong>,
+          em: ({ children }) => <em className="text-gray-200 italic">{children}</em>,
+          ul: ({ children }) => <ul className="text-sm list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+          ol: ({ children }) => <ol className="text-sm list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+          li: ({ children }) => <li className="text-gray-300 text-sm">{children}</li>,
+          h1: ({ children }) => <h1 className="text-lg font-bold text-white mb-2">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-base font-semibold text-white mb-2">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-sm font-medium text-white mb-1">{children}</h3>,
+          code: ({ children }) => <code className="text-blue-400 bg-dark-lighter px-1 py-0.5 rounded text-xs">{children}</code>,
+          pre: ({ children }) => <pre className="bg-dark-lighter p-2 rounded text-xs overflow-x-auto mb-2">{children}</pre>,
+          blockquote: ({ children }) => <blockquote className="border-l-2 border-gray-600 pl-3 text-gray-400 italic mb-2">{children}</blockquote>,
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 interface ComprehensiveResults {
@@ -2071,14 +2102,14 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-blue-400 mb-2">Legal Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                                <MarkdownContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced Legal Assessment */}
                               {answer.legalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Legal Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.legalAssessment}</p>
+                                  <MarkdownContent content={answer.legalAssessment} />
                                 </div>
                               )}
 
@@ -2118,7 +2149,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <MarkdownContent content={answer.evidenceSummary} />
                                 </div>
                               )}
 
@@ -2683,14 +2714,14 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Clinical Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                                <MarkdownContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced Clinical Assessment */}
                               {answer.clinicalAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Clinical Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.clinicalAssessment}</p>
+                                  <MarkdownContent content={answer.clinicalAssessment} />
                                 </div>
                               )}
 
@@ -3036,7 +3067,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <MarkdownContent content={answer.evidenceSummary} />
                                 </div>
                               )}
 
@@ -4748,7 +4779,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <MarkdownContent content={answer.evidenceSummary} />
                                 </div>
                               )}
 
@@ -5246,14 +5277,14 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {/* Main Finding - Clinical style */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">Commercial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                                <MarkdownContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced Commercial Assessment */}
                               {answer.commercialAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-indigo-400 mb-2">Commercial Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.commercialAssessment}</p>
+                                  <MarkdownContent content={answer.commercialAssessment} />
                                 </div>
                               )}
 
@@ -5293,7 +5324,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-green-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.evidenceSummary}</p>
+                                  <MarkdownContent content={answer.evidenceSummary} />
                                 </div>
                               )}
 
@@ -5531,22 +5562,21 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Analysis Response - Commercial style matching */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-orange-400 mb-2">HR Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{answer.answer}</p>
+                                <MarkdownContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced HR Assessment - mimic Commercial's commercialAssessment */}
                               <div className="bg-dark/30 rounded p-3">
                                 <h5 className="text-xs font-medium text-amber-400 mb-2">HR Assessment</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">
-                                  {answer.hrAssessment || 
+                                <MarkdownContent content={
+                                  answer.hrAssessment || 
                                     `Based on HR document analysis, this finding indicates ${
                                       answer.confidence > 0.8 ? 'strong evidence' : 
                                       answer.confidence > 0.6 ? 'moderate evidence' : 'limited evidence'
                                     } regarding team structure and organizational capabilities. ${
                                       answer.confidence > 0.7 ? 'Recommended for further due diligence review.' : 'Requires additional investigation.'
                                     }`
-                                  }
-                                </p>
+                                } />
                               </div>
 
                               {/* Document Quotes - mimic Commercial's sources */}
