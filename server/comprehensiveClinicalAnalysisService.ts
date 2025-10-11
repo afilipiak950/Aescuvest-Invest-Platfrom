@@ -764,7 +764,7 @@ export class ComprehensiveClinicalAnalysisService {
           
           // Compile comprehensive answer with resilient client (handles timeout internally)
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
-          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence, jobId, storageService, i, COMPREHENSIVE_CLINICAL_QUESTIONS.length);
           clinicalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
@@ -1091,7 +1091,14 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
    * Compile comprehensive answer based on all evidence - BATCHED APPROACH
    * Processes evidence in batches to avoid token limits
    */
-  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
+  private async compileComprehensiveAnswer(
+    question: any, 
+    evidence: any[], 
+    jobId?: string, 
+    storageService?: any, 
+    questionIndex?: number, 
+    totalQuestions?: number
+  ): Promise<any> {
     console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
     
     if (evidence.length === 0) {
@@ -1189,6 +1196,20 @@ Extract ALL specific details (trial phases, patient numbers, efficacy metrics, s
         global[partialResultsKey].push(batchAnswer);
         
         console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
+        
+        // 🔄 HEARTBEAT: Update job progress after each batch to prevent stuck job cleanup
+        // Calculate granular progress that includes both question AND batch progress
+        if (jobId && storageService && questionIndex !== undefined && totalQuestions !== undefined) {
+          const questionProgress = questionIndex / totalQuestions;
+          const batchProgress = (i + 1) / batches.length / totalQuestions;
+          const totalProgress = Math.min(Math.round((questionProgress + batchProgress) * 100), 100);
+          
+          await storageService.updateBackgroundJob(jobId, {
+            progress: totalProgress, // This guarantees updatedAt changes with each batch
+            currentStep: `Analyzing: ${question.category} (Batch ${i + 1}/${batches.length})`,
+            processedDocuments: questionIndex
+          });
+        }
       } catch (error: any) {
         console.error(`❌ Error in batch ${i + 1}:`, error);
         const errorAnswer = {
