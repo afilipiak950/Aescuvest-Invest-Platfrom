@@ -29,8 +29,15 @@ Preferred communication style: Simple, everyday language.
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
 - **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents use comprehensive document processing (analyzing ALL documents with AI summaries for cross-agent insights), ensuring full analysis runs match rerun quality. Features persistent question reruns with database-backed progress tracking that survives page refreshes and server restarts.
-  - **Resilient Architecture (All 7 Comprehensive Agents)**: Enterprise-grade reliability with exponential backoff retry logic (3-5 retries), adaptive rate limiting (50 calls/min centralized semaphore), token-based batching (6K token limit per batch), partial result persistence with global cache recovery, and graceful timeout handling (90-180s) to handle 300+ document sets without failures.
-  - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now use identical markdown formatting instructions in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
+  - **Resilient Architecture (All 7 Comprehensive Agents - Oct 2025)**: Complete architectural alignment achieved. All agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now use identical batch→synthesis flow with:
+    - **Token-based batching**: 6K token limit per batch for optimal API efficiency
+    - **Timeout hierarchy**: 90s evidence extraction → 120s batch processing → 180s final synthesis
+    - **Retry patterns**: 3-5 exponential backoff retries via resilientOpenAI wrapper
+    - **Partial result caching**: Global cache persistence with automatic recovery on synthesis failures
+    - **Rate limiting**: Centralized 50 calls/min semaphore shared across all agents
+    - **Cache cleanup**: Automatic cleanup of partial results after successful synthesis
+    - **No document limits**: All agents process ALL relevant documents (removed arbitrary limits like "top 5")
+  - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents use identical markdown formatting in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
