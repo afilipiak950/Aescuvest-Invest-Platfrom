@@ -462,10 +462,10 @@ export class ComprehensiveFinancialAnalysisService {
           }
         ],
         temperature: 0.1,
-        max_tokens: 800
+        max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 60000
+        timeout: 90000
       });
 
       let rawContent = response.choices[0].message.content || '{}';
