@@ -9,6 +9,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -761,12 +762,9 @@ export class ComprehensiveClinicalAnalysisService {
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer with timeout - EXACT Legal approach
+          // Compile comprehensive answer with resilient client (handles timeout internally)
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
-          const answer = await Promise.race([
-            this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
-          ]);
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
           clinicalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
@@ -1039,12 +1037,19 @@ Return JSON:
 Be thorough and extract specific numbers, percentages, and clinical metrics.`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Use resilient OpenAI client with retry logic and adaptive timeout
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 8000  // INCREASED: Prevent truncation
+        max_tokens: 8000
+      }, {
+        maxRetries: 3,
+        timeout: 90000, // 90 seconds with retry
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying evidence extraction for ${document.name} (attempt ${attempt}): ${error.message}`);
+        }
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -1083,110 +1088,195 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
   }
   
   /**
-   * Compile comprehensive answer based on all evidence
+   * Compile comprehensive answer based on all evidence - BATCHED APPROACH
+   * Processes evidence in batches to avoid token limits
    */
   private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
     
     if (evidence.length === 0) {
-      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant clinical information found in the assigned clinical documents for this question.`,
-        confidence: 10,
+        category: question.category,
+        answer: 'No relevant documents found for clinical analysis',
+        confidence: 0,
         sources: [],
-        evidenceCount: 0,
         keyFindings: [],
-        gaps: ['No relevant clinical information found'],
-        category: question.category
+        gaps: ['No clinical documentation available'],
+        recommendations: ['Obtain relevant clinical documents for analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
       };
     }
 
-    // 🚀 IMPROVEMENT: Enhanced evidence summary with clinical metrics
-    const evidenceSummary = evidence.map(ev => ({
-      document: ev.documentName,
-      content: ev.relevantContent.join(' | '),
-      findings: ev.keyFindings.join(' | '),
-      confidence: ev.confidence,
-      clinicalMetrics: ev.clinicalMetrics || {},
-      dataQuality: ev.dataQuality || 'unknown',
-      missingInfo: ev.missingCriticalInfo || []
-    }));
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
+    const batches = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
+    }
+    
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    const partialResultsKey = `clinical-partial-${question.id}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior clinical analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-    // 🚀 IMPROVEMENT: Enhanced compilation prompt with clinical metrics aggregation
-    const prompt = `You are a senior clinical analyst preparing FDA-level due diligence.
-
-QUESTION: "${question.question}"
-CATEGORY: ${question.category}
-
-EVIDENCE FROM ${evidence.length} DOCUMENTS:
-${evidenceSummary.map((ev, idx) => `
-[DOCUMENT ${idx + 1}]: ${ev.document}
-- Relevant Content: ${ev.content}
-- Key Findings: ${ev.findings}
-- Clinical Metrics: ${JSON.stringify(ev.clinicalMetrics)}
-- Data Quality: ${ev.dataQuality}
-- Confidence: ${ev.confidence}%
-- Missing Info: ${ev.missingInfo.join(', ')}
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
+CLINICAL METRICS: ${JSON.stringify(ev.clinicalMetrics || {})}
 `).join('\n')}
 
-SYNTHESIS INSTRUCTIONS:
-1. **Aggregate All Evidence** - Don't miss any document or finding
-2. **Quantify Clinical Data:**
-   - Count: How many trials/patients/endpoints mentioned across all documents?
-   - Metrics: What are the efficacy/safety numbers?
-   - Timeline: What phases/milestones completed?
-   
-3. **Risk Assessment:**
-   - Red flags: Safety signals, regulatory issues, data quality concerns
-   - Yellow flags: Incomplete data, small sample sizes, missing critical info
-   - Green signals: Strong efficacy, regulatory progress, high data quality
-   
-4. **Data Completeness:**
-   - What's present across documents?
-   - What's missing but should be there?
-   - What additional documents are needed?
-
-Return JSON:
+Extract ALL specific details (trial phases, patient numbers, efficacy metrics, safety data). Respond in JSON:
 {
-  "answer": "Comprehensive clinical answer with specific data points and document citations",
+  "answer": "Detailed extraction with specific clinical data, trial results, regulatory status",
   "confidence": 0-100,
-  "sources": ["All document names"],
-  "keyFindings": ["Finding 1 with numbers", "Finding 2 with specifics"],
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (in-memory cache for now)
+        // This ensures we don't lose all work if synthesis fails
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
+      } catch (error: any) {
+        console.error(`❌ Error in batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior clinical analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (trial phases, patient numbers, efficacy/safety metrics) from all batches
+2. Lists ALL trials/studies with complete data
+3. Provides exhaustive breakdown of clinical outcomes, regulatory status, and safety profile
+4. Cites specific document sections and clinical data points
+
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific clinical details from ${evidence.length} documents",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "gaps": ["Missing information"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
   "clinicalSummary": {
     "trialsIdentified": 0,
-    "patientsEnrolled": "N=X total across studies",
-    "regulatoryStatus": "FDA/EMA status summary",
-    "safetyProfile": "SAE summary with rates",
-    "efficacyOutcomes": "Primary endpoint results"
+    "patientsEnrolled": "N=X total",
+    "regulatoryStatus": "FDA/EMA status",
+    "safetyProfile": "SAE summary",
+    "efficacyOutcomes": "Results"
   },
-  "riskFactors": ["Risk 1 with severity", "Risk 2"],
+  "riskFactors": ["Risk 1", "Risk 2"],
   "positiveSignals": ["Positive 1", "Positive 2"],
-  "gaps": ["Missing info 1", "Missing info 2"],
-  "recommendations": ["Actionable recommendation 1", "Recommendation 2"],
   "evidenceStrength": "strong/moderate/weak",
-  "dataQualityAssessment": "Assessment of overall data quality across documents"
+  "dataQualityAssessment": "Overall assessment"
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Use resilient client for final synthesis with extended timeout
+      const finalResponse = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 16000  // MASSIVELY INCREASED: No truncation
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
       });
       
-      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
       
-      // 🚀 IMPROVEMENT: Return enhanced answer with clinical summary
+      console.log(`✅ Final synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
+      }
+      
       return {
         question: question.question,
         category: question.category,
         answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
         confidence: compiledAnswer.confidence || 30,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
@@ -1199,22 +1289,33 @@ Return JSON:
         detailedEvidence: evidence
       };
       
-    } catch (error) {
-      console.error(`Error compiling answer for "${question.question}":`, error);
+    } catch (error: any) {
+      const isTimeout = error.message?.includes('timeout');
+      console.error(`❌ Error in final synthesis for "${question.question}":`, error);
+      
+      // 💾 RECOVERY: Try to use persisted partial results first
+      const persistedResults = global[partialResultsKey] || partialAnswers;
+      console.warn(`📦 Using ${persistedResults.length} persisted batch results as fallback`);
+      
+      // Fallback: Combine partial answers directly (from cache or current session)
+      const combinedAnswer = persistedResults
+        .map((pa, i) => `Batch ${i + 1}: ${pa.answer}`)
+        .join('\n\n');
+      
+      // Calculate average confidence from partial results
+      const avgConfidence = persistedResults.length > 0
+        ? Math.round(persistedResults.reduce((sum, pa) => sum + (pa.confidence || 0), 0) / persistedResults.length)
+        : 30;
+      
       return {
         question: question.question,
         category: question.category,
-        answer: `Error compiling answer: ${error.message}`,
-        confidence: 0,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
-        keyFindings: [],
-        gaps: ['Analysis compilation failed'],
-        recommendations: ['Manual review required'],
-        clinicalSummary: {},
-        riskFactors: ['Compilation error'],
-        positiveSignals: [],
-        evidenceStrength: 'unknown',
-        dataQualityAssessment: 'Unable to assess due to compilation error',
+        answer: `Synthesis ${isTimeout ? 'timeout' : 'error'} - Combined ${persistedResults.length} batch results from ${evidence.length} documents:\n\n${combinedAnswer}`,
+        confidence: avgConfidence,
+        sources: evidence.map(e => e.documentName),
+        keyFindings: persistedResults.flatMap(pa => pa.keyFindings || []),
+        gaps: ['Synthesis incomplete - using partial batch results'],
+        recommendations: ['Review batch evidence provided', isTimeout ? 'Retry with longer timeout' : 'Manual review recommended'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
