@@ -243,12 +243,9 @@ export class ComprehensiveHRAnalysisService {
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer with timeout - EXACT Clinical approach
+          // Compile comprehensive answer with resilient client (handles timeout internally)
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
-          const answer = await Promise.race([
-            this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
-          ]);
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence, jobId, storageService, i, HR_QUESTIONS.length);
           hrAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
@@ -479,83 +476,205 @@ Be thorough in finding relevance - most business documents have HR implications 
   }
 
   /**
-   * Compile comprehensive answer based on all evidence - EXACT Clinical approach
+   * Compile comprehensive answer based on all evidence - BATCHED APPROACH
+   * Processes evidence in batches to avoid token limits
    */
-  private async compileComprehensiveAnswer(question: any, evidence: any[]): Promise<any> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
+  private async compileComprehensiveAnswer(
+    question: any, 
+    evidence: any[], 
+    jobId?: string, 
+    storageService?: any, 
+    questionIndex?: number, 
+    totalQuestions?: number
+  ): Promise<any> {
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
     
     if (evidence.length === 0) {
-      console.log(`⚠️ No evidence found for question: ${question.question}`);
       return {
         question: question.question,
-        answer: `No relevant HR information found in the assigned HR documents for this question.`,
-        confidence: 10,
+        category: question.category,
+        answer: 'No relevant documents found for HR analysis',
+        confidence: 0,
         sources: [],
-        evidenceCount: 0,
         keyFindings: [],
-        gaps: ['No relevant HR information found'],
-        category: question.category
+        gaps: ['No HR documentation available'],
+        recommendations: ['Obtain relevant HR documents for analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
       };
     }
 
-    // Prepare evidence summary for AI compilation - EXACT Clinical approach
-    const evidenceSummary = evidence.map(ev => ({
-      document: ev.documentName,
-      content: ev.relevantContent.join(' '),
-      findings: ev.keyFindings.join(' '),
-      confidence: ev.confidence
-    }));
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
+    const batches = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
+    }
+    
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    const partialResultsKey = `hr-partial-${question.id}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior HR analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-    const prompt = `You are an expert HR due diligence analyst compiling a comprehensive answer based on evidence from multiple documents.
-
-QUESTION: "${question.question}"
-CATEGORY: ${question.category}
-
-EVIDENCE FROM DOCUMENTS:
-${evidenceSummary.map(ev => `
-DOCUMENT: ${ev.document}
-CONTENT: ${ev.content}
-KEY FINDINGS: ${ev.findings}
-CONFIDENCE: ${ev.confidence}%
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
 `).join('\n')}
 
-Instructions:
-1. Synthesize ALL evidence into a comprehensive answer
-2. Cite specific documents and quotes
-3. Identify gaps in information
-4. Provide confidence assessment
-5. Include HR recommendations
-
-Respond in JSON format:
+Extract ALL specific details (employee counts, compensation data, turnover rates, benefits). Respond in JSON:
 {
-  "answer": "Comprehensive answer synthesizing all evidence",
+  "answer": "Detailed extraction with specific HR data and metrics",
   "confidence": 0-100,
-  "sources": ["Document name 1", "Document name 2"],
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "gaps": ["Missing information 1", "Missing information 2"],
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (in-memory cache for now)
+        // This ensures we don't lose all work if synthesis fails
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
+        
+        // 🔄 HEARTBEAT: Update job progress after each batch to prevent stuck job cleanup
+        // Calculate granular progress that includes both question AND batch progress
+        if (jobId && storageService && questionIndex !== undefined && totalQuestions !== undefined) {
+          const questionProgress = questionIndex / totalQuestions;
+          const batchProgress = (i + 1) / batches.length / totalQuestions;
+          const totalProgress = Math.min(Math.round((questionProgress + batchProgress) * 100), 100);
+          
+          await storageService.updateBackgroundJob(jobId, {
+            progress: totalProgress, // This guarantees updatedAt changes with each batch
+            currentStep: `Analyzing: ${question.category} (Batch ${i + 1}/${batches.length})`,
+            processedDocuments: questionIndex
+          });
+        }
+      } catch (error: any) {
+        console.error(`❌ Error in batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior HR analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (employee counts, compensation, turnover rates) from all batches
+2. Lists ALL HR data with complete details
+3. Provides exhaustive breakdown of organizational structure, culture, and retention
+4. Cites specific document sections and data points
+
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "gaps": ["Missing information"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "HRAssessment": "Overall HR assessment based on evidence",
-  "evidenceCount": ${evidence.length}
+  "HRAssessment": "Overall HR assessment"
 }`;
 
     try {
-      const response = await openai.chat.completions.create({
+      // Use resilient client for final synthesis with extended timeout
+      const finalResponse = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
-        max_tokens: 2000
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
       });
       
-      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
+      
+      console.log(`✅ Final synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
+      }
       
       return {
         question: question.question,
         category: question.category,
-        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        answer: compiledAnswer.answer || 'Unable to compile answer',
         confidence: compiledAnswer.confidence || 30,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
@@ -564,16 +683,41 @@ Respond in JSON format:
         detailedEvidence: evidence
       };
       
-    } catch (error) {
-      console.error(`Error compiling answer for "${question.question}":`, error);
+    } catch (synthesisError: any) {
+      console.error(`❌ Synthesis failed for "${question.question}":`, synthesisError);
+      
+      // 🔄 FALLBACK: Try to recover from partial results cache
+      const cachedPartials = global[partialResultsKey];
+      if (cachedPartials && cachedPartials.length > 0) {
+        console.log(`📦 Synthesis failed, recovering from ${cachedPartials.length} cached partial results`);
+        
+        // Combine partial answers manually
+        const combinedAnswer = cachedPartials.map((pa: any) => pa.answer).join(' ');
+        const combinedFindings = cachedPartials.flatMap((pa: any) => pa.keyFindings || []);
+        
+        return {
+          question: question.question,
+          category: question.category,
+          answer: combinedAnswer || 'Partial analysis available',
+          confidence: 40,
+          sources: evidence.map(e => e.documentName),
+          keyFindings: combinedFindings,
+          gaps: ['Synthesis incomplete - using partial results'],
+          recommendations: ['Complete full analysis for comprehensive insights'],
+          evidenceCount: evidence.length,
+          detailedEvidence: evidence
+        };
+      }
+      
+      // Last resort fallback
       return {
         question: question.question,
         category: question.category,
-        answer: `Error compiling answer: ${error.message}`,
+        answer: `Analysis error: ${synthesisError.message}`,
         confidence: 0,
-        sources: evidence.map(e => e.documentName), // SHOW ALL ANALYZED DOCUMENTS
+        sources: evidence.map(e => e.documentName),
         keyFindings: [],
-        gaps: ['Analysis compilation failed'],
+        gaps: ['Complete analysis failed'],
         recommendations: ['Manual review required'],
         evidenceCount: evidence.length,
         detailedEvidence: evidence
