@@ -5683,6 +5683,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 // IP Questions Section Component - Structured questions with Clinical-style display
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
+  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -5690,6 +5692,28 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data like Financial
     gcTime: 0, // Don't cache results like Financial
+  });
+
+  // Mutation for re-running individual IP questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      const response = await fetch(`/api/deals/${dealId}/ip-analysis/rerun-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId })
+      });
+      if (!response.ok) throw new Error('Failed to rerun IP question');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      refetchComprehensive();
+      setRerunningQuestionId(null);
+    },
+    onError: (error) => {
+      console.error('Error rerunning IP question:', error);
+      setRerunningQuestionId(null);
+    }
   });
 
   // Force refetch on component mount to ensure fresh data like Financial
