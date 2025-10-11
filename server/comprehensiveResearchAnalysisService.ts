@@ -176,6 +176,8 @@ export class ComprehensiveResearchAnalysisService {
 
   private async analyzeQuestion(question: any, docs: any[]) {
     try {
+      console.log(`🔄 BATCHED RESEARCH: Starting for "${question.question}"`);
+      
       // Find relevant documents based on keywords (AI SUMMARY ONLY like Legal/Clinical)
       const relevantDocs = docs.filter(doc => {
         // Use ONLY AI summary - handle BOTH string and object formats
@@ -197,8 +199,8 @@ export class ComprehensiveResearchAnalysisService {
         return `No relevant documents found for analysis of: ${question.question}`;
       }
       
-      // Prepare context from relevant documents (AI SUMMARY ONLY like Legal/Clinical)
-      const context = relevantDocs.map(doc => {
+      // Prepare evidence from ALL relevant documents (AI SUMMARY ONLY, no top 5 limit)
+      const evidence = relevantDocs.map(doc => {
         // Use ONLY AI summary - handle BOTH string and object formats
         let summaryText = 'No summary available';
         let fullContent = '';
@@ -219,32 +221,121 @@ export class ComprehensiveResearchAnalysisService {
         }
         
         return {
-          filename: doc.filename,
-          content: fullContent || summaryText,
-          summary: summaryText
+          documentName: doc.filename,
+          relevantContent: fullContent || summaryText,
+          keyFindings: [summaryText]
         };
-      }).slice(0, 5); // Limit to top 5 relevant docs
+      }); // NO LIMIT - process ALL documents
       
-      const prompt = `You are a research analyst conducting comprehensive due diligence research analysis.
+      console.log(`📦 Processing ${evidence.length} documents for research question`);
+      
+      // 🚀 SMART BATCHING: Create batches based on token count
+      const MAX_BATCH_TOKENS = 6000;
+      const batches = [];
+      let currentBatch: any[] = [];
+      let currentBatchTokens = 0;
+      
+      for (const ev of evidence) {
+        const evTokens = resilientOpenAI.countBatchTokens([ev]);
+        
+        if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+          batches.push(currentBatch);
+          currentBatch = [ev];
+          currentBatchTokens = evTokens;
+        } else {
+          currentBatch.push(ev);
+          currentBatchTokens += evTokens;
+        }
+      }
+      
+      if (currentBatch.length > 0) {
+        batches.push(currentBatch);
+      }
+      
+      console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+      
+      // Step 1: Get partial answers from each batch
+      const partialAnswers = [];
+      const partialResultsKey = `research-partial-${question.id}`;
+      
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`📦 Processing research batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+        
+        const batchPrompt = `You are a research analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-RESEARCH QUESTION: ${question.question}
-CATEGORY: ${question.category}
-
-Based on the following documents, provide a detailed analysis answering the research question:
-
-DOCUMENTS:
-${context.map((doc, idx) => `
-Document ${idx + 1}: ${doc.filename}
-Summary: ${doc.summary}
-Content Preview: ${doc.content.substring(0, 1000)}...
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${ev.relevantContent}
 `).join('\n')}
 
-Please provide:
-1. A direct answer to the research question
-2. Key evidence from the documents
-3. Any data points, metrics, or specific findings
-4. Risk factors or concerns identified
-5. Confidence level in your analysis
+Extract ALL specific research data (metrics, findings, insights). Respond in JSON:
+{
+  "answer": "Detailed extraction with specific research findings and data",
+  "confidence": 0-100,
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+        try {
+          const response = await resilientOpenAI.createChatCompletion({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: batchPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.3,
+            max_tokens: 8000
+          }, {
+            maxRetries: 4,
+            timeout: 120000, // 2 minutes per batch
+            onRetry: (attempt, error) => {
+              console.warn(`🔄 Retrying research batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+            }
+          });
+          
+          const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+          partialAnswers.push(batchAnswer);
+          
+          // 💾 PERSISTENCE: Save partial results
+          if (!global[partialResultsKey]) {
+            global[partialResultsKey] = [];
+          }
+          global[partialResultsKey].push(batchAnswer);
+          
+          console.log(`✅ Research Batch ${i + 1}/${batches.length} completed and saved`);
+        } catch (error: any) {
+          console.error(`❌ Error in research batch ${i + 1}:`, error);
+          const errorAnswer = {
+            answer: `Error processing batch ${i + 1}: ${error.message}`,
+            confidence: 0,
+            keyFindings: [],
+            sources: batch.map(e => e.documentName)
+          };
+          partialAnswers.push(errorAnswer);
+          
+          if (!global[partialResultsKey]) {
+            global[partialResultsKey] = [];
+          }
+          global[partialResultsKey].push(errorAnswer);
+        }
+      }
+      
+      // Step 2: Synthesize into final answer
+      console.log(`🔄 Synthesizing ${partialAnswers.length} research partial answers`);
+      
+      const synthesisPrompt = `You are a research analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (metrics, insights, data points) from all batches
+2. Provides exhaustive research findings and analysis
+3. Cites specific documents and data points
 
 FORMAT REQUIREMENTS:
 - Use markdown bullets (•) for lists of evidence/findings
@@ -252,19 +343,52 @@ FORMAT REQUIREMENTS:
 - Structure with clear sections if multiple topics
 - Example: "• **Market Size**: **$2.5B TAM** growing at **15% CAGR**, with **key competitor XYZ** holding **25% market share**"
 
-Answer format: Provide a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics.`;
+Respond with a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics.`;
 
-      const response = await resilientOpenAI.createChatCompletion({
-        model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 8000
-      }, {
-        maxRetries: 3,
-        timeout: 90000 // 90 seconds timeout
-      });
+      try {
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: synthesisPrompt }],
+          temperature: 0.3,
+          max_tokens: 16000
+        }, {
+          maxRetries: 5,
+          timeout: 180000, // 3 minutes for synthesis
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying research synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+          }
+        });
 
-      return response.choices[0]?.message?.content || 'Analysis could not be completed';
+        const finalAnswer = response.choices[0]?.message?.content || 'Analysis could not be completed';
+        
+        console.log(`✅ Research synthesis completed for "${question.question}"`);
+        
+        // 🧹 CLEANUP: Remove partial results cache
+        if (global[partialResultsKey]) {
+          delete global[partialResultsKey];
+          console.log(`🧹 Cleaned up research partial results cache for ${question.id}`);
+        }
+        
+        return finalAnswer;
+        
+      } catch (synthesisError: any) {
+        console.error(`❌ Research synthesis failed for "${question.question}":`, synthesisError);
+        
+        // 🔄 FALLBACK: Recover from partial results cache
+        const cachedPartials = global[partialResultsKey];
+        if (cachedPartials && cachedPartials.length > 0) {
+          console.log(`📦 Research synthesis failed, recovering from ${cachedPartials.length} cached results`);
+          
+          const combinedAnswer = cachedPartials
+            .map((pa: any) => pa.answer || '')
+            .filter((a: string) => a.trim().length > 0)
+            .join('\n\n');
+          
+          return combinedAnswer || 'Partial research analysis recovered from cached results';
+        }
+        
+        return `Error analyzing: ${question.question}`;
+      }
       
     } catch (error) {
       console.error(`Error analyzing research question ${question.id}:`, error);
