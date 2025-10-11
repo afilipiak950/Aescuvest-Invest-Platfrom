@@ -554,6 +554,8 @@ If no relevant content is found, respond with:
   }
 
   private async compileComprehensiveAnswer(question: any, evidence: IpEvidence[]): Promise<IpAnswer> {
+    console.log(`🔄 BATCHED COMPILATION: Starting IP analysis for "${question.question}" with ${evidence.length} documents`);
+    
     if (evidence.length === 0) {
       return {
         question: question.question,
@@ -568,34 +570,119 @@ If no relevant content is found, respond with:
       };
     }
 
-    // Compile all evidence
-    const allFindings = evidence.flatMap(e => e.keyFindings);
-    const allContent = evidence.flatMap(e => e.relevantContent);
-    const sources = evidence.map(e => e.documentName);
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
+    const batches = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
+    }
+    
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    const partialResultsKey = `ip-partial-${question.id}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing IP batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior IP analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-    const prompt = `
-You are an expert IP analyst. Based on the following evidence, provide a comprehensive answer to this IP question:
-
-QUESTION: ${question.question}
-CATEGORY: ${question.category}
-
-EVIDENCE FROM DOCUMENTS:
-${evidence.map((e, i) => `
-Document ${i + 1}: ${e.documentName}
-Summary: ${e.documentSummary}
-Key Findings: ${e.keyFindings.join('; ')}
-Relevant Content: ${e.relevantContent.join('; ')}
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
 `).join('\n')}
 
-Provide a comprehensive analysis in JSON format:
+Extract ALL specific IP details (patents, trademarks, filing dates, claims). Respond in JSON:
 {
-  "answer": "Detailed answer based on evidence",
-  "confidence": 85,
-  "keyFindings": ["finding1", "finding2"],
-  "evidenceSummary": "Summary of all evidence",
-  "ipAssessment": "Professional IP assessment",
-  "recommendations": ["recommendation1", "recommendation2"]
-}
+  "answer": "Detailed extraction with specific IP data and details",
+  "confidence": 0-100,
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying IP batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ IP Batch ${i + 1}/${batches.length} completed and saved`);
+      } catch (error: any) {
+        console.error(`❌ Error in IP batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} IP partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior IP analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (patents, trademarks, filing dates, claims) from all batches
+2. Lists ALL IP assets with complete details
+3. Provides exhaustive breakdown of IP portfolio, protection status, and risks
+4. Cites specific document sections and IP data points
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Use markdown bullets (•) for lists of evidence/findings
@@ -603,84 +690,96 @@ FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Structure with clear sections if multiple topics
 - Example: "• **Patent US123456**: Filed **Jan 2023** by **John Smith**, covers **AI-based diagnostic method** with **15 claims**"
 
-Requirements:
-- Provide specific, detailed answers based on the evidence
-- Include confidence level (0-100)
-- Give practical IP recommendations
-- Focus on IP-specific insights and analysis`;
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific IP details formatted with markdown bullets and bold for key terms",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "evidenceSummary": "Summary of all evidence",
+  "ipAssessment": "Overall IP assessment",
+  "recommendations": ["Recommendation 1", "Recommendation 2"]
+}`;
 
     try {
+      // Use resilient client for final synthesis with extended timeout
       const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: synthesisPrompt }],
+        response_format: { type: "json_object" },
         temperature: 0.3,
-        max_tokens: 8000
+        max_tokens: 16000
       }, {
-        maxRetries: 3,
-        timeout: 120000
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying IP final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
       });
 
-      const rawContent = response.choices[0].message.content || '{}';
-      console.log(`🔍 Raw OpenAI response for "${question.question}":`, rawContent.substring(0, 200) + '...');
+      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
       
-      let result;
-      try {
-        result = JSON.parse(rawContent);
-      } catch (parseError) {
-        console.log(`❌ JSON parse failed, attempting to extract JSON from response...`);
-        
-        // Try to extract JSON from markdown code blocks or fix common issues
-        let cleanedContent = rawContent.trim();
-        
-        // Remove markdown code blocks
-        if (cleanedContent.includes('```json')) {
-          cleanedContent = cleanedContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
-        } else if (cleanedContent.includes('```')) {
-          cleanedContent = cleanedContent.replace(/```\s*/g, '').replace(/```\s*$/g, '');
-        }
-        
-        // Try parsing again
-        try {
-          result = JSON.parse(cleanedContent);
-          console.log(`✅ Successfully parsed cleaned JSON`);
-        } catch (secondParseError) {
-          console.log(`❌ Second JSON parse failed, using fallback answer`);
-          // Create a fallback result based on available evidence
-          result = {
-            answer: allFindings.length > 0 ? allFindings.join('. ') : 'Analysis completed with available evidence.',
-            confidence: evidence.length > 0 ? 75 : 50,
-            keyFindings: allFindings.slice(0, 5),
-            evidenceSummary: `Analysis based on ${evidence.length} documents with ${allFindings.length} findings.`,
-            ipAssessment: `IP assessment completed for: ${question.question}`,
-            recommendations: evidence.length > 0 ? ['Review additional documentation for completeness', 'Consider IP protection measures'] : ['Gather more documentation for comprehensive analysis']
-          };
-        }
+      console.log(`✅ IP Final synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up IP partial results cache for ${question.id}`);
       }
       
       return {
         question: question.question,
-        answer: result.answer || 'Analysis completed but no specific answer generated.',
-        confidence: result.confidence || 0,
-        sources: sources,
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
+        sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
-        keyFindings: result.keyFindings || allFindings,
-        evidenceSummary: result.evidenceSummary || 'Evidence compiled from multiple sources',
-        ipAssessment: result.ipAssessment || 'Assessment completed',
-        recommendations: result.recommendations || []
+        keyFindings: compiledAnswer.keyFindings || [],
+        evidenceSummary: compiledAnswer.evidenceSummary || 'Evidence compiled from multiple sources',
+        ipAssessment: compiledAnswer.ipAssessment || 'Assessment completed',
+        recommendations: compiledAnswer.recommendations || []
       };
-    } catch (error) {
-      console.error(`Error compiling answer for question ${question.question}:`, error);
       
+    } catch (synthesisError: any) {
+      console.error(`❌ IP Synthesis failed for "${question.question}":`, synthesisError);
+      
+      // 🔄 FALLBACK: Try to recover from partial results cache
+      const cachedPartials = global[partialResultsKey];
+      if (cachedPartials && cachedPartials.length > 0) {
+        console.log(`📦 IP Synthesis failed, recovering from ${cachedPartials.length} cached partial results`);
+        
+        // Combine partial answers manually
+        const combinedAnswer = cachedPartials
+          .map((pa: any, i: number) => `${pa.answer || ''}`)
+          .filter((a: string) => a.trim().length > 0)
+          .join('\n\n');
+        
+        const combinedFindings = cachedPartials
+          .flatMap((pa: any) => pa.keyFindings || [])
+          .filter((f: string) => f && f.trim().length > 0);
+        
+        return {
+          question: question.question,
+          answer: combinedAnswer || 'Partial IP analysis recovered from cached results',
+          confidence: 60,
+          sources: evidence.map(e => e.documentName),
+          detailedEvidence: evidence,
+          keyFindings: combinedFindings,
+          evidenceSummary: `Recovery from ${cachedPartials.length} partial analyses`,
+          ipAssessment: 'Partial assessment from cached results',
+          recommendations: ['Complete re-analysis recommended for full IP assessment']
+        };
+      }
+      
+      // Final fallback if no cache available
       return {
         question: question.question,
-        answer: 'Error occurred during analysis. Please review documents manually.',
+        answer: 'Error occurred during IP analysis synthesis',
         confidence: 0,
-        sources: sources,
+        sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
-        keyFindings: allFindings,
+        keyFindings: [],
         evidenceSummary: 'Error in analysis compilation',
         ipAssessment: 'Unable to complete assessment due to processing error',
-        recommendations: ['Manual review recommended due to processing error']
+        recommendations: ['Manual IP review recommended due to processing error']
       };
     }
   }
