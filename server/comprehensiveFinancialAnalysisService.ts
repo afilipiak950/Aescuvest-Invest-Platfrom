@@ -10,6 +10,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -211,9 +212,9 @@ export class ComprehensiveFinancialAnalysisService {
         console.log(`📊 Extracting financial evidence for: ${question.question}`);
         const evidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
         
-        // Compile comprehensive answer
+        // Compile comprehensive answer with resilient client (handles timeout internally)
         console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${evidence.length} pieces of evidence`);
-        const answer = await this.compileComprehensiveAnswer(question, evidence);
+        const answer = await this.compileComprehensiveAnswer(question, evidence, jobId, storage, i, COMPREHENSIVE_FINANCIAL_QUESTIONS.length);
         
         financialAnswers[question.id] = answer;
         console.log(`✅ Completed question ${questionNumber}/${totalQuestions}: ${question.question}`);
@@ -486,134 +487,245 @@ export class ComprehensiveFinancialAnalysisService {
     }
   }
 
-  private async compileComprehensiveAnswer(question: any, evidence: FinancialEvidence[]): Promise<FinancialAnswer> {
-    console.log(`🔍 Compiling answer for: ${question.question}`);
-    console.log(`📋 Evidence count: ${evidence.length}`);
-
+  private async compileComprehensiveAnswer(
+    question: any, 
+    evidence: FinancialEvidence[], 
+    jobId?: string, 
+    storageService?: any, 
+    questionIndex?: number, 
+    totalQuestions?: number
+  ): Promise<FinancialAnswer> {
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
+    
     if (evidence.length === 0) {
       return {
         question: question.question,
-        answer: "Insufficient financial data available in the provided documents to answer this question comprehensively.",
-        confidence: 0.1,
+        answer: 'No relevant documents found for financial analysis',
+        confidence: 0,
         sources: [],
-        detailedEvidence: [],
-        keyFindings: ["No relevant financial evidence found"],
-        evidenceSummary: "No financial evidence located",
-        financialAssessment: "Unable to assess due to lack of data",
-        recommendations: ["Obtain additional financial documentation for comprehensive analysis"]
+        keyFindings: [],
+        evidenceSummary: 'No financial evidence available',
+        financialAssessment: 'Unable to assess due to lack of data',
+        recommendations: ['Obtain relevant financial documents for analysis'],
+        detailedEvidence: []
       };
     }
 
-    try {
-      // Compile evidence summary
-      const evidenceSummary = evidence.map(e => 
-        `${e.documentName}: ${e.keyFindings.join(', ')}`
-      ).join('\n');
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
+    const batches = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
+    }
+    
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers = [];
+    const partialResultsKey = `financial-partial-${question.id}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior financial analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
-      // Generate comprehensive analysis using OpenAI
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a senior financial analyst conducting comprehensive due diligence. Analyze the provided evidence to answer the financial question thoroughly. Provide specific, quantitative insights with clear financial implications.`
-          },
-          {
-            role: "user",
-            content: `Question: ${question.question}
-            Category: ${question.category}
-            Analysis Focus: ${question.analysisPrompt}
-            
-            Evidence from documents:
-            ${evidenceSummary}
-            
-            Detailed Evidence:
-            ${evidence.map(e => `
-            Document: ${e.documentName}
-            Findings: ${e.keyFindings.join('; ')}
-            Content: ${e.relevantContent.join('; ')}
-            `).join('\n')}
-            
-            Provide a comprehensive financial analysis in JSON format:
-            {
-              "answer": "detailed financial analysis with specific data points",
-              "confidence": 0.0-1.0,
-              "keyFindings": ["key financial insights"],
-              "financialAssessment": "overall financial assessment and implications",
-              "recommendations": ["specific financial recommendations"]
-            }`
+Evidence:
+${batch.map(ev => `
+DOCUMENT: ${ev.documentName}
+CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
+FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
+`).join('\n')}
+
+Extract ALL specific details (revenue, margins, burn rate, runway, valuation metrics). Respond in JSON:
+{
+  "answer": "Detailed extraction with specific financial data and metrics",
+  "confidence": 0-100,
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
           }
-        ],
-        temperature: 0.1,
-        max_tokens: 1200
-      });
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (in-memory cache for now)
+        // This ensures we don't lose all work if synthesis fails
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Batch ${i + 1}/${batches.length} completed and saved`);
+        
+        // 🔄 HEARTBEAT: Update job progress after each batch to prevent stuck job cleanup
+        // Calculate granular progress that includes both question AND batch progress
+        if (jobId && storageService && questionIndex !== undefined && totalQuestions !== undefined) {
+          const questionProgress = questionIndex / totalQuestions;
+          const batchProgress = (i + 1) / batches.length / totalQuestions;
+          const totalProgress = Math.min(Math.round((questionProgress + batchProgress) * 100), 100);
+          
+          await storageService.updateBackgroundJob(jobId, {
+            progress: totalProgress, // This guarantees updatedAt changes with each batch
+            currentStep: `Analyzing: ${question.category} (Batch ${i + 1}/${batches.length})`,
+            processedDocuments: questionIndex
+          });
+        }
+      } catch (error: any) {
+        console.error(`❌ Error in batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        // Save error results too
+        if (!global[partialResultsKey]) {
+          global[partialResultsKey] = [];
+        }
+        global[partialResultsKey].push(errorAnswer);
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior financial analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
 
-      let rawContent = response.choices[0].message.content || '{}';
-      // Handle markdown code blocks from OpenAI response  
-      if (rawContent.includes('```json')) {
-        rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (revenue, margins, burn rate, runway) from all batches
+2. Lists ALL financial metrics with complete details
+3. Provides exhaustive breakdown of financial health and sustainability
+4. Cites specific document sections and data points
+
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "financialAssessment": "Overall financial assessment",
+  "recommendations": ["Recommendation 1", "Recommendation 2"]
+}`;
+
+    try {
+      // Use resilient client for final synthesis with extended timeout
+      const finalResponse = await resilientOpenAI.createChatCompletion({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: synthesisPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
+      });
+      
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
+      
+      console.log(`✅ Final synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis
+      if (global[partialResultsKey]) {
+        delete global[partialResultsKey];
+        console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
       }
       
-      // CRITICAL: Enhanced JSON parsing with fallback for answer compilation
-      let result;
-      try {
-        result = JSON.parse(rawContent);
-      } catch (parseError) {
-        console.log(`⚠️ JSON parsing failed for answer compilation, attempting to extract JSON...`);
-        
-        // Try to extract JSON from potentially malformed response
-        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            result = JSON.parse(jsonMatch[0]);
-            console.log(`✅ Successfully extracted JSON from malformed answer response`);
-          } catch (extractError) {
-            console.log(`❌ Failed to extract JSON from answer compilation, using fallback...`);
-            result = {
-              answer: "Analysis failed due to JSON parsing error",
-              confidence: 0.1,
-              keyFindings: ["JSON parsing error occurred"],
-              financialAssessment: "Unable to complete assessment",
-              recommendations: ["Retry analysis with improved data formatting"]
-            };
-          }
-        } else {
-          console.log(`❌ No JSON found in answer response, using fallback...`);
-          result = {
-            answer: "Analysis failed - no valid response format",
-            confidence: 0.1,
-            keyFindings: ["No valid response format"],
-            financialAssessment: "Unable to complete assessment",
-            recommendations: ["Retry analysis with improved prompting"]
-          };
-        }
-      }
-
+      const evidenceSummary = evidence.map(e => `${e.documentName}: ${e.keyFindings.join(', ')}`).join('\n');
+      
       return {
         question: question.question,
-        answer: result.answer || "Unable to provide comprehensive analysis based on available evidence.",
-        confidence: result.confidence || 0.5,
+        answer: compiledAnswer.answer || 'Unable to compile answer',
+        confidence: compiledAnswer.confidence ? compiledAnswer.confidence / 100 : 0.5,
         sources: evidence.map(e => e.documentName),
-        detailedEvidence: evidence,
-        keyFindings: result.keyFindings || [],
+        keyFindings: compiledAnswer.keyFindings || [],
         evidenceSummary: evidenceSummary,
-        financialAssessment: result.financialAssessment || "Assessment unavailable",
-        recommendations: result.recommendations || []
+        financialAssessment: compiledAnswer.financialAssessment || 'Assessment unavailable',
+        recommendations: compiledAnswer.recommendations || [],
+        detailedEvidence: evidence
       };
-
-    } catch (error) {
-      console.error('Error compiling financial answer:', error);
-
+      
+    } catch (synthesisError: any) {
+      console.error(`❌ Synthesis failed for "${question.question}":`, synthesisError);
+      
+      // 🔄 FALLBACK: Try to recover from partial results cache
+      const cachedPartials = global[partialResultsKey];
+      if (cachedPartials && cachedPartials.length > 0) {
+        console.log(`📦 Synthesis failed, recovering from ${cachedPartials.length} cached partial results`);
+        
+        // Combine partial answers manually
+        const combinedAnswer = cachedPartials.map((pa: any) => pa.answer).join(' ');
+        const combinedFindings = cachedPartials.flatMap((pa: any) => pa.keyFindings || []);
+        const evidenceSummary = evidence.map(e => `${e.documentName}: ${e.keyFindings.join(', ')}`).join('\n');
+        
+        return {
+          question: question.question,
+          answer: combinedAnswer || 'Partial analysis available',
+          confidence: 0.4,
+          sources: evidence.map(e => e.documentName),
+          keyFindings: combinedFindings,
+          evidenceSummary: evidenceSummary,
+          financialAssessment: 'Synthesis incomplete - using partial results',
+          recommendations: ['Complete full analysis for comprehensive insights'],
+          detailedEvidence: evidence
+        };
+      }
+      
+      // Last resort fallback
       return {
         question: question.question,
-        answer: "Error occurred during financial analysis compilation.",
-        confidence: 0.1,
+        answer: `Analysis error: ${synthesisError.message}`,
+        confidence: 0,
         sources: evidence.map(e => e.documentName),
-        detailedEvidence: evidence,
-        keyFindings: ["Analysis compilation failed"],
-        evidenceSummary: "Analysis compilation failed",
-        financialAssessment: "Assessment failed due to processing error",
-        recommendations: ["Retry analysis with technical support"]
+        keyFindings: [],
+        evidenceSummary: 'Analysis compilation failed',
+        financialAssessment: 'Assessment failed due to processing error',
+        recommendations: ['Manual review required'],
+        detailedEvidence: evidence
       };
     }
   }
