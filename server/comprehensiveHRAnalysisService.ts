@@ -701,9 +701,15 @@ CRITICAL: Create ONE comprehensive answer that:
 3. Provides exhaustive breakdown of organizational structure, culture, and retention
 4. Cites specific document sections and data points
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, employee counts, compensation figures, and key personnel
+- Structure with clear sections if multiple topics
+- Example: "• **Team Size**: **45 employees** including **12 engineers**, **$120K average salary** with **15% turnover**"
+
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "answer": "Comprehensive synthesis with ALL specific HR details formatted with markdown bullets and bold for key metrics",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information"],

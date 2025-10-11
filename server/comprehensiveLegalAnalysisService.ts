@@ -885,9 +885,21 @@ CRITICAL: Create ONE comprehensive answer that:
 3. Provides exhaustive breakdown of obligations, rights, and terms
 4. Cites specific document sections and dates
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, amounts, dates, and party names
+- Structure with clear sections if multiple topics
+- Example format:
+  "The analysis reveals the following:
+  
+  • **Contract ABC**: Payment of **$50,000** due **Q4 2024** to **Party Name Inc.**
+  • **Agreement XYZ**: Includes **15% equity** with **3-year vesting**
+  
+  Key obligations include..."
+
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "answer": "Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold for key terms",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information"],

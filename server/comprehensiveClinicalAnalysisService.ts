@@ -1243,9 +1243,15 @@ CRITICAL: Create ONE comprehensive answer that:
 3. Provides exhaustive breakdown of clinical outcomes, regulatory status, and safety profile
 4. Cites specific document sections and clinical data points
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, trial names, patient numbers, and efficacy metrics
+- Structure with clear sections if multiple topics
+- Example: "• **Phase III Trial XYZ**: Enrolled **N=500 patients**, showed **65% efficacy** with **p<0.05**"
+
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific clinical details from ${evidence.length} documents",
+  "answer": "Comprehensive synthesis with ALL specific clinical details formatted with markdown bullets and bold for key metrics",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information"],

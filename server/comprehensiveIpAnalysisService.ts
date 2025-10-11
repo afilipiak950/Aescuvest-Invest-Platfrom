@@ -597,6 +597,12 @@ Provide a comprehensive analysis in JSON format:
   "recommendations": ["recommendation1", "recommendation2"]
 }
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, patent numbers, filing dates, and inventor names
+- Structure with clear sections if multiple topics
+- Example: "• **Patent US123456**: Filed **Jan 2023** by **John Smith**, covers **AI-based diagnostic method** with **15 claims**"
+
 Requirements:
 - Provide specific, detailed answers based on the evidence
 - Include confidence level (0-100)

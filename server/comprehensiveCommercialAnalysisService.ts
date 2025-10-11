@@ -691,9 +691,15 @@ CRITICAL: Create ONE comprehensive answer that:
 3. Provides exhaustive breakdown of pricing, sales, and customer metrics
 4. Cites specific document sections and data points
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, amounts, metrics, and customer names
+- Structure with clear sections if multiple topics
+- Example: "• **Q4 2024 Revenue**: **$2.5M ARR** with **150 customers** at **$16.7K ACV**"
+
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "answer": "Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold for key metrics",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information"],

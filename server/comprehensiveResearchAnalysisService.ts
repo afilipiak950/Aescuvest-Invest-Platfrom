@@ -246,7 +246,13 @@ Please provide:
 4. Risk factors or concerns identified
 5. Confidence level in your analysis
 
-Answer format: Provide a comprehensive but concise analysis (200-400 words).`;
+FORMAT REQUIREMENTS:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, metrics, and important data points
+- Structure with clear sections if multiple topics
+- Example: "• **Market Size**: **$2.5B TAM** growing at **15% CAGR**, with **key competitor XYZ** holding **25% market share**"
+
+Answer format: Provide a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics.`;
 
       const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
