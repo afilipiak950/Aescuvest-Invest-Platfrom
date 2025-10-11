@@ -8,10 +8,8 @@
 import { db } from './db';
 import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
-import OpenAI from 'openai';
 import { storage } from './storage';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 // Enhanced IP questions for comprehensive analysis - 12 questions exactly like Financial
 export const COMPREHENSIVE_IP_QUESTIONS = [
@@ -470,8 +468,8 @@ export class ComprehensiveIpAnalysisService {
         return null;
       }
 
-      // Extract specific evidence using OpenAI with focused prompt - matching Financial structure
-      const response = await openai.chat.completions.create({
+      // Extract specific evidence using resilientOpenAI with focused prompt - EXACT Legal/Clinical pattern
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [
           {
@@ -506,6 +504,9 @@ If no relevant content is found, respond with:
         ],
         temperature: 0.1,
         max_tokens: 1200
+      }, {
+        maxRetries: 3,
+        timeout: 60000
       });
 
       const content_response = response.choices[0].message.content;
@@ -603,11 +604,14 @@ Requirements:
 - Focus on IP-specific insights and analysis`;
 
     try {
-      const response = await openai.chat.completions.create({
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
         max_tokens: 2000
+      }, {
+        maxRetries: 3,
+        timeout: 90000
       });
 
       const rawContent = response.choices[0].message.content || '{}';

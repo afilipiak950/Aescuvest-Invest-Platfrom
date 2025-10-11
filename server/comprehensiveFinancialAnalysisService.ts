@@ -8,11 +8,8 @@
 import { db } from './db';
 import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
-import OpenAI from 'openai';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Enhanced financial questions for comprehensive analysis
 export const COMPREHENSIVE_FINANCIAL_QUESTIONS = [
@@ -440,8 +437,8 @@ export class ComprehensiveFinancialAnalysisService {
         return null;
       }
 
-      // Extract specific evidence using OpenAI with focused prompt
-      const response = await openai.chat.completions.create({
+      // Extract specific evidence using resilientOpenAI with focused prompt
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [
           {
@@ -466,6 +463,9 @@ export class ComprehensiveFinancialAnalysisService {
         ],
         temperature: 0.1,
         max_tokens: 800
+      }, {
+        maxRetries: 3,
+        timeout: 60000
       });
 
       let rawContent = response.choices[0].message.content || '{}';

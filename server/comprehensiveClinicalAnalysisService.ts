@@ -7,11 +7,8 @@
 import { db } from './db';
 import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
-import OpenAI from 'openai';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Enhanced clinical questions for comprehensive analysis
 export const COMPREHENSIVE_CLINICAL_QUESTIONS = [
@@ -1795,20 +1792,16 @@ Respond in JSON format:
 REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
   try {
-    // Add 60-second timeout for OpenAI calls
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
-    );
-    
-    const apiPromise = openai.chat.completions.create({
+    const response = await resilientOpenAI.createChatCompletion({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.1,
       max_tokens: 8000
+    }, {
+      maxRetries: 3,
+      timeout: 60000
     });
-    
-    const response = await Promise.race([apiPromise, timeoutPromise]) as any;
     
     const analysis = JSON.parse(response.choices[0].message.content || '{}');
     
@@ -1906,11 +1899,14 @@ Respond in valid JSON format:
   "sources": ["document1.pdf", "document2.pdf", ...]
 }`;
 
-  const completion = await openai.chat.completions.create({
+  const completion = await resilientOpenAI.createChatCompletion({
     model: 'gpt-4o',
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
     temperature: 0.3,
+  }, {
+    maxRetries: 3,
+    timeout: 90000
   });
   
   const responseText = completion.choices[0]?.message?.content;
