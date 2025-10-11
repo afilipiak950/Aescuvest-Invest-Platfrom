@@ -512,7 +512,7 @@ REMEMBER: Extract EVERYTHING from THIS document - more is better! A thorough ext
         max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 60000
+        timeout: 90000
       });
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
