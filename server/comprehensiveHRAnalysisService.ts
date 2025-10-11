@@ -408,9 +408,39 @@ export class ComprehensiveHRAnalysisService {
    * Extract specific evidence from a single document - EXACT Clinical approach
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    const content = document.ocrText || document.aiSummary?.executiveSummary || '';
+    // Use ONLY AI summary - handle BOTH string and object formats (like Legal/Clinical)
+    const aiSummary = document.aiSummary;
+    if (!aiSummary) return null;
     
-    if (!content) return null;
+    let content: string;
+    
+    // Handle STRING summaries (most common in production)
+    if (typeof aiSummary === 'string') {
+      content = aiSummary;
+    } 
+    // Handle OBJECT summaries (structured format)
+    else if (typeof aiSummary === 'object') {
+      content = [
+        aiSummary.executiveSummary || '',
+        aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+        aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+        aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+        aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+        aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+        aiSummary.strategicImplications || ''
+      ].filter(s => s).join('\n\n');
+      
+      // Fallback: if all fields are empty, stringify the entire object
+      if (!content || content.trim().length === 0) {
+        content = JSON.stringify(aiSummary);
+      }
+    }
+    // Fallback: stringify anything else
+    else {
+      content = String(aiSummary);
+    }
+    
+    if (!content || content.trim().length === 0) return null;
     
     const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to find ANY human resources, organizational, team, leadership, or management information, even if indirectly related.
 
