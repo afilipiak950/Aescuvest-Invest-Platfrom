@@ -664,9 +664,15 @@ CRITICAL: Create ONE comprehensive answer that:
 3. Provides exhaustive breakdown of financial health and sustainability
 4. Cites specific document sections and data points
 
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, amounts, metrics, and financial figures
+- Structure with clear sections if multiple topics
+- Example: "• **2024 Revenue**: **$5.2M ARR** with **35% gross margin** and **$800K monthly burn rate** (**18 months runway**)"
+
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details from ${evidence.length} documents",
+  "answer": "Comprehensive synthesis with ALL specific financial details formatted with markdown bullets and bold for key metrics",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "financialAssessment": "Overall financial assessment",
