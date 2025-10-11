@@ -29,6 +29,7 @@ Preferred communication style: Simple, everyday language.
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
 - **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents use comprehensive document processing (analyzing ALL documents with AI summaries for cross-agent insights), ensuring full analysis runs match rerun quality. Features persistent question reruns with database-backed progress tracking that survives page refreshes and server restarts.
+  - **Resilient Architecture (Legal/Clinical/Commercial)**: Enterprise-grade reliability with exponential backoff retry logic (3-5 retries), adaptive rate limiting (50 calls/min centralized semaphore), token-based batching (6K token limit per batch), partial result persistence with global cache recovery, and graceful timeout handling (90-180s) to handle 300+ document sets without failures.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
