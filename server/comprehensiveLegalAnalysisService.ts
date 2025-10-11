@@ -9,6 +9,7 @@ import { documents, agentAnalyses, backgroundJobs } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { storage } from './storage';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -203,19 +204,13 @@ class ComprehensiveLegalAnalysisService {
           );
           console.log(`📊 Evidence extraction completed for question: ${question.question}`);
           
-          // Compile comprehensive answer - EXACT Clinical approach with timeout
+          // Compile comprehensive answer with resilient client (handles timeout internally)
           console.log(`🤖 Starting OpenAI analysis for question: ${question.question} with ${documentEvidence.length} pieces of evidence`);
-          const answer = await Promise.race([
-            this.compileComprehensiveAnswer(question, documentEvidence),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('OpenAI analysis timeout')), 60000)) // 60 second timeout
-          ]);
+          const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
           legalAnswers[question.id] = answer;
           console.log(`🤖 OpenAI analysis completed for question: ${question.question}`);
           
           console.log(`✅ Completed question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
-          
-          // Brief delay to avoid rate limiting - EXACT Clinical approach  
-          await new Promise(resolve => setTimeout(resolve, 1500));
           
         } catch (questionError) {
           console.error(`❌ Error processing question ${i + 1}: ${question.question}`, questionError);
@@ -425,22 +420,38 @@ class ComprehensiveLegalAnalysisService {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
-    // Check if already initialized by route (atomic registration pattern)
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
-    const alreadyInitialized = existingJob !== undefined;
+    // 🔒 ATOMIC JOB REGISTRATION: Use database transaction with row-level locking
+    let jobAlreadyExists = false;
     
-    // Only check for duplicates if not already initialized
-    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
-      throw new Error(`Question ${questionId} is already being rerun`);
+    try {
+      // Try to insert new job atomically - will fail if job already exists
+      await db.insert(backgroundJobs).values({
+        jobId,
+        jobType: 'legal_question_rerun',
+        dealId,
+        status: 'pending',
+        progress: 0,
+        runId: questionId,
+        currentStep: `Initializing question rerun: ${questionId}`
+      }).onConflictDoNothing(); // Silently ignore if already exists
+      
+      console.log(`✅ Registered new job for question ${questionId}`);
+    } catch (insertError: any) {
+      // Job might already exist - check if it's running
+      const existingJob = await db.query.backgroundJobs.findFirst({
+        where: eq(backgroundJobs.jobId, jobId)
+      });
+      
+      if (existingJob && existingJob.progress < 100) {
+        throw new Error(`Question ${questionId} is already being rerun (progress: ${existingJob.progress}%)`);
+      }
+      
+      // Job exists but completed - we can rerun
+      jobAlreadyExists = true;
+      console.log(`♻️ Rerunning completed question ${questionId}`);
     }
     
     try {
-      // Initialize progress only if not already set by route
-      if (!alreadyInitialized) {
-        await this.updateQuestionRerunProgress(dealId, questionId, 0);
-      }
       
       // Find the question
       const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
@@ -675,20 +686,20 @@ Respond in JSON format:
 REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 500-2000+ characters per document.`;
 
     try {
-      // Add 60-second timeout for OpenAI calls
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('OpenAI API timeout after 60s')), 60000)
-      );
-      
-      const apiPromise = openai.chat.completions.create({
+      // Use resilient OpenAI client with retry logic and adaptive timeout
+      const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         temperature: 0.1,
-        max_tokens: 8000 // INCREASED: Prevent any truncation of evidence extraction
+        max_tokens: 8000
+      }, {
+        maxRetries: 3,
+        timeout: 90000, // 90 seconds with retry
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying evidence extraction for ${document.name} (attempt ${attempt}): ${error.message}`);
+        }
       });
-      
-      const response = await Promise.race([apiPromise, timeoutPromise]) as any;
       
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
       
@@ -741,14 +752,32 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
       };
     }
 
-    // 🚀 BATCHED COMPILATION: Process 20 documents per batch (like Clinical agent)
-    const BATCH_SIZE = 20;
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size
+    const MAX_BATCH_TOKENS = 6000; // Conservative limit (leaves room for prompt + response)
     const batches = [];
-    for (let i = 0; i < evidence.length; i += BATCH_SIZE) {
-      batches.push(evidence.slice(i, i + BATCH_SIZE));
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      // If adding this evidence would exceed limit, start new batch
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
     }
     
-    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} batches of ${BATCH_SIZE}`);
+    // Add final batch if not empty
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
     
     // Step 1: Get partial answers from each batch
     const partialAnswers = [];
@@ -774,21 +803,28 @@ Extract ALL specific details (amounts, dates, terms, obligations). Respond in JS
 }`;
 
       try {
-        const response = await openai.chat.completions.create({
+        // Use resilient client with retry and timeout
+        const response = await resilientOpenAI.createChatCompletion({
           model: "gpt-4o",
           messages: [{ role: "user", content: batchPrompt }],
           response_format: { type: "json_object" },
           temperature: 0.2,
           max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
         });
         
         const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
         partialAnswers.push(batchAnswer);
         console.log(`✅ Batch ${i + 1}/${batches.length} completed`);
-      } catch (error) {
+      } catch (error: any) {
         console.error(`❌ Error in batch ${i + 1}:`, error);
         partialAnswers.push({
-          answer: `Error processing batch ${i + 1}`,
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
           confidence: 0,
           keyFindings: [],
           sources: batch.map(e => e.documentName)
@@ -825,12 +861,19 @@ Respond in JSON:
 }`;
 
     try {
-      const finalResponse = await openai.chat.completions.create({
+      // Use resilient client for final synthesis with extended timeout
+      const finalResponse = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
         messages: [{ role: "user", content: synthesisPrompt }],
         response_format: { type: "json_object" },
         temperature: 0.2,
         max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis (larger)
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
+        }
       });
       
       const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
