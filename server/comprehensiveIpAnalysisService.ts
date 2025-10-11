@@ -281,10 +281,10 @@ export class ComprehensiveIpAnalysisService {
     
     console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
     
-    // First try documents explicitly assigned to IP agent
+    // First try documents explicitly assigned to IP agent (AI SUMMARY ONLY like Legal/Clinical)
     let ipDocuments = allDocuments.filter(doc => 
       (doc.assignedAgents && doc.assignedAgents.includes('ip')) && 
-      (doc.ocrText || doc.aiSummary)
+      doc.aiSummary
     );
     
     console.log(`📄 Documents explicitly assigned to IP: ${ipDocuments.length}`);
@@ -294,11 +294,11 @@ export class ComprehensiveIpAnalysisService {
       console.log('📄 No documents explicitly assigned to IP agent, identifying IP-related documents...');
       
       ipDocuments = allDocuments.filter(doc => {
-        if (!doc.ocrText && !doc.aiSummary) return false;
+        if (!doc.aiSummary) return false;
         
         const docName = doc.name.toLowerCase();
-        const docContent = (doc.ocrText || '').toLowerCase();
-        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : '';
+        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : 
+          (doc.aiSummary.executiveSummary ? doc.aiSummary.executiveSummary.toLowerCase() : '');
         
         // IP document keywords - EXPANDED to match Financial's broad coverage approach
         const ipKeywords = [
@@ -326,9 +326,9 @@ export class ComprehensiveIpAnalysisService {
           'manufacturing', 'production', 'distribution', 'commercial', 'business'
         ];
         
-        // Check document name, OCR content, and AI summary for IP keywords
+        // Check document name and AI summary for IP keywords (NO OCR)
         const hasIpKeywords = ipKeywords.some(keyword => 
-          docName.includes(keyword) || docContent.includes(keyword) || aiContent.includes(keyword)
+          docName.includes(keyword) || aiContent.includes(keyword)
         );
         
         return hasIpKeywords;
@@ -337,14 +337,11 @@ export class ComprehensiveIpAnalysisService {
       console.log(`📄 Auto-identified IP documents: ${ipDocuments.length}`);
     }
 
-    // If still no documents found, use all documents with content (EXACTLY like Financial)
+    // If still no documents found, use all documents with AI summaries (EXACTLY like Legal/Clinical)
     if (ipDocuments.length === 0) {
-      console.log('📄 No IP-related documents found, using all documents with OCR text or AI summaries...');
-      ipDocuments = allDocuments.filter(doc => 
-        (doc.ocrText && doc.ocrText.trim().length > 100) ||
-        (doc.aiSummary && typeof doc.aiSummary === 'string' && doc.aiSummary.trim().length > 50)
-      );
-      console.log(`📄 Documents with content available: ${ipDocuments.length}`);
+      console.log('📄 No IP-related documents found, using all documents with AI summaries...');
+      ipDocuments = allDocuments.filter(doc => doc.aiSummary);
+      console.log(`📄 Documents with AI summaries available: ${ipDocuments.length}`);
     }
     
     console.log(`📄 Found ${ipDocuments.length} documents for IP analysis`);
@@ -419,11 +416,40 @@ export class ComprehensiveIpAnalysisService {
     try {
       console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
       
-      // Use AI summary if available, otherwise fall back to OCR content - EXACT Financial approach
-      const content = typeof doc.aiSummary === 'string' ? doc.aiSummary : (doc.ocrText || '');
+      // Use ONLY AI summary - handle BOTH string and object formats (like Legal/Clinical)
+      const aiSummary = doc.aiSummary;
+      if (!aiSummary) return null;
       
-      if (!content || typeof content !== 'string' || content.trim().length === 0) {
-        console.log(`❌ No content available for ${doc.name}`);
+      let content: string;
+      
+      // Handle STRING summaries (most common in production)
+      if (typeof aiSummary === 'string') {
+        content = aiSummary;
+      } 
+      // Handle OBJECT summaries (structured format)
+      else if (typeof aiSummary === 'object') {
+        content = [
+          aiSummary.executiveSummary || '',
+          aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+          aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+          aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+          aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+          aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+          aiSummary.strategicImplications || ''
+        ].filter(s => s).join('\n\n');
+        
+        // Fallback: if all fields are empty, stringify the entire object
+        if (!content || content.trim().length === 0) {
+          content = JSON.stringify(aiSummary);
+        }
+      }
+      // Fallback: stringify anything else
+      else {
+        content = String(aiSummary);
+      }
+      
+      if (!content || content.trim().length === 0) {
+        console.log(`❌ No AI summary content available for ${doc.name}`);
         return null;
       }
 
