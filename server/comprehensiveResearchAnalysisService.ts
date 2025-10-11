@@ -252,10 +252,10 @@ Answer format: Provide a comprehensive but concise analysis (200-400 words).`;
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 800
+        max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 60000 // 60 seconds timeout
+        timeout: 90000 // 90 seconds timeout
       });
 
       return response.choices[0]?.message?.content || 'Analysis could not be completed';
@@ -302,10 +302,10 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         model: "gpt-4o",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 1000
+        max_tokens: 8000
       }, {
         maxRetries: 3,
-        timeout: 60000 // 60 seconds timeout
+        timeout: 90000 // 90 seconds timeout
       });
 
       const content = response.choices[0]?.message?.content || '';
