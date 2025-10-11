@@ -3,6 +3,7 @@ import { db } from './db';
 import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { resilientOpenAI } from './utils/resilientOpenAI';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
