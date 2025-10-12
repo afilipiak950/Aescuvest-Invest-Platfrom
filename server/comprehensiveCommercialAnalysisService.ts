@@ -145,7 +145,7 @@ export class ComprehensiveCommercialAnalysisService {
     
     try {
       // Get ALL documents for the deal with AI summaries using storage - same approach as Legal and Clinical
-      const allDocuments = await storage.getDocumentsByDeal(dealId);
+      const allDocuments = await storage.getDocumentsByDealId(dealId);
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
       // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
@@ -175,7 +175,7 @@ export class ComprehensiveCommercialAnalysisService {
       console.error(`❌ Error finding commercial documents:`, error);
       // Fallback: return all documents if there's an error using storage
       try {
-        const allDocs = await storage.getDocumentsByDeal(dealId);
+        const allDocs = await storage.getDocumentsByDealId(dealId);
         console.log(`🏢 Error fallback: returning all ${allDocs.length} documents`);
         return allDocs.filter(doc => doc.aiSummary);
       } catch (fallbackError) {
