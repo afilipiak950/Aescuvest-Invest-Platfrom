@@ -948,6 +948,97 @@ Respond in JSON:
       this.isRunning = false;
     }
   }
+
+  // Question rerun progress tracking (in-memory)
+  private questionRerunProgress: Map<string, number> = new Map();
+
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const key = `${dealId}-${questionId}`;
+    return this.questionRerunProgress.has(key) && this.questionRerunProgress.get(key)! < 100;
+  }
+
+  async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const key = `${dealId}-${questionId}`;
+    this.questionRerunProgress.set(key, progress);
+    
+    const jobId = `ip-question-rerun-${dealId}-${questionId}`;
+    
+    if (progress === 0) {
+      await storage.createBackgroundJob({
+        jobId, 
+        jobType: 'ip_question_rerun', 
+        dealId, 
+        agentType: 'IP', 
+        status: 'processing', 
+        progress, 
+        currentStep: 'Starting question rerun...'
+      });
+    } else if (progress >= 100) {
+      await storage.updateBackgroundJobProgress(jobId, progress, 'Completed');
+      setTimeout(() => this.questionRerunProgress.delete(key), 5000);
+    } else {
+      await storage.updateBackgroundJobProgress(jobId, progress, 'Processing');
+    }
+  }
+
+  getAllQuestionProgress(dealId: number): Record<string, number> {
+    const result: Record<string, number> = {};
+    for (const [key, progress] of this.questionRerunProgress.entries()) {
+      if (key.startsWith(`${dealId}-`)) {
+        const questionId = key.substring(`${dealId}-`.length);
+        result[questionId] = progress;
+      }
+    }
+    return result;
+  }
+
+  async getQuestionRerunProgress(dealId: number, questionId: string): Promise<number> {
+    const key = `${dealId}-${questionId}`;
+    return this.questionRerunProgress.get(key) || 0;
+  }
+
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+    try {
+      const analysis = await storage.getAgentAnalysis(dealId, 'IP');
+      
+      if (!analysis) throw new Error('No IP analysis found');
+      
+      const documents = await storage.getDocumentsByDeal(dealId);
+      const ipDocs = documents.filter(doc => 
+        doc.assignedAgents?.some(a => a.toLowerCase() === 'ip')
+      );
+      
+      const question = COMPREHENSIVE_IP_QUESTIONS.find(q => q.id === questionId);
+      if (!question) throw new Error(`Question ${questionId} not found`);
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 10);
+      
+      // Extract evidence for this question
+      const evidence = await this.extractEvidenceFromAllDocuments(ipDocs, question);
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 50);
+      
+      // Compile answer
+      const answer = await this.compileComprehensiveAnswer(question, evidence);
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 80);
+      
+      // Update analysis
+      const updatedAnswers = {
+        ...(analysis.ip_answers || {}),
+        [questionId]: answer
+      };
+      
+      await storage.updateAgentAnalysis(dealId, 'IP', {
+        ip_answers: updatedAnswers
+      });
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+    } catch (error) {
+      console.error('Error in IP question rerun:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance exactly like Financial

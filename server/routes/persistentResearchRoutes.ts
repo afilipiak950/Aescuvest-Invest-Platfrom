@@ -267,3 +267,152 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/comprehensive
     });
   }
 });
+
+/**
+ * Get progress for ALL active question reruns for a deal
+ */
+persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/questions/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const { ComprehensiveResearchAnalysisService } = await import('../comprehensiveResearchAnalysisService');
+    const service = new ComprehensiveResearchAnalysisService();
+    
+    const allProgress = service.getAllQuestionProgress(dealId);
+    
+    res.json({
+      success: true,
+      progress: allProgress
+    });
+    
+  } catch (error) {
+    console.error('Error getting all research question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Get progress for a single question rerun
+ */
+persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/question/:questionId/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    const { ComprehensiveResearchAnalysisService } = await import('../comprehensiveResearchAnalysisService');
+    const service = new ComprehensiveResearchAnalysisService();
+    
+    const progress = await service.getQuestionRerunProgress(dealId, questionId);
+    
+    res.json({
+      success: true,
+      progress
+    });
+    
+  } catch (error) {
+    console.error('Error getting research question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Re-run a single research question with database-backed persistence
+ */
+persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/question/:questionId/rerun', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    console.log(`🔄 Re-running research question ${questionId} for deal ${dealId} (BACKGROUND MODE)`);
+    
+    const { ComprehensiveResearchAnalysisService } = await import('../comprehensiveResearchAnalysisService');
+    const service = new ComprehensiveResearchAnalysisService();
+    
+    // Check if already running
+    if (await service.isQuestionRunning(dealId, questionId)) {
+      console.log(`⚠️ Research question ${questionId} for deal ${dealId} is already being rerun`);
+      return res.status(409).json({ 
+        success: false, 
+        error: `Question ${questionId} is already being rerun. Please wait for it to complete.` 
+      });
+    }
+    
+    // Immediately initialize progress to 0 (atomically registers the job)
+    await service.updateQuestionRerunProgress(dealId, questionId, 0);
+    
+    // Schedule background job execution
+    setImmediate(() => {
+      service.rerunSingleQuestion(dealId, questionId)
+        .then(() => {
+          console.log(`✅ Background research rerun completed for question ${questionId} on deal ${dealId}`);
+        })
+        .catch(async error => {
+          console.error(`❌ Background research rerun failed for question ${questionId} on deal ${dealId}:`, error);
+        });
+    });
+    
+    // Return immediately - client will poll for progress
+    res.json({
+      success: true,
+      message: 'Research question rerun started in background',
+      questionId,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error re-running research question:', error);
+    
+    if (error.message && error.message.includes('already being rerun')) {
+      return res.status(409).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to re-run research question analysis' 
+    });
+  }
+});

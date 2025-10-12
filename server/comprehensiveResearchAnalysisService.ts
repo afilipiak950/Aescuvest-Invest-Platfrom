@@ -513,4 +513,90 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       console.error('Error updating job progress:', error);
     }
   }
+
+  // Question rerun progress tracking (in-memory)
+  private questionRerunProgress: Map<string, number> = new Map();
+
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const key = `${dealId}-${questionId}`;
+    return this.questionRerunProgress.has(key) && this.questionRerunProgress.get(key)! < 100;
+  }
+
+  async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const key = `${dealId}-${questionId}`;
+    this.questionRerunProgress.set(key, progress);
+    
+    const jobId = `research-question-rerun-${dealId}-${questionId}`;
+    
+    if (progress === 0) {
+      await storage.createBackgroundJob({
+        jobId, 
+        jobType: 'research_question_rerun', 
+        dealId, 
+        agentType: 'Research', 
+        status: 'processing', 
+        progress, 
+        currentStep: 'Starting question rerun...'
+      });
+    } else if (progress >= 100) {
+      await storage.updateBackgroundJobProgress(jobId, progress, 'Completed');
+      setTimeout(() => this.questionRerunProgress.delete(key), 5000);
+    } else {
+      await storage.updateBackgroundJobProgress(jobId, progress, 'Processing');
+    }
+  }
+
+  getAllQuestionProgress(dealId: number): Record<string, number> {
+    const result: Record<string, number> = {};
+    for (const [key, progress] of this.questionRerunProgress.entries()) {
+      if (key.startsWith(`${dealId}-`)) {
+        const questionId = key.substring(`${dealId}-`.length);
+        result[questionId] = progress;
+      }
+    }
+    return result;
+  }
+
+  async getQuestionRerunProgress(dealId: number, questionId: string): Promise<number> {
+    const key = `${dealId}-${questionId}`;
+    return this.questionRerunProgress.get(key) || 0;
+  }
+
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+    try {
+      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+      
+      if (!analysis) throw new Error('No research analysis found');
+      
+      const documents = await storage.getDocumentsByDeal(dealId);
+      const researchDocs = documents.filter(doc => 
+        doc.assignedAgents?.some(a => a.toLowerCase() === 'research')
+      );
+      
+      const question = RESEARCH_QUESTIONS.find(q => q.id === questionId);
+      if (!question) throw new Error(`Question ${questionId} not found`);
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 10);
+      
+      // Re-analyze question
+      const answer = await this.analyzeQuestion(question, researchDocs);
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 80);
+      
+      // Update analysis
+      const updatedAnswers = {
+        ...(analysis.research_answers || {}),
+        [questionId]: answer
+      };
+      
+      await storage.updateAgentAnalysis(dealId, 'Research', {
+        research_answers: updatedAnswers
+      });
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+    } catch (error) {
+      console.error('Error in research question rerun:', error);
+      throw error;
+    }
+  }
 }

@@ -153,4 +153,150 @@ router.get('/api/deals/:dealId/financial-analysis/comprehensive/results', async 
   }
 });
 
+/**
+ * Get progress for ALL active question reruns for a deal
+ */
+router.get('/api/deals/:dealId/financial-analysis/questions/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const { comprehensiveFinancialAnalysisService } = await import('../comprehensiveFinancialAnalysisService');
+    
+    const allProgress = comprehensiveFinancialAnalysisService.getAllQuestionProgress(dealId);
+    
+    res.json({
+      success: true,
+      progress: allProgress
+    });
+    
+  } catch (error) {
+    console.error('Error getting all financial question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Get progress for a single question rerun
+ */
+router.get('/api/deals/:dealId/financial-analysis/question/:questionId/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    const { comprehensiveFinancialAnalysisService } = await import('../comprehensiveFinancialAnalysisService');
+    
+    const progress = await comprehensiveFinancialAnalysisService.getQuestionRerunProgress(dealId, questionId);
+    
+    res.json({
+      success: true,
+      progress
+    });
+    
+  } catch (error) {
+    console.error('Error getting financial question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Re-run a single financial question with database-backed persistence
+ */
+router.post('/api/deals/:dealId/financial-analysis/question/:questionId/rerun', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    console.log(`🔄 Re-running financial question ${questionId} for deal ${dealId} (BACKGROUND MODE)`);
+    
+    const { comprehensiveFinancialAnalysisService } = await import('../comprehensiveFinancialAnalysisService');
+    
+    // Check if already running
+    if (await comprehensiveFinancialAnalysisService.isQuestionRunning(dealId, questionId)) {
+      console.log(`⚠️ Financial question ${questionId} for deal ${dealId} is already being rerun`);
+      return res.status(409).json({ 
+        success: false, 
+        error: `Question ${questionId} is already being rerun. Please wait for it to complete.` 
+      });
+    }
+    
+    // Immediately initialize progress to 0 (atomically registers the job)
+    await comprehensiveFinancialAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
+    
+    // Schedule background job execution
+    setImmediate(() => {
+      comprehensiveFinancialAnalysisService.rerunSingleQuestion(dealId, questionId)
+        .then(() => {
+          console.log(`✅ Background financial rerun completed for question ${questionId} on deal ${dealId}`);
+        })
+        .catch(async error => {
+          console.error(`❌ Background financial rerun failed for question ${questionId} on deal ${dealId}:`, error);
+        });
+    });
+    
+    // Return immediately - client will poll for progress
+    res.json({
+      success: true,
+      message: 'Financial question rerun started in background',
+      questionId,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error re-running financial question:', error);
+    
+    if (error.message && error.message.includes('already being rerun')) {
+      return res.status(409).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to re-run financial question analysis' 
+    });
+  }
+});
+
 export default router;
