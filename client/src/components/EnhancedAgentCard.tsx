@@ -2848,11 +2848,126 @@ interface ResearchQuestionsSectionProps {
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const queryClient = useQueryClient();
 
   // Check if research analysis is available from agent endpoint
-  const { data: comprehensiveResults } = useQuery({
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'research_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for progress for all running questions
+  useEffect(() => {
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/research-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
+          
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+              
+              if (backendProgress[questionId] >= 100 && prev[questionId] !== 100) {
+                refetchComprehensive();
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    delete updated[questionId];
+                    return updated;
+                  });
+                }, 2000);
+              }
+            }
+            
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
+
+  // Mutation for re-running individual questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/research-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return { ...response, questionId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
+      refetchComprehensive();
+    },
+    onError: (error: Error, questionId: string) => {
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
+    },
   });
 
   // Listen for research analysis start event to clear old data immediately
@@ -3014,7 +3129,27 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium text-white flex-1">{question.question}</p>
+                            <button
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 hover:bg-cyan-500/20 rounded transition-colors"
+                              title="Re-run this question"
+                            >
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">
@@ -4598,6 +4733,8 @@ interface FinancialQuestionsSectionProps {
 
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const queryClient = useQueryClient();
 
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -4605,6 +4742,119 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
     staleTime: 0, // Always treat as stale to force fresh data like Legal
     gcTime: 0, // Don't cache results like Legal
+  });
+
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'financial_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for progress for all running questions
+  useEffect(() => {
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/financial-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
+          
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+              
+              if (backendProgress[questionId] >= 100 && prev[questionId] !== 100) {
+                refetchComprehensive();
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    delete updated[questionId];
+                    return updated;
+                  });
+                }, 2000);
+              }
+            }
+            
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
+
+  // Mutation for re-running individual questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return { ...response, questionId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      refetchComprehensive();
+    },
+    onError: (error: Error, questionId: string) => {
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
+    },
   });
 
   // Force refetch on component mount to ensure fresh data like Legal
@@ -4726,7 +4976,27 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium text-white flex-1">{question.question}</p>
+                            <button
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 hover:bg-green-500/20 rounded transition-colors"
+                              title="Re-run this question"
+                            >
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">
@@ -5184,10 +5454,125 @@ interface CommercialQuestionsSectionProps {
 
 function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: CommercialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const queryClient = useQueryClient();
 
-  const { data: comprehensiveResults } = useQuery({
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/commercial/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'commercial_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for progress for all running questions
+  useEffect(() => {
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/commercial-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
+          
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+              
+              if (backendProgress[questionId] >= 100 && prev[questionId] !== 100) {
+                refetchComprehensive();
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    delete updated[questionId];
+                    return updated;
+                  });
+                }, 2000);
+              }
+            }
+            
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
+
+  // Mutation for re-running individual questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return { ...response, questionId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/commercial/results`] });
+      refetchComprehensive();
+    },
+    onError: (error: Error, questionId: string) => {
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
+    },
   });
 
   const toggleCategory = (category: string) => {
@@ -5270,7 +5655,27 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium text-white flex-1">{question.question}</p>
+                            <button
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
+                              title="Re-run this question"
+                            >
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">
@@ -5459,8 +5864,10 @@ interface HrQuestionsSectionProps {
 
 function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Team Structure & Leadership"]));
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const queryClient = useQueryClient();
 
-  const { data: comprehensiveResults } = useQuery({
+  const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/agents/hr/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
   });
@@ -5468,6 +5875,119 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const { data: hrProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+  });
+
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'hr_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for progress for all running questions
+  useEffect(() => {
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/hr-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
+          
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+              
+              if (backendProgress[questionId] >= 100 && prev[questionId] !== 100) {
+                refetchComprehensive();
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    delete updated[questionId];
+                    return updated;
+                  });
+                }, 2000);
+              }
+            }
+            
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
+
+  // Mutation for re-running individual questions
+  const rerunQuestionMutation = useMutation({
+    mutationFn: async (questionId: string) => {
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/question/${questionId}/rerun`, {
+        method: 'POST',
+      });
+      return { ...response, questionId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/hr/results`] });
+      refetchComprehensive();
+    },
+    onError: (error: Error, questionId: string) => {
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
+    },
   });
 
   const toggleCategory = (category: string) => {
@@ -5555,7 +6075,27 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <p className="font-medium text-white mb-2">{question.question}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-medium text-white flex-1">{question.question}</p>
+                            <button
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 hover:bg-orange-500/20 rounded transition-colors"
+                              title="Re-run this question"
+                            >
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                  <path d="M15 9h6v-6"/>
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                           
                           {answer ? (
                             <div className="mt-3 space-y-3">
@@ -5683,7 +6223,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 // IP Questions Section Component - Structured questions with Clinical-style display
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
-  const [rerunningQuestionId, setRerunningQuestionId] = useState<string | null>(null);
+  const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const queryClient = useQueryClient();
 
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
@@ -5694,26 +6234,117 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     gcTime: 0, // Don't cache results like Financial
   });
 
-  // Mutation for re-running individual IP questions
+  // Load existing running jobs from database on mount to restore progress bars after refresh
+  useEffect(() => {
+    const loadExistingJobs = async () => {
+      try {
+        const response = await fetch(`/api/background-jobs/${dealId}`);
+        const data = await response.json();
+        
+        if (data.success && data.jobs) {
+          const runningJobs = data.jobs.filter((job: any) => 
+            job.jobType === 'ip_question_rerun' && 
+            job.status === 'processing' &&
+            job.progress < 100
+          );
+          
+          if (runningJobs.length > 0) {
+            const initialProgress: Record<string, number> = {};
+            runningJobs.forEach((job: any) => {
+              const questionId = job.jobId.split('-').slice(4).join('-');
+              initialProgress[questionId] = job.progress || 0;
+            });
+            
+            setQuestionProgress(initialProgress);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading existing jobs:', error);
+      }
+    };
+    
+    loadExistingJobs();
+  }, [dealId]);
+
+  // Poll for progress for all running questions
+  useEffect(() => {
+    const runningQuestions = Object.keys(questionProgress);
+    if (runningQuestions.length === 0) return;
+    
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/ip-analysis/questions/progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+          const backendProgress = data.progress || {};
+          
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = { ...prev };
+            
+            for (const questionId in backendProgress) {
+              newProgress[questionId] = backendProgress[questionId];
+              
+              if (backendProgress[questionId] >= 100 && prev[questionId] !== 100) {
+                refetchComprehensive();
+                setTimeout(() => {
+                  setQuestionProgress(current => {
+                    const updated = { ...current };
+                    delete updated[questionId];
+                    return updated;
+                  });
+                }, 2000);
+              }
+            }
+            
+            for (const questionId in prev) {
+              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+                delete newProgress[questionId];
+              }
+            }
+            
+            return newProgress;
+          });
+        }
+      } catch (error) {
+        console.error('Error polling progress:', error);
+      }
+    };
+    
+    pollProgress();
+    const interval = setInterval(pollProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [Object.keys(questionProgress).length, dealId]);
+
+  // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
     mutationFn: async (questionId: string) => {
-      const response = await fetch(`/api/deals/${dealId}/ip-analysis/rerun-question`, {
+      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      setQuestionProgress(prev => ({
+        ...prev,
+        [questionId]: 0
+      }));
+      
+      const response = await apiRequest(`/api/deals/${dealId}/ip-analysis/question/${questionId}/rerun`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId })
       });
-      if (!response.ok) throw new Error('Failed to rerun IP question');
-      return response.json();
+      return { ...response, questionId };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
       refetchComprehensive();
-      setRerunningQuestionId(null);
     },
-    onError: (error) => {
-      console.error('Error rerunning IP question:', error);
-      setRerunningQuestionId(null);
-    }
+    onError: (error: Error, questionId: string) => {
+      setQuestionProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[questionId];
+        return newProgress;
+      });
+    },
   });
 
   // Force refetch on component mount to ensure fresh data like Financial
@@ -5914,15 +6545,12 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                             {/* Re-run button for individual question */}
                             <button
                               data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setRerunningQuestionId(question.id);
-                                rerunQuestionMutation.mutate(question.id);
-                              }}
-                              disabled={rerunningQuestionId === question.id}
-                              className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={rerunningQuestionId === question.id ? "Re-running..." : "Re-run this question"}
+                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                              className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
+                              title="Re-run this question"
                             >
-                              {rerunningQuestionId === question.id ? (
+                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
                                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
                                   <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />

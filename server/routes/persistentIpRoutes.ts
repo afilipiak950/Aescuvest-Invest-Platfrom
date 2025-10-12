@@ -441,5 +441,151 @@ router.get('/deals/:dealId/agents/ip/results', async (req, res) => {
   }
 });
 
+/**
+ * Get progress for ALL active question reruns for a deal
+ */
+router.get('/api/deals/:dealId/ip-analysis/questions/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const { comprehensiveIpAnalysisService } = await import('../comprehensiveIpAnalysisService');
+    
+    const allProgress = comprehensiveIpAnalysisService.getAllQuestionProgress(dealId);
+    
+    res.json({
+      success: true,
+      progress: allProgress
+    });
+    
+  } catch (error) {
+    console.error('Error getting all IP question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Get progress for a single question rerun
+ */
+router.get('/api/deals/:dealId/ip-analysis/question/:questionId/progress', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    const { comprehensiveIpAnalysisService } = await import('../comprehensiveIpAnalysisService');
+    
+    const progress = await comprehensiveIpAnalysisService.getQuestionRerunProgress(dealId, questionId);
+    
+    res.json({
+      success: true,
+      progress
+    });
+    
+  } catch (error) {
+    console.error('Error getting IP question rerun progress:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get progress' 
+    });
+  }
+});
+
+/**
+ * Re-run a single IP question with database-backed persistence
+ */
+router.post('/api/deals/:dealId/ip-analysis/question/:questionId/rerun', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    const questionId = req.params.questionId;
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    if (!questionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Question ID is required' 
+      });
+    }
+
+    console.log(`🔄 Re-running IP question ${questionId} for deal ${dealId} (BACKGROUND MODE)`);
+    
+    const { comprehensiveIpAnalysisService } = await import('../comprehensiveIpAnalysisService');
+    
+    // Check if already running
+    if (await comprehensiveIpAnalysisService.isQuestionRunning(dealId, questionId)) {
+      console.log(`⚠️ IP question ${questionId} for deal ${dealId} is already being rerun`);
+      return res.status(409).json({ 
+        success: false, 
+        error: `Question ${questionId} is already being rerun. Please wait for it to complete.` 
+      });
+    }
+    
+    // Immediately initialize progress to 0 (atomically registers the job)
+    await comprehensiveIpAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
+    
+    // Schedule background job execution
+    setImmediate(() => {
+      comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, questionId)
+        .then(() => {
+          console.log(`✅ Background IP rerun completed for question ${questionId} on deal ${dealId}`);
+        })
+        .catch(async error => {
+          console.error(`❌ Background IP rerun failed for question ${questionId} on deal ${dealId}:`, error);
+        });
+    });
+    
+    // Return immediately - client will poll for progress
+    res.json({
+      success: true,
+      message: 'IP question rerun started in background',
+      questionId,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error re-running IP question:', error);
+    
+    if (error.message && error.message.includes('already being rerun')) {
+      return res.status(409).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to re-run IP question analysis' 
+    });
+  }
+});
+
 console.log('🔬 Persistent IP analysis routes registered');
 export default router;

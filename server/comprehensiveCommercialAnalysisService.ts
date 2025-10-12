@@ -144,8 +144,8 @@ export class ComprehensiveCommercialAnalysisService {
     console.log(`🏢 Finding assigned commercial documents for deal ${dealId}`);
     
     try {
-      // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
-      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
+      // Get ALL documents for the deal with AI summaries using storage - same approach as Legal and Clinical
+      const allDocuments = await storage.getDocumentsByDeal(dealId);
       console.log(`🏢 Found ${allDocuments.length} total documents for deal ${dealId}`);
       
       // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
@@ -173,9 +173,9 @@ export class ComprehensiveCommercialAnalysisService {
       
     } catch (error) {
       console.error(`❌ Error finding commercial documents:`, error);
-      // Fallback: return all documents if there's an error
+      // Fallback: return all documents if there's an error using storage
       try {
-        const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
+        const allDocs = await storage.getDocumentsByDeal(dealId);
         console.log(`🏢 Error fallback: returning all ${allDocs.length} documents`);
         return allDocs.filter(doc => doc.aiSummary);
       } catch (fallbackError) {
@@ -973,40 +973,30 @@ Respond in JSON:
       console.log(`✅ Answer compiled successfully`);
       await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
-      // Get existing analysis to update
-      const existingAnalysis = await db.query.agentAnalyses.findFirst({
-        where: and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'commercial')
-        )
-      });
+      // Get existing analysis to update using storage
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Commercial');
       
       if (existingAnalysis) {
         const commercialAnswers = existingAnalysis.commercialAnswers 
-          ? JSON.parse(existingAnalysis.commercialAnswers as string)
+          ? (typeof existingAnalysis.commercialAnswers === 'string' 
+              ? JSON.parse(existingAnalysis.commercialAnswers) 
+              : existingAnalysis.commercialAnswers)
           : {};
         
         commercialAnswers[questionId] = answer;
         
-        await db
-          .update(agentAnalyses)
-          .set({
-            commercialAnswers: JSON.stringify(commercialAnswers),
-            updatedAt: new Date()
-          })
-          .where(eq(agentAnalyses.id, existingAnalysis.id));
+        await storage.updateAgentAnalysis(dealId, 'Commercial', {
+          commercialAnswers: commercialAnswers
+        });
         
         console.log(`✅ Updated commercial analysis with new answer for question ${questionId}`);
       } else {
         const commercialAnswers = { [questionId]: answer };
-        await db.insert(agentAnalyses).values({
+        await storage.createAgentAnalysis({
           dealId,
-          agentType: 'commercial',
+          agentType: 'Commercial',
           status: 'completed',
-          progress: 100,
-          commercialAnswers: JSON.stringify(commercialAnswers),
-          createdAt: new Date(),
-          updatedAt: new Date()
+          commercialAnswers: commercialAnswers
         });
         console.log(`✅ Created new commercial analysis with answer for question ${questionId}`);
       }

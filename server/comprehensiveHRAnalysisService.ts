@@ -984,7 +984,7 @@ Respond in JSON:
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        hr_answers: answers
       });
     } else {
       await storage.createAgentAnalysis({
@@ -994,7 +994,7 @@ Respond in JSON:
         progress: 100,
         findings,
         recommendations,
-        hrAnswers: answers
+        hr_answers: answers
       });
     }
 
@@ -1005,12 +1005,12 @@ Respond in JSON:
     try {
       const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'HR');
       
-      if (!analysis || !analysis.hrAnswers) {
+      if (!analysis || !analysis.hr_answers) {
         return null;
       }
       
       return {
-        hrAnswers: analysis.hrAnswers,
+        hr_answers: analysis.hr_answers,
         findings: analysis.findings || [],
         recommendations: analysis.recommendations || [],
         status: analysis.status,
@@ -1019,6 +1019,203 @@ Respond in JSON:
     } catch (error) {
       console.error(`❌ Error retrieving HR analysis results:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Check if a question is currently being rerun
+   */
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    await this.cleanupStuckJob(dealId, questionId);
+    
+    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    return job !== undefined && job.progress < 100;
+  }
+
+  /**
+   * Auto-cleanup stuck or failed jobs
+   */
+  private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
+    const job = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (!job) return;
+    
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const isStuck = job.updatedAt < thirtyMinutesAgo && job.status !== 'completed';
+    const isFailed = job.status === 'failed';
+    
+    if (isFailed || isStuck) {
+      console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
+      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
+    }
+  }
+
+  /**
+   * Update progress for a specific question rerun
+   */
+  async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
+    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    
+    if (existingJob) {
+      await db.update(backgroundJobs)
+        .set({ 
+          progress,
+          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+          updatedAt: new Date(),
+          completedAt: progress === 100 ? new Date() : null
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+    } else {
+      await db.insert(backgroundJobs).values({
+        jobId,
+        jobType: 'hr_question_rerun',
+        dealId,
+        status: progress === 0 ? 'pending' : 'processing',
+        progress,
+        runId: questionId,
+        currentStep: `Rerunning HR question: ${questionId}`
+      });
+    }
+    
+    console.log(`📊 HR Progress update: ${questionId} = ${progress}%`);
+  }
+
+  /**
+   * Get all active question progress for a deal
+   */
+  async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { and, eq } = await import('drizzle-orm');
+    
+    const jobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.jobType, 'hr_question_rerun')
+      )
+    });
+    
+    const result: Record<string, number> = {};
+    for (const job of jobs) {
+      if (job.runId) {
+        result[job.runId] = job.progress;
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Re-run a single HR question
+   */
+  async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
+    console.log(`🔄 Re-running HR question ${questionId} for deal ${dealId}`);
+    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
+    
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq, and } = await import('drizzle-orm');
+    
+    const existingJob = await db.query.backgroundJobs.findFirst({
+      where: eq(backgroundJobs.jobId, jobId)
+    });
+    const alreadyInitialized = existingJob !== undefined;
+    
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
+    }
+    
+    try {
+      if (!alreadyInitialized) {
+        await this.updateQuestionRerunProgress(dealId, questionId, 0);
+      }
+      
+      const question = HR_QUESTIONS.find(q => q.id === questionId);
+      if (!question) {
+        throw new Error(`Question ${questionId} not found`);
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 10);
+      
+      const assignedDocuments = await this.getAssignedHRDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} documents for HR question re-run`);
+      
+      if (assignedDocuments.length === 0) {
+        throw new Error('No documents available for HR analysis');
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 20);
+      
+      console.log(`📊 Extracting evidence for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 30);
+      
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 60);
+      
+      console.log(`🤖 Compiling answer for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 70);
+      
+      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+      console.log(`✅ Answer compiled successfully`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 85);
+      
+      const existingAnalysis = await db.query.agentAnalyses.findFirst({
+        where: and(
+          eq(agentAnalyses.dealId, dealId),
+          eq(agentAnalyses.agentType, 'hr')
+        )
+      });
+      
+      if (existingAnalysis) {
+        const hrAnswers = existingAnalysis.hr_answers 
+          ? JSON.parse(existingAnalysis.hr_answers as string)
+          : {};
+        
+        hrAnswers[questionId] = answer;
+        
+        await db
+          .update(agentAnalyses)
+          .set({
+            hr_answers: JSON.stringify(hrAnswers),
+            updatedAt: new Date()
+          })
+          .where(eq(agentAnalyses.id, existingAnalysis.id));
+        
+        console.log(`✅ Updated HR analysis with new answer for question ${questionId}`);
+      } else {
+        const hrAnswers = { [questionId]: answer };
+        await db.insert(agentAnalyses).values({
+          dealId,
+          agentType: 'hr',
+          status: 'completed',
+          hr_answers: JSON.stringify(hrAnswers),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+      
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      console.log(`✅ Successfully updated question ${questionId} in HR analysis`);
+      
+      return answer;
+    } catch (error) {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      throw error;
     }
   }
 }
