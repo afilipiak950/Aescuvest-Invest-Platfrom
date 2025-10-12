@@ -6117,16 +6117,39 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           </div>
           <div className="border-t border-dark-lighter p-4">
             <div className="space-y-3">
-              {recommendations.map((rec: any, index: number) => (
-                <div key={index} className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-blue-400 font-bold text-xs mt-1">•</span>
-                    <p className="text-gray-300 text-sm leading-relaxed">
-                      {safeRender(rec.content || rec.recommendation || rec, 'No recommendation available')}
-                    </p>
+              {recommendations.map((rec: any, index: number) => {
+                // Extract the description from various possible formats
+                const description = typeof rec === 'string' ? rec : 
+                                  rec.description || rec.content || rec.recommendation || 
+                                  'No recommendation available';
+                const priority = rec.priority || 'Medium';
+                const category = rec.category || 'IP';
+                
+                return (
+                  <div key={index} className="bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded-lg p-4 border border-blue-400/20">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="h-6 w-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                          <span className="text-blue-400 font-bold text-xs">{index + 1}</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-gray-200 text-sm leading-relaxed mb-2">
+                          {description}
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs border-blue-400/30 text-blue-400">
+                            {category}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs border-yellow-400/30 text-yellow-400">
+                            Priority: {priority}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
