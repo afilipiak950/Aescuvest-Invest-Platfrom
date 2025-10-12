@@ -1378,7 +1378,7 @@ function DueDiligenceContent() {
                       if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
                       if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis || {}).length > 0;
+                      if (agentLower === 'research') return researchAnalysisData?.results && Object.keys(researchAnalysisData.results || {}).length > 0; // FIXED: Research uses .results not .analysis
                       if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
                       return false;
                     })();
