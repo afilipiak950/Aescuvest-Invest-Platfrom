@@ -125,13 +125,12 @@ class AIProcessingTimeoutService {
 
       // Send WebSocket update
       if (job.dealId) {
-        websocketManager.notifyJobUpdate(job.dealId, {
+        websocketManager.broadcastJobProgress({
           jobId: job.jobId,
           status: 'completed',
           progress: 100,
-          currentStep: `Auto-completed after ${minutesStuck} minutes timeout`,
-          message: 'Processing completed automatically due to timeout'
-        });
+          currentStep: `Auto-completed after ${minutesStuck} minutes timeout`
+        }, job.dealId);
       }
 
       console.log(`✅ Successfully handled stuck job ${job.jobId} after ${minutesStuck} minutes`);
@@ -273,13 +272,12 @@ class AIProcessingTimeoutService {
           .where(eq(backgroundJobs.id, job.id));
 
         // Send WebSocket update
-        websocketManager.notifyJobUpdate(dealId, {
+        websocketManager.broadcastJobProgress({
           jobId: job.jobId,
           status: 'completed',
           progress: 100,
-          currentStep: `Force completed: ${reason}`,
-          message: 'Processing force completed successfully'
-        });
+          currentStep: `Force completed: ${reason}`
+        }, dealId);
 
         console.log(`✅ Force completed job ${job.jobId} for deal ${dealId}`);
       }
