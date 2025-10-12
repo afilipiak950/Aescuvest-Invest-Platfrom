@@ -710,7 +710,7 @@ Respond in JSON:
         max_tokens: 16000
       }, {
         maxRetries: 5,
-        timeout: 180000, // 3 minutes for synthesis (larger)
+        timeout: 300000, // 5 minutes for synthesis (increased for large document sets)
         onRetry: (attempt, error) => {
           console.warn(`🔄 Retrying IP final synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
         }
