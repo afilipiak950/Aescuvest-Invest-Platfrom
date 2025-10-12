@@ -705,7 +705,9 @@ Respond in JSON:
         console.log(`🧹 Cleaned up partial results cache for ${question.id}`);
       }
       
-      const evidenceSummary = evidence.map(e => `${e.documentName}: ${e.keyFindings.join(', ')}`).join('\n');
+      const evidenceSummary = evidence.map(e => 
+        `• **${e.documentName}**\n  ${e.keyFindings.map(f => `- ${f}`).join('\n  ')}`
+      ).join('\n\n');
       
       return {
         question: question.question,
@@ -730,7 +732,9 @@ Respond in JSON:
         // Combine partial answers manually
         const combinedAnswer = cachedPartials.map((pa: any) => pa.answer).join(' ');
         const combinedFindings = cachedPartials.flatMap((pa: any) => pa.keyFindings || []);
-        const evidenceSummary = evidence.map(e => `${e.documentName}: ${e.keyFindings.join(', ')}`).join('\n');
+        const evidenceSummary = evidence.map(e => 
+        `• **${e.documentName}**\n  ${e.keyFindings.map(f => `- ${f}`).join('\n  ')}`
+      ).join('\n\n');
         
         return {
           question: question.question,
