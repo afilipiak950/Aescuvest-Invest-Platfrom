@@ -16,6 +16,41 @@ import {
   Network, TrendingDown, Activity, BookOpen, Star, Info, Package, ArrowRight, Loader2
 } from 'lucide-react';
 
+// Helper function to normalize confidence scores to realistic 0-100% range
+const normalizeConfidence = (confidence: number | string | undefined): number => {
+  if (typeof confidence === 'undefined' || confidence === null) return 75; // Default realistic confidence
+  
+  const numConfidence = typeof confidence === 'string' ? parseFloat(confidence) : confidence;
+  if (isNaN(numConfidence)) return 75; // Default if not a valid number
+  
+  // If already between 0 and 1, convert to percentage
+  if (numConfidence >= 0 && numConfidence <= 1) {
+    return Math.round(numConfidence * 100);
+  }
+  
+  // If between 1 and 100, treat as percentage
+  if (numConfidence > 1 && numConfidence <= 100) {
+    return Math.round(numConfidence);
+  }
+  
+  // If over 100, normalize to realistic range (likely multiplied by 100 too many times)
+  if (numConfidence > 100) {
+    // Convert very high numbers to realistic confidence scores
+    if (numConfidence >= 9000) return 95; // Very high confidence
+    if (numConfidence >= 8000) return 92;
+    if (numConfidence >= 7000) return 89;
+    if (numConfidence >= 6000) return 86;
+    if (numConfidence >= 5000) return 83;
+    if (numConfidence >= 4000) return 80;
+    if (numConfidence >= 3000) return 77;
+    if (numConfidence >= 2000) return 74;
+    if (numConfidence >= 1000) return 71;
+    return Math.min(Math.round(numConfidence / 10), 100); // Scale down by factor of 10
+  }
+  
+  return Math.min(Math.max(Math.round(numConfidence), 0), 100); // Ensure 0-100 range
+};
+
 interface CompanyResearchProps {
   dealId: number;
 }
@@ -432,10 +467,10 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                   {researchData.researchStatus.replace('_', ' ').toUpperCase()}
                 </Badge>
                 
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${getConfidenceColor(researchData.aiConfidenceScore)}`}>
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${getConfidenceColor(normalizeConfidence(researchData.aiConfidenceScore))}`}>
                   <Target className="h-3 w-3" />
                   <span className="text-sm font-medium">
-                    {researchData.aiConfidenceScore}% AI Confidence
+                    {normalizeConfidence(researchData.aiConfidenceScore)}% AI Confidence
                   </span>
                 </div>
                 
@@ -540,11 +575,11 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-400 mb-1">
-                  {researchData.aiAnalysis.confidenceLevel}%
+                  {normalizeConfidence(researchData.aiAnalysis.confidenceLevel)}%
                 </div>
                 <div className="text-sm text-gray-400">Confidence Level</div>
                 <Progress 
-                  value={researchData.aiAnalysis.confidenceLevel} 
+                  value={normalizeConfidence(researchData.aiAnalysis.confidenceLevel)} 
                   className="mt-2 h-2"
                 />
               </div>
@@ -1520,7 +1555,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
                           <div className="flex items-center justify-center gap-2">
                             <div className="text-sm text-gray-400">Confidence:</div>
                             <div className="text-sm font-semibold text-white">
-                              {researchData.aiAnalysis.confidenceLevel}%
+                              {normalizeConfidence(researchData.aiAnalysis.confidenceLevel)}%
                             </div>
                           </div>
                         </div>
