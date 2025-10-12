@@ -17,8 +17,8 @@ interface TimeoutConfig {
 
 class AIProcessingTimeoutService {
   private config: TimeoutConfig = {
-    processingTimeout: 240 * 60 * 1000, // 240 minutes (4 hours) - extra long for legal analysis that gets stuck
-    checkInterval: 10 * 60 * 1000, // 10 minute check intervals - less aggressive monitoring
+    processingTimeout: 30 * 60 * 1000, // 30 minutes - aggressive cleanup to prevent stuck jobs
+    checkInterval: 5 * 60 * 1000, // 5 minute check intervals - faster detection of stuck jobs
     maxRetries: 3
   };
   
