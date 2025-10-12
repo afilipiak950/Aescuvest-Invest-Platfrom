@@ -3191,7 +3191,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                                 {/* Show confidence if available */}
                                 {answer.confidence && (
                                   <Badge variant="outline" className="text-green-400 border-green-400">
-                                    {Math.round(answer.confidence * 100)}% confidence
+                                    Confidence: {normalizeConfidence(answer.confidence)}%
                                   </Badge>
                                 )}
                               </div>
