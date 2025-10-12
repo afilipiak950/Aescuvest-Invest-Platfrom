@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 
 interface JobProgress {
-  jobId: number;
+  jobId: string | number;
   progress: number;
   status: string;
   currentStep: string;
