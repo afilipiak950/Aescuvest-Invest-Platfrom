@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Drizzle ORM
 - **File Handling**: Multer for multipart uploads
 - **Authentication**: Passport.js with Express sessions
-- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and automatic stuck job cleanup (removes failed or stale jobs >30min old)
+- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and aggressive stuck job cleanup (auto-removes stuck jobs after 30 minutes, checks every 5 minutes)
 
 ### Key Features
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
     - **Rate limiting**: Centralized 50 calls/min semaphore shared across all agents
     - **Cache cleanup**: Automatic cleanup of partial results after successful synthesis
     - **No document limits**: All agents process ALL relevant documents (removed arbitrary limits like "top 5")
+    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 30 minutes (reduced from 4 hours), with 5-minute monitoring intervals to prevent indefinite processing states
   - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents use identical markdown formatting in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
