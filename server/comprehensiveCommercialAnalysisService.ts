@@ -373,7 +373,7 @@ export class ComprehensiveCommercialAnalysisService {
       const batch = documents.slice(i, i + batchSize);
       console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      const batchResults = await Promise.all(
+      const batchResults = await Promise.allSettled(
         batch.map(async (doc) => {
           console.log(`🔎 Extracting commercial evidence from: ${doc.name}`);
           return this.extractEvidenceFromDocument(doc, question);
@@ -381,9 +381,14 @@ export class ComprehensiveCommercialAnalysisService {
       );
       
       // Filter out null results and add to evidence
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+        .filter(docEvidence => 
+          docEvidence && docEvidence.relevantContent.length > 0
+        );
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant commercial evidence`);
