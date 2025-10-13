@@ -595,15 +595,25 @@ If no relevant content is found, respond with:
       const batchPrompt = `You are a senior IP analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
 Evidence:
-${batch.map(ev => `
+${batch.map(ev => {
+  // CRITICAL FIX: Use fullContent (AI summary) as fallback when relevantContent is empty
+  const content = Array.isArray(ev.relevantContent) && ev.relevantContent.length > 0
+    ? ev.relevantContent.join('; ')
+    : ev.fullContent || ev.documentSummary || 'No content available';
+  
+  const findings = Array.isArray(ev.keyFindings) && ev.keyFindings.length > 0
+    ? ev.keyFindings.join('; ')
+    : 'See content above';
+  
+  return `
 DOCUMENT: ${ev.documentName}
-CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
-FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
-`).join('\n')}
+AI SUMMARY CONTENT: ${content}
+KEY FINDINGS: ${findings}`;
+}).join('\n')}
 
-Extract ALL specific IP details (patents, trademarks, filing dates, claims). Respond in JSON:
+CRITICAL: Extract ALL specific IP details from the AI SUMMARY CONTENT above (patents, trademarks, filing dates, claims). Respond in JSON:
 {
-  "answer": "Detailed extraction with specific IP data and details",
+  "answer": "Detailed extraction with specific IP data and details from the AI summaries",
   "confidence": 0-100,
   "keyFindings": ["Specific finding 1", "Specific finding 2"],
   "sources": ["doc1", "doc2"]
