@@ -586,17 +586,22 @@ class ComprehensiveLegalAnalysisService {
       const batch = documents.slice(i, i + batchSize);
       console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      const batchResults = await Promise.all(
+      const batchResults = await Promise.allSettled(
         batch.map(async (doc) => {
           console.log(`🔎 Extracting evidence from: ${doc.name}`);
           return this.extractEvidenceFromDocument(doc, question);
         })
       );
       
-      // Filter out null results and add to evidence - EXACT Clinical approach
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent.length > 0
-      );
+      // Filter out null results and add to evidence with proper type guards
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+        .filter(docEvidence => 
+          docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
+        );
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
@@ -610,21 +615,38 @@ class ComprehensiveLegalAnalysisService {
    * Extract specific evidence from a single document - AI SUMMARY ONLY VERSION
    */
   private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    // Use ONLY AI summary - combine ALL fields for complete context
+    // Use ONLY AI summary - handle BOTH string and object formats
     const aiSummary = document.aiSummary;
     if (!aiSummary) return null;
     
-    const content = [
-      aiSummary.executiveSummary || '',
-      aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
-      aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
-      aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
-      aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
-      aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
-      aiSummary.strategicImplications || ''
-    ].filter(s => s).join('\n\n');
+    let content: string;
     
-    if (!content) return null;
+    // Handle STRING summaries (most common in production)
+    if (typeof aiSummary === 'string') {
+      content = aiSummary;
+    } 
+    // Handle OBJECT summaries (structured format)
+    else if (typeof aiSummary === 'object') {
+      content = [
+        aiSummary.executiveSummary || '',
+        aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+        aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+        aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+        aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+        aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+        aiSummary.strategicImplications || ''
+      ].filter(s => s).join('\n\n');
+      
+      // Fallback: if all fields are empty, stringify the entire object
+      if (!content) {
+        content = JSON.stringify(aiSummary, null, 2);
+      }
+    } else {
+      // Fallback: convert to string
+      content = String(aiSummary);
+    }
+    
+    if (!content || content.trim().length === 0) return null;
     
     const prompt = `You are an expert legal analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC DETAILS from this document.
 
@@ -794,15 +816,30 @@ REMEMBER: Extract EVERYTHING - more is better! A thorough extraction should be 5
       const batchPrompt = `You are a senior legal analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
 Evidence:
-${batch.map(ev => `
+${batch.map(ev => {
+  // CRITICAL FIX: Use fullContent (AI summary) as fallback when relevantContent is empty
+  const content = Array.isArray(ev.relevantContent) && ev.relevantContent.length > 0
+    ? ev.relevantContent.join('; ')
+    : ev.fullContent || ev.documentSummary || 'No content available';
+  
+  const findings = Array.isArray(ev.keyFindings) && ev.keyFindings.length > 0
+    ? ev.keyFindings.join('; ')
+    : 'See content above';
+  
+  return `
 DOCUMENT: ${ev.documentName}
-CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
-FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
-`).join('\n')}
+AI SUMMARY CONTENT: ${content}
+KEY FINDINGS: ${findings}`;
+}).join('\n')}
 
-Extract ALL specific details (amounts, dates, terms, obligations). Respond in JSON:
+CRITICAL: Extract ALL specific details from the AI SUMMARY CONTENT above:
+- Contract terms, payment amounts, dates, obligations
+- Party names, deliverables, compliance requirements
+- IP terms, liability clauses, termination conditions
+
+Respond in JSON:
 {
-  "answer": "Detailed extraction with specific contract terms, amounts, dates",
+  "answer": "Detailed extraction with specific contract terms, amounts, dates from the AI summaries",
   "confidence": 0-100,
   "keyFindings": ["Specific finding 1", "Specific finding 2"],
   "sources": ["doc1", "doc2"]
