@@ -168,7 +168,7 @@ export default function Dashboard() {
           
           // 🚀 INSTANT ACTIVITIES: Use deal data directly (NO document fetching)
           const quickActivities = dealsData.slice(0, 3).map((deal: any, index: number) => ({
-            id: deal.id + index,
+            id: deal.id * 1000 + index,
             agentType: deal.aiScore ? 'AI Evaluator' : 'Document Processor',
             content: deal.aiScore ? 
               `${deal.companyName} scored ${deal.aiScore}/100` :
@@ -179,7 +179,7 @@ export default function Dashboard() {
           
           // 🚀 INSTANT REMINDERS: Simple static reminders
           const quickReminders = dealsData.slice(0, 2).map((deal: any, index: number) => ({
-            id: deal.id,
+            id: deal.id * 10000 + index,
             title: `Review ${deal.companyName}`,
             description: `${deal.status} - Follow up required`,  
             deadline: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
