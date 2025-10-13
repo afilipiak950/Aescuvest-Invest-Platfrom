@@ -31,13 +31,14 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents use comprehensive document processing (analyzing ALL documents with AI summaries for cross-agent insights), ensuring full analysis runs match rerun quality. Features persistent question reruns with database-backed progress tracking that survives page refreshes and server restarts.
   - **Resilient Architecture (All 7 Comprehensive Agents - Oct 2025)**: Complete architectural alignment achieved. All agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now use identical batch→synthesis flow with:
     - **Token-based batching**: 6K token limit per batch for optimal API efficiency
-    - **Timeout hierarchy**: 90s evidence extraction → 120s batch processing → 180s final synthesis
+    - **Timeout hierarchy**: 90s evidence extraction → 120s batch processing → 180s final synthesis (cleaned conflicting 10s/15s sub-timeouts Oct 13, 2025)
     - **Retry patterns**: 3-5 exponential backoff retries via resilientOpenAI wrapper
     - **Partial result caching**: Global cache persistence with automatic recovery on synthesis failures
     - **Rate limiting**: Centralized 50 calls/min semaphore shared across all agents
     - **Cache cleanup**: Automatic cleanup of partial results after successful synthesis
     - **No document limits**: All agents process ALL relevant documents (removed arbitrary limits like "top 5")
-    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 30 minutes (reduced from 4 hours), with 5-minute monitoring intervals to prevent indefinite processing states
+    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 120 minutes (increased from 30 min Oct 13), with 5-minute monitoring intervals to prevent indefinite processing states
+    - **Promise Resilience (Oct 13, 2025)**: All agents use Promise.allSettled with type guards for error resilience, eliminating failures from single document errors
   - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents use identical markdown formatting in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
@@ -47,6 +48,12 @@ Preferred communication style: Simple, everyday language.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
 - **Large File Upload System**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking, resumable uploads, real-time progress tracking, and integration with document processing via a specialized Cloud Run upload service.
+- **RAG Embedding System (Oct 13, 2025)**: Resilient vector embedding pipeline for instant document search with:
+  - **Timeout Protection**: 30s timeout per embedding API call using Promise.race
+  - **Retry Logic**: 3-attempt exponential backoff (2s → 4s → 8s delays) for timeout/429/5xx errors
+  - **Rate Limiting**: 500ms delay between chunk embeddings to prevent API overload
+  - **Error Classification**: Distinguishes retryable (timeout, rate limit, server errors) vs non-retryable errors
+  - **Prevents 95% Stuck Jobs**: Eliminates socket timeout failures that previously caused jobs to hang at "Adding to RAG system" step
 
 ### Deployment
 - **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
