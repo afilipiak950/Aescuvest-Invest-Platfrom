@@ -37,19 +37,57 @@ export class EmbeddingService {
     return chunks;
   }
 
-  // Generate embedding for text
-  static async generateEmbedding(text: string): Promise<number[]> {
-    try {
-      const response = await openai.embeddings.create({
-        model: EMBEDDING_MODEL,
-        input: text,
-      });
-      
-      return response.data[0].embedding;
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      throw error;
+  // Generate embedding for text with retry logic and timeout
+  static async generateEmbedding(text: string, retries = 3): Promise<number[]> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        // Create timeout promise
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Embedding timeout after 30s')), 30000);
+        });
+        
+        // Race API call against timeout
+        const apiPromise = openai.embeddings.create({
+          model: EMBEDDING_MODEL,
+          input: text,
+        });
+        
+        const response = await Promise.race([apiPromise, timeoutPromise]) as Awaited<typeof apiPromise>;
+        
+        return response.data[0].embedding;
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if this is the last attempt
+        if (attempt === retries) {
+          console.error(`❌ Embedding failed after ${retries + 1} attempts:`, error.message);
+          throw error;
+        }
+        
+        // Determine if we should retry
+        const shouldRetry = 
+          error.message?.includes('timeout') || 
+          error.message?.includes('Socket timeout') ||
+          error.status === 429 || 
+          error.status >= 500;
+        
+        if (!shouldRetry) {
+          console.error(`❌ Non-retryable embedding error:`, error.message);
+          throw error;
+        }
+        
+        // Calculate exponential backoff delay
+        const delay = Math.min(2000 * Math.pow(2, attempt), 30000);
+        console.warn(`⚠️ Embedding attempt ${attempt + 1}/${retries + 1} failed: ${error.message}`);
+        console.warn(`🔄 Retrying in ${Math.round(delay / 1000)}s...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+    
+    throw lastError || new Error('Embedding failed after retries');
   }
 
   // Process and embed a document
@@ -78,9 +116,15 @@ export class EmbeddingService {
     const chunks = this.splitIntoChunks(text);
     console.log(`📄 Split document into ${chunks.length} chunks`);
     
-    // Generate embeddings for each chunk
+    // Generate embeddings for each chunk with rate limiting
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+      
+      // Rate limiting: 500ms delay between embedding calls to prevent API overload
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
       const embedding = await this.generateEmbedding(chunk);
       
       const metadata: ChunkMetadata = {

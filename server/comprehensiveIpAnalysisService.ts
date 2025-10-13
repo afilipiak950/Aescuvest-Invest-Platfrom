@@ -377,31 +377,18 @@ export class ComprehensiveIpAnalysisService {
         return this.extractEvidenceFromDocument(doc, question);
       });
 
-      try {
-        // Add timeout for batch processing (15 seconds max) - EXACT Financial implementation
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Batch processing timeout')), 15000);
-        });
+      // Process batch with error resilience (no batch timeout to prevent conflicts)
+      const results = await Promise.allSettled(batchPromises);
 
-        const results = await Promise.race([
-          Promise.allSettled(batchPromises),
-          timeoutPromise
-        ]) as PromiseSettledResult<IpEvidence | null>[];
+      const validResults = results
+        .filter((result): result is PromiseFulfilledResult<IpEvidence> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value);
 
-        const validResults = results
-          .filter((result): result is PromiseFulfilledResult<IpEvidence> => 
-            result.status === 'fulfilled' && result.value !== null
-          )
-          .map(result => result.value);
-
-        evidence.push(...validResults);
-        
-        console.log(`✅ Batch completed: ${validResults.length}/${batch.length} documents had relevant evidence`);
-
-      } catch (error) {
-        console.log(`⚠️ Batch ${batchIndex + 1} timeout, continuing with next batch`);
-        continue;
-      }
+      evidence.push(...validResults);
+      
+      console.log(`✅ Batch completed: ${validResults.length}/${batch.length} documents had relevant evidence`);
     }
 
     console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${documentsToProcess.length} documents in FAST mode`);

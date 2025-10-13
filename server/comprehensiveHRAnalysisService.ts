@@ -370,24 +370,26 @@ export class ComprehensiveHRAnalysisService {
       const batch = documents.slice(i, i + batchSize);
       console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      // Parallel processing with timeout per document
+      // Parallel processing with error resilience (no per-document timeout to prevent conflicts)
       const batchPromises = batch.map(async (doc) => {
         console.log(`🔎 Extracting evidence from: ${doc.name}`);
         try {
-          return await Promise.race([
-            this.extractEvidenceFromDocument(doc, question),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Document timeout')), 10000)) // 10 second timeout per document
-          ]);
+          return await this.extractEvidenceFromDocument(doc, question);
         } catch (error) {
-          console.log(`⚠️ Skipping ${doc.name} due to timeout/error`);
+          console.log(`⚠️ Skipping ${doc.name} due to error:`, error);
           return null;
         }
       });
       
-      const batchResults = await Promise.all(batchPromises);
-      const validEvidence = batchResults.filter(docEvidence => 
-        docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
-      );
+      const batchResults = await Promise.allSettled(batchPromises);
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+        .filter(docEvidence => 
+          docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
+        );
       evidence.push(...validEvidence);
       
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
