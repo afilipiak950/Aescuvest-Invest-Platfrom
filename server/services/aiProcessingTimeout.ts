@@ -17,7 +17,7 @@ interface TimeoutConfig {
 
 class AIProcessingTimeoutService {
   private config: TimeoutConfig = {
-    processingTimeout: 120 * 60 * 1000, // 120 minutes - allow longer processing for large document sets
+    processingTimeout: 360 * 60 * 1000, // 360 minutes (6 hours) - allow longer processing for large document sets
     checkInterval: 5 * 60 * 1000, // 5 minute check intervals - faster detection of stuck jobs
     maxRetries: 3
   };
