@@ -37,8 +37,9 @@ Preferred communication style: Simple, everyday language.
     - **Rate limiting**: Centralized 50 calls/min semaphore shared across all agents
     - **Cache cleanup**: Automatic cleanup of partial results after successful synthesis
     - **No document limits**: All agents process ALL relevant documents (removed arbitrary limits like "top 5")
-    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 120 minutes (increased from 30 min Oct 13), with 5-minute monitoring intervals to prevent indefinite processing states
+    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 360 minutes (6 hours, increased from 120 min Oct 13), with 5-minute monitoring intervals to prevent indefinite processing states
     - **Promise Resilience (Oct 13, 2025)**: All agents use Promise.allSettled with type guards for error resilience, eliminating failures from single document errors
+    - **Database Column Fix (Oct 13, 2025)**: Fixed critical bug where agent Q&A results weren't saving - all comprehensive agents now use correct snake_case column names (legal_answers, clinical_answers, commercial_answers, hr_answers, financial_answers, ip_answers) matching the PostgreSQL schema instead of incorrect camelCase names that were silently failing to persist data
   - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents use identical markdown formatting in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
