@@ -10,8 +10,8 @@ import { eq, and, lt, or } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 
 interface TimeoutConfig {
-  processingTimeout: number; // 12 hours in milliseconds
-  checkInterval: number; // Check every 30 minutes
+  processingTimeout: number; // 6 hours in milliseconds
+  checkInterval: number; // Check every 5 minutes
   maxRetries: number; // Maximum retry attempts before forcing completion
 }
 
