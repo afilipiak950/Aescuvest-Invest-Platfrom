@@ -1151,16 +1151,26 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
       const batchPrompt = `You are a senior clinical analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
 Evidence:
-${batch.map(ev => `
+${batch.map(ev => {
+  // CRITICAL FIX: Use fullContent (AI summary) as fallback when relevantContent is empty
+  const content = Array.isArray(ev.relevantContent) && ev.relevantContent.length > 0
+    ? ev.relevantContent.join('; ')
+    : ev.fullContent || ev.documentSummary || 'No content available';
+  
+  const findings = Array.isArray(ev.keyFindings) && ev.keyFindings.length > 0
+    ? ev.keyFindings.join('; ')
+    : 'See content above';
+  
+  return `
 DOCUMENT: ${ev.documentName}
-CONTENT: ${Array.isArray(ev.relevantContent) ? ev.relevantContent.join('; ') : ev.relevantContent}
-FINDINGS: ${Array.isArray(ev.keyFindings) ? ev.keyFindings.join('; ') : ev.keyFindings}
-CLINICAL METRICS: ${JSON.stringify(ev.clinicalMetrics || {})}
-`).join('\n')}
+AI SUMMARY CONTENT: ${content}
+KEY FINDINGS: ${findings}
+CLINICAL METRICS: ${JSON.stringify(ev.clinicalMetrics || {})}`;
+}).join('\n')}
 
-Extract ALL specific details (trial phases, patient numbers, efficacy metrics, safety data). Respond in JSON:
+CRITICAL: Extract ALL specific details from the AI SUMMARY CONTENT above (trial phases, patient numbers, efficacy metrics, safety data). Respond in JSON:
 {
-  "answer": "Detailed extraction with specific clinical data, trial results, regulatory status",
+  "answer": "Detailed extraction with specific clinical data, trial results, regulatory status from the AI summaries",
   "confidence": 0-100,
   "keyFindings": ["Specific finding 1", "Specific finding 2"],
   "sources": ["doc1", "doc2"]
