@@ -908,7 +908,7 @@ Respond in JSON:
         progress: 100,
         findings: JSON.stringify(findings),
         recommendations: JSON.stringify(recommendations),
-        commercialAnswers: JSON.stringify(commercialAnswers),
+        commercial_answers: JSON.stringify(commercialAnswers),
         documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
         createdAt: new Date(),
         updatedAt: new Date()

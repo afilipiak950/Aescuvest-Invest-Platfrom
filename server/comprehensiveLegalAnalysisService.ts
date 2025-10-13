@@ -1118,7 +1118,7 @@ Respond in JSON:
       progress: 100,
       findings: JSON.stringify(findings),
       recommendations: JSON.stringify(recommendations),
-      legalAnswers: JSON.stringify(legalAnswers),
+      legal_answers: JSON.stringify(legalAnswers),
       documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
       createdAt: new Date(),
       updatedAt: new Date()
