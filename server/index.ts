@@ -31,6 +31,31 @@ import { persistentHRRoutes } from './routes/persistentHRRoutes';
 
 const app = express();
 
+// ⚡ CRITICAL: Health check MUST be FIRST for Cloud Run to recognize service is ready
+// Cloud Run requires immediate response from health endpoint, BEFORE any middleware
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'aescuvest-api',
+    environment: process.env.NODE_ENV || 'development',
+    port: process.env.PORT || 5000
+  });
+});
+
+// Also add root health check for Cloud Run default behavior  
+app.get('/', (req: Request, res: Response, next: NextFunction) => {
+  // If it's a health check request (common for Cloud Run), respond immediately
+  if (req.headers['user-agent']?.includes('GoogleHC')) {
+    return res.status(200).json({ 
+      status: 'healthy',
+      service: 'aescuvest-api',
+      message: 'Server is running'
+    });
+  }
+  next();
+});
+
 // 🚨 ULTRA-EARLY DEBUG: Catch ALL requests before ANY middleware
 app.use((req, res, next) => {
   console.log(`🔍 ULTRA-EARLY DEBUG: ${req.method} ${req.path} - BEFORE ALL MIDDLEWARE`);
@@ -40,16 +65,6 @@ app.use((req, res, next) => {
     console.log(`🚨 ULTRA-EARLY DELETE: Original URL = ${req.originalUrl}`);
   }
   next();
-});
-
-// Health check endpoint for Cloud Run
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ 
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    service: 'aescuvest-api',
-    environment: process.env.NODE_ENV || 'development'
-  });
 });
 
 // 🚨🚨🚨 CRITICAL: Register critical endpoints FIRST before ANY middleware to bypass Vite
