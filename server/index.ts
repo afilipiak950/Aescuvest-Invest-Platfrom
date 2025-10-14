@@ -1268,39 +1268,58 @@ app.use((req, res, next) => {
   // Set max listeners to handle concurrent uploads
   server.setMaxListeners(50);
   
+  // ⚡ CLOUD RUN FIX: Log startup sequence for debugging
+  console.log('🚀 Starting server initialization...');
+  console.log('📊 Environment check:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT || 5000,
+    DATABASE_URL: process.env.DATABASE_URL ? '✅ Set' : '❌ Missing',
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? '✅ Set' : '❌ Missing',
+    platform: process.env.K_SERVICE ? 'Cloud Run' : (process.env.REPL_ID ? 'Replit' : 'Local')
+  });
+
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
+    console.log(`✅ SERVER READY - Listening on ${port}`);
     log(`serving on port ${port} with extended timeouts for large uploads`);
     
-    // Start AI Processing Timeout Service
-    console.log('🚀 Starting AI Processing Timeout Service...');
-    aiProcessingTimeoutService.start();
-    
-    // Initialize Persistent Clinical Analysis Service
-    console.log('🧬 Initializing Persistent Clinical Analysis Service...');
-    persistentClinicalAnalysisService.initialize().catch(err => {
-      console.error('❌ Failed to initialize persistent clinical analysis:', err);
-    });
-    
-    // Initialize Persistent Legal Analysis Service
-    console.log('🔍 Initializing Persistent Legal Analysis Service...');
-    persistentLegalAnalysisService.initialize().catch(err => {
-      console.error('❌ Failed to initialize persistent legal analysis:', err);
-    });
-    
-    // Initialize Persistent Research Analysis Service
-    console.log('🔬 Initializing Persistent Research Analysis Service...');
-    persistentResearchAnalysisService.initialize().catch(err => {
-      console.error('❌ Failed to initialize persistent research analysis:', err);
-    });
+    // ⚡ DEFER heavy initialization to AFTER server is listening
+    // This ensures Cloud Run health checks pass before expensive operations
+    setImmediate(() => {
+      console.log('🔄 Starting background services (deferred)...');
+      
+      // Start AI Processing Timeout Service
+      console.log('🚀 Starting AI Processing Timeout Service...');
+      aiProcessingTimeoutService.start();
+      
+      // Initialize Persistent Clinical Analysis Service
+      console.log('🧬 Initializing Persistent Clinical Analysis Service...');
+      persistentClinicalAnalysisService.initialize().catch(err => {
+        console.error('❌ Failed to initialize persistent clinical analysis:', err);
+      });
+      
+      // Initialize Persistent Legal Analysis Service
+      console.log('🔍 Initializing Persistent Legal Analysis Service...');
+      persistentLegalAnalysisService.initialize().catch(err => {
+        console.error('❌ Failed to initialize persistent legal analysis:', err);
+      });
+      
+      // Initialize Persistent Research Analysis Service
+      console.log('🔬 Initializing Persistent Research Analysis Service...');
+      persistentResearchAnalysisService.initialize().catch(err => {
+        console.error('❌ Failed to initialize persistent research analysis:', err);
+      });
 
-    // Initialize Persistent Financial Analysis Service
-    console.log('💰 Initializing Persistent Financial Analysis Service...');
-    persistentFinancialAnalysisService.initialize().catch(err => {
-      console.error('❌ Failed to initialize persistent financial analysis:', err);
+      // Initialize Persistent Financial Analysis Service
+      console.log('💰 Initializing Persistent Financial Analysis Service...');
+      persistentFinancialAnalysisService.initialize().catch(err => {
+        console.error('❌ Failed to initialize persistent financial analysis:', err);
+      });
+      
+      console.log('✅ All background services initialized');
     });
   });
 })();
