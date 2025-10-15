@@ -1090,43 +1090,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.deleteBackgroundUploadsByDealId(dealId);
         console.log(`✅ Step 7 complete: Background uploads deleted for deal ${dealId}`);
         
+        // Delete persistent upload sessions (CRITICAL for foreign key constraint)
+        console.log(`🗑️ Step 8: Deleting persistent upload sessions for deal ${dealId}...`);
+        await storage.deletePersistentUploadSessionsByDealId(dealId);
+        console.log(`✅ Step 8 complete: Persistent upload sessions deleted for deal ${dealId}`);
+        
         // Delete investor matches
-        console.log(`🗑️ Step 8: Deleting investor matches for deal ${dealId}...`);
+        console.log(`🗑️ Step 9: Deleting investor matches for deal ${dealId}...`);
         await storage.deleteInvestorMatchesByDealId(dealId);
-        console.log(`✅ Step 8 complete: Investor matches deleted for deal ${dealId}`);
+        console.log(`✅ Step 9 complete: Investor matches deleted for deal ${dealId}`);
         
         // Delete investment memos
-        console.log(`🗑️ Step 9: Deleting investment memos for deal ${dealId}...`);
+        console.log(`🗑️ Step 10: Deleting investment memos for deal ${dealId}...`);
         await storage.deleteInvestmentMemosByDealId(dealId);
-        console.log(`✅ Step 9 complete: Investment memos deleted for deal ${dealId}`);
+        console.log(`✅ Step 10 complete: Investment memos deleted for deal ${dealId}`);
         
         // Delete automation executions
-        console.log(`🗑️ Step 10: Deleting automation executions for deal ${dealId}...`);
+        console.log(`🗑️ Step 11: Deleting automation executions for deal ${dealId}...`);
         await storage.deleteAutomationExecutionsByDealId(dealId);
-        console.log(`✅ Step 10 complete: Automation executions deleted for deal ${dealId}`);
+        console.log(`✅ Step 11 complete: Automation executions deleted for deal ${dealId}`);
         
         // Delete research background jobs
-        console.log(`🗑️ Step 11: Deleting research background jobs for deal ${dealId}...`);
+        console.log(`🗑️ Step 12: Deleting research background jobs for deal ${dealId}...`);
         await storage.deleteResearchBackgroundJobsByDealId(dealId);
-        console.log(`✅ Step 11 complete: Research background jobs deleted for deal ${dealId}`);
+        console.log(`✅ Step 12 complete: Research background jobs deleted for deal ${dealId}`);
         
         // Finally delete the deal
-        console.log(`🗑️ Step 12: Deleting the deal ${dealId} itself...`);
+        console.log(`🗑️ Step 13: Deleting the deal ${dealId} itself...`);
         const deleted = await storage.deleteDeal(dealId);
         
         if (!deleted) {
-          console.log(`❌ Step 12 FAILED: storage.deleteDeal() returned false for deal ${dealId}`);
+          console.log(`❌ Step 13 FAILED: storage.deleteDeal() returned false for deal ${dealId}`);
           return res.status(500).json({ message: 'Failed to delete deal from database' });
         }
         
-        console.log(`✅ Step 12 complete: Deal ${dealId} deleted successfully`);
+        console.log(`✅ Step 13 complete: Deal ${dealId} deleted successfully`);
 
         // 🚨 CRITICAL FIX: Clear ALL caches after deal deletion
-        console.log(`🧹 Step 13: Clearing all caches for deal ${dealId}...`);
+        console.log(`🧹 Step 14: Clearing all caches for deal ${dealId}...`);
         clearPaginatedDocumentCache(dealId);
         await storage.invalidateDocumentCache(dealId);
         await storage.invalidateDealCache();
-        console.log(`✅ Step 13 complete: All caches cleared for deal ${dealId}`);
+        console.log(`✅ Step 14 complete: All caches cleared for deal ${dealId}`);
 
         console.log(`🎉 Successfully deleted deal ${dealId} and all related data`);
         return res.status(200).json({ 
