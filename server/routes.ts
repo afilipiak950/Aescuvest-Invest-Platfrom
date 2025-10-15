@@ -1119,7 +1119,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: 'Failed to delete deal from database' });
         }
         
-        console.log(`✅ Step 7 complete: Deal ${dealId} deleted successfully`);
+        console.log(`✅ Step 12 complete: Deal ${dealId} deleted successfully`);
+
+        // 🚨 CRITICAL FIX: Clear ALL caches after deal deletion
+        console.log(`🧹 Step 13: Clearing all caches for deal ${dealId}...`);
+        clearPaginatedDocumentCache(dealId);
+        await storage.invalidateDocumentCache(dealId);
+        await storage.invalidateDealCache();
+        console.log(`✅ Step 13 complete: All caches cleared for deal ${dealId}`);
 
         console.log(`🎉 Successfully deleted deal ${dealId} and all related data`);
         return res.status(200).json({ 
