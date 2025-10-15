@@ -4063,6 +4063,72 @@ ${document.ocrText}`
   const aiProcessingLimiter = new Map<number, number>();
   const AI_PROCESSING_COOLDOWN = 300000; // 5 minutes cooldown
 
+  // 🚨 EMERGENCY: Reprocess documents with failed/empty OCR
+  app.post('/api/deals/:dealId/reprocess-failed-ocr', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      // Get all documents with empty or failed OCR (including "Analyzed" status)
+      const dealDocuments = await storage.getDocumentsByDealIdFresh(dealId);
+      const failedDocuments = dealDocuments.filter(doc => 
+        !doc.ocrText || 
+        doc.ocrText.trim().length === 0 || 
+        doc.ocrText.includes('OCR FAILED') ||
+        doc.ocrText.includes('OCR processing failed')
+      );
+      
+      if (failedDocuments.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No documents require OCR reprocessing - all have valid content',
+          documentsProcessed: 0
+        });
+      }
+
+      console.log(`🔄 Reprocessing ${failedDocuments.length} documents with failed/empty OCR for deal ${dealId}`);
+      
+      // Queue OCR jobs for failed documents
+      let queuedCount = 0;
+      for (const doc of failedDocuments) {
+        try {
+          const { backgroundJobManager } = await import('./services/backgroundJobManager');
+          await backgroundJobManager.addJob({
+            jobType: 'ocr',
+            dealId: doc.dealId,
+            documentId: doc.id,
+            jobData: {
+              filePath: doc.path,
+              fileType: doc.type,
+              documentId: doc.id
+            }
+          });
+          queuedCount++;
+        } catch (error) {
+          console.error(`Failed to queue OCR for document ${doc.id}:`, error);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Queued ${queuedCount} documents for OCR reprocessing`,
+        totalFailed: failedDocuments.length,
+        documentsProcessed: queuedCount,
+        failedExamples: failedDocuments.slice(0, 3).map(d => ({ 
+          id: d.id, 
+          name: d.name,
+          currentOcrText: d.ocrText?.substring(0, 100) 
+        }))
+      });
+    } catch (error) {
+      console.error('Failed to reprocess OCR:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to queue OCR reprocessing',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Batch process OCR for all pending documents in a deal
   app.post('/api/deals/:dealId/process-pending-ocr', async (req: Request, res: Response) => {
     try {
