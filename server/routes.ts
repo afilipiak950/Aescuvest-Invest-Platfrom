@@ -1233,7 +1233,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const document = await storage.createDocument(result.data);
         documents.push(document);
+
+        // 🚨 CRITICAL FIX: Queue OCR processing for each uploaded document
+        const { backgroundJobManager } = await import('./services/backgroundJobManager');
+        await backgroundJobManager.addJob({
+          jobType: 'ocr',
+          dealId: dealId,
+          documentId: document.id,
+          jobData: {
+            filePath: file.path,
+            fileType: fileExt,
+            documentId: document.id
+          }
+        });
+        console.log(`✅ Queued OCR processing for: ${file.originalname}`);
       }
+
+      // 🚨 CRITICAL FIX: Clear cache so documents appear in UI immediately
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      console.log(`🧹 Cleared all caches for deal ${dealId} after upload`);
       
       return res.status(201).json(documents);
     } catch (error) {
@@ -9486,6 +9505,25 @@ export async function registerAllRoutes(app: Express) {
           folderId: folderName || 'Large Files',
           uploadedAt: new Date()
         });
+
+        // 🚨 CRITICAL FIX: Clear cache so document appears in UI immediately
+        clearPaginatedDocumentCache(dealId);
+        await storage.invalidateDocumentCache(dealId);
+        console.log(`🧹 Cleared all caches for deal ${dealId} after large file upload`);
+
+        // 🚨 CRITICAL FIX: Queue OCR processing for the uploaded document
+        const { backgroundJobManager } = await import('./services/backgroundJobManager');
+        await backgroundJobManager.addJob({
+          jobType: 'ocr',
+          dealId: dealId,
+          documentId: document.id,
+          jobData: {
+            filePath: filePath,
+            fileType: document.type,
+            documentId: document.id
+          }
+        });
+        console.log(`✅ Queued OCR processing for large file: ${fileName}`);
 
         res.json({
           success: true,
