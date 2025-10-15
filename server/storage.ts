@@ -159,6 +159,7 @@ export interface IStorage {
   deleteComprehensiveAnalysesByDealId(dealId: number): Promise<number>;
   deleteComprehensiveHrAnalysesByDealId(dealId: number): Promise<number>;
   deleteBackgroundUploadsByDealId(dealId: number): Promise<number>;
+  deletePersistentUploadSessionsByDealId(dealId: number): Promise<number>;
   deleteInvestorMatchesByDealId(dealId: number): Promise<number>;
   deleteInvestmentMemosByDealId(dealId: number): Promise<number>;
   deleteAutomationExecutionsByDealId(dealId: number): Promise<number>;
@@ -1575,6 +1576,21 @@ export class DatabaseStorage implements IStorage {
       return count;
     } catch (error) {
       console.error(`❌ DatabaseStorage: Error deleting background uploads for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deletePersistentUploadSessionsByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🗑️ DatabaseStorage: Deleting persistent upload sessions for deal ${dealId}...`);
+      // Import persistentUploadSessions from schema
+      const { persistentUploadSessions } = await import('../shared/schema');
+      const result = await db.delete(persistentUploadSessions).where(eq(persistentUploadSessions.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ DatabaseStorage: Deleted ${count} persistent upload session record(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ DatabaseStorage: Error deleting persistent upload sessions for deal ${dealId}:`, error);
       return 0;
     }
   }
