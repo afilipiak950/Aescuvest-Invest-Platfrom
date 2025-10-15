@@ -1278,6 +1278,30 @@ app.use((req, res, next) => {
     platform: process.env.K_SERVICE ? 'Cloud Run' : (process.env.REPL_ID ? 'Replit' : 'Local')
   });
 
+  // 🚨 Add error handler for server
+  server.on('error', (error: any) => {
+    console.error('❌ Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${port} is already in use`);
+      process.exit(1);
+    } else {
+      console.error('❌ Unexpected server error:', error);
+      process.exit(1);
+    }
+  });
+
+  // 🚨 Add unhandled rejection handler
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit on unhandled rejections in production, just log them
+  });
+
+  // 🚨 Add uncaught exception handler
+  process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    // For production stability, log but don't exit
+  });
+
   server.listen({
     port,
     host: "0.0.0.0",
@@ -1322,4 +1346,8 @@ app.use((req, res, next) => {
       console.log('✅ All background services initialized');
     });
   });
-})();
+})().catch((error) => {
+  console.error('❌ Fatal startup error:', error);
+  console.error('Stack trace:', error.stack);
+  process.exit(1);
+});
