@@ -492,7 +492,14 @@ class JobProcessor {
     let aiSummaryStatus = 'failed';
 
     // Generate AI summary automatically if we have extracted text (optimized)
-    if (ocrResult.extractedText && ocrResult.extractedText.trim().length > 50) {
+    // Skip if OCR failed with error messages
+    const isOcrFailure = ocrResult.extractedText && (
+      ocrResult.extractedText.includes('OCR FAILED') ||
+      ocrResult.extractedText.includes('OCR processing failed') ||
+      ocrResult.extractedText.includes('MISTRAL_API_KEY not configured')
+    );
+    
+    if (ocrResult.extractedText && ocrResult.extractedText.trim().length > 50 && !isOcrFailure) {
       try {
         await this.updateJobProgress(job.id, 70, 'Generating intelligent document summary...');
         

@@ -6,6 +6,12 @@ import XLSX from 'xlsx';
 import mammoth from 'mammoth';
 import { gcsService } from './googleCloudStorage';
 
+// Validate MISTRAL_API_KEY at startup for production safety
+if (!process.env.MISTRAL_API_KEY) {
+  console.error('⚠️ CRITICAL: MISTRAL_API_KEY not configured! OCR processing will fail.');
+  console.error('⚠️ Set MISTRAL_API_KEY in Cloud Run environment variables immediately.');
+}
+
 const mistral = new Mistral({
   apiKey: process.env.MISTRAL_API_KEY || '',
 });
@@ -18,6 +24,16 @@ export class MistralOCRService {
     processingTime: string;
   }> {
     const startTime = Date.now();
+    
+    // CRITICAL: Check for API key before processing
+    if (!process.env.MISTRAL_API_KEY) {
+      console.error('❌ MISTRAL_API_KEY missing - OCR cannot proceed');
+      return {
+        extractedText: 'OCR FAILED: MISTRAL_API_KEY not configured in environment variables. Please set the API key in Cloud Run configuration.',
+        confidence: 0.0,
+        processingTime: '0s'
+      };
+    }
     
     try {
       // Handle GCS files - download to local temp if needed
