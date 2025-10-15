@@ -60,6 +60,8 @@ export interface IStorage {
   updateDocumentWithOCR(id: number, ocrText: string, status: string): Promise<Document | undefined>;
   deleteDocuments(fileIds: number[]): Promise<number>;
   deleteDocumentsByDealId(dealId: number): Promise<number>;
+  deleteDocumentEmbeddings(documentIds: number[]): Promise<number>;
+  deleteDocumentEmbeddingsByDealId(dealId: number): Promise<number>;
   
   // Agent analysis methods
   getAllAnalyses(): Promise<AgentAnalysis[]>;
@@ -796,6 +798,10 @@ export class DatabaseStorage implements IStorage {
   async deleteDocuments(fileIds: number[]): Promise<number> {
     if (fileIds.length === 0) return 0;
     
+    // Delete embeddings first (foreign key constraint)
+    console.log(`🗑️ Step 1: Deleting embeddings for ${fileIds.length} documents...`);
+    await this.deleteDocumentEmbeddings(fileIds);
+    
     // Get document info including file paths before deletion
     const docsToDelete = await db.select({ 
       id: documents.id,
@@ -806,7 +812,7 @@ export class DatabaseStorage implements IStorage {
       .from(documents)
       .where(inArray(documents.id, fileIds));
     
-    console.log(`🗑️ Found ${docsToDelete.length} documents to delete from storage and database`);
+    console.log(`🗑️ Step 2: Found ${docsToDelete.length} documents to delete from storage and database`);
     
     // Delete files from GCS storage first
     const { gcsStorage } = await import('./services/gcsStorage');
@@ -844,12 +850,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocumentsByDealId(dealId: number): Promise<number> {
     try {
+      // Delete embeddings first (foreign key constraint)
+      console.log(`🗑️ Deleting embeddings for deal ${dealId}...`);
+      await this.deleteDocumentEmbeddingsByDealId(dealId);
+      
       const result = await db.delete(documents).where(eq(documents.dealId, dealId));
       // Clear cache for this deal
       documentCache.delete(dealId);
       return result.rowCount || 0;
     } catch (error) {
       console.error(`Error deleting documents for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async deleteDocumentEmbeddings(documentIds: number[]): Promise<number> {
+    if (documentIds.length === 0) return 0;
+    
+    try {
+      const { documentEmbeddings } = await import('../shared/schema');
+      const result = await db.delete(documentEmbeddings)
+        .where(inArray(documentEmbeddings.documentId, documentIds));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ Deleted ${count} document embedding(s) for ${documentIds.length} documents`);
+      return count;
+    } catch (error) {
+      console.error(`❌ Error deleting document embeddings:`, error);
+      return 0;
+    }
+  }
+
+  async deleteDocumentEmbeddingsByDealId(dealId: number): Promise<number> {
+    try {
+      const { documentEmbeddings } = await import('../shared/schema');
+      const result = await db.delete(documentEmbeddings)
+        .where(eq(documentEmbeddings.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ Deleted ${count} document embedding(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`❌ Error deleting document embeddings for deal:`, error);
       return 0;
     }
   }
