@@ -5931,14 +5931,9 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           let recommendations = [];
           
           try {
-            // Handle both camelCase and snake_case field names like HR pattern
-            if (analysis.financialAnswers) {
-              const financialAnswersData = analysis.financialAnswers;
-              financialAnswers = typeof financialAnswersData === 'string' 
-                ? JSON.parse(financialAnswersData) 
-                : financialAnswersData;
-            } else if (analysis.financial_answers) {
-              const financialAnswersData = analysis.financial_answers;
+            // Handle both snake_case (database) and camelCase (legacy) - CHECK DATABASE FIRST!
+            if (analysis.financial_answers || analysis.financialAnswers) {
+              const financialAnswersData = analysis.financial_answers || analysis.financialAnswers;
               financialAnswers = typeof financialAnswersData === 'string' 
                 ? JSON.parse(financialAnswersData) 
                 : financialAnswersData;
@@ -5998,17 +5993,14 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           let findings = [];
           let recommendations = [];
           
-          // Parse stored JSON data - EXACT Financial approach with field name fallback
+          // Parse stored JSON data - CHECK DATABASE COLUMN (snake_case) FIRST!
           try {
-            // Use comprehensive field first, then fallback to legacy field
-            if (analysis.ipAnswers) {
-              ipAnswers = typeof analysis.ipAnswers === 'string' 
-                ? JSON.parse(analysis.ipAnswers) 
-                : analysis.ipAnswers;
-            } else if (analysis.ip_answers) {
-              ipAnswers = typeof analysis.ip_answers === 'string' 
-                ? JSON.parse(analysis.ip_answers) 
-                : analysis.ip_answers;
+            // Use database field (snake_case) first, then fallback to legacy (camelCase)
+            if (analysis.ip_answers || analysis.ipAnswers) {
+              const ipAnswersData = analysis.ip_answers || analysis.ipAnswers;
+              ipAnswers = typeof ipAnswersData === 'string' 
+                ? JSON.parse(ipAnswersData) 
+                : ipAnswersData;
             }
             if (analysis.findings) {
               findings = typeof analysis.findings === 'string' 
@@ -6057,17 +6049,14 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           let findings = [];
           let recommendations = [];
           
-          // Parse stored JSON data - EXACT Financial approach with field name fallback
+          // Parse stored JSON data - CHECK DATABASE COLUMN (snake_case) FIRST!
           try {
-            // Use comprehensive field first, then fallback to legacy field
-            if (analysis.researchAnswers) {
-              researchAnswers = typeof analysis.researchAnswers === 'string' 
-                ? JSON.parse(analysis.researchAnswers) 
-                : analysis.researchAnswers;
-            } else if (analysis.research_answers) {
-              researchAnswers = typeof analysis.research_answers === 'string' 
-                ? JSON.parse(analysis.research_answers) 
-                : analysis.research_answers;
+            // Use database field (snake_case) first, then fallback to legacy (camelCase)
+            if (analysis.research_answers || analysis.researchAnswers) {
+              const researchAnswersData = analysis.research_answers || analysis.researchAnswers;
+              researchAnswers = typeof researchAnswersData === 'string' 
+                ? JSON.parse(researchAnswersData) 
+                : researchAnswersData;
             }
             if (analysis.findings) {
               findings = typeof analysis.findings === 'string' 
