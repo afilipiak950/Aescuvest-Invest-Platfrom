@@ -6563,13 +6563,13 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Parse financial answers if they exist
+      // Parse financial answers if they exist - READ FROM CORRECT SNAKE_CASE COLUMN
       let financialAnswers = {};
-      if (analysis.financialAnswers) {
+      if (analysis.financial_answers) {
         try {
-          financialAnswers = typeof analysis.financialAnswers === 'string' 
-            ? JSON.parse(analysis.financialAnswers) 
-            : analysis.financialAnswers;
+          financialAnswers = typeof analysis.financial_answers === 'string' 
+            ? JSON.parse(analysis.financial_answers) 
+            : analysis.financial_answers;
         } catch (error) {
           console.error('Error parsing financial answers:', error);
         }
