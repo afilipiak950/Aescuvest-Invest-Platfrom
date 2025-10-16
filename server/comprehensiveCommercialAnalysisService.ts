@@ -900,7 +900,7 @@ Respond in JSON:
       
       console.log(`🗑️ Cleared existing commercial analysis for deal ${dealId}`);
       
-      // Create the new comprehensive analysis - Fixed to use correct Drizzle property names
+      // Create the new comprehensive analysis - Fixed to use correct snake_case column names (not TypeScript property names)
       const analysisData = {
         dealId,
         agentType: 'commercial' as const,
@@ -908,7 +908,7 @@ Respond in JSON:
         progress: 100,
         findings: findings,
         recommendations: recommendations,
-        commercialAnswers: commercialAnswers,
+        commercial_answers: commercialAnswers,
         documentSources: assignedDocuments.map((d: any) => d.name),
         createdAt: new Date(),
         updatedAt: new Date()
