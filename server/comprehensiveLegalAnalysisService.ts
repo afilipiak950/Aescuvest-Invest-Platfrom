@@ -1095,7 +1095,7 @@ Respond in JSON:
     
     console.log(`🗑️ Cleared existing legal analysis for deal ${dealId}`);
     
-    // Create the new comprehensive analysis
+    // Create the new comprehensive analysis - Fixed to use correct snake_case column names (not TypeScript property names)
     const analysisData = {
       dealId,
       agentType: 'Legal' as const,
@@ -1103,7 +1103,7 @@ Respond in JSON:
       progress: 100,
       findings: findings,
       recommendations: recommendations,
-      legalAnswers: legalAnswers,
+      legal_answers: legalAnswers,
       documentSources: documentsAnalyzed.map(d => d.name),
       createdAt: new Date(),
       updatedAt: new Date()
