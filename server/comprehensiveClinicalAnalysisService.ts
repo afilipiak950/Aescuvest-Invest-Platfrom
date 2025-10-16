@@ -2015,7 +2015,7 @@ export async function rerunSingleClinicalQuestion(
         recommendationsLength: existingAnalysis.recommendations?.length || 0
       })}`);
       
-      // Parse existing clinicalAnswers if they exist
+      // Parse existing clinicalAnswers if they exist (TypeScript property name)
       if (existingAnalysis.clinicalAnswers && typeof existingAnalysis.clinicalAnswers === 'object') {
         clinicalAnswers = existingAnalysis.clinicalAnswers;
       }
@@ -2040,14 +2040,14 @@ export async function rerunSingleClinicalQuestion(
     
     let newAnalysis;
     if (existingAnalysis) {
-      // Update existing analysis with new clinical answers
+      // Update existing analysis (use TypeScript property name - Drizzle maps to DB column)
       console.log(`🔄 Updating existing clinical analysis for deal ${dealId}`);
       newAnalysis = await storage.updateAgentAnalysis(existingAnalysis.id, {
         clinicalAnswers,
         updatedAt: new Date()
       });
     } else {
-      // Create fresh comprehensive clinical analysis
+      // Create fresh comprehensive clinical analysis (use TypeScript property name)
       console.log(`✨ Creating new clinical analysis for deal ${dealId}`);
       newAnalysis = await storage.createAgentAnalysis({
         dealId,

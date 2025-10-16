@@ -1000,8 +1000,8 @@ Respond in JSON:
         
         commercialAnswers[questionId] = answer;
         
-        await storage.updateAgentAnalysis(dealId, 'Commercial', {
-          commercialAnswers: commercialAnswers
+        await storage.updateAgentAnalysis(existingAnalysis.id, {
+          commercialAnswers
         });
         
         console.log(`✅ Updated commercial analysis with new answer for question ${questionId}`);
@@ -1011,7 +1011,7 @@ Respond in JSON:
           dealId,
           agentType: 'Commercial',
           status: 'completed',
-          commercialAnswers: commercialAnswers
+          commercialAnswers
         });
         console.log(`✅ Created new commercial analysis with answer for question ${questionId}`);
       }
