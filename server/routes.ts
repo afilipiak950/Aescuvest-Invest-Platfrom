@@ -6563,13 +6563,14 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Parse financial answers if they exist
+      // Parse financial answers if they exist - FIXED to match HR/Commercial/Clinical pattern
       let financialAnswers = {};
-      if (analysis.financialAnswers) {
+      if (analysis.financial_answers || analysis.financialAnswers) {
         try {
-          financialAnswers = typeof analysis.financialAnswers === 'string' 
-            ? JSON.parse(analysis.financialAnswers) 
-            : analysis.financialAnswers;
+          const financialAnswersData = analysis.financial_answers || analysis.financialAnswers;
+          financialAnswers = typeof financialAnswersData === 'string' 
+            ? JSON.parse(financialAnswersData) 
+            : financialAnswersData;
         } catch (error) {
           console.error('Error parsing financial answers:', error);
         }
