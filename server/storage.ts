@@ -1839,10 +1839,10 @@ export class DatabaseStorage implements IStorage {
           updateData.commercialAnswers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'financial' && analysisData.results) {
-          updateData.financialAnswers = analysisData.results;
+          updateData.financial_answers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'hr' && analysisData.results) {
-          updateData.hrAnswers = analysisData.results;
+          updateData.hr_answers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'ip' && analysisData.results) {
           updateData.ip_answers = analysisData.results;
@@ -1880,10 +1880,10 @@ export class DatabaseStorage implements IStorage {
           insertData.commercialAnswers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'financial' && analysisData.results) {
-          insertData.financialAnswers = analysisData.results;
+          insertData.financial_answers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'hr' && analysisData.results) {
-          insertData.hrAnswers = analysisData.results;
+          insertData.hr_answers = analysisData.results;
         }
         if (agentType.toLowerCase() === 'ip' && analysisData.results) {
           insertData.ip_answers = analysisData.results;

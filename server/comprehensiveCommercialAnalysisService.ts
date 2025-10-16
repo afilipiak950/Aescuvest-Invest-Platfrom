@@ -900,16 +900,16 @@ Respond in JSON:
       
       console.log(`🗑️ Cleared existing commercial analysis for deal ${dealId}`);
       
-      // Create the new comprehensive analysis - EXACT copy of Legal structure
+      // Create the new comprehensive analysis - Fixed to use correct Drizzle property names
       const analysisData = {
         dealId,
         agentType: 'commercial' as const,
         status: 'completed' as const,
         progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        commercial_answers: JSON.stringify(commercialAnswers),
-        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        findings: findings,
+        recommendations: recommendations,
+        commercialAnswers: commercialAnswers,
+        documentSources: assignedDocuments.map((d: any) => d.name),
         createdAt: new Date(),
         updatedAt: new Date()
       };

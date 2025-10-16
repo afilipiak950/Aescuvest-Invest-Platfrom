@@ -5,8 +5,7 @@
  */
 
 import { db } from './db';
-import { documents, agentAnalyses, backgroundJobs } from '../shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { documents, agentAnalyses } from '../shared/schema';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 
@@ -303,9 +302,7 @@ class ComprehensiveLegalAnalysisService {
    */
   async getQuestionRerunProgress(dealId: number, questionId: string): Promise<number> {
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
     return job?.progress || 0;
   }
   
@@ -315,24 +312,19 @@ class ComprehensiveLegalAnalysisService {
   public async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
-    // Check if job exists
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    // Check if job exists using storage service
+    const existingJob = await storage.getBackgroundJobById(jobId);
     
     if (existingJob) {
-      // Update existing job
-      await db.update(backgroundJobs)
-        .set({ 
-          progress,
-          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
-          updatedAt: new Date(),
-          completedAt: progress === 100 ? new Date() : null
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Update existing job using storage service
+      await storage.updateBackgroundJob(jobId, { 
+        progress,
+        status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+        completedAt: progress === 100 ? new Date() : null
+      });
     } else {
-      // Create new job
-      await db.insert(backgroundJobs).values({
+      // Create new job using storage service
+      await storage.createBackgroundJob({
         jobId,
         jobType: 'legal_question_rerun',
         dealId,
@@ -350,15 +342,11 @@ class ComprehensiveLegalAnalysisService {
    * Get all active question progress for a deal from database
    */
   async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
-    const jobs = await db.query.backgroundJobs.findMany({
-      where: and(
-        eq(backgroundJobs.dealId, dealId),
-        eq(backgroundJobs.jobType, 'legal_question_rerun')
-      )
-    });
+    const jobs = await storage.getBackgroundJobsByDealId(dealId);
+    const legalQuestionJobs = jobs.filter(job => job.jobType === 'legal_question_rerun');
     
     const result: Record<string, number> = {};
-    for (const job of jobs) {
+    for (const job of legalQuestionJobs) {
       if (job.runId) {
         result[job.runId] = job.progress;
       }
@@ -376,9 +364,7 @@ class ComprehensiveLegalAnalysisService {
    */
   private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
     
     if (!job) return; // No job to cleanup
     
@@ -391,6 +377,8 @@ class ComprehensiveLegalAnalysisService {
     
     if (isFailed || isStuck) {
       console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId} (last updated: ${job.updatedAt})`);
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
       await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
       console.log(`✅ Cleaned up ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
     }
@@ -400,11 +388,10 @@ class ComprehensiveLegalAnalysisService {
     // First, auto-cleanup any stuck or failed jobs
     await this.cleanupStuckJob(dealId, questionId);
     
-    // Now check if job is actually running
+    // Now check if job is actually running using storage service
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
+    
     // Consider it running if job exists and progress is not 100
     return job !== undefined && job.progress < 100;
   }
@@ -417,12 +404,20 @@ class ComprehensiveLegalAnalysisService {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
-    // 🔒 ATOMIC JOB REGISTRATION: Use database transaction with row-level locking
+    // 🔒 ATOMIC JOB REGISTRATION: Check if job already exists
     let jobAlreadyExists = false;
+    const existingJob = await storage.getBackgroundJobById(jobId);
     
-    try {
-      // Try to insert new job atomically - will fail if job already exists
-      await db.insert(backgroundJobs).values({
+    if (existingJob && existingJob.progress < 100) {
+      throw new Error(`Question ${questionId} is already being rerun (progress: ${existingJob.progress}%)`);
+    }
+    
+    if (existingJob && existingJob.progress === 100) {
+      jobAlreadyExists = true;
+      console.log(`♻️ Rerunning completed question ${questionId}`);
+    } else {
+      // Create new job using storage service
+      await storage.createBackgroundJob({
         jobId,
         jobType: 'legal_question_rerun',
         dealId,
@@ -430,22 +425,8 @@ class ComprehensiveLegalAnalysisService {
         progress: 0,
         runId: questionId,
         currentStep: `Initializing question rerun: ${questionId}`
-      }).onConflictDoNothing(); // Silently ignore if already exists
-      
-      console.log(`✅ Registered new job for question ${questionId}`);
-    } catch (insertError: any) {
-      // Job might already exist - check if it's running
-      const existingJob = await db.query.backgroundJobs.findFirst({
-        where: eq(backgroundJobs.jobId, jobId)
       });
-      
-      if (existingJob && existingJob.progress < 100) {
-        throw new Error(`Question ${questionId} is already being rerun (progress: ${existingJob.progress}%)`);
-      }
-      
-      // Job exists but completed - we can rerun
-      jobAlreadyExists = true;
-      console.log(`♻️ Rerunning completed question ${questionId}`);
+      console.log(`✅ Registered new job for question ${questionId}`);
     }
     
     try {
@@ -523,12 +504,12 @@ class ComprehensiveLegalAnalysisService {
       // Only delete if job is still in completed/failed status (prevents deleting active reruns)
       setTimeout(async () => {
         try {
-          const jobToClean = await db.query.backgroundJobs.findFirst({
-            where: eq(backgroundJobs.jobId, jobId)
-          });
+          const jobToClean = await storage.getBackgroundJobById(jobId);
           
           // Only delete if job exists and is completed (100%) or failed
           if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            const { backgroundJobs } = await import('../shared/schema');
+            const { eq } = await import('drizzle-orm');
             await db.delete(backgroundJobs)
               .where(eq(backgroundJobs.jobId, jobId));
             console.log(`🧹 Cleaned up completed database record for question ${questionId}`);
@@ -548,6 +529,8 @@ class ComprehensiveLegalAnalysisService {
    * This ensures full analysis has same quality as reruns
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
+    const { eq } = await import('drizzle-orm');
+    
     const allDocuments = await db
       .select()
       .from(documents)
@@ -1100,6 +1083,8 @@ Respond in JSON:
     recommendations: any[],
     documentsAnalyzed: any[]
   ): Promise<void> {
+    const { and, eq } = await import('drizzle-orm');
+    
     // First, delete any existing legal analysis to ensure clean replacement
     await db
       .delete(agentAnalyses)
@@ -1116,10 +1101,10 @@ Respond in JSON:
       agentType: 'Legal' as const,
       status: 'completed' as const,
       progress: 100,
-      findings: JSON.stringify(findings),
-      recommendations: JSON.stringify(recommendations),
-      legal_answers: JSON.stringify(legalAnswers),
-      documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
+      findings: findings,
+      recommendations: recommendations,
+      legalAnswers: legalAnswers,
+      documentSources: documentsAnalyzed.map(d => d.name),
       createdAt: new Date(),
       updatedAt: new Date()
     };

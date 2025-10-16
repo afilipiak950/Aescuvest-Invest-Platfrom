@@ -1,6 +1,6 @@
 import { storage } from './storage';
 import { db } from './db';
-import { documents, agentAnalyses } from '@shared/schema';
+import { documents, agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 
@@ -912,16 +912,16 @@ Respond in JSON:
       
       console.log(`🗑️ Cleared existing HR analysis for deal ${dealId}`);
       
-      // Create the new comprehensive analysis - EXACT copy of Legal structure
+      // Create the new comprehensive analysis - Fixed to use correct Drizzle property names without JSON.stringify
       const analysisData = {
         dealId,
         agentType: 'HR' as const,
         status: 'completed' as const,
         progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        hr_answers: JSON.stringify(hrAnswers), // CRITICAL FIX: Use snake_case field name like other agents
-        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        findings: findings,
+        recommendations: recommendations,
+        hr_answers: hrAnswers,
+        documentSources: assignedDocuments.map((d: any) => d.name),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -1054,9 +1054,6 @@ Respond in JSON:
    * Auto-cleanup stuck or failed jobs
    */
   private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
     const job = await db.query.backgroundJobs.findFirst({
       where: eq(backgroundJobs.jobId, jobId)
@@ -1079,24 +1076,21 @@ Respond in JSON:
    */
   async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
     
     const existingJob = await db.query.backgroundJobs.findFirst({
       where: eq(backgroundJobs.jobId, jobId)
     });
     
     if (existingJob) {
-      await db.update(backgroundJobs)
-        .set({ 
-          progress,
-          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
-          updatedAt: new Date(),
-          completedAt: progress === 100 ? new Date() : null
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Use storage service to update - matches commercial service pattern
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+        completedAt: progress === 100 ? new Date() : undefined
+      });
     } else {
-      await db.insert(backgroundJobs).values({
+      // Use storage service to create - matches commercial service pattern  
+      await storage.createBackgroundJob({
         jobId,
         jobType: 'hr_question_rerun',
         dealId,
@@ -1114,9 +1108,6 @@ Respond in JSON:
    * Get all active question progress for a deal
    */
   async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
-    const { backgroundJobs } = await import('../shared/schema');
-    const { and, eq } = await import('drizzle-orm');
-    
     const jobs = await db.query.backgroundJobs.findMany({
       where: and(
         eq(backgroundJobs.dealId, dealId),
@@ -1140,9 +1131,6 @@ Respond in JSON:
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running HR question ${questionId} for deal ${dealId}`);
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
-    
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq, and } = await import('drizzle-orm');
     
     const existingJob = await db.query.backgroundJobs.findFirst({
       where: eq(backgroundJobs.jobId, jobId)
@@ -1193,33 +1181,38 @@ Respond in JSON:
         )
       });
       
+      // Use delete + insert pattern like storeComprehensiveResults for reliability
+      const hrAnswers = existingAnalysis?.hr_answers 
+        ? (typeof existingAnalysis.hr_answers === 'string' 
+            ? JSON.parse(existingAnalysis.hr_answers) 
+            : existingAnalysis.hr_answers)
+        : {};
+      
+      hrAnswers[questionId] = answer;
+      
+      // Delete existing analysis if present
       if (existingAnalysis) {
-        const hrAnswers = existingAnalysis.hr_answers 
-          ? JSON.parse(existingAnalysis.hr_answers as string)
-          : {};
-        
-        hrAnswers[questionId] = answer;
-        
         await db
-          .update(agentAnalyses)
-          .set({
-            hr_answers: JSON.stringify(hrAnswers),
-            updatedAt: new Date()
-          })
+          .delete(agentAnalyses)
           .where(eq(agentAnalyses.id, existingAnalysis.id));
-        
-        console.log(`✅ Updated HR analysis with new answer for question ${questionId}`);
-      } else {
-        const hrAnswers = { [questionId]: answer };
-        await db.insert(agentAnalyses).values({
-          dealId,
-          agentType: 'hr',
-          status: 'completed',
-          hr_answers: JSON.stringify(hrAnswers),
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
       }
+      
+      // Insert fresh data with updated answer
+      const analysisData = {
+        dealId,
+        agentType: 'HR' as const,
+        status: 'completed' as const,
+        progress: 100,
+        hr_answers: hrAnswers,
+        findings: existingAnalysis?.findings || [],
+        recommendations: existingAnalysis?.recommendations || [],
+        documentSources: existingAnalysis?.documentSources || [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      await db.insert(agentAnalyses).values(analysisData);
+      
+      console.log(`✅ Updated HR analysis with new answer for question ${questionId}`);
       
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
       console.log(`✅ Successfully updated question ${questionId} in HR analysis`);
