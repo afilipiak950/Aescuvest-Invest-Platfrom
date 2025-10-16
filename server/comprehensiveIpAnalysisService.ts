@@ -808,10 +808,10 @@ Respond in JSON:
         agentType: 'IP' as const,
         status: 'completed' as const,
         progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        ip_answers: JSON.stringify(ipAnswers), // CRITICAL: Use snake_case field name like other agents
-        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        findings: findings,
+        recommendations: recommendations,
+        ip_answers: ipAnswers, // CRITICAL: Use snake_case field name for legacy IP agent - Drizzle handles JSON serialization automatically
+        documentSources: assignedDocuments.map((d: any) => d.name),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -971,16 +971,16 @@ Respond in JSON:
         currentStep: 'Starting question rerun...'
       });
     } else if (progress >= 100) {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Completed');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Completed' });
       setTimeout(() => this.questionRerunProgress.delete(key), 5000);
     } else {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Processing');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Processing' });
     }
   }
 
   getAllQuestionProgress(dealId: number): Record<string, number> {
     const result: Record<string, number> = {};
-    for (const [key, progress] of this.questionRerunProgress.entries()) {
+    for (const [key, progress] of Array.from(this.questionRerunProgress.entries())) {
       if (key.startsWith(`${dealId}-`)) {
         const questionId = key.substring(`${dealId}-`.length);
         result[questionId] = progress;
@@ -1000,7 +1000,7 @@ Respond in JSON:
       
       if (!analysis) throw new Error('No IP analysis found');
       
-      const documents = await storage.getDocumentsByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
       const ipDocs = documents.filter(doc => 
         doc.assignedAgents?.some(a => a.toLowerCase() === 'ip')
       );
@@ -1026,7 +1026,7 @@ Respond in JSON:
         [questionId]: answer
       };
       
-      await storage.updateAgentAnalysis(dealId, 'IP', {
+      await storage.updateAnalysis(analysis.id, {
         ip_answers: updatedAnswers
       });
       

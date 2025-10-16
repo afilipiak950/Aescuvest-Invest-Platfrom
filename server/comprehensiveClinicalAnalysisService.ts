@@ -1488,16 +1488,16 @@ Respond in JSON:
     
     console.log(`🗑️ Cleared existing clinical analysis for deal ${dealId}`);
     
-    // Create the new comprehensive analysis
+    // Create the new comprehensive analysis - Fixed to use correct Drizzle property names
     const analysisData = {
       dealId,
       agentType: 'clinical' as const,
       status: 'completed' as const,
       progress: 100,
-      findings: JSON.stringify(findings),
-      recommendations: JSON.stringify(recommendations),
-      clinical_answers: JSON.stringify(clinicalAnswers),
-      documentSources: JSON.stringify(documentsAnalyzed.map(d => d.name)),
+      findings: findings,
+      recommendations: recommendations,
+      clinicalAnswers: clinicalAnswers,
+      documentSources: documentsAnalyzed.map(d => d.name),
       createdAt: new Date(),
       updatedAt: new Date()
     };

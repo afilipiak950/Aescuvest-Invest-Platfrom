@@ -467,23 +467,43 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
 
   private async completeAnalysis(dealId: number, researchAnswers: Record<string, string>, findings: string[], recommendations: string[], docsProcessed: number) {
     try {
-      // Delete any existing research analysis for this deal
-      await db.delete(agentAnalyses)
-        .where(and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'research')
-        ));
+      // Convert findings and recommendations to proper schema format
+      const formattedFindings = findings.map((content, index) => ({
+        id: index + 1,
+        content,
+        type: 'finding'
+      }));
 
-      // Save the new analysis - ONLY VALID SCHEMA FIELDS
-      await db.insert(agentAnalyses).values({
-        dealId,
-        agentType: 'research',
-        status: 'completed',
-        progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        research_answers: researchAnswers
-      });
+      const formattedRecommendations = recommendations.map((rec, index) => ({
+        title: `Recommendation ${index + 1}`,
+        description: rec,
+        priority: 'medium',
+        category: 'research',
+        impact: 'medium'
+      }));
+
+      // Check if analysis exists - update if yes, create if no (same pattern as commercial service)
+      const existingAnalysis = await this.storage.getAnalysisByDealAndAgent(dealId, 'research');
+      
+      if (existingAnalysis) {
+        await this.storage.updateAgentAnalysis(existingAnalysis.id, {
+          status: 'completed',
+          progress: 100,
+          findings: formattedFindings,
+          recommendations: formattedRecommendations,
+          research_answers: researchAnswers
+        });
+      } else {
+        await this.storage.createAgentAnalysis({
+          dealId,
+          agentType: 'research',
+          status: 'completed',
+          progress: 100,
+          findings: formattedFindings,
+          recommendations: formattedRecommendations,
+          research_answers: researchAnswers
+        });
+      }
 
       // Update job as completed
       await this.storage.updateBackgroundJob(this.jobId, {
@@ -539,16 +559,16 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         currentStep: 'Starting question rerun...'
       });
     } else if (progress >= 100) {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Completed');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Completed' });
       setTimeout(() => this.questionRerunProgress.delete(key), 5000);
     } else {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Processing');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Processing' });
     }
   }
 
   getAllQuestionProgress(dealId: number): Record<string, number> {
     const result: Record<string, number> = {};
-    for (const [key, progress] of this.questionRerunProgress.entries()) {
+    for (const [key, progress] of Array.from(this.questionRerunProgress.entries())) {
       if (key.startsWith(`${dealId}-`)) {
         const questionId = key.substring(`${dealId}-`.length);
         result[questionId] = progress;
@@ -564,11 +584,11 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
 
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
     try {
-      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'research');
       
       if (!analysis) throw new Error('No research analysis found');
       
-      const documents = await storage.getDocumentsByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
       const researchDocs = documents.filter(doc => 
         doc.assignedAgents?.some(a => a.toLowerCase() === 'research')
       );
@@ -589,7 +609,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         [questionId]: answer
       };
       
-      await storage.updateAgentAnalysis(dealId, 'Research', {
+      await storage.updateAgentAnalysis(analysis.id, {
         research_answers: updatedAnswers
       });
       

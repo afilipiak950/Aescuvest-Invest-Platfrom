@@ -788,10 +788,10 @@ Respond in JSON:
         agentType: 'Financial' as const,
         status: 'completed' as const,
         progress: 100,
-        findings: JSON.stringify(findings),
-        recommendations: JSON.stringify(recommendations),
-        financial_answers: JSON.stringify(financialAnswers), // CRITICAL: Use snake_case field name like other agents
-        documentSources: JSON.stringify(assignedDocuments.map((d: any) => d.name)),
+        findings: findings,
+        recommendations: recommendations,
+        financial_answers: financialAnswers,
+        documentSources: assignedDocuments.map((d: any) => d.name),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -986,16 +986,16 @@ Respond in JSON:
         currentStep: 'Starting question rerun...'
       });
     } else if (progress >= 100) {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Completed');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Completed' });
       setTimeout(() => this.questionRerunProgress.delete(key), 5000);
     } else {
-      await storage.updateBackgroundJobProgress(jobId, progress, 'Processing');
+      await storage.updateBackgroundJob(jobId, { progress, currentStep: 'Processing' });
     }
   }
 
   getAllQuestionProgress(dealId: number): Record<string, number> {
     const result: Record<string, number> = {};
-    for (const [key, progress] of this.questionRerunProgress.entries()) {
+    for (const [key, progress] of Array.from(this.questionRerunProgress.entries())) {
       if (key.startsWith(`${dealId}-`)) {
         const questionId = key.substring(`${dealId}-`.length);
         result[questionId] = progress;
@@ -1015,7 +1015,7 @@ Respond in JSON:
       
       if (!analysis) throw new Error('No financial analysis found');
       
-      const documents = await storage.getDocumentsByDeal(dealId);
+      const documents = await storage.getDocumentsByDealId(dealId);
       const financialDocs = documents.filter(doc => 
         doc.assignedAgents?.some(a => a.toLowerCase() === 'financial')
       );
@@ -1041,7 +1041,7 @@ Respond in JSON:
         [questionId]: answer
       };
       
-      await storage.updateAgentAnalysis(dealId, 'Financial', {
+      await storage.updateAgentAnalysis(analysis.id, {
         financial_answers: updatedAnswers
       });
       
