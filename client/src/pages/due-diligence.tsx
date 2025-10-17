@@ -1347,12 +1347,15 @@ function DueDiligenceContent() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-white">All Agents Progress Overview</h3>
                   <div className="flex items-center space-x-2">
-                    {/* Overall progress indicator */}
+                    {/* Overall progress indicator - ONLY count processing jobs */}
                     <span className="text-sm text-gray-400">Overall Progress</span>
                     <span className="text-sm font-medium text-primary">
-                      {jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
-                        ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
-                        : 0}%
+                      {(() => {
+                        const processingJobs = (jobProgress?.jobs || []).filter((job: any) => job.status === 'processing');
+                        return processingJobs.length > 0
+                          ? Math.round(processingJobs.reduce((sum, job) => sum + (job.progress || 0), 0) / processingJobs.length)
+                          : 0;
+                      })()}%
                     </span>
                   </div>
                 </div>
@@ -1360,14 +1363,17 @@ function DueDiligenceContent() {
                 
                 {isAnalysisProgressExpanded && (
                   <div className="space-y-6">
-                    {/* Overall Progress Bar */}
+                    {/* Overall Progress Bar - ONLY count processing jobs */}
                     <div className="w-full bg-dark-lighter rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-primary to-blue-400 h-2 rounded-full transition-all duration-300"
                         style={{ 
-                          width: `${jobProgress?.jobs && (jobProgress?.jobs?.length || 0) > 0 
-                            ? Math.round(jobProgress?.jobs?.reduce((sum, job) => sum + (job.progress || 0), 0) / (jobProgress?.jobs?.length || 1)) 
-                            : 0}%` 
+                          width: `${(() => {
+                            const processingJobs = (jobProgress?.jobs || []).filter((job: any) => job.status === 'processing');
+                            return processingJobs.length > 0
+                              ? Math.round(processingJobs.reduce((sum, job) => sum + (job.progress || 0), 0) / processingJobs.length)
+                              : 0;
+                          })()}%` 
                         }}
                       ></div>
                     </div>
