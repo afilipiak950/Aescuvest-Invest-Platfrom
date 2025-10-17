@@ -6656,17 +6656,17 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     try {
       const dealId = parseInt(req.params.dealId);
       
-      // Check for active comprehensive IP analysis job
+      // Check for comprehensive IP analysis job (processing or completed)
       const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
       const comprehensiveJob = activeJobs.find(job => 
         job.jobType === 'comprehensive_ip_analysis' && 
-        job.status === 'processing'
+        (job.status === 'processing' || job.status === 'completed')
       );
       
       if (comprehensiveJob) {
         res.json({
           success: true,
-          isRunning: true,
+          isRunning: comprehensiveJob.status === 'processing',
           progress: comprehensiveJob.progress || 0,
           currentStep: comprehensiveJob.currentStep || 'Processing...',
           jobId: comprehensiveJob.jobId
@@ -6677,7 +6677,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           isRunning: false,
           progress: 0,
           currentStep: null,
-          message: 'No comprehensive IP analysis running'
+          message: 'No comprehensive IP analysis found'
         });
       }
     } catch (error) {
