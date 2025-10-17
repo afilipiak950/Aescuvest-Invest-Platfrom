@@ -2184,10 +2184,16 @@ export class DatabaseStorage implements IStorage {
 
   async updateBackgroundJob(jobId: string, updates: Partial<BackgroundJob>): Promise<void> {
     try {
+      // Automatically set completedAt when status is 'completed'
+      const updateData: any = { ...updates, updatedAt: new Date() };
+      if (updates.status === 'completed' && !updates.completedAt) {
+        updateData.completedAt = new Date();
+      }
+      
       await db.update(backgroundJobs)
-        .set({ ...updates, updatedAt: new Date() })
+        .set(updateData)
         .where(eq(backgroundJobs.jobId, jobId));
-      console.log(`💾 Updated background job ${jobId} in database`);
+      console.log(`💾 Updated background job ${jobId} in database${updates.status === 'completed' ? ' with completedAt timestamp' : ''}`);
     } catch (error) {
       console.error(`Error updating background job ${jobId}:`, error);
       throw error;
@@ -2216,8 +2222,8 @@ export class DatabaseStorage implements IStorage {
         eq(backgroundJobs.status, 'processing'),
         and(
           eq(backgroundJobs.status, 'completed'),
-          // Show completed jobs for 15 seconds after completion
-          sql`completed_at > NOW() - INTERVAL '15 seconds'`
+          // Show completed jobs for 24 hours after completion (increased from 15 seconds)
+          sql`completed_at > NOW() - INTERVAL '24 hours'`
         )
       );
       
