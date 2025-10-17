@@ -13,6 +13,12 @@ class JobProcessor {
   private isProcessing = false;
   
   constructor() {
+    // 🚨 CRITICAL: Clean up orphaned jobs from previous server restarts on startup
+    // Call async method without blocking constructor
+    this.cleanupOrphanedJobsOnStartup().catch(err => {
+      console.error('❌ Failed to cleanup orphaned jobs on startup:', err);
+    });
+    
     // Start automatic cleanup of stuck jobs every 5 minutes
     setInterval(() => {
       this.cleanupStuckJobs();
@@ -201,6 +207,37 @@ class JobProcessor {
     }
   }
 
+  async cleanupOrphanedJobsOnStartup() {
+    try {
+      console.log('🚨 STARTUP: Cleaning up orphaned jobs from previous server restarts...');
+      
+      // Find all jobs that are in "processing" state - these are orphans from crashed/restarted servers
+      const orphanedJobs = await db.select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.status, 'processing'));
+      
+      if (orphanedJobs.length > 0) {
+        console.log(`🚨 Found ${orphanedJobs.length} orphaned jobs - marking as failed`);
+        
+        for (const job of orphanedJobs) {
+          await db.update(backgroundJobs)
+            .set({
+              status: 'failed' as any,
+              error: 'Server restarted during processing - job orphaned',
+              updatedAt: new Date()
+            })
+            .where(eq(backgroundJobs.id, job.id));
+          
+          console.log(`🚨 Marked orphaned job ${job.jobId} (${job.jobType}) as failed`);
+        }
+      } else {
+        console.log('✅ No orphaned jobs found on startup');
+      }
+    } catch (error) {
+      console.error('❌ Error during startup orphaned job cleanup:', error);
+    }
+  }
+
   async cleanupStuckJobs() {
     try {
       console.log('🧹 Checking for stuck jobs...');
@@ -213,7 +250,7 @@ class JobProcessor {
         ));
 
       const now = new Date();
-      const stuckThreshold = 60 * 60 * 1000; // 60 minutes - safe for comprehensive analysis with 300+ documents, rate limiting, and retry logic
+      const stuckThreshold = 15 * 60 * 1000; // 15 minutes - reasonable timeout for comprehensive analysis (reduced from 60 min)
 
       for (const job of stuckJobs) {
         const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
