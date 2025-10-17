@@ -6352,24 +6352,21 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Run comprehensive HR analysis
+  // Run comprehensive HR analysis - EXACT COMMERCIAL COPY
   app.post('/api/deals/:dealId/hr-analysis/comprehensive', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
       
       console.log(`🏢 Starting comprehensive HR analysis for deal ${dealId}`);
       
-      // Check for existing HR analysis jobs to prevent duplicates  
-      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
-      const existingHrJob = existingJobs.find(job => 
-        job.agentType === 'HR' && job.status === 'processing'
-      );
+      // Check if there's already a running comprehensive HR analysis - EXACT Commercial approach
+      const existingHrJob = await storage.getBackgroundJobsByDealAndType(dealId, 'comprehensive_hr_analysis');
       
       if (existingHrJob) {
-        console.log(`⚠️ HR analysis already running for deal ${dealId} (Job: ${existingHrJob.jobId})`);
-        return res.json({ 
-          success: true, 
-          message: `HR analysis already running`,
+        console.log(`⚠️ Comprehensive HR analysis already running for deal ${dealId}`);
+        return res.json({
+          success: true,
+          message: 'Comprehensive HR analysis already running',
           jobId: existingHrJob.jobId
         });
       }
@@ -6384,8 +6381,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         agentType: 'HR',
         status: 'processing',
         progress: 0,
-        currentStep: 'Initializing HR analysis',
-        createdAt: new Date()
+        currentStep: 'Starting HR analysis...'
       });
 
       // Import and run service in background - EXACT Commercial approach
@@ -6409,8 +6405,6 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           });
         }
       })();
-
-      const result = {};
       
       res.json({ 
         success: true, 
