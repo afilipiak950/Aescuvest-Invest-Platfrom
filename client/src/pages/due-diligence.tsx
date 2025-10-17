@@ -1375,8 +1375,10 @@ function DueDiligenceContent() {
                     {/* Horizontal 7-Agent Cards - Simple Direct Mapping */}
                     <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
                   {['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'].map((agentType, index) => {
-                    // Find matching job from backend data
+                    // Find matching job from backend data - PRIORITIZE processing jobs over completed ones
                     const matchingJob = jobProgress?.jobs?.find(j => 
+                      j.agentType?.toLowerCase() === agentType.toLowerCase() && j.status === 'processing'
+                    ) || jobProgress?.jobs?.find(j => 
                       j.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
