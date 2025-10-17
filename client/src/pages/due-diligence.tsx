@@ -1108,13 +1108,16 @@ function DueDiligenceContent() {
                     <div>
                       <CardTitle className="text-lg">Analysis Progress</CardTitle>
                       <CardDescription>
-                        {jobProgress?.jobs?.length || 0} analysis{(jobProgress?.jobs?.length || 0) > 1 ? 'es' : ''} running
+                        {(() => {
+                          const processingCount = (jobProgress?.jobs || []).filter((job: any) => job.status === 'processing').length;
+                          return `${processingCount} analysis${processingCount !== 1 ? 'es' : ''} running`;
+                        })()}
                       </CardDescription>
                     </div>
                   </div>
                   {!isJobProgressExpanded && (
                     <Badge variant="secondary" className="bg-dark-lighter text-gray-300 text-xs">
-                      {jobProgress?.jobs?.length || 0} jobs
+                      {(jobProgress?.jobs || []).filter((job: any) => job.status === 'processing').length} jobs
                     </Badge>
                   )}
                 </div>
@@ -1122,27 +1125,41 @@ function DueDiligenceContent() {
               {isJobProgressExpanded && (
                 <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {jobProgress?.jobs?.map((job: any) => (
-                    <div key={job.jobId} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-300">
-                          {job.agentType} Analysis
-                        </span>
-                        <span className="text-sm text-gray-400">
-                          {job.progress}%
-                        </span>
+                  {(() => {
+                    // Filter to only show processing jobs and deduplicate by agent type
+                    const processingJobs = (jobProgress?.jobs || []).filter((job: any) => job.status === 'processing');
+                    
+                    // Deduplicate: keep only the latest job per agent type
+                    const uniqueJobs = new Map();
+                    processingJobs.forEach((job: any) => {
+                      const agentKey = job.agentType?.toLowerCase();
+                      if (!uniqueJobs.has(agentKey) || job.jobId > uniqueJobs.get(agentKey).jobId) {
+                        uniqueJobs.set(agentKey, job);
+                      }
+                    });
+                    
+                    return Array.from(uniqueJobs.values()).map((job: any) => (
+                      <div key={job.jobId} className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-300">
+                            {job.agentType} Analysis
+                          </span>
+                          <span className="text-sm text-gray-400">
+                            {job.progress}%
+                          </span>
+                        </div>
+                        <Progress value={job.progress} className="h-2" />
+                        {job.currentStep && (
+                          <p className="text-xs text-gray-500">
+                            {job.currentStep && job.currentStep.includes('batch') ? 
+                              job.currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
+                              job.currentStep
+                            }
+                          </p>
+                        )}
                       </div>
-                      <Progress value={job.progress} className="h-2" />
-                      {job.currentStep && (
-                        <p className="text-xs text-gray-500">
-                          {job.currentStep && job.currentStep.includes('batch') ? 
-                            job.currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
-                            job.currentStep
-                          }
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
                 </CardContent>
               )}

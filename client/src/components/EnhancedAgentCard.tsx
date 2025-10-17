@@ -354,6 +354,12 @@ export default function EnhancedAgentCard({
       refetchInterval: 15000, // Reduced from 1s to 15s
     });
 
+    // Check for comprehensive Research analysis progress
+    const { data: researchProgress = { isRunning: false, progress: 0, currentStep: '' } } = useQuery({
+      queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/progress`],
+      refetchInterval: 15000, // Reduced from 1s to 15s
+    });
+
     // Look for both comprehensive legal analysis and regular legal agent jobs
     const legalJobs = (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs) ? jobProgress.jobs : []).filter((job: any) => 
       (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
@@ -385,7 +391,8 @@ export default function EnhancedAgentCard({
         'hr': hrProgress,
         'ip': ipProgress,
         'financial': financialProgress,
-        'clinical': clinicalProgress
+        'clinical': clinicalProgress,
+        'research': researchProgress
       };
       
       const comprehensiveProgress = comprehensiveProgressMap[currentAgentType.toLowerCase()];
