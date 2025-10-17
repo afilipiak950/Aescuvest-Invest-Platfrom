@@ -357,8 +357,22 @@ export class ComprehensiveFinancialAnalysisService {
         return this.extractEvidenceFromDocument(doc, question);
       });
 
-      // Process batch with error resilience (no batch timeout to prevent conflicts)
-      const results = await Promise.allSettled(batchPromises);
+      // CRITICAL FIX: Wrap Promise.allSettled with batch-level timeout (3 minutes per batch)
+      const BATCH_TIMEOUT = 180000; // 3 minutes
+      const batchTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Batch timeout after ${BATCH_TIMEOUT}ms`)), BATCH_TIMEOUT);
+      });
+      
+      let results;
+      try {
+        results = await Promise.race([
+          Promise.allSettled(batchPromises),
+          batchTimeoutPromise
+        ]) as PromiseSettledResult<FinancialEvidence>[];
+      } catch (batchTimeoutError) {
+        console.warn(`⏰ Batch ${batchIndex + 1} timed out, continuing with next batch...`);
+        results = []; // Empty results for timed-out batch
+      }
 
       const validResults = results
         .filter((result): result is PromiseFulfilledResult<FinancialEvidence> => 

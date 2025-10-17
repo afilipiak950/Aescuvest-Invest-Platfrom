@@ -370,7 +370,7 @@ export class ComprehensiveHRAnalysisService {
       const batch = documents.slice(i, i + batchSize);
       console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
-      // Parallel processing with error resilience (no per-document timeout to prevent conflicts)
+      // Parallel processing with error resilience AND batch-level timeout
       const batchPromises = batch.map(async (doc) => {
         console.log(`🔎 Extracting evidence from: ${doc.name}`);
         try {
@@ -381,7 +381,23 @@ export class ComprehensiveHRAnalysisService {
         }
       });
       
-      const batchResults = await Promise.allSettled(batchPromises);
+      // CRITICAL FIX: Wrap Promise.allSettled with batch-level timeout (3 minutes per batch)
+      const BATCH_TIMEOUT = 180000; // 3 minutes
+      const batchTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Batch timeout after ${BATCH_TIMEOUT}ms`)), BATCH_TIMEOUT);
+      });
+      
+      let batchResults;
+      try {
+        batchResults = await Promise.race([
+          Promise.allSettled(batchPromises),
+          batchTimeoutPromise
+        ]) as PromiseSettledResult<any>[];
+      } catch (batchTimeoutError) {
+        console.warn(`⏰ Batch ${Math.floor(i / batchSize) + 1} timed out, continuing with next batch...`);
+        batchResults = []; // Empty results for timed-out batch
+      }
+      
       const validEvidence = batchResults
         .filter((result): result is PromiseFulfilledResult<any> => 
           result.status === 'fulfilled' && result.value !== null
