@@ -361,18 +361,19 @@ export class ComprehensiveHRAnalysisService {
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    console.log(`📄 COMPREHENSIVE MODE: Starting evidence extraction from ALL ${documents.length} documents for: ${question.question}`);
+    console.log(`🔍 FULL ANALYSIS: Processing ALL ${documents.length} assigned documents for thorough HR analysis`);
     
     const evidence = [];
     const batchSize = 20; // Process in batches for efficiency
     
     for (let i = 0; i < documents.length; i += batchSize) {
       const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
       
       // Parallel processing with error resilience AND batch-level timeout
       const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 Extracting evidence from: ${doc.name}`);
+        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
         try {
           return await this.extractEvidenceFromDocument(doc, question);
         } catch (error) {
@@ -411,7 +412,8 @@ export class ComprehensiveHRAnalysisService {
       console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
     }
     
-    console.log(`🎯 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${documents.length} documents in FAST mode`);
+    console.log(`📊 Evidence extraction completed for question: ${question.question}`);
     return evidence;
   }
 
