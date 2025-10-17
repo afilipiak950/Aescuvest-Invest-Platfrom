@@ -1411,7 +1411,7 @@ function DueDiligenceContent() {
                     // FIXED: Prioritize active job progress, then check if this agent's analysis is completed
                     const currentProgress = matchingJob?.status === 'processing'
                       ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
-                      : (completedAnalysis?.status === 'completed' || hasComprehensiveAnalysis)
+                      : (completedAnalysis?.status?.toLowerCase() === 'completed' || hasComprehensiveAnalysis)
                         ? 100  // Show completed when analysis is done (regardless of job presence)
                         : 0;   // Default to 0% (new deals and non-completed analyses)
                     
