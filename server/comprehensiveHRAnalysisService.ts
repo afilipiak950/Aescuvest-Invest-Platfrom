@@ -418,153 +418,126 @@ export class ComprehensiveHRAnalysisService {
   }
 
   /**
-   * Extract specific evidence from a single document - EXACT Clinical approach
+   * Extract specific evidence from a single document - EXACT Financial approach
    */
-  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
-    // Use ONLY AI summary - handle BOTH string and object formats (like Legal/Clinical)
-    const aiSummary = document.aiSummary;
-    if (!aiSummary) return null;
-    
-    let content: string;
-    
-    // Handle STRING summaries (most common in production)
-    if (typeof aiSummary === 'string') {
-      content = aiSummary;
-    } 
-    // Handle OBJECT summaries (structured format)
-    else if (typeof aiSummary === 'object') {
-      content = [
-        aiSummary.executiveSummary || '',
-        aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
-        aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
-        aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
-        aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
-        aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
-        aiSummary.strategicImplications || ''
-      ].filter(s => s).join('\n\n');
-      
-      // Fallback: if all fields are empty, stringify the entire object
-      if (!content || content.trim().length === 0) {
-        content = JSON.stringify(aiSummary);
-      }
-    }
-    // Fallback: stringify anything else
-    else {
-      content = String(aiSummary);
-    }
-    
-    if (!content || content.trim().length === 0) return null;
-
-    // Quick keyword check first (for speed) - EXACT Financial approach
-    const hasRelevantKeywords = question.keywords.some((keyword: string) =>
-      content.toLowerCase().includes(keyword.toLowerCase())
-    );
-
-    if (!hasRelevantKeywords) {
-      return null; // Skip document if no relevant keywords found
-    }
-    
-    const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC HR DETAILS from this document.
-
-DOCUMENT: ${document.name}
-AI SUMMARY (COMPLETE): ${content}
-
-QUESTION: "${question.question}"
-CATEGORY: ${question.category}
-
-CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
-
-1. EXTRACT SPECIFIC NUMBERS & HEADCOUNT DATA:
-   - Employee counts (e.g., "50 employees", "Team of 15 engineers", "Hired 8 new staff")
-   - Exact compensation amounts (e.g., "$120,000 salary", "$50K signing bonus", "15% equity")
-   - Turnover data (e.g., "3 employees left in Q1", "20% annual turnover")
-   - Benefits specifics (e.g., "Health insurance $800/month", "4 weeks PTO")
-
-2. EXTRACT COMPLETE ORGANIZATIONAL DETAILS:
-   - Exact job titles (EXACT titles, not abbreviations - "Chief Technology Officer" not "CTO")
-   - All reporting structures (who reports to whom)
-   - All department names and sizes
-   - Leadership team members (FULL names, exact titles, backgrounds)
-   - Vesting schedules (e.g., "4-year vesting, 1-year cliff")
-   - Stock option grants (e.g., "100,000 options at $1.50 strike price")
-
-3. EXTRACT PEOPLE & CULTURE DATA:
-   - Employee satisfaction scores (e.g., "eNPS of 45", "85% engagement")
-   - Training programs (specific names, durations, costs)
-   - Performance review cycles (e.g., "Quarterly 360 reviews")
-   - Diversity metrics (e.g., "30% women in engineering", "5 nationalities")
-   - Work policies (e.g., "Remote-first since 2020", "Hybrid 3 days/week")
-
-4. DO NOT PARAPHRASE - COPY VERBATIM:
-   - If the summary says "hired 12 employees at average $95K salary", copy it EXACTLY
-   - If it says "CEO compensation: $180K base + 2% equity", copy it EXACTLY
-   - Do NOT convert to summaries like "competitive compensation" or "growing team"
-   - Extract NUMBERS, NAMES, TITLES, and AMOUNTS verbatim
-
-5. EXTRACT EVERYTHING RELEVANT TO THIS DOCUMENT:
-   - If this document mentions team structure, extract EVERY organizational detail
-   - If it mentions compensation, extract EVERY salary, bonus, equity figure
-   - If it mentions hiring, extract EVERY role, timeline, compensation package
-   - Include ALL people names, ALL exact titles, ALL compensation figures
-
-6. DOCUMENT-SPECIFIC REQUIREMENT:
-   - Your extraction MUST be unique to THIS specific document (${document.name})
-   - DO NOT provide generic company analysis - extract what THIS document says
-   - Each document has different information - find what makes THIS one unique
-   - If this is a contract, extract the parties and terms FROM THIS CONTRACT
-   - If this is an org chart, extract the structure FROM THIS CHART
-
-Your relevantContent array should contain 5-20+ detailed extractions per document (not 1-2 generic quotes).
-
-Respond in JSON format:
-{
-  "relevantContent": ["DETAILED extraction 1 with specific numbers and names FROM THIS DOCUMENT", "DETAILED extraction 2 with exact titles and comp data FROM THIS DOCUMENT", "DETAILED extraction 3...", ...],
-  "hasRelevantInfo": true/false,
-  "confidence": 0-100,
-  "keyFindings": ["Specific finding with exact numbers FROM THIS DOCUMENT", "Specific finding with names and titles FROM THIS DOCUMENT", ...],
-  "documentSummary": "COMPREHENSIVE breakdown of ALL HR information in THIS SPECIFIC DOCUMENT (${document.name})",
-  "hrContext": "How THIS SPECIFIC DOCUMENT relates to HR/organizational aspects with DOCUMENT-SPECIFIC details"
-}
-
-REMEMBER: Extract EVERYTHING from THIS document - more is better! A thorough extraction should be 500-2000+ characters with DOCUMENT-SPECIFIC details, not generic company analysis.`;
-
+  private async extractEvidenceFromDocument(doc: any, question: any): Promise<any> {
     try {
+      console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
+      
+      // Use ONLY AI summary - handle BOTH string and object formats (like Legal/Clinical)
+      const aiSummary = doc.aiSummary;
+      if (!aiSummary) return null;
+      
+      let content: string;
+      
+      // Handle STRING summaries (most common in production)
+      if (typeof aiSummary === 'string') {
+        content = aiSummary;
+      } 
+      // Handle OBJECT summaries (structured format)
+      else if (typeof aiSummary === 'object') {
+        content = [
+          aiSummary.executiveSummary || '',
+          aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+          aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+          aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+          aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+          aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+          aiSummary.strategicImplications || ''
+        ].filter(s => s).join('\n\n');
+        
+        // Fallback: if all fields are empty, stringify the entire object
+        if (!content || content.trim().length === 0) {
+          content = JSON.stringify(aiSummary);
+        }
+      }
+      // Fallback: stringify anything else
+      else {
+        content = String(aiSummary);
+      }
+      
+      if (!content || content.trim().length === 0) return null;
+
+      // Quick keyword check first (for speed)
+      const hasRelevantKeywords = question.keywords.some((keyword: string) =>
+        content.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      if (!hasRelevantKeywords) {
+        return null;
+      }
+
+      // Extract specific evidence using resilientOpenAI with focused prompt
       const response = await resilientOpenAI.createChatCompletion({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: `You are an HR analysis expert. Extract specific evidence related to the given question from the document content. Focus on employee data, organizational structure, compensation, and people metrics.`
+          },
+          {
+            role: "user",
+            content: `Document: "${doc.name}"
+            Content: ${content.substring(0, 4000)}
+            
+            Question: ${question.question}
+            Analysis Focus: ${question.analysisPrompt}
+            
+            Extract specific evidence, HR data, and key findings related to this question. Return in JSON format:
+            {
+              "relevantContent": ["specific quotes or data points"],
+              "keyFindings": ["key HR insights"],
+              "confidence": 0.0-1.0
+            }`
+          }
+        ],
         temperature: 0.1,
         max_tokens: 8000
       }, {
         maxRetries: 3,
         timeout: 90000
       });
+
+      let rawContent = response.choices[0].message.content || '{}';
+      // Handle markdown code blocks from OpenAI response
+      if (rawContent.includes('```json')) {
+        rawContent = rawContent.replace(/```json\s*/, '').replace(/\s*```/, '');
+      }
       
-      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      // CRITICAL: Enhanced JSON parsing with fallback for malformed responses
+      let result;
+      try {
+        result = JSON.parse(rawContent);
+      } catch (parseError) {
+        console.log(`⚠️ JSON parsing failed for document ${doc.name}, attempting to extract JSON from response...`);
+        
+        // Try to extract JSON from potentially malformed response
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            result = JSON.parse(jsonMatch[0]);
+            console.log(`✅ Successfully extracted JSON from malformed response for ${doc.name}`);
+          } catch (extractError) {
+            console.log(`❌ Failed to extract JSON from ${doc.name}, skipping...`);
+            return null;
+          }
+        } else {
+          console.log(`❌ No JSON found in response for ${doc.name}, skipping...`);
+          return null;
+        }
+      }
       
       return {
-        documentName: document.name,
-        documentId: document.id,
-        relevantContent: analysis.relevantContent || [],
-        hasRelevantInfo: analysis.hasRelevantInfo || false,
-        confidence: analysis.confidence || 0,
-        keyFindings: analysis.keyFindings || [],
-        documentSummary: analysis.documentSummary || '',
-        fullContent: content.substring(0, 1000) // Keep sample for reference
+        documentName: doc.name,
+        documentSummary: typeof doc.aiSummary === 'string' ? doc.aiSummary : 'No summary available',
+        relevantContent: result.relevantContent || [],
+        keyFindings: result.keyFindings || [],
+        confidence: result.confidence || 0.5
       };
-      
+
     } catch (error) {
-      console.error(`Error extracting evidence from ${document.name}:`, error);
-      return {
-        documentName: document.name,
-        documentId: document.id,
-        relevantContent: [],
-        hasRelevantInfo: false,
-        confidence: 0,
-        keyFindings: [],
-        documentSummary: 'Analysis failed',
-        fullContent: content.substring(0, 1000)
-      };
+      console.error(`Error extracting evidence from ${doc.name}:`, error);
+      return null;
     }
   }
 
