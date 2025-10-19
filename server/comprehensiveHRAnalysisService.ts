@@ -355,65 +355,65 @@ export class ComprehensiveHRAnalysisService {
   }
 
   /**
-   * Extract evidence from ALL documents for a specific question - EXACT Clinical approach
+   * Extract evidence from ALL documents for a specific question - EXACT Financial approach
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
     question: any
   ): Promise<any[]> {
-    console.log(`📄 COMPREHENSIVE MODE: Starting evidence extraction from ALL ${documents.length} documents for: ${question.question}`);
-    console.log(`🔍 FULL ANALYSIS: Processing ALL ${documents.length} assigned documents for thorough HR analysis`);
+    const evidence: any[] = [];
     
-    const evidence = [];
-    const batchSize = 20; // Process in batches for efficiency
-    
-    for (let i = 0; i < documents.length; i += batchSize) {
-      const batch = documents.slice(i, i + batchSize);
-      console.log(`📦 FAST Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+    // Process ALL assigned documents (EXACTLY matching Financial approach - no speed limits)
+    const documentsToProcess = documents;
+    console.log(`📄 COMPREHENSIVE MODE: Starting evidence extraction from ALL ${documentsToProcess.length} documents for: ${question.question}`);
+    console.log(`🔍 FULL ANALYSIS: Processing ALL ${documentsToProcess.length} assigned documents for thorough HR analysis`);
+
+    // Process documents in batches with timeout for speed
+    const batchSize = 20;
+    const batches = [];
+    for (let i = 0; i < documentsToProcess.length; i += batchSize) {
+      batches.push(documentsToProcess.slice(i, i + batchSize));
+    }
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      console.log(`📦 FAST Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} documents)`);
       
-      // Parallel processing with error resilience AND batch-level timeout
       const batchPromises = batch.map(async (doc) => {
-        console.log(`🔎 FAST Extracting evidence from: ${doc.name}`);
-        try {
-          return await this.extractEvidenceFromDocument(doc, question);
-        } catch (error) {
-          console.log(`⚠️ Skipping ${doc.name} due to error:`, error);
-          return null;
-        }
+        return this.extractEvidenceFromDocument(doc, question);
       });
-      
+
       // CRITICAL FIX: Wrap Promise.allSettled with batch-level timeout (3 minutes per batch)
       const BATCH_TIMEOUT = 180000; // 3 minutes
       const batchTimeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error(`Batch timeout after ${BATCH_TIMEOUT}ms`)), BATCH_TIMEOUT);
       });
       
-      let batchResults;
+      let results;
       try {
-        batchResults = await Promise.race([
+        results = await Promise.race([
           Promise.allSettled(batchPromises),
           batchTimeoutPromise
         ]) as PromiseSettledResult<any>[];
       } catch (batchTimeoutError) {
-        console.warn(`⏰ Batch ${Math.floor(i / batchSize) + 1} timed out, continuing with next batch...`);
-        batchResults = []; // Empty results for timed-out batch
+        console.warn(`⏰ Batch ${batchIndex + 1} timed out, continuing with next batch...`);
+        results = []; // Empty results for timed-out batch
       }
-      
-      const validEvidence = batchResults
+
+      const validResults = results
         .filter((result): result is PromiseFulfilledResult<any> => 
           result.status === 'fulfilled' && result.value !== null
         )
-        .map(result => result.value)
-        .filter(docEvidence => 
-          docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
-        );
-      evidence.push(...validEvidence);
+        .map(result => result.value);
+
+      evidence.push(...validResults);
       
-      console.log(`✅ Batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+      console.log(`✅ Batch ${batchIndex + 1} completed: ${validResults.length}/${batch.length} documents had relevant evidence`);
     }
-    
-    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${documents.length} documents in FAST mode`);
+
+    console.log(`🎯 SPEED MODE: Extracted evidence from ${evidence.length}/${documentsToProcess.length} documents in FAST mode`);
     console.log(`📊 Evidence extraction completed for question: ${question.question}`);
+    
     return evidence;
   }
 
