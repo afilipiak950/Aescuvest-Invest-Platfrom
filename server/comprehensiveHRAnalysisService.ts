@@ -454,6 +454,15 @@ export class ComprehensiveHRAnalysisService {
     }
     
     if (!content || content.trim().length === 0) return null;
+
+    // Quick keyword check first (for speed) - EXACT Financial approach
+    const hasRelevantKeywords = question.keywords.some((keyword: string) =>
+      content.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    if (!hasRelevantKeywords) {
+      return null; // Skip document if no relevant keywords found
+    }
     
     const prompt = `You are an expert HR due diligence analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC HR DETAILS from this document.
 
