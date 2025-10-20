@@ -6576,22 +6576,18 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {/* Main Answer */}
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-purple-400 mb-2">IP Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-                                  {typeof answer.answer === 'string' ? answer.answer : 
+                                <MarkdownContent content={typeof answer.answer === 'string' ? answer.answer : 
                                    typeof answer.answer === 'object' ? JSON.stringify(answer.answer, null, 2) :
-                                   String(answer.answer || 'No analysis available')}
-                                </p>
+                                   String(answer.answer || 'No analysis available')} />
                               </div>
 
                               {/* Enhanced IP Assessment */}
                               {answer.ipAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">IP Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">
-                                    {typeof answer.ipAssessment === 'string' ? answer.ipAssessment : 
+                                  <MarkdownContent content={typeof answer.ipAssessment === 'string' ? answer.ipAssessment : 
                                      typeof answer.ipAssessment === 'object' ? JSON.stringify(answer.ipAssessment, null, 2) :
-                                     String(answer.ipAssessment || 'No assessment available')}
-                                  </p>
+                                     String(answer.ipAssessment || 'No assessment available')} />
                                 </div>
                               )}
 
@@ -6631,11 +6627,9 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                               {answer.evidenceSummary && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-purple-400 mb-2">Evidence Summary</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">
-                                    {typeof answer.evidenceSummary === 'string' ? answer.evidenceSummary : 
+                                  <MarkdownContent content={typeof answer.evidenceSummary === 'string' ? answer.evidenceSummary : 
                                      typeof answer.evidenceSummary === 'object' ? JSON.stringify(answer.evidenceSummary, null, 2) :
-                                     String(answer.evidenceSummary || 'No evidence summary available')}
-                                  </p>
+                                     String(answer.evidenceSummary || 'No evidence summary available')} />
                                 </div>
                               )}
 
