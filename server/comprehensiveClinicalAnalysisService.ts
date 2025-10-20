@@ -1677,7 +1677,7 @@ Respond in JSON:
 
 /**
  * Extract evidence from ALL documents for a specific question - BATCH PROCESSING
- * Processes documents in batches of 10 to avoid overwhelming the system
+ * Processes documents in batches of 20 to match Financial/HR/Commercial speed
  */
 async function extractEvidenceFromAllDocuments(
   documents: any[], 
@@ -1685,8 +1685,8 @@ async function extractEvidenceFromAllDocuments(
 ): Promise<any[]> {
   console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
   
-  // Process documents in batches to avoid overwhelming the system
-  const batchSize = 10;
+  // Process documents in batches to match Financial/HR/Commercial speed
+  const batchSize = 20;
   const evidence = [];
   
   for (let i = 0; i < documents.length; i += batchSize) {
