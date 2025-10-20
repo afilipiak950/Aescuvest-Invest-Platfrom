@@ -922,17 +922,31 @@ export class ComprehensiveClinicalAnalysisService {
       
       console.log(`📦 Batch ${batchNum}/${totalBatches}: Processing ${batch.length} documents`);
       
-      // 🚀 IMPROVEMENT: Use Promise.allSettled for error resilience
-      const batchResults = await Promise.allSettled(
-        batch.map(async (doc) => {
-          try {
-            return await this.extractEvidenceFromDocument(doc, question);
-          } catch (error) {
-            console.error(`❌ Failed to extract from ${doc.name}:`, error);
-            return null;
-          }
-        })
-      );
+      const batchPromises = batch.map(async (doc) => {
+        try {
+          return await this.extractEvidenceFromDocument(doc, question);
+        } catch (error) {
+          console.error(`❌ Failed to extract from ${doc.name}:`, error);
+          return null;
+        }
+      });
+
+      // CRITICAL FIX: Wrap Promise.allSettled with batch-level timeout (3 minutes per batch)
+      const BATCH_TIMEOUT = 180000; // 3 minutes
+      const batchTimeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`Batch timeout after ${BATCH_TIMEOUT}ms`)), BATCH_TIMEOUT);
+      });
+      
+      let batchResults;
+      try {
+        batchResults = await Promise.race([
+          Promise.allSettled(batchPromises),
+          batchTimeoutPromise
+        ]) as PromiseSettledResult<any>[];
+      } catch (batchTimeoutError) {
+        console.warn(`⏰ Batch ${batchNum} timed out, continuing with next batch...`);
+        batchResults = []; // Empty results for timed-out batch
+      }
       
       // Filter successful results with relevant content
       const validEvidence = batchResults
