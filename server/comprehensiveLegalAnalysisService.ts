@@ -1001,7 +1001,8 @@ Respond in JSON:
   }
 
   /**
-   * Generate comprehensive findings - EXACT COPY from Clinical
+   * Generate comprehensive findings - ALIGNED WITH Financial/Clinical agents
+   * CRITICAL FIX: Removed vague "Insufficient information" disclaimers that made answers look incomplete
    */
   private generateComprehensiveLegalFindings(answers: Record<string, any>): any[] {
     const findings = [];
@@ -1010,7 +1011,7 @@ Respond in JSON:
       const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // High confidence findings
+      // High confidence findings - show full answer like Financial agent
       if (answer.confidence > 70) {
         findings.push({
           id: findings.length + 1,
@@ -1023,20 +1024,13 @@ Respond in JSON:
         });
       }
       
-      // Risk findings for low confidence or gaps
-      if (answer.confidence < 50 || (answer.gaps && answer.gaps.length > 0)) {
-        findings.push({
-          id: findings.length + 1,
-          type: 'risk',
-          content: `Insufficient legal information for: ${question.question}. Additional documentation may be required.`,
-          source: 'Legal Analysis',
-          confidence: 0.3,
-          category: 'gaps',
-          evidenceCount: answer.evidenceCount || 0
-        });
-      }
+      // REMOVED: Vague "Insufficient legal information" disclaimers
+      // The answer.gaps field already contains specific gap information
+      // Adding generic disclaimers made answers look incomplete and unprofessional
+      // Now matches Financial/Clinical agent behavior
     }
     
+    console.log(`📊 Generated ${findings.length} comprehensive legal findings`);
     return findings;
   }
   
