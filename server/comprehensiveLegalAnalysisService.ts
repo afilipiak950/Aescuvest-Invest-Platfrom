@@ -562,7 +562,7 @@ class ComprehensiveLegalAnalysisService {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
     // Process documents in batches to match Financial/HR/Commercial speed
-    const batchSize = 20;
+    const batchSize = 40;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
