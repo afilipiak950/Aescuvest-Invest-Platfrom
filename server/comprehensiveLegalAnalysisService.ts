@@ -553,7 +553,7 @@ class ComprehensiveLegalAnalysisService {
   }
   
   /**
-   * Extract evidence from ALL documents for a specific question - EXACT COPY from Clinical
+   * Extract evidence from ALL documents for a specific question - Optimized batch processing
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
@@ -561,8 +561,8 @@ class ComprehensiveLegalAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system - EXACT Clinical approach
-    const batchSize = 10;
+    // Process documents in batches to match Financial/HR/Commercial speed
+    const batchSize = 20;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
