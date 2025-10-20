@@ -815,14 +815,15 @@ AI SUMMARY CONTENT: ${content}
 KEY FINDINGS: ${findings}`;
 }).join('\n')}
 
-CRITICAL: Extract ALL specific details from the AI SUMMARY CONTENT above:
-- Contract terms, payment amounts, dates, obligations
-- Party names, deliverables, compliance requirements
-- IP terms, liability clauses, termination conditions
+CRITICAL INSTRUCTIONS:
+1. Extract ALL specific details from the AI SUMMARY CONTENT above (contract terms, payment amounts, dates, obligations, party names, deliverables, compliance requirements, IP terms, liability clauses, termination conditions)
+2. DO NOT add "Insufficient information" or "Additional documentation required" disclaimers
+3. Focus on what IS documented with specific details
+4. Use gaps field ONLY for missing information (do not mention in answer field)
 
 Respond in JSON:
 {
-  "answer": "Detailed extraction with specific contract terms, amounts, dates from the AI summaries",
+  "answer": "Detailed extraction with specific contract terms, amounts, dates from the AI summaries (NO disclaimers)",
   "confidence": 0-100,
   "keyFindings": ["Specific finding 1", "Specific finding 2"],
   "sources": ["doc1", "doc2"]
@@ -899,16 +900,20 @@ ${pa.answer}
 KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
-CRITICAL: Create ONE comprehensive answer that:
-1. Extracts ALL specific details (amounts, dates, terms) from all batches
+CRITICAL SYNTHESIS RULES:
+1. Extract ALL specific details (amounts, dates, terms) from all batches
 2. Lists ALL contracts/agreements with complete details
 3. Provides exhaustive breakdown of obligations, rights, and terms
 4. Cites specific document sections and dates
+5. DO NOT add "Insufficient information" or "Additional documentation required" disclaimers in the answer field
+6. Focus on what IS documented - save gaps for separate "gaps" field
+7. Write professional analysis like Financial/Clinical agents (no vague disclaimers)
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, amounts, dates, and party names
 - Structure with clear sections if multiple topics
+- NO disclaimers or "insufficient information" statements in answer
 - Example format:
   "The analysis reveals the following:
   
@@ -919,10 +924,10 @@ FORMAT REQUIREMENTS FOR "answer" FIELD:
 
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold for key terms",
+  "answer": "Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold (NO disclaimers)",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
-  "gaps": ["Missing information"],
+  "gaps": ["Missing information ONLY - separate from answer"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
   "legalAssessment": "Overall legal assessment"
 }`;
