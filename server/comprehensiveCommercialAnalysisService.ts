@@ -356,8 +356,8 @@ export class ComprehensiveCommercialAnalysisService {
 
   /**
    * Extract evidence from ALL documents for a specific question - BATCH PROCESSING
-   * Processes documents in batches of 10 to avoid overwhelming the system
-   * EXACT MATCH to Legal/Clinical approach
+   * Processes documents in batches of 20 to match Financial agent speed
+   * EXACT MATCH to Financial/HR approach
    */
   private async extractEvidenceFromAllDocuments(
     documents: any[], 
@@ -366,7 +366,7 @@ export class ComprehensiveCommercialAnalysisService {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
     // Process documents in batches to avoid overwhelming the system
-    const batchSize = 10;
+    const batchSize = 20;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
