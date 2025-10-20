@@ -5009,14 +5009,14 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                             <div className="mt-3 space-y-3">
                               <div className="bg-dark/50 rounded p-3">
                                 <h5 className="text-xs font-medium text-green-400 mb-2">Financial Analysis</h5>
-                                <p className="text-gray-300 text-sm leading-relaxed">{answer.answer}</p>
+                                <MarkdownContent content={answer.answer} />
                               </div>
 
                               {/* Enhanced Financial Assessment */}
                               {answer.financialAssessment && (
                                 <div className="bg-dark/30 rounded p-3">
                                   <h5 className="text-xs font-medium text-emerald-400 mb-2">Financial Assessment</h5>
-                                  <p className="text-gray-300 text-sm leading-relaxed">{answer.financialAssessment}</p>
+                                  <MarkdownContent content={answer.financialAssessment} />
                                 </div>
                               )}
 
