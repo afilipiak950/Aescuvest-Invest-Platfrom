@@ -152,7 +152,7 @@ class InvestmentMemoService {
     // Prepare comprehensive context using COMPLETE OCR extraction system
     const context = await this.prepareComprehensiveAnalysisContext(data);
     
-    // Generate ALL comprehensive sections matching BAIBYS PDF structure for 30-50 page memo
+    // Generate ALL comprehensive sections matching reference PDF structure for 30-50 page memo
     const [
       coverPage,
       executiveSummary,
@@ -183,31 +183,31 @@ class InvestmentMemoService {
       appendices
     ] = await Promise.all([
       this.generateCoverPage(data),
-      this.generateExecutiveSummary(context),
-      this.generateInvestmentHighlights(context),
-      this.generateSWOTAnalysis(context),
-      this.generateMarketAnalysis(context),
-      this.generateTAMSAMSOMAnalysis(context),
-      this.generateCompetitiveAnalysis(context),
-      this.generateTechnologyAssessment(context),
-      this.generateProductAnalysis(context),
-      this.generateBusinessModel(context),
-      this.generateCommercialStrategy(context),
-      this.generateTeamAssessment(context),
-      this.generateManagementAnalysis(context),
-      this.generateFinancialAnalysis(context),
-      this.generateFinancialProjections(context),
-      this.generateValuationAnalysis(context),
-      this.generateLegalAssessment(context),
-      this.generateRegulatoryAnalysis(context),
-      this.generateClinicalAssessment(context),
-      this.generateIPAnalysis(context),
-      this.generateResearchInsights(context),
-      this.generateRiskAssessment(context),
-      this.generateMitigationStrategies(context),
-      this.generateInvestmentTerms(context),
-      this.generateExitStrategy(context),
-      this.generateRecommendation(context),
+      this.generateExecutiveSummary(context, data.companyName),
+      this.generateInvestmentHighlights(context, data.companyName),
+      this.generateSWOTAnalysis(context, data.companyName),
+      this.generateMarketAnalysis(context, data.companyName),
+      this.generateTAMSAMSOMAnalysis(context, data.companyName),
+      this.generateCompetitiveAnalysis(context, data.companyName),
+      this.generateTechnologyAssessment(context, data.companyName),
+      this.generateProductAnalysis(context, data.companyName),
+      this.generateBusinessModel(context, data.companyName),
+      this.generateCommercialStrategy(context, data.companyName),
+      this.generateTeamAssessment(context, data.companyName),
+      this.generateManagementAnalysis(context, data.companyName),
+      this.generateFinancialAnalysis(context, data.companyName),
+      this.generateFinancialProjections(context, data.companyName),
+      this.generateValuationAnalysis(context, data.companyName),
+      this.generateLegalAssessment(context, data.companyName),
+      this.generateRegulatoryAnalysis(context, data.companyName),
+      this.generateClinicalAssessment(context, data.companyName),
+      this.generateIPAnalysis(context, data.companyName),
+      this.generateResearchInsights(context, data.companyName),
+      this.generateRiskAssessment(context, data.companyName),
+      this.generateMitigationStrategies(context, data.companyName),
+      this.generateInvestmentTerms(context, data.companyName),
+      this.generateExitStrategy(context, data.companyName),
+      this.generateRecommendation(context, data.companyName),
       this.generateAppendices(data)
     ]);
 
@@ -611,7 +611,7 @@ ${content.substring(0, 120000)}`
 
   // ==================== MEMO SECTION GENERATORS ====================
 
-  private async generateExecutiveSummary(context: string): Promise<string> {
+  private async generateExecutiveSummary(context: string, companyName: string): Promise<string> {
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -646,7 +646,7 @@ ${content.substring(0, 120000)}`
 Extract and verify all data from provided context - reject any fabricated information.`
         }, {
           role: "user",
-          content: `Generate executive summary using ONLY authentic data from this comprehensive BAIBYS analysis (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', 'BAIBYS', 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
+          content: `Generate executive summary using ONLY authentic data from this comprehensive analysis for ${companyName} (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', companyName, 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
         }],
         temperature: 0.2,
         max_tokens: 4000
@@ -661,7 +661,7 @@ Extract and verify all data from provided context - reject any fabricated inform
     return response;
   }
 
-  private async generateInvestmentHighlights(context: string): Promise<string[]> {
+  private async generateInvestmentHighlights(context: string, companyName: string): Promise<string[]> {
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -687,7 +687,7 @@ Extract and verify all data from provided context - reject any fabricated inform
 Format as JSON object with "highlights" array of detailed strings.`
         }, {
           role: "user", 
-          content: `Extract authentic investment highlights from BAIBYS context:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
+          content: `Extract authentic investment highlights for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.3
@@ -703,7 +703,7 @@ Format as JSON object with "highlights" array of detailed strings.`
     return result.highlights || [];
   }
 
-  private async generateSWOTAnalysis(context: string): Promise<InvestmentMemoSections['swotAnalysis']> {
+  private async generateSWOTAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['swotAnalysis']> {
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -739,7 +739,7 @@ Format as JSON object with "highlights" array of detailed strings.`
 Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
         }, {
           role: "user",
-          content: `Generate authentic SWOT analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
+          content: `Generate authentic SWOT analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.4
@@ -760,7 +760,7 @@ Extract specific, actionable points with authentic data. Format as JSON with det
     };
   }
 
-  private async generateMarketAnalysis(context: string): Promise<InvestmentMemoSections['marketAnalysis']> {
+  private async generateMarketAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['marketAnalysis']> {
     console.log(`📊 Generating market analysis from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -794,7 +794,7 @@ Extract specific, actionable points with authentic data. Format as JSON with det
 Format as JSON with authentic data only - never fabricate market numbers.`
         }, {
           role: "user",
-          content: `Extract authentic market analysis data from BAIBYS context:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
+          content: `Extract authentic market analysis data for ${companyName}:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -822,7 +822,7 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       return {
         marketContext: ensureAuthenticContent(
           result.marketContext,
-          'The global assisted reproductive technology (ART) market represents a rapidly expanding healthcare sector driven by increasing infertility rates, delayed pregnancy trends, and advancing medical technologies. BAIBYS operates within the fertility clinic technology segment, targeting IVF clinics worldwide with AI-powered embryo selection solutions to improve clinical outcomes and operational efficiency.'
+          `The global assisted reproductive technology (ART) market represents a rapidly expanding healthcare sector driven by increasing infertility rates, delayed pregnancy trends, and advancing medical technologies. ${companyName} operates within the fertility clinic technology segment, targeting IVF clinics worldwide with AI-powered embryo selection solutions to improve clinical outcomes and operational efficiency.`
         ),
         marketSize: {
           tam: ensureAuthenticContent(
@@ -835,12 +835,12 @@ Format as JSON with authentic data only - never fabricate market numbers.`
           ),
           som: ensureAuthenticContent(
             result.marketSize?.som,
-            'Serviceable Obtainable Market (SOM): $2.1B - Addressable market for BAIBYS AI-powered embryo assessment technology targeting premium IVF clinics in developed markets with high technology adoption rates and focus on clinical outcome optimization.'
+            `Serviceable Obtainable Market (SOM): $2.1B - Addressable market for ${companyName} AI-powered embryo assessment technology targeting premium IVF clinics in developed markets with high technology adoption rates and focus on clinical outcome optimization.`
           )
         },
         competitiveLandscape: ensureAuthenticContent(
           result.competitiveLandscape,
-          'The competitive landscape includes traditional embryology assessment methods, emerging AI-powered solutions, and established medical device companies. Key differentiators include clinical validation, regulatory approvals, integration capabilities, and proven outcome improvements. BAIBYS competes through superior AI accuracy, clinical partnerships, and comprehensive regulatory compliance.'
+          `The competitive landscape includes traditional embryology assessment methods, emerging AI-powered solutions, and established medical device companies. Key differentiators include clinical validation, regulatory approvals, integration capabilities, and proven outcome improvements. The company competes through superior AI accuracy, clinical partnerships, and comprehensive regulatory compliance.`
         ),
         marketTiming: ensureAuthenticContent(
           result.marketTiming,
@@ -857,7 +857,7 @@ Format as JSON with authentic data only - never fabricate market numbers.`
   // Additional section generators follow the same pattern...
   // (Continuing with abbreviated versions for space)
 
-  private async generateProductAnalysis(context: string): Promise<InvestmentMemoSections['productAnalysis']> {
+  private async generateProductAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['productAnalysis']> {
     console.log(`🔬 Generating product analysis from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -865,16 +865,16 @@ Format as JSON with authentic data only - never fabricate market numbers.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate comprehensive product analysis matching BAIBYS reference PDF quality. Extract ONLY authentic product information:
+          content: `Generate comprehensive product analysis matching reference PDF quality. Extract ONLY authentic product information:
 
 **AUTHENTIC PRODUCT DATA EXTRACTION:**
-1. **Product Overview**: Extract actual product description, BAIBYS System specifications, AI capabilities
+1. **Product Overview**: Extract actual product description, system specifications, AI capabilities
 2. **Technology Advantage**: Real technical differentiation, AI algorithms, machine learning capabilities
 3. **Competitive Edge**: Specific advantages over existing solutions, clinical validation data
 4. **Development Stage**: Current development status, regulatory approvals, clinical trials
 
 **REQUIRED ANALYSIS STRUCTURE:**
-- Product Overview: Detailed description of BAIBYS System, AI-powered features, clinical applications
+- Product Overview: Detailed description of the company's system, AI-powered features, clinical applications
 - Technology Advantage: Technical differentiation, AI/ML capabilities, clinical validation
 - Competitive Edge: Specific advantages, competitive positioning, differentiation factors
 - Development Stage: Current status, regulatory pathway, clinical milestones
@@ -889,7 +889,7 @@ Format as JSON with authentic data only - never fabricate market numbers.`
 Format as JSON with detailed product information from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic product analysis from BAIBYS context:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
+          content: `Extract authentic product analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -899,7 +899,7 @@ Format as JSON with detailed product information from authentic sources only.`
         description: 'Product Analysis Generation',
         priority: 'high',
         fallbackContent: JSON.stringify({
-          productOverview: 'Product overview information is temporarily unavailable. This section will analyze the BAIBYS System technology platform and clinical applications.',
+          productOverview: 'Product overview information is temporarily unavailable. This section will analyze the company technology platform and clinical applications.',
           technologyAdvantage: 'Technology advantage information is temporarily unavailable. This section will assess AI capabilities and technical differentiation.',
           competitiveEdge: 'Competitive edge information is temporarily unavailable. This section will evaluate competitive positioning and advantages.',
           developmentStage: 'Development stage information is temporarily unavailable. This section will review current status and regulatory pathway.'
@@ -922,25 +922,25 @@ Format as JSON with detailed product information from authentic sources only.`
       return {
         productOverview: ensureAuthenticContent(
           result.productOverview,
-          'BAIBYS Fertility develops an AI-powered clinical decision support system for assisted reproductive technology (ART). The BAIBYS System integrates advanced machine learning algorithms with real-time embryo monitoring to optimize IVF outcomes. The platform provides automated analysis of embryo development patterns, quality assessment algorithms, and predictive analytics for clinical success rates in fertility treatments.'
+          `${companyName} develops an AI-powered clinical decision support system for assisted reproductive technology (ART). The company's system integrates advanced machine learning algorithms with real-time monitoring to optimize outcomes. The platform provides automated analysis of development patterns, quality assessment algorithms, and predictive analytics for clinical success rates.`
         ),
         technologyAdvantage: ensureAuthenticContent(
           result.technologyAdvantage,
-          'The BAIBYS System leverages proprietary artificial intelligence algorithms trained on extensive embryo development datasets to provide superior predictive accuracy compared to traditional manual assessment methods. Key technological advantages include real-time image analysis, automated quality scoring, pattern recognition capabilities, and integration with existing laboratory workflows for seamless clinical implementation.'
+          `The company's system leverages proprietary artificial intelligence algorithms trained on extensive datasets to provide superior predictive accuracy compared to traditional methods. Key technological advantages include real-time analysis, automated quality scoring, pattern recognition capabilities, and integration with existing workflows for seamless implementation.`
         ),
         competitiveEdge: ensureAuthenticContent(
           result.competitiveEdge,
-          'BAIBYS maintains competitive advantages through its clinically validated AI algorithms, comprehensive regulatory approvals, strategic partnerships with leading fertility clinics, proven clinical outcomes data, and scalable technology platform that integrates with existing laboratory infrastructure. The system demonstrates superior accuracy in embryo assessment compared to conventional methods.'
+          `${companyName} maintains competitive advantages through its validated AI algorithms, regulatory approvals, strategic partnerships, proven outcomes data, and scalable technology platform that integrates with existing infrastructure. The system demonstrates superior accuracy compared to conventional methods.`
         ),
         developmentStage: ensureAuthenticContent(
           result.developmentStage,
-          'BAIBYS has achieved significant development milestones including regulatory approvals, clinical validation studies, commercial partnerships with fertility clinics, ongoing clinical trials, and market-ready product deployment. The company is advancing through regulatory pathways with demonstrated clinical efficacy and commercial traction in the assisted reproductive technology market.'
+          `${companyName} has achieved significant development milestones including regulatory approvals, validation studies, commercial partnerships, ongoing trials, and market-ready product deployment. The company is advancing through regulatory pathways with demonstrated efficacy and commercial traction.`
         )
       };
     } catch (e) {
       console.error('❌ Error parsing product analysis JSON:', e);
       return {
-        productOverview: 'Product overview information is temporarily unavailable. This section will analyze the BAIBYS System technology platform and clinical applications.',
+        productOverview: 'Product overview information is temporarily unavailable. This section will analyze the company technology platform and applications.',
         technologyAdvantage: 'Technology advantage information is temporarily unavailable. This section will assess AI capabilities and technical differentiation.',
         competitiveEdge: 'Competitive edge information is temporarily unavailable. This section will evaluate competitive positioning and advantages.',
         developmentStage: 'Development stage information is temporarily unavailable. This section will review current status and regulatory pathway.'
@@ -948,7 +948,7 @@ Format as JSON with detailed product information from authentic sources only.`
     }
   }
 
-  private async generateBusinessModel(context: string): Promise<InvestmentMemoSections['businessModel']> {
+  private async generateBusinessModel(context: string, companyName: string): Promise<InvestmentMemoSections['businessModel']> {
     console.log(`💼 Generating business model from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -956,7 +956,7 @@ Format as JSON with detailed product information from authentic sources only.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `You are analyzing comprehensive business model information for BAIBYS Fertility. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
+          content: `You are analyzing comprehensive business model information for ${companyName}. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
 
 **CRITICAL SEARCH TARGETS:**
 Look specifically for:
@@ -988,7 +988,7 @@ Look specifically for:
 Format as JSON with detailed business model extracted from commercial analyses and financial documents.`
         }, {
           role: "user",
-          content: `Extract BAIBYS business model from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
+          content: `Extract business model for ${companyName} from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
 
 ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strategy', 'monetization', 'customer', 'acquisition', 'pricing', 'commercial'], 70000)}`
         }],
@@ -1017,7 +1017,7 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
       return {
         revenueModel: ensureAuthenticContent(
           result.revenueModel, 
-          'BAIBYS Fertility operates a multi-revenue stream business model including medical device sales to fertility clinics, software licensing for clinical management systems, training and certification programs for healthcare providers, ongoing maintenance and support contracts, and potential royalty agreements with strategic partners. The model leverages scalable technology platform with recurring revenue opportunities.'
+          `${companyName} operates a multi-revenue stream business model including medical device sales to fertility clinics, software licensing for clinical management systems, training and certification programs for healthcare providers, ongoing maintenance and support contracts, and potential royalty agreements with strategic partners. The model leverages scalable technology platform with recurring revenue opportunities.`
         ),
         salesChannels: ensureAuthenticContent(
           result.salesChannels,
@@ -1039,7 +1039,7 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
     }
   }
 
-  private async generateTeamAssessment(context: string): Promise<InvestmentMemoSections['teamAssessment']> {
+  private async generateTeamAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['teamAssessment']> {
     console.log(`👥 Generating team assessment from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -1047,11 +1047,11 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `You are analyzing BAIBYS Fertility management team information. Extract AUTHENTIC executive and personnel details from HR analyses, legal documents, and corporate filings.
+          content: `You are analyzing ${companyName} management team information. Extract AUTHENTIC executive and personnel details from HR analyses, legal documents, and corporate filings.
 
 **CRITICAL SEARCH TARGETS:**
 Look specifically for:
-- Executive names: Dr. Yaron Silberman (CEO), Gal Golov, Dr. Nino Guy Cassuto
+- Executive names and titles (CEO, CTO, CFO, CMO, etc.)
 - Employment contracts and executive compensation documents
 - Board member names and backgrounds in governance documents
 - Scientific advisory board members in clinical/research documents
@@ -1079,7 +1079,7 @@ Look specifically for:
 Format as JSON with detailed team assessment extracted from HR, legal, and corporate documents.`
         }, {
           role: "user",
-          content: `Extract authentic team assessment from BAIBYS context:\n\n${this.extractRelevantContext(context, ['management', 'team', 'CEO', 'CTO', 'executive', 'board', 'advisor', 'employee', 'personnel', 'leadership', 'founder', 'director', 'officer'], 75000)}`
+          content: `Extract authentic team assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['management', 'team', 'CEO', 'CTO', 'executive', 'board', 'advisor', 'employee', 'personnel', 'leadership', 'founder', 'director', 'officer'], 75000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1112,17 +1112,17 @@ Format as JSON with detailed team assessment extracted from HR, legal, and corpo
       return {
         management: ensureAuthenticContent(
           result.management,
-          'BAIBYS Fertility is led by an experienced management team with deep expertise in medical device development, reproductive medicine, and healthcare technology. The executive leadership combines clinical knowledge with business acumen, demonstrating strong track record in regulatory approval processes, strategic partnerships, and commercial execution in the fertility and medical device sectors.'
+          `${companyName} is led by an experienced management team with deep expertise in medical device development, reproductive medicine, and healthcare technology. The executive leadership combines clinical knowledge with business acumen, demonstrating strong track record in regulatory approval processes, strategic partnerships, and commercial execution in the fertility and medical device sectors.`
         ),
         keyPersonnel: Array.isArray(result.keyPersonnel) && result.keyPersonnel.length > 0 ? result.keyPersonnel : [
-          'Dr. Yaron Silberman - Chief Executive Officer with extensive experience in medical device commercialization and reproductive medicine',
-          'Gal Golov - Chief Technology Officer leading AI development and clinical validation initiatives',
-          'Dr. Nino Guy Cassuto - Chief Medical Officer providing clinical expertise and regulatory guidance',
-          'Key technical team members with specialized expertise in artificial intelligence, machine learning, and embryology systems'
+          'Chief Executive Officer with extensive experience in medical device commercialization and industry expertise',
+          'Chief Technology Officer leading product development and innovation initiatives',
+          'Chief Medical Officer providing clinical expertise and regulatory guidance',
+          'Key technical team members with specialized expertise in technology development and product innovation'
         ],
         advisors: ensureAuthenticContent(
           result.advisors,
-          'BAIBYS has assembled a distinguished advisory board including leading reproductive medicine specialists, AI technology experts, regulatory affairs consultants, and industry veterans with extensive experience in fertility clinic operations, medical device commercialization, and healthcare technology implementation across global markets.'
+          `${companyName} has assembled a distinguished advisory board including leading industry specialists, technology experts, regulatory affairs consultants, and industry veterans with extensive experience in operations, commercialization, and implementation across global markets.`
         ),
         boardComposition: ensureAuthenticContent(
           result.boardComposition,
@@ -1140,7 +1140,7 @@ Format as JSON with detailed team assessment extracted from HR, legal, and corpo
     }
   }
 
-  private async generateFinancialAnalysis(context: string): Promise<InvestmentMemoSections['financialAnalysis']> {
+  private async generateFinancialAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['financialAnalysis']> {
     console.log(`💰 Generating financial analysis from ${context.length.toLocaleString()} characters of context`);
     
     // Enhanced financial context extraction to find financial content across ALL 12.3M characters
@@ -1154,7 +1154,7 @@ Format as JSON with detailed team assessment extracted from HR, legal, and corpo
         model: "gpt-4o",
         messages: [{
           role: "system",
-          content: `Generate comprehensive financial analysis matching BAIBYS reference PDF quality. Extract ONLY authentic financial data:
+          content: `Generate comprehensive financial analysis matching reference PDF quality. Extract ONLY authentic financial data:
 
 **AUTHENTIC FINANCIAL DATA EXTRACTION:**
 1. **Current Financials**: Extract actual revenue figures, burn rate, cash position from documents
@@ -1177,7 +1177,7 @@ Extract specific numbers, dates, and financial terms from documents. Never fabri
 Format as JSON with detailed financial information only from authentic sources.`
         }, {
           role: "user",
-          content: `Extract authentic financial analysis from BAIBYS context:\n\n${financialContext}`
+          content: `Extract authentic financial analysis for ${companyName}:\n\n${financialContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2
@@ -1198,7 +1198,7 @@ Format as JSON with detailed financial information only from authentic sources.`
       const result = JSON.parse(await response);
       console.log(`💰 Financial analysis generated: ${JSON.stringify(result).length} characters`);
       return {
-        currentFinancials: result.currentFinancials || `BAIBYS Fertility financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in clinical development, and clear cost management frameworks supporting sustainable growth trajectory.`,
+        currentFinancials: result.currentFinancials || `${companyName} financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
         projections: result.projections || 'Financial projections indicate strong growth potential driven by clinical validation success, expanding fertility market opportunities, and scalable technology platform with revenue growth across multiple customer segments.',
         fundingHistory: result.fundingHistory || 'Funding history demonstrates progressive investment rounds supporting technology development, clinical validation phases, and market preparation with strategic capital allocation for sustainable growth.',
         useOfFunds: result.useOfFunds || 'Proposed fund allocation focuses on clinical validation completion, regulatory approval processes, manufacturing scale-up, and market expansion to capture growth opportunities in fertility technology sector.'
@@ -1214,7 +1214,7 @@ Format as JSON with detailed financial information only from authentic sources.`
     }
   }
 
-  private async generateLegalAssessment(context: string): Promise<InvestmentMemoSections['legalAssessment']> {
+  private async generateLegalAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['legalAssessment']> {
     console.log(`⚖️ Generating legal assessment from ${context.length.toLocaleString()} characters of context`);
     
     // Enhanced legal context extraction to find legal content across ALL 12.3M characters
@@ -1228,7 +1228,7 @@ Format as JSON with detailed financial information only from authentic sources.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional legal assessment matching BAIBYS reference PDF quality. Extract ONLY authentic legal information from the comprehensive analysis:
+          content: `Generate professional legal assessment matching reference PDF quality. Extract ONLY authentic legal information from the comprehensive analysis:
 
 **AUTHENTIC LEGAL DATA EXTRACTION:**
 1. **Corporate Structure**: Extract actual corporate entity details, jurisdictions, subsidiaries from documents
@@ -1252,7 +1252,7 @@ Format as JSON with detailed financial information only from authentic sources.`
 Format as JSON with detailed legal information from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic legal assessment from BAIBYS context:\n\n${legalContext}`
+          content: `Extract authentic legal assessment for ${companyName}:\n\n${legalContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1261,7 +1261,7 @@ Format as JSON with detailed legal information from authentic sources only.`
       {
         description: 'Legal Assessment Generation',
         priority: 'high',
-        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', 'BAIBYS Fertility'))
+        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', companyName))
       }
     ) as Promise<string>;
 
@@ -1276,7 +1276,7 @@ Format as JSON with detailed legal information from authentic sources only.`
       };
     } catch (e) {
       console.error('❌ Error parsing legal assessment JSON:', e);
-      const fallback = getMemoFallback('legalAssessment', 'BAIBYS Fertility');
+      const fallback = getMemoFallback('legalAssessment', companyName);
       return {
         corporateStructure: fallback.corporateStructure,
         ipProtection: fallback.ipProtection,
@@ -1286,7 +1286,7 @@ Format as JSON with detailed legal information from authentic sources only.`
     }
   }
 
-  private async generateRiskAssessment(context: string): Promise<InvestmentMemoSections['riskAssessment']> {
+  private async generateRiskAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['riskAssessment']> {
     console.log(`⚠️ Generating risk assessment from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -1294,7 +1294,7 @@ Format as JSON with detailed legal information from authentic sources only.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
         role: "system",
-        content: `Generate comprehensive investment risk assessment matching BAIBYS PDF format. Extract ONLY authentic risk factors:
+        content: `Generate comprehensive investment risk assessment matching reference PDF format. Extract ONLY authentic risk factors:
 
 **TECHNICAL RISKS** - Extract actual technology challenges:
 - AI/ML model performance and validation risks
@@ -1335,7 +1335,7 @@ Format as JSON with detailed legal information from authentic sources only.`
 Format as JSON with detailed risk arrays from authentic sources only.`
       }, {
         role: "user",
-        content: `Extract authentic risk assessment from BAIBYS context:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
+        content: `Extract authentic risk assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
       }],
       response_format: { type: "json_object" },
       temperature: 0.3
@@ -1435,7 +1435,7 @@ Format as JSON with detailed risk arrays from authentic sources only.`
   }
   }
 
-  private async generateInvestmentTerms(context: string): Promise<InvestmentMemoSections['investmentTerms']> {
+  private async generateInvestmentTerms(context: string, companyName: string): Promise<InvestmentMemoSections['investmentTerms']> {
     console.log(`💰 Generating investment terms from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -1443,7 +1443,7 @@ Format as JSON with detailed risk arrays from authentic sources only.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional investment terms matching BAIBYS PDF format. Extract ONLY authentic investment terms from documents:
+          content: `Generate professional investment terms matching reference PDF format. Extract ONLY authentic investment terms from documents:
 
 **INVESTMENT TERMS EXTRACTION:**
 1. **Valuation**: Extract pre-money/post-money valuations from term sheets
@@ -1469,7 +1469,7 @@ Format as JSON with detailed risk arrays from authentic sources only.`
 Format as JSON with detailed investment terms from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic investment terms from BAIBYS context:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
+          content: `Extract authentic investment terms for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1497,7 +1497,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
       return {
         valuation: ensureAuthenticContent(
           result.valuation,
-          'BAIBYS Fertility is seeking Series A funding with pre-money valuation reflecting the company\'s technology development stage, clinical validation progress, and market positioning in the reproductive medicine sector. Valuation considerations include intellectual property portfolio, regulatory pathway advancement, and strategic partnership potential with fertility clinic networks.'
+          `${companyName} is seeking funding with pre-money valuation reflecting the company's technology development stage, validation progress, and market positioning. Valuation considerations include intellectual property portfolio, regulatory pathway advancement, and strategic partnership potential.`
         ),
         fundingAmount: ensureAuthenticContent(
           result.fundingAmount,
@@ -1523,7 +1523,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
     }
   }
 
-  private async generateRecommendation(context: string): Promise<InvestmentMemoSections['recommendation']> {
+  private async generateRecommendation(context: string, companyName: string): Promise<InvestmentMemoSections['recommendation']> {
     console.log(`📋 Generating investment recommendation from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -1531,7 +1531,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional investment recommendation matching BAIBYS PDF format. Provide clear investment decision framework:
+          content: `Generate professional investment recommendation matching reference PDF format. Provide clear investment decision framework:
 
 **INVESTMENT RECOMMENDATION STRUCTURE:**
 1. **Investment Decision**: INVEST/PASS/INVESTIGATE with clear rationale
@@ -1557,7 +1557,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
 Format as JSON with detailed investment recommendation based on authentic analysis.`
         }, {
           role: "user",
-          content: `Generate authentic investment recommendation from BAIBYS context:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
+          content: `Generate authentic investment recommendation for ${companyName}:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.3
@@ -1584,7 +1584,7 @@ Format as JSON with detailed investment recommendation based on authentic analys
       return {
         investment_recommendation: ensureAuthenticContent(
           result.investment_recommendation,
-          'INVEST - BAIBYS Fertility presents a compelling investment opportunity in the high-growth assisted reproductive technology market. The company demonstrates strong technology differentiation, experienced management team, clear regulatory pathway, and significant market opportunity with established clinical partnerships and commercial traction potential.'
+          `INVEST - ${companyName} presents a compelling investment opportunity in the market. The company demonstrates strong technology differentiation, experienced management team, clear regulatory pathway, and significant market opportunity with established partnerships and commercial traction potential.`
         ),
         rationale: ensureAuthenticContent(
           result.rationale,
@@ -1610,7 +1610,7 @@ Format as JSON with detailed investment recommendation based on authentic analys
   }
 
   // String-based section generators for remaining sections
-  private async generateTAMSAMSOMAnalysis(context: string): Promise<string> {
+  private async generateTAMSAMSOMAnalysis(context: string, companyName: string): Promise<string> {
     console.log(`📊 Generating TAM/SAM/SOM analysis from ${context.length.toLocaleString()} characters of context`);
     
     const response = await openaiQuotaManager.makeRequest(
@@ -1661,7 +1661,7 @@ Extract specific market data from the analysis including market values, growth r
 The global assisted reproductive technology market represents a **$64.53 billion TAM** growing at 9.2% CAGR, driven by increasing infertility rates, delayed childbearing trends, and advancing reproductive technologies.
 
 ## Serviceable Addressable Market (SAM)  
-BAIBYS targets the **$12.8 billion SAM** focused on fertility clinics and IVF centers in developed markets (North America, Europe, Asia-Pacific) with advanced laboratory infrastructure and AI adoption capabilities.
+The company targets the serviceable addressable market focused on target customers in developed markets with advanced infrastructure and technology adoption capabilities.
 
 ## Serviceable Obtainable Market (SOM)
 Realistic market capture of **$640 million SOM** (5% of SAM) based on clinical partnership strategy, technology validation, and 5-year market penetration model across target fertility clinic networks.
@@ -1673,7 +1673,7 @@ Realistic market capture of **$640 million SOM** (5% of SAM) based on clinical p
   );
   }
 
-  private async generateCompetitiveAnalysis(context: string): Promise<string> {
+  private async generateCompetitiveAnalysis(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1720,7 +1720,7 @@ Extract specific competitor information including company names, funding rounds,
 **Merck KGaA** - Fertility pharmaceutical and technology solutions, significant R&D investment in reproductive medicine
 
 ## Competitive Positioning
-BAIBYS differentiates through AI-powered clinical decision support system specifically designed for embryo assessment and IVF outcome optimization, targeting unmet need in fertility clinic workflow automation.
+The company differentiates through advanced technology solutions specifically designed for target applications, addressing unmet needs in the market.
 
 ## Technology Advantage
 Proprietary machine learning algorithms trained on extensive embryo development datasets provide superior predictive accuracy compared to traditional manual assessment methods used by competitors.
@@ -1730,7 +1730,7 @@ Early-stage technology company with opportunity to establish category leadership
     );
   }
 
-  private async generateTechnologyAssessment(context: string): Promise<string> {
+  private async generateTechnologyAssessment(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1745,7 +1745,7 @@ Early-stage technology company with opportunity to establish category leadership
     return response.choices[0].message.content || '';
   }
 
-  private async generateCommercialStrategy(context: string): Promise<string> {
+  private async generateCommercialStrategy(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1760,7 +1760,7 @@ Early-stage technology company with opportunity to establish category leadership
     return response.choices[0].message.content || '';
   }
 
-  private async generateManagementAnalysis(context: string): Promise<string> {
+  private async generateManagementAnalysis(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1789,7 +1789,7 @@ Extract specific details including executive names, previous companies, educatio
     return response.choices[0].message.content || '';
   }
 
-  private async generateFinancialProjections(context: string): Promise<string> {
+  private async generateFinancialProjections(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1818,7 +1818,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateValuationAnalysis(context: string): Promise<string> {
+  private async generateValuationAnalysis(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1833,7 +1833,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateRegulatoryAnalysis(context: string): Promise<string> {
+  private async generateRegulatoryAnalysis(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1848,7 +1848,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateClinicalAssessment(context: string): Promise<string> {
+  private async generateClinicalAssessment(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1864,7 +1864,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateIPAnalysis(context: string): Promise<string> {
+  private async generateIPAnalysis(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1879,7 +1879,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateResearchInsights(context: string): Promise<string> {
+  private async generateResearchInsights(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1894,7 +1894,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateMitigationStrategies(context: string): Promise<string> {
+  private async generateMitigationStrategies(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1909,7 +1909,7 @@ Extract specific financial data from documents including historical financials, 
     return response.choices[0].message.content || '';
   }
 
-  private async generateExitStrategy(context: string): Promise<string> {
+  private async generateExitStrategy(context: string, companyName: string): Promise<string> {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{
@@ -1944,7 +1944,7 @@ Extract specific financial data from documents including historical financials, 
       model: "gpt-4o",
       messages: [{
         role: "system",
-        content: `Generate comprehensive BAIBYS-quality appendices with AUTHENTIC extracted data from documents. Include:
+        content: `Generate comprehensive high-quality appendices with AUTHENTIC extracted data from documents. Include:
 
 **APPENDIX A: DOCUMENT INDEX AND SUMMARY**
 - Complete listing of all ${data.documents.length} documents with names, types, dates, and relevance
@@ -1978,7 +1978,7 @@ Extract specific financial data from documents including historical financials, 
 **EXTRACT ONLY AUTHENTIC DATA - Never fabricate. Use specific names, numbers, dates, and details found in the documents. If no data found, state "Not available in provided documents".**`
       }, {
         role: "user",
-        content: `Generate comprehensive appendices using authentic data extracted from BAIBYS documents:
+        content: `Generate comprehensive appendices using authentic data extracted from ${data.companyName} documents:
 
 DOCUMENT INDEX:
 ${documentIndex.map(doc => `- ${doc.name} (${doc.type}, ${(doc.size/1024).toFixed(1)}KB, OCR: ${doc.ocrLength} chars)`).join('\n')}
