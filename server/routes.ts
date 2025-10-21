@@ -7058,13 +7058,24 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
 
       console.log(`📊 Created background job for investment memo: ${jobId}`);
       
+      // INSTANT MEMO CREATION: Create memo record immediately so it appears in Memos page with progress 0%
+      console.log(`📝 Creating instant memo record for deal ${dealId} with status DRAFT`);
+      await storage.deleteMemosByDealId(dealId); // Clear any old memos
+      const initialMemo = await storage.createMemo({
+        dealId: dealId,
+        executiveSummary: 'Generating comprehensive investment memo... This will be updated automatically as sections are completed.',
+        status: 'DRAFT',
+        memo: null // Will be populated as generation progresses
+      });
+      console.log(`✅ Instant memo record created with ID ${initialMemo.id} - visible immediately in Memos page`);
+      
       // Import and run service in background - EXACT comprehensive agent pattern
       (async () => {
         try {
           console.log(`📝 Starting investment memo generation background process for deal ${dealId}`);
           const { investmentMemoService } = await import('./services/investmentMemoService');
           
-          // Generate memo with job tracking
+          // Generate memo with job tracking (will update the memo record progressively)
           await investmentMemoService.generateComprehensiveMemoWithJobTracking(dealId, jobId, storage);
           
           console.log(`✅ Investment memo generation completed for deal ${dealId}`);
@@ -7076,6 +7087,12 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
             status: 'failed',
             currentStep: `Memo generation failed: ${(error as any)?.message || error}`,
             completedAt: new Date()
+          });
+          
+          // Update memo to show failed state
+          await storage.updateMemo(initialMemo.id, {
+            status: 'FAILED',
+            executiveSummary: `Memo generation failed: ${(error as any)?.message || 'Unknown error'}`
           });
         }
       })();

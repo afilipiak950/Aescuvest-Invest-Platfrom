@@ -111,7 +111,7 @@ class InvestmentMemoService {
     console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId})`);
     
     try {
-      // Update progress: Data gathering phase
+      // Update progress: Data gathering phase (10%)
       await storage.updateBackgroundJob(jobId, {
         status: 'processing',
         progress: 10,
@@ -119,34 +119,68 @@ class InvestmentMemoService {
         updatedAt: new Date()
       });
       
+      // PROGRESSIVE UPDATE: Update memo to show data gathering
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (existingMemo) {
+        await storage.updateMemo(existingMemo.id, {
+          executiveSummary: 'Gathering comprehensive data from documents, analyses, and research... (10% complete)',
+          status: 'DRAFT'
+        });
+      }
+      
       const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      // Update progress: Section generation phase
+      // Update progress: Section generation phase (30%)
       await storage.updateBackgroundJob(jobId, {
         progress: 30,
         currentStep: 'Generating 26 comprehensive sections with AI analysis',
         updatedAt: new Date()
       });
       
+      // PROGRESSIVE UPDATE: Update memo to show section generation
+      if (existingMemo) {
+        await storage.updateMemo(existingMemo.id, {
+          executiveSummary: `Generating ultra-deep 26 comprehensive sections with AI analysis for ${memoData.companyName}... (30% complete)`,
+          status: 'DRAFT'
+        });
+      }
+      
       const memo = await this.generateComprehensiveMemoSections(memoData);
       
-      // Update progress: Storage phase
+      // Update progress: Storage phase (90%)
       await storage.updateBackgroundJob(jobId, {
         progress: 90,
-        currentStep: 'Storing investment memo to database',
+        currentStep: 'Finalizing and storing comprehensive investment memo',
         updatedAt: new Date()
       });
+      
+      // PROGRESSIVE UPDATE: Update memo with partial content
+      if (existingMemo) {
+        await storage.updateMemo(existingMemo.id, {
+          executiveSummary: memo.executiveSummary || 'Investment memo sections generated successfully.',
+          memo: memo, // Store full memo sections
+          status: 'DRAFT'
+        });
+      }
       
       await this.storeMemo(dealId, memo);
       
-      // Mark as completed
+      // Mark as completed (100%)
       await storage.updateBackgroundJob(jobId, {
         status: 'completed',
         progress: 100,
-        currentStep: 'Investment memo generated successfully',
+        currentStep: 'Investment memo generated successfully - 26 comprehensive sections completed',
         completedAt: new Date(),
         updatedAt: new Date()
       });
+      
+      // FINAL UPDATE: Update memo to completed status
+      const finalMemo = await storage.getMemoByDealId(dealId);
+      if (finalMemo) {
+        await storage.updateMemo(finalMemo.id, {
+          status: 'REVIEW' // Move to REVIEW status when fully generated
+        });
+      }
       
       console.log(`✅ Investment memo generation completed for deal ${dealId} (Job: ${jobId})`);
       
@@ -2094,20 +2128,29 @@ ${fullContext.substring(0, 45000)}`
         return;
       }
 
-      // Prepare memo data for database storage using new comprehensive memo field
-      const memoData: InsertInvestmentMemo = {
-        dealId: dealId,
-        // Store the entire comprehensive memo in the memo field
-        memo: memo,
-        // Keep executive summary for backward compatibility
-        executiveSummary: memo.executiveSummary,
-        status: 'Generated'
-      };
-
-      // Delete old memos for this deal and create new one
-      await storage.deleteMemosByDealId(dealId);
-      await storage.createMemo(memoData);
-      console.log(`💾 Successfully persisted investment memo to database for deal ${dealId}`);
+      // FIX: UPDATE existing memo instead of deleting and recreating
+      // This preserves the memo ID that's being updated progressively
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      
+      if (existingMemo) {
+        // Update existing memo in-place (preserves ID for progressive updates)
+        await storage.updateMemo(existingMemo.id, {
+          memo: memo,
+          executiveSummary: memo.executiveSummary,
+          status: 'Generated'
+        });
+        console.log(`💾 Successfully updated investment memo ${existingMemo.id} for deal ${dealId}`);
+      } else {
+        // Fallback: Create new memo if none exists (shouldn't happen with instant creation)
+        const memoData: InsertInvestmentMemo = {
+          dealId: dealId,
+          memo: memo,
+          executiveSummary: memo.executiveSummary,
+          status: 'Generated'
+        };
+        await storage.createMemo(memoData);
+        console.log(`💾 Successfully created new investment memo for deal ${dealId}`);
+      }
     } catch (error) {
       console.error('Error persisting memo to database:', error);
       // Continue without failing - memo generation succeeded
