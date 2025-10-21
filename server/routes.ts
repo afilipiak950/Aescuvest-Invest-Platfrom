@@ -2124,6 +2124,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Investment Memo routes
+  // Get all memos with deal information and background job status
+  app.get('/api/memos', async (req: Request, res: Response) => {
+    try {
+      // Get all memos
+      const memos = await storage.getAllMemos();
+      
+      // Enrich each memo with deal information and job status
+      const enrichedMemos = await Promise.all(memos.map(async (memo) => {
+        const deal = await storage.getDealById(memo.dealId);
+        
+        // Get background job status for memo generation
+        const jobs = await storage.getBackgroundJobsByDealId(memo.dealId);
+        const memoJob = jobs.find(job => 
+          job.jobType === 'investment_memo_generation' && 
+          (job.status === 'processing' || job.status === 'completed')
+        );
+        
+        return {
+          ...memo,
+          companyName: deal?.companyName || 'Unknown Company',
+          status: memo.status || 'DRAFT',
+          jobStatus: memoJob?.status || null,
+          jobProgress: memoJob?.progress || null,
+          isGenerating: memoJob?.status === 'processing' || false
+        };
+      }));
+      
+      return res.status(200).json(enrichedMemos);
+    } catch (error) {
+      console.error('Error fetching all memos:', error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
   app.get('/api/memos/:dealId', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
