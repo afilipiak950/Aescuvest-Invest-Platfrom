@@ -6961,7 +6961,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Investment Memo Generator Routes - PERSISTENT BACKGROUND JOB PATTERN
+  // Investment Memo Generator Routes - PERSISTENT BACKGROUND JOB PATTERN (matches comprehensive agents)
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
@@ -6979,24 +6979,34 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         return res.status(404).json({ success: false, error: 'Deal not found' });
       }
 
-      // Check for existing background jobs to prevent duplicates
+      // Check for existing background jobs - EXACT comprehensive agent pattern
       const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
       const existingMemoJob = existingJobs.find(job => 
         job.jobType === 'investment_memo_generation' && job.status === 'processing'
       );
       
-      if (existingMemoJob && !forceRegenerate) {
-        console.log(`⚠️ Investment memo generation already running for deal ${dealId} (Job: ${existingMemoJob.jobId})`);
-        return res.json({ 
-          success: true, 
-          message: `Investment memo generation already in progress`,
-          jobId: existingMemoJob.jobId,
-          isRunning: true,
-          progress: existingMemoJob.progress || 0
-        });
+      if (existingMemoJob) {
+        if (forceRegenerate) {
+          // Cancel existing job and create new one
+          console.log(`🔄 Force regenerating memo - cancelling existing job ${existingMemoJob.jobId}`);
+          await storage.updateBackgroundJob(existingMemoJob.jobId, {
+            status: 'failed',
+            currentStep: 'Cancelled for regeneration',
+            completedAt: new Date()
+          });
+        } else {
+          console.log(`⚠️ Investment memo generation already running for deal ${dealId} (Job: ${existingMemoJob.jobId})`);
+          return res.json({ 
+            success: true, 
+            message: `Investment memo generation already in progress`,
+            jobId: existingMemoJob.jobId,
+            isRunning: true,
+            progress: existingMemoJob.progress || 0
+          });
+        }
       }
 
-      // Create background job for progress tracking
+      // Create background job for progress tracking - EXACT comprehensive agent pattern
       const jobId = `investment_memo_${dealId}_${Date.now()}`;
       await storage.createBackgroundJob({
         jobId,
@@ -7004,75 +7014,43 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         dealId,
         status: 'processing',
         progress: 0,
+        currentStep: 'Initializing memo generation',
         totalDocuments: 0,
         processedDocuments: 0,
-        startedAt: new Date()
+        startedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
-      // Start investment memo generation as BACKGROUND JOB
-      console.log(`📝 Starting background investment memo generation for deal ${dealId} with job ${jobId}`);
+      console.log(`📊 Created background job for investment memo: ${jobId}`);
       
-      const { investmentMemoService } = await import('./services/investmentMemoService');
-      
-      // Process in background with proper error handling and WebSocket updates
-      investmentMemoService.generateComprehensiveMemo(dealId).then(async (memo) => {
-        console.log(`✅ Investment memo generation completed for deal ${dealId}`);
-        
-        // Mark job as completed
-        await storage.updateBackgroundJob(jobId, {
-          status: 'completed',
-          progress: 100,
-          completedAt: new Date(),
-          updatedAt: new Date()
-        });
-        
-        // Broadcast completion via WebSocket
-        websocketManager.broadcastJobProgress({
-          jobId,
-          dealId,
-          jobType: 'investment_memo_generation',
-          progress: 100,
-          status: 'completed',
-          currentStep: 'Investment memo generated successfully',
-          metadata: {
-            totalSections: 26,
-            completedAt: new Date().toISOString()
-          }
-        });
-        
-      }).catch(async (error) => {
-        console.error(`❌ Investment memo generation failed for deal ${dealId}:`, error);
-        
-        // Mark job as failed
-        await storage.updateBackgroundJob(jobId, {
-          status: 'failed',
-          progress: 0,
-          completedAt: new Date(),
-          updatedAt: new Date(),
-          errorMessage: error.message
-        });
-        
-        // Broadcast failure via WebSocket
-        websocketManager.broadcastJobProgress({
-          jobId,
-          dealId,
-          jobType: 'investment_memo_generation',
-          progress: 0,
-          status: 'failed',
-          currentStep: `Error: ${error.message}`,
-          metadata: {
-            error: error.message,
-            failedAt: new Date().toISOString()
-          }
-        });
-      });
+      // Import and run service in background - EXACT comprehensive agent pattern
+      (async () => {
+        try {
+          console.log(`📝 Starting investment memo generation background process for deal ${dealId}`);
+          const { investmentMemoService } = await import('./services/investmentMemoService');
+          
+          // Generate memo with job tracking
+          await investmentMemoService.generateComprehensiveMemoWithJobTracking(dealId, jobId, storage);
+          
+          console.log(`✅ Investment memo generation completed for deal ${dealId}`);
+        } catch (error) {
+          console.error(`❌ Error in investment memo generation for deal ${dealId}:`, error);
+          
+          // Mark job as failed - EXACT comprehensive agent pattern
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            currentStep: `Memo generation failed: ${(error as any)?.message || error}`,
+            completedAt: new Date()
+          });
+        }
+      })();
 
-      // Return immediately with job ID
+      // Return immediately with job ID - EXACT comprehensive agent pattern
       res.json({
         success: true,
-        message: 'Investment memo generation started - continues in background',
+        message: 'Investment memo generation started - processing 26 sections with comprehensive analysis',
         jobId,
-        isRunning: true,
         dealId
       });
 

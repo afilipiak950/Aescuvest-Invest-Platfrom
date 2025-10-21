@@ -106,6 +106,66 @@ export interface InvestmentMemoSections {
 
 class InvestmentMemoService {
 
+  // NEW: Wrapper method with job tracking for background processing (matches comprehensive agent pattern)
+  async generateComprehensiveMemoWithJobTracking(dealId: number, jobId: string, storage: any): Promise<void> {
+    console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId})`);
+    
+    try {
+      // Update progress: Data gathering phase
+      await storage.updateBackgroundJob(jobId, {
+        status: 'processing',
+        progress: 10,
+        currentStep: 'Gathering comprehensive data with full OCR extraction',
+        updatedAt: new Date()
+      });
+      
+      const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
+      
+      // Update progress: Section generation phase
+      await storage.updateBackgroundJob(jobId, {
+        progress: 30,
+        currentStep: 'Generating 26 comprehensive sections with AI analysis',
+        updatedAt: new Date()
+      });
+      
+      const memo = await this.generateComprehensiveMemoSections(memoData);
+      
+      // Update progress: Storage phase
+      await storage.updateBackgroundJob(jobId, {
+        progress: 90,
+        currentStep: 'Storing investment memo to database',
+        updatedAt: new Date()
+      });
+      
+      await this.storeMemo(dealId, memo);
+      
+      // Mark as completed
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: 'Investment memo generated successfully',
+        completedAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      console.log(`✅ Investment memo generation completed for deal ${dealId} (Job: ${jobId})`);
+      
+    } catch (error) {
+      console.error(`❌ Error generating investment memo for deal ${dealId}:`, error);
+      
+      // Mark job as failed
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        progress: 0,
+        currentStep: `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        completedAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      throw error;
+    }
+  }
+
   async generateComprehensiveMemo(dealId: number): Promise<InvestmentMemoSections> {
     console.log(`🔍 Starting comprehensive investment memo generation for deal ${dealId}`);
     
