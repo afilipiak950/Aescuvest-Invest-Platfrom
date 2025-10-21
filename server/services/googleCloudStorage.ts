@@ -423,6 +423,25 @@ class GoogleCloudStorageService {
       throw new Error(`Failed to apply CORS: ${error.message}`);
     }
   }
+
+  /**
+   * List all files in the GCS bucket
+   */
+  async listAllFiles(prefix?: string): Promise<string[]> {
+    await this.initializeStorage();
+    try {
+      const options = prefix ? { prefix } : {};
+      const [files] = await this.bucket.getFiles(options);
+      
+      const filePaths = files.map(file => file.name);
+      console.log(`📋 Listed ${filePaths.length} files from GCS bucket`);
+      
+      return filePaths;
+    } catch (error) {
+      console.error('❌ Failed to list GCS files:', error);
+      throw new Error(`Failed to list GCS files: ${error.message}`);
+    }
+  }
 }
 
 // Export singleton instance
