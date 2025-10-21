@@ -740,8 +740,8 @@ export class ComprehensiveClinicalAnalysisService {
         const question = COMPREHENSIVE_CLINICAL_QUESTIONS[i];
         console.log(`🔍 Processing clinical question ${i + 1}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.question}`);
         
-        // Update progress - Start at 0% like Legal (removed +5 offset)
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100);
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100);
         await storageService.updateBackgroundJob(jobId, {
           progress,
           currentDocumentName: question.question,

@@ -135,8 +135,8 @@ export class ComprehensiveCommercialAnalysisService {
         const question = COMPREHENSIVE_COMMERCIAL_QUESTIONS[i];
         console.log(`🔍 Processing commercial question ${i + 1}/${COMPREHENSIVE_COMMERCIAL_QUESTIONS.length}: ${question.question}`);
         
-        // Update progress
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_COMMERCIAL_QUESTIONS.length) * 90) + 5;
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_COMMERCIAL_QUESTIONS.length) * 90) + 5;
         await storageService.updateBackgroundJob(jobId, {
           progress,
           currentDocumentName: question.question,

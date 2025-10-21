@@ -291,8 +291,8 @@ export class ComprehensiveHrAnalysisService {
         const question = COMPREHENSIVE_HR_QUESTIONS[i];
         console.log(`🔍 Processing HR question ${i + 1}/${COMPREHENSIVE_HR_QUESTIONS.length}: ${question.question}`);
         
-        // Update progress
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_HR_QUESTIONS.length) * 90) + 5;
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_HR_QUESTIONS.length) * 90) + 5;
         await storageService.updateBackgroundJob(jobId, {
           progress,
           currentDocumentName: question.question,
