@@ -6961,60 +6961,127 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Investment Memo Generator Routes
+  // Investment Memo Generator Routes - PERSISTENT BACKGROUND JOB PATTERN
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
+      const { forceRegenerate } = req.body;
+      
+      console.log(`📝 Investment memo generation requested for deal ${dealId}, force regenerate: ${!!forceRegenerate}`);
       
       if (isNaN(dealId)) {
-        console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid deal ID provided'
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      // Check if deal exists
+      const deal = await storage.getDealById(dealId);
+      if (!deal) {
+        return res.status(404).json({ success: false, error: 'Deal not found' });
+      }
+
+      // Check for existing background jobs to prevent duplicates
+      const existingJobs = await storage.getBackgroundJobsByDealId(dealId);
+      const existingMemoJob = existingJobs.find(job => 
+        job.jobType === 'investment_memo_generation' && job.status === 'processing'
+      );
+      
+      if (existingMemoJob && !forceRegenerate) {
+        console.log(`⚠️ Investment memo generation already running for deal ${dealId} (Job: ${existingMemoJob.jobId})`);
+        return res.json({ 
+          success: true, 
+          message: `Investment memo generation already in progress`,
+          jobId: existingMemoJob.jobId,
+          isRunning: true,
+          progress: existingMemoJob.progress || 0
         });
       }
+
+      // Create background job for progress tracking
+      const jobId = `investment_memo_${dealId}_${Date.now()}`;
+      await storage.createBackgroundJob({
+        jobId,
+        jobType: 'investment_memo_generation',
+        dealId,
+        status: 'processing',
+        progress: 0,
+        totalDocuments: 0,
+        processedDocuments: 0,
+        startedAt: new Date()
+      });
+
+      // Start investment memo generation as BACKGROUND JOB
+      console.log(`📝 Starting background investment memo generation for deal ${dealId} with job ${jobId}`);
       
-      // Import the service here to avoid circular dependencies
-      console.log(`📥 Importing investment memo service...`);
       const { investmentMemoService } = await import('./services/investmentMemoService');
-      console.log(`✅ Service imported successfully`);
       
-      if (!investmentMemoService) {
-        console.error(`❌ Investment memo service not found`);
-        return res.status(500).json({
-          success: false,
-          error: 'Investment memo service not available'
+      // Process in background with proper error handling and WebSocket updates
+      investmentMemoService.generateComprehensiveMemo(dealId).then(async (memo) => {
+        console.log(`✅ Investment memo generation completed for deal ${dealId}`);
+        
+        // Mark job as completed
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          completedAt: new Date(),
+          updatedAt: new Date()
         });
-      }
-      
-      console.log(`🚀 Calling generateComprehensiveMemo for deal ${dealId}`);
-      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      console.log(`✅ Memo generation completed for deal ${dealId}`);
-      
-      if (!memo) {
-        console.error(`❌ No memo returned for deal ${dealId}`);
-        return res.status(500).json({
-          success: false,
-          error: 'Memo generation returned no data'
+        
+        // Broadcast completion via WebSocket
+        websocketManager.broadcastJobProgress({
+          jobId,
+          dealId,
+          jobType: 'investment_memo_generation',
+          progress: 100,
+          status: 'completed',
+          currentStep: 'Investment memo generated successfully',
+          metadata: {
+            totalSections: 26,
+            completedAt: new Date().toISOString()
+          }
         });
-      }
-      
+        
+      }).catch(async (error) => {
+        console.error(`❌ Investment memo generation failed for deal ${dealId}:`, error);
+        
+        // Mark job as failed
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          progress: 0,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+          errorMessage: error.message
+        });
+        
+        // Broadcast failure via WebSocket
+        websocketManager.broadcastJobProgress({
+          jobId,
+          dealId,
+          jobType: 'investment_memo_generation',
+          progress: 0,
+          status: 'failed',
+          currentStep: `Error: ${error.message}`,
+          metadata: {
+            error: error.message,
+            failedAt: new Date().toISOString()
+          }
+        });
+      });
+
+      // Return immediately with job ID
       res.json({
         success: true,
-        memo
+        message: 'Investment memo generation started - continues in background',
+        jobId,
+        isRunning: true,
+        dealId
       });
+
     } catch (error) {
-      console.error('❌ Investment memo generation error:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        name: error instanceof Error ? error.name : 'Unknown error type'
-      });
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate investment memo'
+      console.error(`❌ Error starting investment memo generation for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to start investment memo generation',
+        details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
@@ -8997,63 +9064,7 @@ export async function registerAllRoutes(app: Express) {
   // Register legacy reset routes
   app.use('/', legacyResetRoutes);
   
-  // Investment Memo Generator Routes
-  app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      console.log(`🔄 Starting investment memo generation for deal ${dealId}`);
-      
-      if (isNaN(dealId)) {
-        console.error(`❌ Invalid deal ID: ${req.params.dealId}`);
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid deal ID provided'
-        });
-      }
-      
-      // Import the service here to avoid circular dependencies
-      console.log(`📥 Importing investment memo service...`);
-      const { investmentMemoService } = await import('./services/investmentMemoService');
-      console.log(`✅ Service imported successfully`);
-      
-      if (!investmentMemoService) {
-        console.error(`❌ Investment memo service not found`);
-        return res.status(500).json({
-          success: false,
-          error: 'Investment memo service not available'
-        });
-      }
-      
-      console.log(`🚀 Calling generateComprehensiveMemo for deal ${dealId}`);
-      const memo = await investmentMemoService.generateComprehensiveMemo(dealId);
-      console.log(`✅ Memo generation completed for deal ${dealId}`);
-      
-      if (!memo) {
-        console.error(`❌ No memo returned for deal ${dealId}`);
-        return res.status(500).json({
-          success: false,
-          error: 'Memo generation returned no data'
-        });
-      }
-      
-      res.json({
-        success: true,
-        memo
-      });
-    } catch (error) {
-      console.error('❌ Investment memo generation error:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        name: error instanceof Error ? error.name : 'Unknown error type'
-      });
-      
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to generate investment memo'
-      });
-    }
-  });
+  // NOTE: Investment Memo Generator routes are registered in registerApiRoutes, not here
 
   app.get('/api/deals/:dealId/memo', async (req: Request, res: Response) => {
     try {
