@@ -145,8 +145,8 @@ export class ComprehensiveIpAnalysisService {
         const question = COMPREHENSIVE_IP_QUESTIONS[i];
         console.log(`🔍 Processing IP question ${i + 1}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.question}`);
         
-        // Update progress
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_IP_QUESTIONS.length) * 90) + 5;
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_IP_QUESTIONS.length) * 90) + 5;
         await storageService.updateBackgroundJob(jobId, {
           progress,
           currentDocumentName: question.question,

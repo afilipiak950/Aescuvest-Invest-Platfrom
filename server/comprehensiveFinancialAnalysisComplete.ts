@@ -110,8 +110,8 @@ export class ComprehensiveFinancialAnalysisService {
         const question = COMPREHENSIVE_FINANCIAL_QUESTIONS[i];
         console.log(`🔍 Processing financial question ${i + 1}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}: ${question.question}`);
         
-        // Update progress
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 90) + 5;
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 90) + 5;
         await storageService.updateBackgroundJob(jobId, {
           progress,
           currentDocumentName: question.question,

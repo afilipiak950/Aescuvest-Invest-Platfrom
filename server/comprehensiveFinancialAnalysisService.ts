@@ -194,8 +194,8 @@ export class ComprehensiveFinancialAnalysisService {
         this.currentQuestion = question.question;
         this.currentStep = `Analyzing: ${question.question}`;
         
-        // EXACT Clinical progression formula - no custom calculation
-        const progress = Math.round(((i + 1) / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100);
+        // Update progress based on completed questions (i) not current question (i+1)
+        const progress = Math.round((i / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100);
         this.progress = progress;
         
         if (jobId) {
