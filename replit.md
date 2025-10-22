@@ -46,6 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
 - **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) after company research.
 - **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system ensuring complete information across all 26 sections.
+  - **Stale Job Auto-Recovery (Oct 22, 2025)**: Automatic detection and recovery from ghost jobs that block memo generation. Jobs stuck for 20+ minutes without heartbeat updates are automatically marked as failed, allowing new generation to proceed. Prevents permanent blocking from crashed/stuck background jobs while protecting legitimate long-running generations via 5-minute heartbeat updates.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
 - **Large File Upload System**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking, resumable uploads, real-time progress tracking, and integration with document processing via a specialized Cloud Run upload service.
