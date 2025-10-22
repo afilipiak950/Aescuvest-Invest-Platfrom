@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -105,6 +105,9 @@ export default function MemoGenerator() {
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Track which jobs we've already shown success toasts for (prevents duplicate toasts)
+  const shownSuccessJobsRef = useRef<Set<string>>(new Set());
 
   // 🔥 AUTO-SELECT DEAL FROM URL PARAMETER (when clicking Edit from memos page)
   useEffect(() => {
@@ -261,15 +264,26 @@ export default function MemoGenerator() {
     staleTime: 1000 * 60 * 5, // 5 minutes cache to ensure fresh data
   });
 
-  // Helper function to find memo generation jobs
+  // Helper function to find LATEST memo generation job
   const findMemoJob = (jobs: any[]) => {
     if (!jobs || !Array.isArray(jobs)) return null;
-    return jobs.find((job: any) => {
+    
+    // Filter all memo-related jobs
+    const memoJobs = jobs.filter((job: any) => {
       if (!job || !job.jobType) return false;
       const jobType = job.jobType.toLowerCase();
       return jobType === 'investment_memo_generation' || 
              jobType.includes('memo') || 
              jobType.includes('investment_memo');
+    });
+    
+    if (memoJobs.length === 0) return null;
+    
+    // Return the LATEST job based on metadata.lastUpdate or updatedAt
+    return memoJobs.reduce((latest: any, current: any) => {
+      const latestTime = latest?.metadata?.lastUpdate || latest?.updatedAt || 0;
+      const currentTime = current?.metadata?.lastUpdate || current?.updatedAt || 0;
+      return new Date(currentTime) > new Date(latestTime) ? current : latest;
     });
   };
 
@@ -323,12 +337,25 @@ export default function MemoGenerator() {
   // Auto-refresh memo when job completes
   useEffect(() => {
     if (memoProgress && memoProgress.status === 'completed' && memoProgress.progress === 100) {
+      const jobId = memoProgress.jobId;
+      
+      // CRITICAL FIX: Prevent duplicate success toasts for the same job
+      if (jobId && shownSuccessJobsRef.current.has(jobId)) {
+        console.log(`⏭️ Already shown success toast for job ${jobId}, skipping...`);
+        return;
+      }
+      
       console.log('✅ Memo generation job completed, refreshing memo data...');
       // Invalidate and refetch memo
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
       }, 1000);
+      
+      // Mark this job as shown
+      if (jobId) {
+        shownSuccessJobsRef.current.add(jobId);
+      }
       
       toast({
         title: "Memo Generated Successfully",
@@ -362,19 +389,30 @@ export default function MemoGenerator() {
       return response.memo;
     },
     onSuccess: (memo: ComprehensiveMemo) => {
-      console.log('✅ Investment memo generated successfully', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
+      console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
       setGeneratedMemo(memo);
       // Immediately refetch background jobs to start progress tracking
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-      toast({
-        title: "Investment Memo Generated",
-        description: "Comprehensive memo created successfully. The memo content is now available.",
-      });
-      // Force immediate cache invalidation and refetch of the database memo
-      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      }, 1000); // Small delay to ensure database persistence
+      
+      // CRITICAL FIX: Only show success toast if memo data actually exists
+      // Otherwise the job is still running and we should show progress
+      if (memo && Object.keys(memo).length > 0) {
+        toast({
+          title: "Investment Memo Generated",
+          description: "Comprehensive memo created successfully. The memo content is now available.",
+        });
+        // Force immediate cache invalidation and refetch of the database memo
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        setTimeout(() => {
+          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        }, 1000); // Small delay to ensure database persistence
+      } else {
+        // Job started in background - show info toast instead
+        toast({
+          title: "Generating Investment Memo",
+          description: "Memo generation started in background. You'll see live progress updates as sections are generated.",
+        });
+      }
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
