@@ -211,24 +211,42 @@ class JobProcessor {
     try {
       console.log('🚨 STARTUP: Cleaning up orphaned jobs from previous server restarts...');
       
-      // Find all jobs that are in "processing" state - these are orphans from crashed/restarted servers
-      const orphanedJobs = await db.select()
+      // Find all jobs that are in "processing" state
+      const processingJobs = await db.select()
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'processing'));
       
-      if (orphanedJobs.length > 0) {
-        console.log(`🚨 Found ${orphanedJobs.length} orphaned jobs - marking as failed`);
+      if (processingJobs.length > 0) {
+        const now = new Date();
+        const orphanThreshold = 5 * 60 * 1000; // 5 minutes - jobs older than this are considered orphaned
+        let orphanedCount = 0;
         
-        for (const job of orphanedJobs) {
-          await db.update(backgroundJobs)
-            .set({
-              status: 'failed' as any,
-              error: 'Server restarted during processing - job orphaned',
-              updatedAt: new Date()
-            })
-            .where(eq(backgroundJobs.id, job.id));
+        for (const job of processingJobs) {
+          const lastUpdate = job.updatedAt || job.startedAt || job.createdAt;
+          const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
           
-          console.log(`🚨 Marked orphaned job ${job.jobId} (${job.jobType}) as failed`);
+          // Only mark as orphaned if the job is older than 5 minutes
+          // This prevents killing jobs that are actively running
+          if (timeSinceUpdate > orphanThreshold) {
+            await db.update(backgroundJobs)
+              .set({
+                status: 'failed' as any,
+                error: 'Server restarted during processing - job orphaned',
+                updatedAt: new Date()
+              })
+              .where(eq(backgroundJobs.id, job.id));
+            
+            console.log(`🚨 Marked orphaned job ${job.jobId} (${job.jobType}) as failed (age: ${Math.floor(timeSinceUpdate / 60000)} minutes)`);
+            orphanedCount++;
+          } else {
+            console.log(`⏭️ Skipping recent job ${job.jobId} (${job.jobType}) - age: ${Math.floor(timeSinceUpdate / 1000)} seconds (still running)`);
+          }
+        }
+        
+        if (orphanedCount > 0) {
+          console.log(`🚨 Found ${orphanedCount} orphaned jobs (out of ${processingJobs.length} processing jobs) - marked as failed`);
+        } else {
+          console.log(`✅ No orphaned jobs found (${processingJobs.length} recent jobs still running)`);
         }
       } else {
         console.log('✅ No orphaned jobs found on startup');
