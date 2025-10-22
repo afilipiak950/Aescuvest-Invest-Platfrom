@@ -181,7 +181,8 @@ class InvestmentMemoService {
       // Hoist memo declaration to outer scope so it's accessible after try/finally
       let memo: InvestmentMemoSections;
       try {
-        memo = await this.generateComprehensiveMemoSections(memoData);
+        // Pass jobId and storage for live progress tracking during section generation
+        memo = await this.generateComprehensiveMemoSections(memoData, jobId, numericJobId, dealId, storage);
       } finally {
         // Always clear heartbeat interval to prevent memory leaks
         clearInterval(heartbeatInterval);
@@ -298,13 +299,84 @@ class InvestmentMemoService {
 
   }
 
-  private async generateComprehensiveMemoSections(data: ComprehensiveMemoData): Promise<InvestmentMemoSections> {
+  private async generateComprehensiveMemoSections(
+    data: ComprehensiveMemoData, 
+    jobId?: string, 
+    numericJobId?: number, 
+    dealId?: number, 
+    storage?: any
+  ): Promise<InvestmentMemoSections> {
     console.log(`🧠 Generating AI-powered memo sections for ${data.companyName}`);
 
     // Prepare comprehensive context using COMPLETE OCR extraction system
     const context = await this.prepareComprehensiveAnalysisContext(data);
     
-    // Generate ALL comprehensive sections matching reference PDF structure for 30-50 page memo
+    // LIVE PROGRESS TRACKING: Track sections as they complete (30% → 90%)
+    const totalSections = 27;
+    let completedSections = 0;
+    const progressStart = 30;
+    const progressEnd = 90;
+    
+    // Helper to update progress as sections complete
+    const updateProgress = async (sectionName: string) => {
+      completedSections++;
+      const progress = Math.floor(progressStart + (completedSections / totalSections) * (progressEnd - progressStart));
+      
+      if (jobId && storage && dealId !== undefined && numericJobId !== undefined) {
+        try {
+          await storage.updateBackgroundJob(jobId, {
+            progress,
+            currentStep: `Generating section ${completedSections}/${totalSections}: ${sectionName}`,
+            updatedAt: new Date()
+          });
+          
+          websocketManager.broadcastJobProgress({
+            jobId: numericJobId,
+            jobType: 'investment_memo_generation',
+            status: 'processing',
+            progress,
+            currentStep: `Generating section ${completedSections}/${totalSections}: ${sectionName}`
+          }, dealId);
+          
+          console.log(`📝 Progress: ${completedSections}/${totalSections} sections (${progress}%) - ${sectionName}`);
+        } catch (error) {
+          console.error(`⚠️ Failed to update progress for ${sectionName}:`, error);
+          // Continue generation even if progress update fails
+        }
+      }
+    };
+    
+    // Generate ALL sections with progress tracking
+    const sections = await Promise.all([
+      this.generateCoverPage(data).then(async r => { await updateProgress('Cover Page'); return r; }),
+      this.generateExecutiveSummary(context, data.companyName).then(async r => { await updateProgress('Executive Summary'); return r; }),
+      this.generateInvestmentHighlights(context, data.companyName).then(async r => { await updateProgress('Investment Highlights'); return r; }),
+      this.generateSWOTAnalysis(context, data.companyName).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
+      this.generateMarketAnalysis(context, data.companyName).then(async r => { await updateProgress('Market Analysis'); return r; }),
+      this.generateTAMSAMSOMAnalysis(context, data.companyName).then(async r => { await updateProgress('TAM/SAM/SOM'); return r; }),
+      this.generateCompetitiveAnalysis(context, data.companyName).then(async r => { await updateProgress('Competitive Analysis'); return r; }),
+      this.generateTechnologyAssessment(context, data.companyName).then(async r => { await updateProgress('Technology Assessment'); return r; }),
+      this.generateProductAnalysis(context, data.companyName).then(async r => { await updateProgress('Product Analysis'); return r; }),
+      this.generateBusinessModel(context, data.companyName).then(async r => { await updateProgress('Business Model'); return r; }),
+      this.generateCommercialStrategy(context, data.companyName).then(async r => { await updateProgress('Commercial Strategy'); return r; }),
+      this.generateTeamAssessment(context, data.companyName).then(async r => { await updateProgress('Team Assessment'); return r; }),
+      this.generateManagementAnalysis(context, data.companyName).then(async r => { await updateProgress('Management Analysis'); return r; }),
+      this.generateFinancialAnalysis(context, data.companyName).then(async r => { await updateProgress('Financial Analysis'); return r; }),
+      this.generateFinancialProjections(context, data.companyName).then(async r => { await updateProgress('Financial Projections'); return r; }),
+      this.generateValuationAnalysis(context, data.companyName).then(async r => { await updateProgress('Valuation Analysis'); return r; }),
+      this.generateLegalAssessment(context, data.companyName).then(async r => { await updateProgress('Legal Assessment'); return r; }),
+      this.generateRegulatoryAnalysis(context, data.companyName).then(async r => { await updateProgress('Regulatory Analysis'); return r; }),
+      this.generateClinicalAssessment(context, data.companyName).then(async r => { await updateProgress('Clinical Assessment'); return r; }),
+      this.generateIPAnalysis(context, data.companyName).then(async r => { await updateProgress('IP Analysis'); return r; }),
+      this.generateResearchInsights(context, data.companyName).then(async r => { await updateProgress('Research Insights'); return r; }),
+      this.generateRiskAssessment(context, data.companyName).then(async r => { await updateProgress('Risk Assessment'); return r; }),
+      this.generateMitigationStrategies(context, data.companyName).then(async r => { await updateProgress('Mitigation Strategies'); return r; }),
+      this.generateInvestmentTerms(context, data.companyName).then(async r => { await updateProgress('Investment Terms'); return r; }),
+      this.generateExitStrategy(context, data.companyName).then(async r => { await updateProgress('Exit Strategy'); return r; }),
+      this.generateRecommendation(context, data.companyName).then(async r => { await updateProgress('Recommendation'); return r; }),
+      this.generateAppendices(data).then(async r => { await updateProgress('Appendices'); return r; })
+    ]);
+    
     const [
       coverPage,
       executiveSummary,
@@ -333,35 +405,7 @@ class InvestmentMemoService {
       exitStrategy,
       recommendation,
       appendices
-    ] = await Promise.all([
-      this.generateCoverPage(data),
-      this.generateExecutiveSummary(context, data.companyName),
-      this.generateInvestmentHighlights(context, data.companyName),
-      this.generateSWOTAnalysis(context, data.companyName),
-      this.generateMarketAnalysis(context, data.companyName),
-      this.generateTAMSAMSOMAnalysis(context, data.companyName),
-      this.generateCompetitiveAnalysis(context, data.companyName),
-      this.generateTechnologyAssessment(context, data.companyName),
-      this.generateProductAnalysis(context, data.companyName),
-      this.generateBusinessModel(context, data.companyName),
-      this.generateCommercialStrategy(context, data.companyName),
-      this.generateTeamAssessment(context, data.companyName),
-      this.generateManagementAnalysis(context, data.companyName),
-      this.generateFinancialAnalysis(context, data.companyName),
-      this.generateFinancialProjections(context, data.companyName),
-      this.generateValuationAnalysis(context, data.companyName),
-      this.generateLegalAssessment(context, data.companyName),
-      this.generateRegulatoryAnalysis(context, data.companyName),
-      this.generateClinicalAssessment(context, data.companyName),
-      this.generateIPAnalysis(context, data.companyName),
-      this.generateResearchInsights(context, data.companyName),
-      this.generateRiskAssessment(context, data.companyName),
-      this.generateMitigationStrategies(context, data.companyName),
-      this.generateInvestmentTerms(context, data.companyName),
-      this.generateExitStrategy(context, data.companyName),
-      this.generateRecommendation(context, data.companyName),
-      this.generateAppendices(data)
-    ]);
+    ] = sections;
 
     return {
       coverPage,
