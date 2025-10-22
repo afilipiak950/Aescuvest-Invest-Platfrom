@@ -7058,16 +7058,35 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
 
       console.log(`📊 Created background job for investment memo: ${jobId}`);
       
-      // INSTANT MEMO CREATION: Create memo record immediately so it appears in Memos page with progress 0%
-      console.log(`📝 Creating instant memo record for deal ${dealId} with status DRAFT`);
-      await storage.deleteMemosByDealId(dealId); // Clear any old memos
-      const initialMemo = await storage.createMemo({
-        dealId: dealId,
-        executiveSummary: 'Generating comprehensive investment memo... This will be updated automatically as sections are completed.',
-        status: 'DRAFT',
-        memo: null // Will be populated as generation progresses
-      });
-      console.log(`✅ Instant memo record created with ID ${initialMemo.id} - visible immediately in Memos page`);
+      // INSTANT MEMO CREATION/UPDATE: Update existing memo or create new one
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      let initialMemo;
+      
+      if (existingMemo && forceRegenerate) {
+        // REGENERATION: Update existing memo, reset to DRAFT and 0% progress
+        console.log(`🔄 Regenerating memo - updating existing memo ID ${existingMemo.id} for deal ${dealId}`);
+        await storage.updateMemo(existingMemo.id, {
+          executiveSummary: 'Regenerating comprehensive investment memo... This will be updated automatically as sections are completed.',
+          status: 'DRAFT',
+          memo: null // Will be repopulated as generation progresses
+        });
+        initialMemo = existingMemo; // Use existing memo
+        console.log(`✅ Existing memo reset to 0% progress - will update progressively in same card`);
+      } else if (existingMemo) {
+        // Memo exists but not force regenerating
+        initialMemo = existingMemo;
+        console.log(`📝 Using existing memo ID ${existingMemo.id} for deal ${dealId}`);
+      } else {
+        // FIRST TIME: Create new memo record
+        console.log(`📝 Creating new memo record for deal ${dealId} with status DRAFT`);
+        initialMemo = await storage.createMemo({
+          dealId: dealId,
+          executiveSummary: 'Generating comprehensive investment memo... This will be updated automatically as sections are completed.',
+          status: 'DRAFT',
+          memo: null // Will be populated as generation progresses
+        });
+        console.log(`✅ New memo record created with ID ${initialMemo.id} - visible immediately in Memos page`);
+      }
       
       // Import and run service in background - EXACT comprehensive agent pattern
       (async () => {
