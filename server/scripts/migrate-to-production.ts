@@ -13,6 +13,7 @@ interface MigrationOptions {
   productionUrl: string;
   conflictStrategy: 'skip' | 'upsert' | 'overwrite';
   batchSize: number;
+  useTransactions: boolean;
 }
 
 class DatabaseMigration {
@@ -158,6 +159,12 @@ class DatabaseMigration {
     let errors = 0;
 
     console.log(`📥 Importing ${records.length} records to ${tableName}...`);
+    
+    // Start transaction if enabled
+    if (this.options.useTransactions && !this.options.dryRun) {
+      await this.prodClient.query('BEGIN');
+      console.log('   🔒 Transaction started for table');
+    }
 
     // Process in batches
     for (let i = 0; i < records.length; i += this.options.batchSize) {
@@ -204,20 +211,46 @@ class DatabaseMigration {
             await this.prodClient.query(upsertQuery, values);
             inserted++;
           } else {
-            // Overwrite (delete and insert)
-            await this.prodClient.query(`DELETE FROM ${tableName} WHERE ${primaryKey} = $1`, [record[primaryKey]]);
-            const insertQuery = `INSERT INTO ${tableName} (${columnsList}) VALUES (${placeholders})`;
-            await this.prodClient.query(insertQuery, values);
-            inserted++;
+            // Overwrite (delete and insert in transaction for atomicity)
+            await this.prodClient.query('BEGIN');
+            try {
+              await this.prodClient.query(`DELETE FROM ${tableName} WHERE ${primaryKey} = $1`, [record[primaryKey]]);
+              const insertQuery = `INSERT INTO ${tableName} (${columnsList}) VALUES (${placeholders})`;
+              await this.prodClient.query(insertQuery, values);
+              await this.prodClient.query('COMMIT');
+              inserted++;
+            } catch (error) {
+              await this.prodClient.query('ROLLBACK');
+              throw error;
+            }
           }
         } catch (error: any) {
           console.error(`   ❌ Error inserting record ${record[primaryKey]}:`, error.message);
           errors++;
+          
+          // Rollback transaction if enabled
+          if (this.options.useTransactions && !this.options.dryRun) {
+            await this.prodClient.query('ROLLBACK');
+            console.log('   ⚠️  Transaction rolled back due to error');
+            throw error;
+          }
         }
       }
 
       if (progress % 25 === 0 || i + batch.length >= records.length) {
         console.log(`   Progress: ${progress}% (${inserted} inserted, ${skipped} skipped, ${errors} errors)`);
+      }
+    }
+
+    // Commit transaction if enabled
+    if (this.options.useTransactions && !this.options.dryRun) {
+      try {
+        await this.prodClient.query('COMMIT');
+        console.log('   ✅ Transaction committed successfully');
+      } catch (error: any) {
+        console.log('   ❌ Transaction commit failed, rolling back...');
+        await this.prodClient.query('ROLLBACK');
+        throw error;
       }
     }
 
@@ -289,6 +322,7 @@ class DatabaseMigration {
     console.log(`Mode: ${this.options.dryRun ? '🔍 DRY RUN' : '⚡ LIVE MIGRATION'}`);
     console.log(`Conflict Strategy: ${this.options.conflictStrategy.toUpperCase()}`);
     console.log(`Batch Size: ${this.options.batchSize}`);
+    console.log(`Use Transactions: ${this.options.useTransactions ? 'YES ✅' : 'NO'}`);
     console.log('');
 
     try {
@@ -371,6 +405,7 @@ async function main() {
   const productionUrl = args.find(arg => arg.startsWith('--prod-url='))?.split('=')[1];
   const conflictStrategy = (args.find(arg => arg.startsWith('--strategy='))?.split('=')[1] || 'skip') as 'skip' | 'upsert' | 'overwrite';
   const batchSize = parseInt(args.find(arg => arg.startsWith('--batch-size='))?.split('=')[1] || '100');
+  const useTransactions = args.includes('--use-transactions');
 
   // Validate arguments
   if (!dryRun && !productionUrl) {
@@ -382,6 +417,7 @@ async function main() {
     console.log('  --dry-run              Run in dry-run mode (no actual changes)');
     console.log('  --strategy=<strategy>  Conflict resolution: skip, upsert, or overwrite (default: skip)');
     console.log('  --batch-size=<size>    Batch size for imports (default: 100)');
+    console.log('  --use-transactions     Wrap each table migration in a transaction (safer, slower)');
     console.log('');
     console.log('Examples:');
     console.log('  # Dry run (test without changes)');
@@ -392,6 +428,9 @@ async function main() {
     console.log('');
     console.log('  # Live migration with upsert strategy (update existing records)');
     console.log('  npm run migrate:prod -- --prod-url=postgresql://user:pass@host:5432/db --strategy=upsert');
+    console.log('');
+    console.log('  # Safe migration with transactions enabled');
+    console.log('  npm run migrate:prod -- --prod-url=postgresql://user:pass@host:5432/db --use-transactions');
     process.exit(1);
   }
 
@@ -400,6 +439,7 @@ async function main() {
     productionUrl: productionUrl || '',
     conflictStrategy,
     batchSize,
+    useTransactions,
   };
 
   const migration = new DatabaseMigration(options);
