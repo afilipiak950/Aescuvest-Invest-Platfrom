@@ -2601,11 +2601,11 @@ Generate only the content for this specific section based on your custom enhance
 
       const messages = [
         {
-          role: "system",
+          role: "system" as const,
           content: enhancedPrompt
         },
         {
-          role: "user", 
+          role: "user" as const, 
           content: JSON.stringify(contextData, null, 2)
         }
       ];
@@ -2621,8 +2621,8 @@ Generate only the content for this specific section based on your custom enhance
       
       // Update the memo in database
       const existingMemo = await storage.getMemoByDealId(dealId);
-      if (existingMemo) {
-        const updatedMemo = { ...existingMemo.memo };
+      if (existingMemo && existingMemo.memo && typeof existingMemo.memo === 'object') {
+        const updatedMemo = { ...existingMemo.memo as Record<string, any> };
         updatedMemo[sectionKey] = regeneratedContent;
         
         await storage.updateMemo(existingMemo.id, { memo: updatedMemo });

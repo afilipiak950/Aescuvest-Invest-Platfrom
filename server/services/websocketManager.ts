@@ -3,6 +3,7 @@ import { Server } from 'http';
 
 interface JobProgress {
   jobId: string | number;
+  jobType?: string;
   progress: number;
   status: string;
   currentStep: string;
