@@ -418,7 +418,50 @@ ${summaryText}
       }
     });
 
-    // Third pass: Include ALL agent analysis content
+    // Third pass: Include COMPANY RESEARCH data (CEO profile, team, etc.)
+    if (data.companyResearch) {
+      context += `\n\n=== COMPANY RESEARCH AND INTELLIGENCE ===\n`;
+      
+      // CEO Profile with concrete names and backgrounds
+      if (data.companyResearch.ceoProfile) {
+        const ceo = data.companyResearch.ceoProfile;
+        context += `\n>>>>>>> CEO PROFILE <<<<<<<\n`;
+        context += `NAME: ${ceo.name || 'Not Available'}\n`;
+        context += `BACKGROUND: ${ceo.background || 'Not Available'}\n`;
+        context += `EXPERIENCE: ${ceo.experience || 'Not Available'}\n`;
+        context += `EDUCATION: ${ceo.education || 'Not Available'}\n`;
+        if (ceo.previousCompanies && Array.isArray(ceo.previousCompanies) && ceo.previousCompanies.length > 0) {
+          context += `PREVIOUS COMPANIES: ${ceo.previousCompanies.join(', ')}\n`;
+        }
+        if (ceo.linkedinUrl) {
+          context += `LINKEDIN: ${ceo.linkedinUrl}\n`;
+        }
+        context += `=======================================\n\n`;
+      }
+      
+      // Leadership Team
+      if (data.companyResearch.leadershipTeam) {
+        context += `\n>>>>>>> LEADERSHIP TEAM <<<<<<<\n`;
+        context += `${data.companyResearch.leadershipTeam}\n`;
+        context += `=======================================\n\n`;
+      }
+      
+      // Financial Data
+      if (data.companyResearch.financialData) {
+        context += `\n>>>>>>> FINANCIAL DATA <<<<<<<\n`;
+        context += `${JSON.stringify(data.companyResearch.financialData, null, 2)}\n`;
+        context += `=======================================\n\n`;
+      }
+      
+      // Business Intelligence
+      if (data.companyResearch.businessIntelligence) {
+        context += `\n>>>>>>> BUSINESS INTELLIGENCE <<<<<<<\n`;
+        context += `${JSON.stringify(data.companyResearch.businessIntelligence, null, 2)}\n`;
+        context += `=======================================\n\n`;
+      }
+    }
+
+    // Fourth pass: Include ALL agent analysis content
     context += `\n\n=== COMPLETE AGENT ANALYSES - ALL ${data.agentAnalyses.length} ANALYSES ===\n`;
     
     data.agentAnalyses.forEach(analysis => {
@@ -1136,57 +1179,113 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
   private async generateTeamAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['teamAssessment']> {
     console.log(`👥 Generating team assessment from ${context.length.toLocaleString()} characters of context`);
     
+    // Enhanced keyword extraction for personnel data
+    const personnelKeywords = [
+      'CEO', 'CTO', 'CFO', 'CMO', 'COO', 'CIO', 'CSO',
+      'Chief Executive', 'Chief Technology', 'Chief Financial', 'Chief Medical', 'Chief Operating',
+      'President', 'Founder', 'Co-founder',
+      'Director', 'Board', 'Advisory', 'Advisor',
+      'VP', 'Vice President', 'SVP', 'Senior Vice President',
+      'management', 'executive', 'leadership', 'officer',
+      'name:', 'role:', 'title:', 'position:',
+      'experience:', 'background:', 'education:', 'degree:',
+      'previously at', 'former', 'worked at', 'led at',
+      'organizational chart', 'org chart', 'team structure',
+      'employment', 'hire', 'appointment', 'appointed',
+      'LinkedIn', 'biography', 'bio:', 'profile:'
+    ];
+    
+    const personnelContext = this.extractRelevantContext(context, personnelKeywords, 90000);
+    
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o",
         messages: [{
           role: "system",
-          content: `You are analyzing ${companyName} management team information. Extract AUTHENTIC executive and personnel details from HR analyses, legal documents, and corporate filings.
+          content: `You are analyzing ${companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
 
-**CRITICAL SEARCH TARGETS:**
-Look specifically for:
-- Executive names and titles (CEO, CTO, CFO, CMO, etc.)
-- Employment contracts and executive compensation documents
-- Board member names and backgrounds in governance documents
-- Scientific advisory board members in clinical/research documents
-- Key personnel roles and responsibilities in organizational charts
+**MANDATORY EXTRACTION REQUIREMENTS:**
 
-**EXTRACTION STRATEGY:**
-1. **Management**: Search for CEO, CTO, CFO names and backgrounds in HR documents and legal filings
-2. **Key Personnel**: Find employee contracts, organizational charts, team structure documents
-3. **Advisors**: Look for advisory board agreements, KOL relationships, scientific collaborations
-4. **Board Composition**: Extract board member names from corporate filings and governance documents
+1. **CEO/Founder** - REQUIRED:
+   - Full legal name (e.g., "Isaac Mizrahi", "Sarah Johnson", NOT "experienced executive")
+   - Current title (CEO, Founder & CEO, President & CEO)
+   - Previous companies and roles (e.g., "Former VP Engineering at Medtronic, 2015-2020")
+   - Education (e.g., "PhD Electrical Engineering from MIT, MBA from Harvard")
+   - Years of experience in specific domains (e.g., "15 years in medical device development")
+   - Key achievements (e.g., "Led team that achieved FDA 510(k) clearance in 18 months")
 
-**DOCUMENT ANALYSIS FOCUS:**
-- Search employment contracts for executive roles and compensation
-- Look for corporate registration documents with director names
-- Find advisory agreements and consulting contracts
-- Extract team information from HR documents and organizational charts
-- Check legal documents for board composition and governance structure
+2. **CTO/Chief Technology Officer** - Extract if available:
+   - Full name and title
+   - Technical background and education
+   - Previous companies and technical roles
+   - Patents or publications
+   - Technology expertise areas
 
-**SPECIFIC DATA TO EXTRACT:**
-- Full executive names with titles and background experience
-- Advisory board members with their institutional affiliations
-- Board of directors composition and governance roles
-- Key technical team members and their expertise areas
+3. **CFO/Chief Financial Officer** - Extract if available:
+   - Full name and title
+   - Financial background (CPA, MBA, etc.)
+   - Previous companies and finance roles
+   - Fundraising or IPO experience
 
-Format as JSON with detailed team assessment extracted from HR, legal, and corporate documents.`
+4. **CMO/Chief Medical Officer** - Extract if available:
+   - Full name and title (MD, PhD, etc.)
+   - Medical credentials and specializations
+   - Previous clinical or research positions
+   - Publications or clinical expertise
+
+5. **Other Key Personnel**:
+   - VP Engineering, VP Sales, VP Operations, etc.
+   - Each with NAME, ROLE, and BACKGROUND
+   - NOT generic titles like "Key technical team members"
+
+6. **Advisory Board** - Extract actual names:
+   - Each advisor's FULL NAME
+   - Their institutional affiliation (e.g., "Professor of Cardiology at Johns Hopkins")
+   - Their expertise area
+   - NOT "distinguished advisory board"
+
+7. **Board of Directors** - Extract names and backgrounds:
+   - Each board member's FULL NAME
+   - Their primary affiliation
+   - Whether independent or investor representative
+
+**CRITICAL RULES:**
+- NEVER return generic descriptions like "experienced CEO" or "skilled CTO"
+- ALWAYS extract actual names from company research, org charts, employment docs, or team bios
+- If name is not available, state "Name not found in documents"
+- Include specific numbers: years of experience, number of patents, companies founded
+- Extract educational credentials (PhD, MD, MBA, BS, etc.)
+- Note previous companies with timeframes when available
+
+**OUTPUT FORMAT (JSON):**
+{
+  "management": "Detailed paragraph with CEO NAME, CTO NAME, other execs with their backgrounds",
+  "keyPersonnel": [
+    "NAME - TITLE: Specific background with previous companies, education, and achievements",
+    "NAME - TITLE: Specific background...",
+    ...
+  ],
+  "advisors": "Paragraph listing each advisor by NAME with their affiliation and expertise",
+  "boardComposition": "Paragraph listing each board member by NAME with their background"
+}
+
+Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and employment documents for concrete names and backgrounds.`
         }, {
           role: "user",
-          content: `Extract authentic team assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['management', 'team', 'CEO', 'CTO', 'executive', 'board', 'advisor', 'employee', 'personnel', 'leadership', 'founder', 'director', 'officer'], 75000)}`
+          content: `Extract CONCRETE team details with ACTUAL NAMES for ${companyName}. Search especially the CEO PROFILE and LEADERSHIP TEAM sections:\n\n${personnelContext}`
         }],
         response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
+        temperature: 0.1, // Lower temperature for more factual extraction
+        max_tokens: 4000 // Increased for detailed personnel info
       }).then(response => response.choices[0].message.content || '{}'),
       {
         description: 'Team Assessment Generation',
         priority: 'high',
         fallbackContent: JSON.stringify({
-          management: 'Management information is temporarily unavailable. This section will analyze executive team composition and leadership capabilities.',
-          keyPersonnel: [],
-          advisors: 'Advisory information is temporarily unavailable. This section will assess scientific and clinical advisory board.',
-          boardComposition: 'Board composition information is temporarily unavailable. This section will evaluate board structure and governance.'
+          management: `Team information for ${companyName} is being compiled from available documents.`,
+          keyPersonnel: [`Executive team details not yet extracted from document analysis.`],
+          advisors: `Advisory board information is being compiled from available documents.`,
+          boardComposition: `Board composition details are being compiled from available documents.`
         })
       }
     ) as Promise<string>;
@@ -1195,41 +1294,27 @@ Format as JSON with detailed team assessment extracted from HR, legal, and corpo
       const result = JSON.parse(response || '{}');
       console.log(`👥 Team assessment generated: ${JSON.stringify(result).length} characters`);
       
-      // BULLETPROOF FALLBACK: Never allow "No information available" responses
-      const ensureAuthenticContent = (content: string, fallback: string) => {
-        if (!content || content.includes('No') || content.includes('information available') || content.length < 50) {
-          return fallback;
-        }
-        return content;
-      };
-
+      // Log the extracted content for debugging
+      console.log(`📊 Management: ${result.management?.substring(0, 200)}...`);
+      console.log(`📊 Key Personnel Count: ${result.keyPersonnel?.length || 0}`);
+      
+      // Return the extracted data directly - the enhanced prompt should provide concrete details
       return {
-        management: ensureAuthenticContent(
-          result.management,
-          `${companyName} is led by an experienced management team with deep expertise in medical device development, reproductive medicine, and healthcare technology. The executive leadership combines clinical knowledge with business acumen, demonstrating strong track record in regulatory approval processes, strategic partnerships, and commercial execution in the fertility and medical device sectors.`
-        ),
-        keyPersonnel: Array.isArray(result.keyPersonnel) && result.keyPersonnel.length > 0 ? result.keyPersonnel : [
-          'Chief Executive Officer with extensive experience in medical device commercialization and industry expertise',
-          'Chief Technology Officer leading product development and innovation initiatives',
-          'Chief Medical Officer providing clinical expertise and regulatory guidance',
-          'Key technical team members with specialized expertise in technology development and product innovation'
-        ],
-        advisors: ensureAuthenticContent(
-          result.advisors,
-          `${companyName} has assembled a distinguished advisory board including leading industry specialists, technology experts, regulatory affairs consultants, and industry veterans with extensive experience in operations, commercialization, and implementation across global markets.`
-        ),
-        boardComposition: ensureAuthenticContent(
-          result.boardComposition,
-          'The board of directors comprises experienced professionals with complementary expertise in healthcare technology, medical device development, venture capital, regulatory affairs, and reproductive medicine. Board composition includes both independent directors and investor representatives, providing strategic oversight and governance for company growth and expansion initiatives.'
-        )
+        management: result.management || `Executive team information for ${companyName} is being compiled from document analysis. Please refer to organizational charts and employment documents for detailed personnel information.`,
+        keyPersonnel: Array.isArray(result.keyPersonnel) && result.keyPersonnel.length > 0 
+          ? result.keyPersonnel 
+          : [`Executive team details are being extracted from available documents. Please review company research and HR analysis for specific personnel information.`],
+        advisors: result.advisors || `Advisory board information for ${companyName} is being compiled from document analysis. Please refer to advisory agreements and consulting contracts for detailed advisor information.`,
+        boardComposition: result.boardComposition || `Board of directors information for ${companyName} is being compiled from document analysis. Please refer to corporate governance documents for detailed board composition.`
       };
     } catch (e) {
       console.error('❌ Error parsing team assessment JSON:', e);
+      console.error('❌ Response content:', response);
       return {
-        management: 'Management information is temporarily unavailable. This section will analyze executive team composition and leadership capabilities.',
-        keyPersonnel: [],
-        advisors: 'Advisory information is temporarily unavailable. This section will assess scientific and clinical advisory board.',
-        boardComposition: 'Board composition information is temporarily unavailable. This section will evaluate board structure and governance.'
+        management: `Management information extraction failed. Please review company research, organizational charts, and employment documents for ${companyName} executive team details.`,
+        keyPersonnel: [`Personnel data extraction incomplete. Review available documents for executive team backgrounds and experience.`],
+        advisors: `Advisory board data extraction failed. Review advisory agreements and consulting contracts for detailed information.`,
+        boardComposition: `Board composition data extraction failed. Review corporate governance documents for board member details.`
       };
     }
   }
