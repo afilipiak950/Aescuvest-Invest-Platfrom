@@ -5,6 +5,7 @@ import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
 import { openaiQuotaManager } from './openaiQuotaManager';
 import { getMemoFallback } from './memoFallbackContent';
+import { websocketManager } from './websocketManager';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -107,8 +108,8 @@ export interface InvestmentMemoSections {
 class InvestmentMemoService {
 
   // NEW: Wrapper method with job tracking for background processing (matches comprehensive agent pattern)
-  async generateComprehensiveMemoWithJobTracking(dealId: number, jobId: string, storage: any): Promise<void> {
-    console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId})`);
+  async generateComprehensiveMemoWithJobTracking(dealId: number, jobId: string, numericJobId: number, storage: any): Promise<void> {
+    console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId}, Numeric ID: ${numericJobId})`);
     
     try {
       // Update progress: Data gathering phase (10%)
@@ -118,6 +119,15 @@ class InvestmentMemoService {
         currentStep: 'Gathering comprehensive data with full OCR extraction',
         updatedAt: new Date()
       });
+      
+      // Broadcast WebSocket progress update for real-time UI
+      websocketManager.broadcastJobProgress({
+        jobId: numericJobId,
+        jobType: 'investment_memo_generation',
+        status: 'processing',
+        progress: 10,
+        currentStep: 'Gathering comprehensive data with full OCR extraction'
+      }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo to show data gathering
       const existingMemo = await storage.getMemoByDealId(dealId);
@@ -137,6 +147,15 @@ class InvestmentMemoService {
         updatedAt: new Date()
       });
       
+      // Broadcast WebSocket progress update
+      websocketManager.broadcastJobProgress({
+        jobId: numericJobId,
+        jobType: 'investment_memo_generation',
+        status: 'processing',
+        progress: 30,
+        currentStep: 'Generating 26 comprehensive sections with AI analysis'
+      }, dealId);
+      
       // PROGRESSIVE UPDATE: Update memo to show section generation
       if (existingMemo) {
         await storage.updateMemo(existingMemo.id, {
@@ -153,6 +172,15 @@ class InvestmentMemoService {
         currentStep: 'Finalizing and storing comprehensive investment memo',
         updatedAt: new Date()
       });
+      
+      // Broadcast WebSocket progress update
+      websocketManager.broadcastJobProgress({
+        jobId: numericJobId,
+        jobType: 'investment_memo_generation',
+        status: 'processing',
+        progress: 90,
+        currentStep: 'Finalizing and storing comprehensive investment memo'
+      }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo with partial content
       if (existingMemo) {
@@ -173,6 +201,15 @@ class InvestmentMemoService {
         completedAt: new Date(),
         updatedAt: new Date()
       });
+      
+      // Broadcast WebSocket completion
+      websocketManager.broadcastJobProgress({
+        jobId: numericJobId,
+        jobType: 'investment_memo_generation',
+        status: 'completed',
+        progress: 100,
+        currentStep: 'Investment memo generated successfully - 26 comprehensive sections completed'
+      }, dealId);
       
       // FINAL UPDATE: Update memo to completed status
       const finalMemo = await storage.getMemoByDealId(dealId);

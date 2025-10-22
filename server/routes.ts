@@ -7042,7 +7042,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
 
       // Create background job for progress tracking - EXACT comprehensive agent pattern
       const jobId = `investment_memo_${dealId}_${Date.now()}`;
-      await storage.createBackgroundJob({
+      const createdJob = await storage.createBackgroundJob({
         jobId,
         jobType: 'investment_memo_generation',
         dealId,
@@ -7055,8 +7055,11 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         createdAt: new Date(),
         updatedAt: new Date()
       });
+      
+      // Capture numeric job ID for WebSocket broadcasts (frontend expects this)
+      const numericJobId = createdJob.id;
 
-      console.log(`📊 Created background job for investment memo: ${jobId}`);
+      console.log(`📊 Created background job for investment memo: ${jobId} (numeric ID: ${numericJobId})`);
       
       // INSTANT MEMO CREATION/UPDATE: Update existing memo or create new one
       const existingMemo = await storage.getMemoByDealId(dealId);
@@ -7095,7 +7098,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
           const { investmentMemoService } = await import('./services/investmentMemoService');
           
           // Generate memo with job tracking (will update the memo record progressively)
-          await investmentMemoService.generateComprehensiveMemoWithJobTracking(dealId, jobId, storage);
+          await investmentMemoService.generateComprehensiveMemoWithJobTracking(dealId, jobId, numericJobId, storage);
           
           console.log(`✅ Investment memo generation completed for deal ${dealId}`);
         } catch (error) {
