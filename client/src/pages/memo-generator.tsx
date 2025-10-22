@@ -407,19 +407,6 @@ export default function MemoGenerator() {
               <CardContent className="pt-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold">Investment Memo</h2>
-                  <div>
-                    <Select defaultValue="standard">
-                      <SelectTrigger className="bg-dark-lighter border-dark-lighter text-white focus:ring-primary">
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-dark-lighter border-dark-lighter">
-                        <SelectItem value="standard">Standard VC Memo</SelectItem>
-                        <SelectItem value="term-sheet">Term Sheet Memo</SelectItem>
-                        <SelectItem value="executive">Executive Brief (2-3 pages)</SelectItem>
-                        <SelectItem value="comprehensive">Comprehensive Analysis</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
                 
 {!selectedDeal ? (
