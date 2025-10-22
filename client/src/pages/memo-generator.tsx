@@ -106,6 +106,16 @@ export default function MemoGenerator() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // 🔥 AUTO-SELECT DEAL FROM URL PARAMETER (when clicking Edit from memos page)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dealParam = urlParams.get('deal');
+    if (dealParam && !selectedDeal) {
+      console.log(`🔗 Auto-selecting deal ${dealParam} from URL parameter`);
+      setSelectedDeal(dealParam);
+    }
+  }, []); // Run once on mount
+
   // Load section sources when deal is selected (with cache busting)
   useEffect(() => {
     if (selectedDeal) {
