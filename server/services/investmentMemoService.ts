@@ -583,7 +583,7 @@ ${companyInfo}`
         priority: 'high',
         fallbackContent: getMemoFallback('coverPage', data.companyName)
       }
-    ) as Promise<string>;
+    );
   }
 
   private async extractComprehensiveCompanyInformation(data: ComprehensiveMemoData): Promise<string> {
@@ -793,7 +793,7 @@ Extract and verify all data from provided context - reject any fabricated inform
         priority: 'high',
         fallbackContent: getMemoFallback('executiveSummary')
       }
-    ) as Promise<string>;
+    );
     
     return response;
   }
@@ -834,7 +834,7 @@ Format as JSON object with "highlights" array of detailed strings.`
         priority: 'high',
         fallbackContent: JSON.stringify({ highlights: getMemoFallback('investmentHighlights') })
       }
-    ) as Promise<string>;
+    );
 
     const result = JSON.parse(await response);
     return result.highlights || [];
@@ -886,7 +886,7 @@ Extract specific, actionable points with authentic data. Format as JSON with det
         priority: 'medium',
         fallbackContent: JSON.stringify(getMemoFallback('swotAnalysis'))
       }
-    ) as Promise<string>;
+    );
 
     const result = JSON.parse(await response);
     return {
@@ -942,7 +942,7 @@ Format as JSON with authentic data only - never fabricate market numbers.`
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('marketAnalysis'))
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1042,7 +1042,7 @@ Format as JSON with detailed product information from authentic sources only.`
           developmentStage: 'Development stage information is temporarily unavailable. This section will review current status and regulatory pathway.'
         })
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1138,7 +1138,7 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('businessModel'))
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1288,7 +1288,7 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
           boardComposition: `Board composition details are being compiled from available documents.`
         })
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1371,7 +1371,7 @@ Format as JSON with detailed financial information only from authentic sources.`
           useOfFunds: getMemoFallback('useOfFunds')
         })
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(await response);
@@ -1442,7 +1442,7 @@ Format as JSON with detailed legal information from authentic sources only.`
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', companyName))
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1530,7 +1530,7 @@ Format as JSON with detailed risk arrays from authentic sources only.`
         managementRisks: ['Management risk assessment is temporarily unavailable']
       })
     }
-  ) as Promise<string>;
+  );
 
   try {
     const result = JSON.parse(response || '{}');
@@ -1659,7 +1659,7 @@ Format as JSON with detailed investment terms from authentic sources only.`
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('investmentTerms'))
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1746,7 +1746,7 @@ Format as JSON with detailed investment recommendation based on authentic analys
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('recommendation'))
       }
-    ) as Promise<string>;
+    );
 
     try {
       const result = JSON.parse(response || '{}');
@@ -1822,7 +1822,7 @@ Extract specific market data from the analysis including market values, growth r
       priority: 'high',
       fallbackContent: 'TAM/SAM/SOM analysis is temporarily unavailable. This section will provide comprehensive market sizing and opportunity assessment.'
     }
-  ) as Promise<string>;
+  );
   
   // BULLETPROOF FALLBACK: Never allow "No information available" responses
   const ensureAuthenticContent = (content: string, fallback: string) => {
