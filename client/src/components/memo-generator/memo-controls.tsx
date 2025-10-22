@@ -67,26 +67,6 @@ export default function MemoControls({
         <div className="space-y-6">
           <div>
             <Label className="block text-sm font-medium text-gray-300 mb-2">
-              Memo Format
-            </Label>
-            <Select 
-              value={memoFormat} 
-              onValueChange={setMemoFormat}
-            >
-              <SelectTrigger className="w-full bg-dark-lighter border-dark-lighter focus-visible:ring-primary">
-                <SelectValue placeholder="Select format" />
-              </SelectTrigger>
-              <SelectContent className="bg-dark-lighter border-dark-lighter">
-                <SelectItem value="standard">Standard VC Memo</SelectItem>
-                <SelectItem value="term-sheet">Term Sheet Memo</SelectItem>
-                <SelectItem value="executive">Executive Brief (2-3 pages)</SelectItem>
-                <SelectItem value="comprehensive">Comprehensive Analysis</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Label className="block text-sm font-medium text-gray-300 mb-2">
               Sections to Include
             </Label>
             <div className="space-y-2">
