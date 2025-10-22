@@ -417,6 +417,11 @@ export default function MemoGenerator() {
   const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
+  // CRITICAL: Check if job is actually running (fixes the "instant success" bug)
+  // The memo field can be NULL during generation (until 90%), so we must check job status first
+  const hasActiveJob = memoProgress && memoProgress.isRunning;
+  const hasMemoRecord = !!existingMemo; // Memo record exists even if memo field is NULL
+  
   // Debug logging
   console.log('🔍 Display Debug:', {
     existingMemo: !!existingMemo,
@@ -425,10 +430,13 @@ export default function MemoGenerator() {
     currentMemo: !!currentMemo,
     currentMemoKeys: currentMemo ? Object.keys(currentMemo) : [],
     isGenerating,
+    hasActiveJob,
+    hasMemoRecord,
+    memoProgress,
     selectedDeal,
-    showReadyToGenerate: !currentMemo && !isGenerating,
-    showGenerating: isGenerating,
-    showMemoContent: !!currentMemo && !isGenerating
+    showReadyToGenerate: !currentMemo && !isGenerating && !hasActiveJob,
+    showGenerating: isGenerating || hasActiveJob,
+    showMemoContent: !!currentMemo && !isGenerating && !hasActiveJob
   });
   
   return (
@@ -500,7 +508,7 @@ export default function MemoGenerator() {
                     <h3 className="text-lg font-medium text-gray-300 mb-2">Select a Deal</h3>
                     <p className="text-gray-500">Choose a deal from the dropdown to generate a comprehensive investment memo.</p>
                   </div>
-                ) : !currentMemo && !isGenerating ? (
+                ) : !currentMemo && !isGenerating && !hasActiveJob ? (
                   <div className="text-center py-12">
                     <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-white mb-2">Ready to Generate</h3>
@@ -519,7 +527,7 @@ export default function MemoGenerator() {
                       Generate Investment Memo
                     </Button>
                   </div>
-                ) : isGenerating || (memoProgress && memoProgress.isRunning) ? (
+                ) : isGenerating || hasActiveJob ? (
                   <div className="py-8">
                     <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                       <CardContent className="pt-6">
