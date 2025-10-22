@@ -2,6 +2,29 @@
 
 This script migrates all data from the development database to the production database.
 
+## ⚠️ CRITICAL SAFETY WARNINGS
+
+### Overwrite Strategy Risk
+**WARNING**: The `overwrite` strategy is DANGEROUS and can cause data loss:
+- Each record is DELETED then re-inserted in a transaction
+- Network failures or constraint errors can lose data permanently
+- **DO NOT USE in production without full database backup**
+- **Recommended**: Use `skip` or `upsert` instead
+
+### Transaction Safety
+- Add `--use-transactions` flag for atomic table migrations
+- Without transactions, failures leave partial imports
+- With transactions, entire table rolls back on any error
+- Trade-off: Slower but safer (recommended for production)
+
+### Best Practices
+1. **Always backup production database before migration**
+2. **Test with `--dry-run` first**
+3. **Use `skip` strategy for initial migrations**
+4. **Use `upsert` strategy for syncing updates**
+5. **Avoid `overwrite` strategy unless absolutely necessary**
+6. **Enable `--use-transactions` for critical migrations**
+
 ## Features
 
 - ✅ **Safe Migration**: Respects foreign key dependencies
@@ -60,6 +83,7 @@ npm run migrate:prod -- --prod-url=postgresql://user:password@host:5432/producti
 | `--dry-run` | Run without making changes | false |
 | `--strategy=<strategy>` | Conflict resolution: `skip`, `upsert`, or `overwrite` | `skip` |
 | `--batch-size=<size>` | Number of records per batch | 100 |
+| `--use-transactions` | Wrap each table migration in a transaction (safer, slower) | false |
 
 ## Migration Order
 
@@ -78,20 +102,24 @@ Tables are migrated in dependency order to respect foreign keys:
 
 ## Conflict Resolution Strategies
 
-### Skip (Safest)
+### Skip (Safest) ✅
 - Inserts new records only
 - Skips records that already exist
+- **No data loss risk**
 - Best for: Initial migration or adding new data
 
-### Upsert (Recommended)
+### Upsert (Recommended) ✅
 - Inserts new records
 - Updates existing records with new data
+- **No data loss risk** (preserves existing data, updates it)
 - Best for: Syncing changes between environments
 
-### Overwrite
-- Deletes existing records
-- Inserts new data
-- Best for: Complete data refresh (use with caution)
+### Overwrite ⚠️ DANGEROUS
+- **Deletes** existing records, then re-inserts them
+- **Protected by transaction**: DELETE and INSERT are atomic (both succeed or both fail)
+- **Risk**: Can lose data if there are constraint errors or transaction failures
+- **Use**: Only with full backup and testing
+- **Better alternative**: Drop and recreate tables manually, then use skip strategy
 
 ## Examples
 
@@ -119,6 +147,13 @@ npm run migrate:prod -- --prod-url=$PRODUCTION_DATABASE_URL --strategy=upsert
 npm run migrate:prod -- --prod-url=$PRODUCTION_DATABASE_URL --batch-size=500
 ```
 
+### Example 4: Safe Migration with Transactions
+
+```bash
+# Enable transactions for atomic table migrations (recommended for production)
+npm run migrate:prod -- --prod-url=$PRODUCTION_DATABASE_URL --strategy=upsert --use-transactions
+```
+
 ## Output
 
 The script provides detailed output:
@@ -131,6 +166,7 @@ The script provides detailed output:
 Mode: ⚡ LIVE MIGRATION
 Conflict Strategy: SKIP
 Batch Size: 100
+Use Transactions: YES ✅
 
 🔗 Connecting to development database...
 ✅ Connected to development database
@@ -174,12 +210,14 @@ documents                               456       456         0         0
 
 ## Safety Notes
 
-1. **Always test with --dry-run first**
-2. **Backup production database before migration**
-3. **Use skip strategy for first migration**
-4. **Use upsert strategy for sync updates**
-5. **Monitor for errors in the output**
-6. **Verify data after migration**
+1. **Always test with --dry-run first** to verify migration plan
+2. **Backup production database before migration** (CRITICAL)
+3. **Use skip strategy for first migration** (safest option)
+4. **Use upsert strategy for sync updates** (safe and efficient)
+5. **Avoid overwrite strategy** unless you have a full backup
+6. **Enable --use-transactions** for atomic table migrations (recommended)
+7. **Monitor for errors in the output** during migration
+8. **Verify data after migration** with spot checks
 
 ## Troubleshooting
 
@@ -195,7 +233,8 @@ If you get connection errors:
 If you get foreign key constraint errors:
 - The migration order should handle this automatically
 - Check if production database has existing data that conflicts
-- Consider using `--strategy=overwrite` for a clean migration
+- **DO NOT use `--strategy=overwrite`** without a full backup
+- Consider manually cleaning up conflicting data first
 
 ### Sequence Errors
 
@@ -226,6 +265,7 @@ const options: MigrationOptions = {
   productionUrl: process.env.PRODUCTION_DATABASE_URL!,
   conflictStrategy: 'skip',
   batchSize: 100,
+  useTransactions: true,
 };
 
 const migration = new DatabaseMigration(options);
