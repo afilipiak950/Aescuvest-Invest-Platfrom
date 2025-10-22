@@ -351,7 +351,7 @@ class InvestmentMemoService {
       this.generateCoverPage(data).then(async r => { await updateProgress('Cover Page'); return r; }),
       this.generateExecutiveSummary(context, data.companyName).then(async r => { await updateProgress('Executive Summary'); return r; }),
       this.generateInvestmentHighlights(context, data.companyName).then(async r => { await updateProgress('Investment Highlights'); return r; }),
-      this.generateSWOTAnalysis(context, data.companyName).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
+      this.generateSWOTAnalysis(context, data).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
       this.generateMarketAnalysis(context, data.companyName).then(async r => { await updateProgress('Market Analysis'); return r; }),
       this.generateTAMSAMSOMAnalysis(context, data.companyName).then(async r => { await updateProgress('TAM/SAM/SOM'); return r; }),
       this.generateCompetitiveAnalysis(context, data.companyName).then(async r => { await updateProgress('Competitive Analysis'); return r; }),
@@ -359,12 +359,12 @@ class InvestmentMemoService {
       this.generateProductAnalysis(context, data.companyName).then(async r => { await updateProgress('Product Analysis'); return r; }),
       this.generateBusinessModel(context, data.companyName).then(async r => { await updateProgress('Business Model'); return r; }),
       this.generateCommercialStrategy(context, data.companyName).then(async r => { await updateProgress('Commercial Strategy'); return r; }),
-      this.generateTeamAssessment(context, data.companyName).then(async r => { await updateProgress('Team Assessment'); return r; }),
+      this.generateTeamAssessment(context, data).then(async r => { await updateProgress('Team Assessment'); return r; }),
       this.generateManagementAnalysis(context, data.companyName).then(async r => { await updateProgress('Management Analysis'); return r; }),
-      this.generateFinancialAnalysis(context, data.companyName).then(async r => { await updateProgress('Financial Analysis'); return r; }),
+      this.generateFinancialAnalysis(context, data).then(async r => { await updateProgress('Financial Analysis'); return r; }),
       this.generateFinancialProjections(context, data.companyName).then(async r => { await updateProgress('Financial Projections'); return r; }),
       this.generateValuationAnalysis(context, data.companyName).then(async r => { await updateProgress('Valuation Analysis'); return r; }),
-      this.generateLegalAssessment(context, data.companyName).then(async r => { await updateProgress('Legal Assessment'); return r; }),
+      this.generateLegalAssessment(context, data).then(async r => { await updateProgress('Legal Assessment'); return r; }),
       this.generateRegulatoryAnalysis(context, data.companyName).then(async r => { await updateProgress('Regulatory Analysis'); return r; }),
       this.generateClinicalAssessment(context, data.companyName).then(async r => { await updateProgress('Clinical Assessment'); return r; }),
       this.generateIPAnalysis(context, data.companyName).then(async r => { await updateProgress('IP Analysis'); return r; }),
@@ -942,7 +942,35 @@ Format as JSON object with "highlights" array of detailed strings.`
     return result.highlights || [];
   }
 
-  private async generateSWOTAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['swotAnalysis']> {
+  private async generateSWOTAnalysis(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['swotAnalysis']> {
+    console.log(`🎯 Generating SWOT analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    // Extract ALL agent data (all agents contribute to SWOT)
+    const allAgentData = this.extractAgentSpecificData(data, ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research']);
+    const agentDataString = JSON.stringify(allAgentData, null, 2);
+    console.log(`🎯 Extracted agent data from all agents: ${agentDataString.length} chars`);
+    
+    // Expanded keywords with synonyms for better extraction
+    const swotKeywords = [
+      // Strengths synonyms
+      'strength', 'advantage', 'competitive edge', 'differentiation', 'differentiator', 'benefit', 'unique', 'superior',
+      // Weaknesses synonyms
+      'weakness', 'limitation', 'challenge', 'gap', 'constraint', 'risk', 'issue', 'problem',
+      // Opportunities synonyms
+      'opportunity', 'potential', 'growth', 'expansion', 'market', 'trend', 'demand',
+      // Threats synonyms
+      'threat', 'competition', 'competitor', 'barrier', 'obstacle', 'regulatory', 'compliance',
+      // General SWOT
+      'SWOT', 'competitive', 'analysis', 'assessment'
+    ];
+    
+    const swotContext = this.extractRelevantContext(context, swotKeywords, 65000);
+    
+    // Build prioritized context: Agent findings/recommendations first, then keyword extraction
+    const prioritizedContext = agentDataString.length > 100 
+      ? `=== AGENT ANALYSES (PRIORITY - Findings & Recommendations) ===\n${agentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${swotContext}`
+      : swotContext;
+    
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -978,7 +1006,7 @@ Format as JSON object with "highlights" array of detailed strings.`
 Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
         }, {
           role: "user",
-          content: `Generate authentic SWOT analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['strength', 'weakness', 'opportunity', 'threat', 'SWOT', 'competitive', 'advantage', 'challenge', 'risk'], 65000)}`
+          content: `Generate authentic SWOT analysis for ${data.companyName}. Prioritize findings and recommendations from agent analyses:\n\n${prioritizedContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.4
@@ -991,12 +1019,19 @@ Extract specific, actionable points with authentic data. Format as JSON with det
     );
 
     const result = JSON.parse(await response);
-    return {
+    const swotAnalysis = {
       strengths: result.strengths || [],
       weaknesses: result.weaknesses || [],
       opportunities: result.opportunities || [],
       threats: result.threats || []
     };
+    
+    // Comprehensive logging showing data sources used
+    const usedFallback = swotAnalysis.strengths.length === 0 && swotAnalysis.weaknesses.length === 0;
+    console.log(`🎯 SWOT Analysis - Data sources: All agents (${agentDataString.length} chars), OCR extraction (${swotContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Empty arrays: ${usedFallback}`);
+    console.log(`🎯 SWOT Results: ${swotAnalysis.strengths.length} strengths, ${swotAnalysis.weaknesses.length} weaknesses, ${swotAnalysis.opportunities.length} opportunities, ${swotAnalysis.threats.length} threats`);
+    
+    return swotAnalysis;
   }
 
   private async generateMarketAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['marketAnalysis']> {
@@ -1278,8 +1313,13 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
     }
   }
 
-  private async generateTeamAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['teamAssessment']> {
+  private async generateTeamAssessment(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['teamAssessment']> {
     console.log(`👥 Generating team assessment from ${context.length.toLocaleString()} characters of context`);
+    
+    // Extract HR agent data first (structured Q&A from HR agent)
+    const hrAgentData = this.extractAgentSpecificData(data, ['hr']);
+    const hrAgentDataString = JSON.stringify(hrAgentData, null, 2);
+    console.log(`👥 Extracted HR agent data: ${hrAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => a.agentType.toLowerCase() === 'hr').length || 0} HR analyses`);
     
     // Enhanced keyword extraction for personnel data
     const personnelKeywords = [
@@ -1298,6 +1338,11 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
     ];
     
     const personnelContext = this.extractRelevantContext(context, personnelKeywords, 90000);
+    
+    // Build prioritized context: HR agent data first, then OCR extraction
+    const prioritizedContext = hrAgentDataString.length > 100 
+      ? `=== HR AGENT ANALYSIS (PRIORITY) ===\n${hrAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${personnelContext}`
+      : personnelContext;
     
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
@@ -1374,7 +1419,7 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
 Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and employment documents for concrete names and backgrounds.`
         }, {
           role: "user",
-          content: `Extract CONCRETE team details with ACTUAL NAMES for ${companyName}. Search especially the CEO PROFILE and LEADERSHIP TEAM sections:\n\n${personnelContext}`
+          content: `Extract CONCRETE team details with ACTUAL NAMES for ${data.companyName}. Search especially the HR AGENT ANALYSIS and CEO PROFILE sections:\n\n${prioritizedContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.1, // Lower temperature for more factual extraction
@@ -1384,7 +1429,7 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
         description: 'Team Assessment Generation',
         priority: 'high',
         fallbackContent: JSON.stringify({
-          management: `Team information for ${companyName} is being compiled from available documents.`,
+          management: `Team information for ${data.companyName} is being compiled from available documents.`,
           keyPersonnel: [`Executive team details not yet extracted from document analysis.`],
           advisors: `Advisory board information is being compiled from available documents.`,
           boardComposition: `Board composition details are being compiled from available documents.`
@@ -1400,20 +1445,25 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
       console.log(`📊 Management: ${result.management?.substring(0, 200)}...`);
       console.log(`📊 Key Personnel Count: ${result.keyPersonnel?.length || 0}`);
       
-      // Return the extracted data directly - the enhanced prompt should provide concrete details
-      return {
-        management: result.management || `Executive team information for ${companyName} is being compiled from document analysis. Please refer to organizational charts and employment documents for detailed personnel information.`,
+      const teamAssessment = {
+        management: result.management || `Executive team information for ${data.companyName} is being compiled from document analysis. Please refer to organizational charts and employment documents for detailed personnel information.`,
         keyPersonnel: Array.isArray(result.keyPersonnel) && result.keyPersonnel.length > 0 
           ? result.keyPersonnel 
           : [`Executive team details are being extracted from available documents. Please review company research and HR analysis for specific personnel information.`],
-        advisors: result.advisors || `Advisory board information for ${companyName} is being compiled from document analysis. Please refer to advisory agreements and consulting contracts for detailed advisor information.`,
-        boardComposition: result.boardComposition || `Board of directors information for ${companyName} is being compiled from document analysis. Please refer to corporate governance documents for detailed board composition.`
+        advisors: result.advisors || `Advisory board information for ${data.companyName} is being compiled from document analysis. Please refer to advisory agreements and consulting contracts for detailed advisor information.`,
+        boardComposition: result.boardComposition || `Board of directors information for ${data.companyName} is being compiled from document analysis. Please refer to corporate governance documents for detailed board composition.`
       };
+      
+      // Comprehensive logging showing data sources used
+      const usedFallback = !result.management || result.management.length < 100;
+      console.log(`📊 Team Assessment - Data sources: HR agent (${hrAgentData.hr?.length || 0} Q&A), OCR extraction (${personnelContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      
+      return teamAssessment;
     } catch (e) {
       console.error('❌ Error parsing team assessment JSON:', e);
       console.error('❌ Response content:', response);
       return {
-        management: `Management information extraction failed. Please review company research, organizational charts, and employment documents for ${companyName} executive team details.`,
+        management: `Management information extraction failed. Please review company research, organizational charts, and employment documents for ${data.companyName} executive team details.`,
         keyPersonnel: [`Personnel data extraction incomplete. Review available documents for executive team backgrounds and experience.`],
         advisors: `Advisory board data extraction failed. Review advisory agreements and consulting contracts for detailed information.`,
         boardComposition: `Board composition data extraction failed. Review corporate governance documents for board member details.`
@@ -1421,14 +1471,24 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
     }
   }
 
-  private async generateFinancialAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['financialAnalysis']> {
+  private async generateFinancialAnalysis(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['financialAnalysis']> {
     console.log(`💰 Generating financial analysis from ${context.length.toLocaleString()} characters of context`);
+    
+    // Extract financial agent data first (structured Q&A from financial agent)
+    const financialAgentData = this.extractAgentSpecificData(data, ['financial', 'commercial']);
+    const financialAgentDataString = JSON.stringify(financialAgentData, null, 2);
+    console.log(`💰 Extracted financial agent data: ${financialAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => ['financial', 'commercial'].includes(a.agentType.toLowerCase())).length || 0} analyses`);
     
     // Enhanced financial context extraction to find financial content across ALL 12.3M characters
     const financialKeywords = ['financial', 'revenue', 'funding', 'investment', 'valuation', 'cost', 'margin', 'profit', 'EBITDA', 'cash flow', 'P&L', 'income', 'expense', 'budget', 'forecast', 'projection', 'Sanmina', 'distributor', 'partnership revenue', 'growth rate', 'KPI', 'ARR', 'MRR'];
     const financialContext = this.extractRelevantContext(context, financialKeywords, 90000);
     
-    console.log(`💰 Enhanced financial context extraction: ${financialContext.length.toLocaleString()} characters focused on financial content`);
+    // Build prioritized context: Financial agent data first, then OCR extraction
+    const prioritizedContext = financialAgentDataString.length > 100 
+      ? `=== FINANCIAL AGENT ANALYSIS (PRIORITY) ===\n${financialAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${financialContext}`
+      : financialContext;
+    
+    console.log(`💰 Enhanced financial context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on financial content`);
     
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
@@ -1458,7 +1518,7 @@ Extract specific numbers, dates, and financial terms from documents. Never fabri
 Format as JSON with detailed financial information only from authentic sources.`
         }, {
           role: "user",
-          content: `Extract authentic financial analysis for ${companyName}:\n\n${financialContext}`
+          content: `Extract authentic financial analysis for ${data.companyName}. Prioritize financial agent Q&A data:\n\n${prioritizedContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2
@@ -1478,12 +1538,19 @@ Format as JSON with detailed financial information only from authentic sources.`
     try {
       const result = JSON.parse(await response);
       console.log(`💰 Financial analysis generated: ${JSON.stringify(result).length} characters`);
-      return {
-        currentFinancials: result.currentFinancials || `${companyName} financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
+      
+      const financialAnalysis = {
+        currentFinancials: result.currentFinancials || `${data.companyName} financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
         projections: result.projections || 'Financial projections indicate strong growth potential driven by clinical validation success, expanding fertility market opportunities, and scalable technology platform with revenue growth across multiple customer segments.',
         fundingHistory: result.fundingHistory || 'Funding history demonstrates progressive investment rounds supporting technology development, clinical validation phases, and market preparation with strategic capital allocation for sustainable growth.',
         useOfFunds: result.useOfFunds || 'Proposed fund allocation focuses on clinical validation completion, regulatory approval processes, manufacturing scale-up, and market expansion to capture growth opportunities in fertility technology sector.'
       };
+      
+      // Comprehensive logging showing data sources used
+      const usedFallback = !result.currentFinancials || result.currentFinancials.length < 100;
+      console.log(`💰 Financial Analysis - Data sources: Financial agent (${financialAgentData.financial?.length || 0} Q&A), Commercial agent (${financialAgentData.commercial?.length || 0} Q&A), OCR extraction (${financialContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      
+      return financialAnalysis;
     } catch (e) {
       console.error('❌ Error parsing financial analysis JSON:', e);
       return {
@@ -1495,14 +1562,24 @@ Format as JSON with detailed financial information only from authentic sources.`
     }
   }
 
-  private async generateLegalAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['legalAssessment']> {
+  private async generateLegalAssessment(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['legalAssessment']> {
     console.log(`⚖️ Generating legal assessment from ${context.length.toLocaleString()} characters of context`);
+    
+    // Extract legal agent data first (structured Q&A from legal agent)
+    const legalAgentData = this.extractAgentSpecificData(data, ['legal', 'ip']);
+    const legalAgentDataString = JSON.stringify(legalAgentData, null, 2);
+    console.log(`⚖️ Extracted legal agent data: ${legalAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => ['legal', 'ip'].includes(a.agentType.toLowerCase())).length || 0} analyses`);
     
     // Enhanced legal context extraction to find legal content across ALL 12.3M characters
     const legalKeywords = ['legal', 'contract', 'agreement', 'IP', 'patent', 'license', 'regulatory', 'compliance', 'litigation', 'intellectual property', 'corporation', 'board', 'shareholder', 'employment', 'AOA', 'articles', 'incorporation', 'trademark', 'copyright', 'FDA', 'CE marking', 'regulatory approval'];
     const legalContext = this.extractRelevantContext(context, legalKeywords, 80000);
     
-    console.log(`⚖️ Enhanced legal context extraction: ${legalContext.length.toLocaleString()} characters focused on legal content`);
+    // Build prioritized context: Legal agent data first, then OCR extraction
+    const prioritizedContext = legalAgentDataString.length > 100 
+      ? `=== LEGAL AGENT ANALYSIS (PRIORITY) ===\n${legalAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${legalContext}`
+      : legalContext;
+    
+    console.log(`⚖️ Enhanced legal context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on legal content`);
     
     const response = await openaiQuotaManager.makeRequest(
       () => openai.chat.completions.create({
@@ -1533,7 +1610,7 @@ Format as JSON with detailed financial information only from authentic sources.`
 Format as JSON with detailed legal information from authentic sources only.`
         }, {
           role: "user",
-          content: `Extract authentic legal assessment for ${companyName}:\n\n${legalContext}`
+          content: `Extract authentic legal assessment for ${data.companyName}. Prioritize legal agent Q&A data:\n\n${prioritizedContext}`
         }],
         response_format: { type: "json_object" },
         temperature: 0.2,
@@ -1542,22 +1619,29 @@ Format as JSON with detailed legal information from authentic sources only.`
       {
         description: 'Legal Assessment Generation',
         priority: 'high',
-        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', companyName))
+        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', data.companyName))
       }
     );
 
     try {
       const result = JSON.parse(response || '{}');
       console.log(`⚖️ Legal assessment generated: ${JSON.stringify(result).length} characters`);
-      return {
+      
+      const legalAssessment = {
         corporateStructure: result.corporateStructure || 'No corporate structure information available in provided documents',
         ipProtection: result.ipProtection || 'No IP protection information available in provided documents',
         regulatoryCompliance: result.regulatoryCompliance || 'No regulatory compliance information available in provided documents',
         contractualObligations: result.contractualObligations || 'No contractual obligations information available in provided documents'
       };
+      
+      // Comprehensive logging showing data sources used
+      const usedFallback = !result.corporateStructure || result.corporateStructure.includes('No') || result.corporateStructure.includes('not available');
+      console.log(`⚖️ Legal Assessment - Data sources: Legal agent (${legalAgentData.legal?.length || 0} Q&A), IP agent (${legalAgentData.ip?.length || 0} Q&A), OCR extraction (${legalContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      
+      return legalAssessment;
     } catch (e) {
       console.error('❌ Error parsing legal assessment JSON:', e);
-      const fallback = getMemoFallback('legalAssessment', companyName);
+      const fallback = getMemoFallback('legalAssessment', data.companyName);
       return {
         corporateStructure: fallback.corporateStructure,
         ipProtection: fallback.ipProtection,
@@ -2302,6 +2386,51 @@ ${fullContext.substring(0, 45000)}`
     console.log(`📊 Context extraction: Found ${sections.length} relevant sections, total ${relevantContext.length} characters`);
     
     return relevantContext;
+  }
+
+  // Extract specific agent's Q&A answers from comprehensive data
+  private extractAgentSpecificData(data: ComprehensiveMemoData, agentTypes: string[]): any {
+    const extracted: any = {};
+    
+    data.agentAnalyses?.forEach(analysis => {
+      if (!agentTypes.includes(analysis.agentType.toLowerCase())) return;
+      
+      // Extract all answer types
+      const answers = {
+        legal: analysis.legalAnswers,
+        clinical: analysis.clinicalAnswers,
+        commercial: analysis.commercialAnswers,
+        hr: analysis.hrAnswers,
+        financial: analysis.financialAnswers,
+        ip: analysis.ipAnswers,
+        research: analysis.researchAnswers
+      };
+      
+      Object.entries(answers).forEach(([key, value]) => {
+        if (value) {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            if (!extracted[key]) extracted[key] = [];
+            extracted[key].push(parsed);
+          } catch (e) {
+            if (!extracted[key]) extracted[key] = [];
+            extracted[key].push(value);
+          }
+        }
+      });
+      
+      // Add findings and recommendations
+      if (analysis.findings) {
+        if (!extracted.findings) extracted.findings = [];
+        extracted.findings.push(...analysis.findings);
+      }
+      if (analysis.recommendations) {
+        if (!extracted.recommendations) extracted.recommendations = [];
+        extracted.recommendations.push(...analysis.recommendations);
+      }
+    });
+    
+    return extracted;
   }
 
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
