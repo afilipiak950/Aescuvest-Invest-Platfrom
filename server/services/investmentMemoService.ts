@@ -1349,7 +1349,7 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
         model: "gpt-4o",
         messages: [{
           role: "system",
-          content: `You are analyzing ${companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
+          content: `You are analyzing ${data.companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
 
 **MANDATORY EXTRACTION REQUIREMENTS:**
 
