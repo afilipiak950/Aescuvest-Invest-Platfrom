@@ -352,15 +352,24 @@ export default function MemoGenerator() {
         queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
       }, 1000);
       
-      // Mark this job as shown
-      if (jobId) {
-        shownSuccessJobsRef.current.add(jobId);
-      }
-      
-      toast({
-        title: "Memo Generated Successfully",
-        description: "Your investment memo is ready to view.",
-      });
+      // CRITICAL FIX: Only show success toast if memo actually exists in database
+      // This prevents showing success for old completed jobs that have no memo
+      setTimeout(() => {
+        const memoData = queryClient.getQueryData(['/api/deals', selectedDeal, 'memo']) as any;
+        if (memoData?.memo && Object.keys(memoData.memo).length > 0) {
+          // Mark this job as shown BEFORE showing toast
+          if (jobId) {
+            shownSuccessJobsRef.current.add(jobId);
+          }
+          
+          toast({
+            title: "Memo Generated Successfully",
+            description: "Your investment memo is ready to view.",
+          });
+        } else {
+          console.log('⚠️ Job completed but no memo found in database, skipping success notification');
+        }
+      }, 1500); // Wait for memo refetch to complete
     } else if (memoProgress && memoProgress.status === 'failed') {
       console.log('❌ Memo generation job failed');
       toast({
