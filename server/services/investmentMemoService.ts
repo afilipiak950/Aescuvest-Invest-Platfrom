@@ -164,7 +164,28 @@ class InvestmentMemoService {
         });
       }
       
-      const memo = await this.generateComprehensiveMemoSections(memoData);
+      // 🔥 CRITICAL: Start heartbeat to prevent stuck job cleanup during long AI generation (30-90%)
+      // The comprehensive memo generation can take 30+ minutes for complex deals with 300+ documents
+      // Without heartbeat, the stuck job cleanup (15 min threshold) would kill the job!
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          await storage.updateBackgroundJob(jobId, {
+            updatedAt: new Date()
+          });
+          console.log(`💓 Heartbeat: Updated timestamp for job ${jobId} during AI generation`);
+        } catch (err) {
+          console.error(`❌ Heartbeat failed for job ${jobId}:`, err);
+        }
+      }, 5 * 60 * 1000); // Update every 5 minutes to stay under 15-minute stuck threshold
+      
+      // Hoist memo declaration to outer scope so it's accessible after try/finally
+      let memo: InvestmentMemoSections;
+      try {
+        memo = await this.generateComprehensiveMemoSections(memoData);
+      } finally {
+        // Always clear heartbeat interval to prevent memory leaks
+        clearInterval(heartbeatInterval);
+      }
       
       // Update progress: Storage phase (90%)
       await storage.updateBackgroundJob(jobId, {
