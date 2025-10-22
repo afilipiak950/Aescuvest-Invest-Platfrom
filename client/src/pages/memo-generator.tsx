@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -6,7 +6,7 @@ import PageHeader from '@/components/layout/page-header';
 import MemoSection from '@/components/memo-generator/memo-section';
 import MemoControls from '@/components/memo-generator/memo-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
@@ -251,6 +251,89 @@ export default function MemoGenerator() {
     staleTime: 1000 * 60 * 5, // 5 minutes cache to ensure fresh data
   });
 
+  // Helper function to find memo generation jobs
+  const findMemoJob = (jobs: any[]) => {
+    if (!jobs || !Array.isArray(jobs)) return null;
+    return jobs.find((job: any) => {
+      if (!job || !job.jobType) return false;
+      const jobType = job.jobType.toLowerCase();
+      return jobType === 'investment_memo_generation' || 
+             jobType.includes('memo') || 
+             jobType.includes('investment_memo');
+    });
+  };
+
+  // Fetch job progress data - poll every 2 seconds when a job is running
+  const { data: jobProgressData } = useQuery({
+    queryKey: [`/api/background-jobs/${selectedDeal}`],
+    enabled: !!selectedDeal,
+    refetchInterval: (query) => {
+      // Poll every 2 seconds if there's an active memo generation job
+      const data = query.state.data as any;
+      const memoJob = findMemoJob(data?.jobs || []);
+      const isJobRunning = memoJob?.status === 'processing';
+      return isJobRunning ? 2000 : false; // 2 second polling when running
+    },
+    staleTime: 1000, // Short cache to ensure fresh data
+    queryFn: async () => {
+      console.log(`📊 Polling for memo generation job progress for deal ${selectedDeal}`);
+      const response = await fetch(`/api/background-jobs/${selectedDeal}`);
+      const data = await response.json();
+      console.log(`📊 Job progress data:`, data);
+      if (data?.jobs?.length > 0) {
+        console.log(`🔍 Available job types:`, data.jobs.map((j: any) => j.jobType));
+        const memoJob = findMemoJob(data.jobs);
+        if (memoJob) {
+          console.log(`🔍 Memo job details:`, {
+            jobType: memoJob.jobType,
+            status: memoJob.status,
+            progress: memoJob.progress,
+            currentStep: memoJob.currentStep || memoJob.message
+          });
+        }
+      }
+      return data;
+    }
+  });
+
+  // Create progress state from job data
+  const memoProgress = useMemo(() => {
+    const memoJob = findMemoJob(jobProgressData?.jobs || []);
+    if (!memoJob) return null;
+    
+    return {
+      isRunning: memoJob.status === 'processing',
+      progress: memoJob.progress || 0,
+      currentStep: memoJob.currentStep || memoJob.message || 'Generating investment memo...',
+      status: memoJob.status || 'processing',
+      jobId: memoJob.id
+    };
+  }, [jobProgressData]);
+
+  // Auto-refresh memo when job completes
+  useEffect(() => {
+    if (memoProgress && memoProgress.status === 'completed' && memoProgress.progress === 100) {
+      console.log('✅ Memo generation job completed, refreshing memo data...');
+      // Invalidate and refetch memo
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      }, 1000);
+      
+      toast({
+        title: "Memo Generated Successfully",
+        description: "Your investment memo is ready to view.",
+      });
+    } else if (memoProgress && memoProgress.status === 'failed') {
+      console.log('❌ Memo generation job failed');
+      toast({
+        title: "Memo Generation Failed",
+        description: "There was an error generating the memo. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [memoProgress, selectedDeal, queryClient, toast]);
+
   // Memo generation mutation
   const generateMemoMutation = useMutation({
     mutationFn: async (dealId: string) => {
@@ -271,6 +354,8 @@ export default function MemoGenerator() {
     onSuccess: (memo: ComprehensiveMemo) => {
       console.log('✅ Investment memo generated successfully', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
       setGeneratedMemo(memo);
+      // Immediately refetch background jobs to start progress tracking
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       toast({
         title: "Investment Memo Generated",
         description: "Comprehensive memo created successfully. The memo content is now available.",
@@ -434,13 +519,59 @@ export default function MemoGenerator() {
                       Generate Investment Memo
                     </Button>
                   </div>
-                ) : isGenerating ? (
-                  <div className="text-center py-12">
-                    <Loader2 className="h-16 w-16 text-primary mx-auto mb-4 animate-spin" />
-                    <h3 className="text-lg font-medium text-white mb-2">Generating Comprehensive Memo</h3>
-                    <p className="text-gray-400">
-                      Analyzing all documents and agent reports for {selectedDealData?.companyName}...
-                    </p>
+                ) : isGenerating || (memoProgress && memoProgress.isRunning) ? (
+                  <div className="py-8">
+                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                      <CardContent className="pt-6">
+                        <div className="space-y-6">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0">
+                              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-xl font-semibold text-white mb-2">
+                                Generating Investment Memo
+                              </h3>
+                              <p className="text-sm text-gray-400 mb-4">
+                                Creating comprehensive analysis for {selectedDealData?.companyName}
+                              </p>
+                              
+                              {/* Progress Bar */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-gray-300 font-medium">
+                                    {memoProgress?.currentStep || 'Initializing memo generation...'}
+                                  </span>
+                                  <span className="text-primary font-semibold">
+                                    {memoProgress?.progress || 0}%
+                                  </span>
+                                </div>
+                                <Progress 
+                                  value={memoProgress?.progress || 0} 
+                                  className="h-3 bg-dark-lighter"
+                                  data-testid="memo-generation-progress-bar"
+                                />
+                              </div>
+
+                              {/* Status Messages */}
+                              <div className="mt-4 p-3 bg-dark-light/50 rounded-lg border border-dark-lighter">
+                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                                  <span>
+                                    {memoProgress?.progress === 0 && 'Starting analysis...'}
+                                    {memoProgress?.progress > 0 && memoProgress?.progress < 25 && 'Processing documents and analyses...'}
+                                    {memoProgress?.progress >= 25 && memoProgress?.progress < 50 && 'Generating executive summary and highlights...'}
+                                    {memoProgress?.progress >= 50 && memoProgress?.progress < 75 && 'Analyzing market and team assessment...'}
+                                    {memoProgress?.progress >= 75 && memoProgress?.progress < 100 && 'Finalizing recommendations and appendices...'}
+                                    {memoProgress?.progress === 100 && 'Completing memo generation...'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 ) : (
                   <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">{/* Single scrollable document layout */}
