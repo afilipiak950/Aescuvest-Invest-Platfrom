@@ -2311,36 +2311,30 @@ ${fullContext.substring(0, 45000)}`
       // Get company name from deal
       const deal = await storage.getDealById(dealId);
       if (!deal) {
-        console.error(`Deal ${dealId} not found for memo storage`);
-        return;
+        console.error(`❌ Deal ${dealId} not found for memo storage`);
+        throw new Error(`Deal ${dealId} not found`);
       }
 
-      // FIX: UPDATE existing memo instead of deleting and recreating
-      // This preserves the memo ID that's being updated progressively
-      const existingMemo = await storage.getMemoByDealId(dealId);
+      // FIX: Always use createMemo which atomically deletes old + inserts new
+      // This ensures the memo is always persisted, even if previous placeholder was deleted
+      const memoData: InsertInvestmentMemo = {
+        dealId: dealId,
+        memo: memo,
+        executiveSummary: memo.executiveSummary,
+        status: 'Generated'
+      };
       
-      if (existingMemo) {
-        // Update existing memo in-place (preserves ID for progressive updates)
-        await storage.updateMemo(existingMemo.id, {
-          memo: memo,
-          executiveSummary: memo.executiveSummary,
-          status: 'Generated'
-        });
-        console.log(`💾 Successfully updated investment memo ${existingMemo.id} for deal ${dealId}`);
-      } else {
-        // Fallback: Create new memo if none exists (shouldn't happen with instant creation)
-        const memoData: InsertInvestmentMemo = {
-          dealId: dealId,
-          memo: memo,
-          executiveSummary: memo.executiveSummary,
-          status: 'Generated'
-        };
-        await storage.createMemo(memoData);
-        console.log(`💾 Successfully created new investment memo for deal ${dealId}`);
+      const savedMemo = await storage.createMemo(memoData);
+      
+      if (!savedMemo || !savedMemo.memo) {
+        console.error(`❌ CRITICAL: Memo was not persisted for deal ${dealId}! Returned:`, savedMemo);
+        throw new Error(`Failed to persist memo for deal ${dealId}`);
       }
+      
+      console.log(`💾 ✅ Successfully persisted investment memo for deal ${dealId} - ${Object.keys(memo).length} sections saved`);
     } catch (error) {
-      console.error('Error persisting memo to database:', error);
-      // Continue without failing - memo generation succeeded
+      console.error(`❌ CRITICAL ERROR persisting memo to database for deal ${dealId}:`, error);
+      throw error; // Re-throw to surface the error
     }
   }
 
