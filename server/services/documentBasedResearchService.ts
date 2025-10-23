@@ -226,10 +226,7 @@ export class DocumentBasedResearchService {
         /["']([A-Z][A-Za-z0-9\s&\-\.]+(?:Ltd\.?|Limited|Inc\.?|LLC|Corp\.?|Technologies)?)["']/gi,
         
         // Company registration patterns
-        /(?:incorporated as|registered as|doing business as|d\/b\/a)\s+([A-Z][A-Za-z0-9\s&\-\.]+)/gi,
-        
-        // Specific for tech/medical companies (like Neteera)
-        /\b(Neteera(?:\s+Technologies)?|NETEERA)\b/gi
+        /(?:incorporated as|registered as|doing business as|d\/b\/a)\s+([A-Z][A-Za-z0-9\s&\-\.]+)/gi
       ];
       
       for (const pattern of companyPatterns) {
@@ -404,11 +401,6 @@ export class DocumentBasedResearchService {
               title = value;
               break;
             }
-          }
-          
-          // Special case: Check if this might be Isaac Litman (Neteera case)
-          if (name.toLowerCase().includes('litman') || name.toLowerCase().includes('isaac')) {
-            console.log(`🎯 Found potential Isaac Litman match: ${name} as ${title}`);
           }
           
           const key = `${name}-${title}`;

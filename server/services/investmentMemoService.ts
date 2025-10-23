@@ -19,11 +19,11 @@ export interface ComprehensiveMemoData {
 }
 
 export interface InvestmentMemoSections {
-  // COMPREHENSIVE 30-50 PAGE MEMO STRUCTURE MATCHING BAIBYS PDF
+  // COMPREHENSIVE 30-50 PAGE PROFESSIONAL INVESTMENT MEMO STRUCTURE
   coverPage: string;                    // Professional cover page with company info, investment highlights
   executiveSummary: string;             // Comprehensive executive summary (2-3 pages)
   investmentHighlights: string[];       // Key investment highlights and value propositions
-  swotAnalysis: {                       // SWOT analysis in table format matching BAIBYS
+  swotAnalysis: {                       // SWOT analysis in table format
     strengths: string[];
     weaknesses: string[];
     opportunities: string[];
@@ -634,7 +634,7 @@ ${summaryText}
   // ==================== COVER PAGE WITH COMPREHENSIVE COMPANY DETAILS ====================
 
   private async generateCoverPage(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`📋 Generating professional VC cover page matching BAIBYS reference structure`);
+    console.log(`📋 Generating professional VC cover page`);
     
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
@@ -644,7 +644,7 @@ ${summaryText}
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `You are a professional VC investment memo writer. Create a cover page EXACTLY matching the BAIBYS PDF format with two-column layout:
+          content: `You are a professional VC investment memo writer. Create a professional cover page with two-column layout:
 
 LEFT COLUMN - "The Company":
 - Headquarters: [Extract exact address from documents]
@@ -664,8 +664,8 @@ CRITICAL REQUIREMENTS:
 1. Extract ONLY authentic data from the comprehensive analysis provided
 2. Use specific names, numbers, percentages, dates, and addresses found in documents
 3. If data is not available, write "Information not available in provided documents"
-4. Match the professional formatting and structure of the BAIBYS reference
-5. Use bullet points and clean structure exactly as shown in BAIBYS PDF
+4. Use professional formatting and structure with clean layout
+5. Use bullet points and clear structure for readability
 6. Include investment-specific language (liquidation preferences, board rights, etc.)
 
 Format as professional markdown with clear headers and bullet points.`
@@ -856,7 +856,7 @@ ${content.substring(0, 120000)}`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system", 
-          content: `Generate comprehensive executive summary (3-4 pages) matching BAIBYS reference PDF professional quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
+          content: `Generate comprehensive executive summary (3-4 pages) with professional VC quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
 
 **MANDATORY AUTHENTIC DATA EXTRACTION:**
 1. **Company Details**: Exact founding date, headquarters location, incorporation details from documents
@@ -906,7 +906,7 @@ Extract and verify all data from provided context - reject any fabricated inform
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Extract 4-6 specific investment highlights matching BAIBYS PDF format. Each highlight must be authentic and specific:
+          content: `Extract 4-6 specific investment highlights in professional format. Each highlight must be authentic and specific:
 
 **REQUIRED INVESTMENT HIGHLIGHTS STRUCTURE:**
 1. **Innovative Technology**: Quantified performance metrics, AI capabilities, automation benefits
@@ -976,7 +976,7 @@ Format as JSON object with "highlights" array of detailed strings.`
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate professional SWOT analysis matching BAIBYS PDF format with specific, investment-relevant points:
+          content: `Generate professional SWOT analysis in standard VC format with specific, investment-relevant points:
 
 **STRENGTHS** - Extract authentic competitive advantages:
 - IP position (specific patents, AI training data size)
@@ -1042,22 +1042,21 @@ Extract specific, actionable points with authentic data. Format as JSON with det
         model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [{
           role: "system",
-          content: `Generate comprehensive market analysis matching BAIBYS reference PDF quality. Extract ONLY authentic market data from context. Include:
+          content: `Generate comprehensive market analysis with professional VC quality. Extract ONLY authentic market data from context. Include:
 
 **AUTHENTIC MARKET DATA EXTRACTION:**
-1. **Specific Market Sizes**: Extract exact TAM/SAM/SOM figures with sources (e.g., "$64.53B global fertility market", "14.2% CAGR")
+1. **Specific Market Sizes**: Extract exact TAM/SAM/SOM figures with sources and CAGR from documents
 2. **Real Growth Metrics**: Actual growth rates and market projections from documents  
-3. **Authentic Data Sources**: Reference real sources (Grand View Research, ESHRE, WHO)
+3. **Authentic Data Sources**: Reference real sources found in market research documents
 4. **Specific Geographic Data**: Country-by-country market analysis if found
 5. **Competitive Market Data**: Real competitor market shares and positioning
 
 **REQUIRED CONTENT:**
-- Market context with specific IVF market sizing
-- ICSI market penetration (e.g., "70% of IVF cycles")
-- Global cycle numbers (e.g., "3.2 million cycles/year")
-- TAM: Total fertility market size with specific numbers
-- SAM: Serviceable market (e.g., "8,000 clinics globally")
-- SOM: Obtainable market with adoption rates
+- Market context with specific market sizing from available data
+- Market penetration rates and adoption metrics from documents
+- TAM: Total addressable market size with specific numbers from research
+- SAM: Serviceable addressable market with segment breakdowns
+- SOM: Serviceable obtainable market with realistic capture rates
 - Competitive landscape with real competitor analysis
 - Market timing with regulatory and technological drivers
 
@@ -1096,29 +1095,29 @@ Format as JSON with authentic data only - never fabricate market numbers.`
       return {
         marketContext: ensureAuthenticContent(
           result.marketContext,
-          `The global assisted reproductive technology (ART) market represents a rapidly expanding healthcare sector driven by increasing infertility rates, delayed pregnancy trends, and advancing medical technologies. ${companyName} operates within the fertility clinic technology segment, targeting IVF clinics worldwide with AI-powered embryo selection solutions to improve clinical outcomes and operational efficiency.`
+          `${companyName} operates in a dynamic market sector. Market analysis will be based on specific industry data, competitive positioning, and growth opportunities identified in company research and market studies. Detailed market context will be derived from available company documents and external market research.`
         ),
         marketSize: {
           tam: ensureAuthenticContent(
             result.marketSize?.tam,
-            'Total Addressable Market (TAM): $64.53B - Global fertility services market including IVF, ICSI, fertility medications, and related medical devices, with projected 14.2% CAGR through 2030 driven by technological innovation and increasing demand for fertility treatments worldwide.'
+            `Total Addressable Market (TAM): Market analysis will be provided based on ${companyName}'s specific sector and available market research data. TAM sizing will reflect the global market opportunity relevant to the company's products and services.`
           ),
           sam: ensureAuthenticContent(
             result.marketSize?.sam,
-            'Serviceable Addressable Market (SAM): $12.8B - AI-enabled fertility technology market focused on IVF clinics, embryology laboratories, and reproductive medicine centers globally, representing approximately 8,000 fertility clinics worldwide with advanced laboratory capabilities.'
+            `Serviceable Addressable Market (SAM): Market analysis will identify the addressable market segment based on ${companyName}'s geographic reach, customer segments, and go-to-market capabilities as documented in company materials.`
           ),
           som: ensureAuthenticContent(
             result.marketSize?.som,
-            `Serviceable Obtainable Market (SOM): $2.1B - Addressable market for ${companyName} AI-powered embryo assessment technology targeting premium IVF clinics in developed markets with high technology adoption rates and focus on clinical outcome optimization.`
+            `Serviceable Obtainable Market (SOM): Realistic market capture analysis will be based on ${companyName}'s competitive positioning, sales strategy, and market penetration plan as identified in company documents and strategic analyses.`
           )
         },
         competitiveLandscape: ensureAuthenticContent(
           result.competitiveLandscape,
-          `The competitive landscape includes traditional embryology assessment methods, emerging AI-powered solutions, and established medical device companies. Key differentiators include clinical validation, regulatory approvals, integration capabilities, and proven outcome improvements. The company competes through superior AI accuracy, clinical partnerships, and comprehensive regulatory compliance.`
+          `Competitive landscape analysis will be based on ${companyName}'s specific market positioning and identified competitors from company research and market analysis. Key differentiators include technology capabilities, regulatory positioning, strategic partnerships, and go-to-market advantages.`
         ),
         marketTiming: ensureAuthenticContent(
           result.marketTiming,
-          'Market timing is favorable with increasing IVF success rate demands, regulatory acceptance of AI medical devices, growing embryology laboratory automation, and rising patient expectations for optimized treatment outcomes. The convergence of AI technology maturity and clinical validation creates optimal market entry conditions.'
+          `Market timing assessment will evaluate ${companyName}'s market entry positioning based on industry trends, regulatory environment, technology maturation, and customer demand drivers identified in market research and company strategic planning.`
         )
       };
     } catch (e) {
@@ -1196,19 +1195,19 @@ Format as JSON with detailed product information from authentic sources only.`
       return {
         productOverview: ensureAuthenticContent(
           result.productOverview,
-          `${companyName} develops an AI-powered clinical decision support system for assisted reproductive technology (ART). The company's system integrates advanced machine learning algorithms with real-time monitoring to optimize outcomes. The platform provides automated analysis of development patterns, quality assessment algorithms, and predictive analytics for clinical success rates.`
+          `${companyName} develops technology solutions based on advanced capabilities. Product overview will be provided based on specific technology platform, features, and applications documented in company materials and technical specifications.`
         ),
         technologyAdvantage: ensureAuthenticContent(
           result.technologyAdvantage,
-          `The company's system leverages proprietary artificial intelligence algorithms trained on extensive datasets to provide superior predictive accuracy compared to traditional methods. Key technological advantages include real-time analysis, automated quality scoring, pattern recognition capabilities, and integration with existing workflows for seamless implementation.`
+          `Technology advantage analysis will assess ${companyName}'s proprietary capabilities, technical differentiation, and competitive positioning based on product specifications and technical documentation from company materials.`
         ),
         competitiveEdge: ensureAuthenticContent(
           result.competitiveEdge,
-          `${companyName} maintains competitive advantages through its validated AI algorithms, regulatory approvals, strategic partnerships, proven outcomes data, and scalable technology platform that integrates with existing infrastructure. The system demonstrates superior accuracy compared to conventional methods.`
+          `${companyName} competitive edge assessment will evaluate validated capabilities, regulatory positioning, strategic partnerships, performance data, and technology platform advantages based on company documentation and market analysis.`
         ),
         developmentStage: ensureAuthenticContent(
           result.developmentStage,
-          `${companyName} has achieved significant development milestones including regulatory approvals, validation studies, commercial partnerships, ongoing trials, and market-ready product deployment. The company is advancing through regulatory pathways with demonstrated efficacy and commercial traction.`
+          `${companyName} development stage assessment will review achieved milestones, regulatory status, commercial partnerships, validation activities, and market readiness based on company progress reports and strategic documentation.`
         )
       };
     } catch (e) {
@@ -1291,19 +1290,19 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
       return {
         revenueModel: ensureAuthenticContent(
           result.revenueModel, 
-          `${companyName} operates a multi-revenue stream business model including medical device sales to fertility clinics, software licensing for clinical management systems, training and certification programs for healthcare providers, ongoing maintenance and support contracts, and potential royalty agreements with strategic partners. The model leverages scalable technology platform with recurring revenue opportunities.`
+          `${companyName} business model analysis will identify revenue streams based on product offerings, service delivery, licensing arrangements, and partnership structures documented in company commercial strategy and financial materials.`
         ),
         salesChannels: ensureAuthenticContent(
           result.salesChannels,
-          'Sales channels include direct sales to fertility clinics and reproductive medicine centers, distribution partnerships with medical device companies, strategic alliances with healthcare systems, digital marketing to healthcare professionals, conference and trade show presence, and referral programs from existing customers and clinical key opinion leaders.'
+          `Sales channels analysis will evaluate ${companyName}'s go-to-market approach including direct sales, distribution partnerships, strategic alliances, marketing channels, and customer acquisition programs based on commercial strategy documentation.`
         ),
         pricingStrategy: ensureAuthenticContent(
           result.pricingStrategy,
-          'Pricing strategy follows value-based approach reflecting clinical outcomes improvement, operational efficiency gains, and competitive market positioning. Structured pricing includes device sales, software licensing tiers, training packages, and ongoing support subscriptions with flexible payment options and volume discounts for multi-site implementations.'
+          `Pricing strategy assessment will analyze ${companyName}'s value-based pricing approach, pricing structures, payment models, and competitive positioning based on commercial agreements and pricing documentation.`
         ),
         customerAcquisition: ensureAuthenticContent(
           result.customerAcquisition,
-          'Customer acquisition strategy targets fertility clinics, IVF centers, reproductive medicine specialists, and healthcare systems through clinical validation demonstrations, peer-to-peer referrals, professional conference engagement, digital marketing campaigns, and strategic partnerships with established healthcare organizations and medical device distributors.'
+          `Customer acquisition strategy will evaluate ${companyName}'s target customer segments, acquisition channels, validation approach, partnership strategies, and growth programs based on commercial and marketing documentation.`
         )
       };
     } catch (e) {
@@ -1541,9 +1540,9 @@ Format as JSON with detailed financial information only from authentic sources.`
       
       const financialAnalysis = {
         currentFinancials: result.currentFinancials || `${data.companyName} financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
-        projections: result.projections || 'Financial projections indicate strong growth potential driven by clinical validation success, expanding fertility market opportunities, and scalable technology platform with revenue growth across multiple customer segments.',
-        fundingHistory: result.fundingHistory || 'Funding history demonstrates progressive investment rounds supporting technology development, clinical validation phases, and market preparation with strategic capital allocation for sustainable growth.',
-        useOfFunds: result.useOfFunds || 'Proposed fund allocation focuses on clinical validation completion, regulatory approval processes, manufacturing scale-up, and market expansion to capture growth opportunities in fertility technology sector.'
+        projections: result.projections || `Financial projections indicate strong growth potential driven by validation success, expanding market opportunities, and scalable technology platform with revenue growth across multiple customer segments.`,
+        fundingHistory: result.fundingHistory || 'Funding history demonstrates progressive investment rounds supporting technology development, validation phases, and market preparation with strategic capital allocation for sustainable growth.',
+        useOfFunds: result.useOfFunds || `Proposed fund allocation focuses on validation completion, regulatory approval processes, operational scale-up, and market expansion to capture growth opportunities in ${data.companyName}'s target sector.`
       };
       
       // Comprehensive logging showing data sources used
@@ -1733,68 +1732,68 @@ Format as JSON with detailed risk arrays from authentic sources only.`
 
     return {
       technicalRisks: ensureAuthenticRiskArray(result.technicalRisks, [
-        'AI/ML algorithm validation and clinical efficacy demonstration in diverse patient populations',
-        'Regulatory approval pathway complexity for AI-based medical devices requiring clinical validation',
-        'Technology scalability challenges for high-volume clinical deployment across multiple fertility centers',
-        'IP protection and patent landscape navigation in competitive AI healthcare technology sector',
-        'Integration complexity with existing laboratory workflows and embryology systems'
+        'Technology validation and performance demonstration requirements',
+        'Regulatory approval pathway complexity and compliance requirements',
+        'Technology scalability challenges for market deployment',
+        'IP protection and patent landscape navigation',
+        'Integration complexity with existing systems and workflows'
       ]),
       marketRisks: ensureAuthenticRiskArray(result.marketRisks, [
-        'Market adoption timeline uncertainty for AI clinical decision support systems in conservative medical field',
-        'Healthcare reimbursement challenges and payer adoption for innovative fertility technologies',
-        'Economic sensitivity of fertility treatments and potential impact on elective procedure demand',
-        'Competitive response from established medical device companies with greater resources and market presence',
-        'Customer acquisition costs and lengthy sales cycles typical in healthcare technology markets'
+        'Market adoption timeline uncertainty',
+        'Customer acquisition costs and sales cycle challenges',
+        'Economic sensitivity and demand fluctuations',
+        'Competitive response from established industry players',
+        'Pricing pressure and margin sustainability'
       ]),
       competitiveRisks: ensureAuthenticRiskArray(result.competitiveRisks, [
-        'Competition from established fertility technology providers (Vitrolife, Cooper Surgical, Merck KGaA)',
-        'Risk of larger medical device companies developing competing AI-powered embryo assessment solutions',
-        'Patent disputes and IP challenges from competitors in crowded fertility technology landscape',
-        'Technology differentiation sustainability as AI algorithms become commoditized in healthcare',
-        'First-mover advantage erosion as market validates AI fertility applications and attracts new entrants'
+        'Competitive pressure from established industry players',
+        'Risk of larger companies developing competing solutions',
+        'Patent disputes and IP challenges from competitors',
+        'Technology differentiation sustainability',
+        'First-mover advantage erosion as market matures'
       ]),
       regulatoryRisks: ensureAuthenticRiskArray(result.regulatoryRisks, [
-        'FDA regulatory pathway uncertainty for AI-based clinical decision support systems in reproductive medicine',
-        'CE marking requirements and European medical device regulation compliance for international expansion',
-        'Clinical trial design complexity and statistical significance requirements for AI algorithm validation',
-        'Regulatory harmonization challenges across multiple international markets for global commercialization',
-        'Post-market surveillance obligations and ongoing regulatory compliance requirements'
+        'Regulatory pathway uncertainties and approval timelines',
+        'International compliance requirements for market expansion',
+        'Validation and testing requirements for regulatory approval',
+        'Regulatory harmonization challenges across markets',
+        'Post-market surveillance and ongoing compliance obligations'
       ]),
       managementRisks: ensureAuthenticRiskArray(result.managementRisks, [
-        'Key person dependency risk for specialized AI and clinical expertise in niche reproductive medicine market',
-        'Management team scaling challenges as company transitions from development to commercial operations',
-        'Board composition and governance evolution requirements for institutional investor participation',
-        'Strategic decision-making complexity balancing clinical validation, regulatory compliance, and commercial priorities',
-        'Talent acquisition and retention challenges in competitive AI healthcare technology market'
+        'Key person dependency risk for specialized expertise',
+        'Management team scaling challenges during growth phases',
+        'Board composition and governance evolution requirements',
+        'Strategic decision-making complexity across multiple priorities',
+        'Talent acquisition and retention challenges'
       ])
     };
   } catch (e) {
     console.error('❌ Error parsing risk assessment JSON:', e);
     return {
       technicalRisks: [
-        'AI/ML algorithm validation and clinical efficacy demonstration in diverse patient populations',
-        'Regulatory approval pathway complexity for AI-based medical devices requiring clinical validation',
-        'Technology scalability challenges for high-volume clinical deployment across multiple fertility centers'
+        'Technology validation and performance demonstration requirements',
+        'Regulatory approval pathway complexity and compliance requirements',
+        'Technology scalability challenges for market deployment'
       ],
       marketRisks: [
-        'Market adoption timeline uncertainty for AI clinical decision support systems in conservative medical field',
-        'Healthcare reimbursement challenges and payer adoption for innovative fertility technologies',
-        'Economic sensitivity of fertility treatments and potential impact on elective procedure demand'
+        'Market adoption timeline uncertainty',
+        'Customer acquisition costs and sales cycle challenges',
+        'Economic sensitivity and demand fluctuations'
       ],
       competitiveRisks: [
-        'Competition from established fertility technology providers (Vitrolife, Cooper Surgical, Merck KGaA)',
-        'Risk of larger medical device companies developing competing AI-powered embryo assessment solutions',
-        'Technology differentiation sustainability as AI algorithms become commoditized in healthcare'
+        'Competitive pressure from established industry players',
+        'Risk of larger companies developing competing solutions',
+        'Technology differentiation sustainability'
       ],
       regulatoryRisks: [
-        'FDA regulatory pathway uncertainty for AI-based clinical decision support systems in reproductive medicine',
-        'CE marking requirements and European medical device regulation compliance for international expansion',
-        'Clinical trial design complexity and statistical significance requirements for AI algorithm validation'
+        'Regulatory pathway uncertainties and approval timelines',
+        'International compliance requirements for market expansion',
+        'Validation and testing requirements for regulatory approval'
       ],
       managementRisks: [
-        'Key person dependency risk for specialized AI and clinical expertise in niche reproductive medicine market',
-        'Management team scaling challenges as company transitions from development to commercial operations',
-        'Strategic decision-making complexity balancing clinical validation, regulatory compliance, and commercial priorities'
+        'Key person dependency risk for specialized expertise',
+        'Management team scaling challenges during growth phases',
+        'Strategic decision-making complexity across multiple priorities'
       ]
     };
   }
@@ -1953,18 +1952,18 @@ Format as JSON with detailed investment recommendation based on authentic analys
         ),
         rationale: ensureAuthenticContent(
           result.rationale,
-          'Investment thesis based on AI-powered clinical decision support system addressing $64.53B fertility market opportunity, validated technology with clinical partnerships, experienced medical device management team, clear regulatory framework, scalable business model, and strategic positioning for acquisition by major medical device companies or IPO pathway within 5-7 years.'
+          `Investment thesis will be developed based on ${companyName}'s specific market opportunity, validated technology, management team strength, regulatory positioning, business model scalability, and exit potential. Analysis will be based on company documentation and market research.`
         ),
         keyMilestones: Array.isArray(result.keyMilestones) && result.keyMilestones.length > 0 ? result.keyMilestones : [
-          'Complete regulatory approvals and CE marking within 12 months',
-          'Achieve 10+ commercial partnerships with fertility clinics within 18 months',
-          'Demonstrate clinical efficacy data and publish peer-reviewed studies within 24 months',
-          'Scale to $10M ARR and achieve positive EBITDA within 36 months',
-          'Establish international market presence and strategic acquisition discussions within 48 months'
+          `Complete regulatory approvals and market readiness within 12 months`,
+          `Achieve commercial partnerships and customer traction within 18 months`,
+          `Demonstrate performance data and validation within 24 months`,
+          `Scale revenue and achieve profitability targets within 36 months`,
+          `Establish market presence and exit positioning within 48 months`
         ],
         exitStrategy: ensureAuthenticContent(
           result.exitStrategy,
-          'Exit strategy targets strategic acquisition by major medical device companies (Medtronic, Johnson & Johnson, Roche Diagnostics) or reproductive health specialists within 5-7 years. IPO potential with $100M+ revenue scale. Expected exit multiples 8-15x revenue based on medtech and AI healthcare comparables with strong recurring revenue models.'
+          `Exit strategy will evaluate strategic acquisition potential by industry leaders, IPO readiness based on revenue scale, and expected exit multiples based on ${companyName}'s sector comparables and revenue model characteristics.`
         )
       };
     } catch (e) {
@@ -2020,21 +2019,21 @@ Extract specific market data from the analysis including market values, growth r
 
   return ensureAuthenticContent(
     response,
-    `# TAM/SAM/SOM Analysis - Assisted Reproductive Technology Market
+    `# TAM/SAM/SOM Analysis
+
+Market sizing analysis will be provided based on ${companyName}'s specific industry sector and available market research data from company documents and external sources.
 
 ## Total Addressable Market (TAM)
-The global assisted reproductive technology market represents a **$64.53 billion TAM** growing at 9.2% CAGR, driven by increasing infertility rates, delayed childbearing trends, and advancing reproductive technologies.
+TAM analysis will identify the total global market opportunity based on the company's specific industry sector and product/service offerings.
 
 ## Serviceable Addressable Market (SAM)  
-The company targets the serviceable addressable market focused on target customers in developed markets with advanced infrastructure and technology adoption capabilities.
+SAM analysis will evaluate the addressable market segment based on geographic reach, target customer segments, and go-to-market capabilities.
 
 ## Serviceable Obtainable Market (SOM)
-Realistic market capture of **$640 million SOM** (5% of SAM) based on clinical partnership strategy, technology validation, and 5-year market penetration model across target fertility clinic networks.
+SOM analysis will assess realistic market capture based on competitive positioning, sales strategy, and market penetration plan.
 
 ## Market Sizing Methodology
-- TAM: Global fertility treatment market × AI clinical decision support penetration
-- SAM: Addressable fertility clinics with compatible infrastructure  
-- SOM: Conservative 5% market share based on clinical validation and partnership strategy`
+Market sizing methodology will be derived from available market research, industry reports, and company-specific market analysis.`
   );
   }
 
@@ -2077,21 +2076,21 @@ Extract specific competitor information including company names, funding rounds,
 
     return ensureAuthenticContent(
       content,
-      `# Competitive Analysis - AI Fertility Technology Landscape
+      `# Competitive Analysis
+
+Competitive analysis will be based on ${companyName}'s specific market positioning and identified competitors from company research and market analysis.
 
 ## Direct Competitors
-**Vitrolife Group** - Leading fertility technology provider with laboratory equipment and consumables, $800M revenue, strong European presence
-**Cooper Surgical** - Fertility and genomics solutions provider, acquired by Cooper Companies for $2.1B, comprehensive product portfolio
-**Merck KGaA** - Fertility pharmaceutical and technology solutions, significant R&D investment in reproductive medicine
+Competitor analysis will identify direct competitors based on market research, industry reports, and company competitive intelligence.
 
 ## Competitive Positioning
-The company differentiates through advanced technology solutions specifically designed for target applications, addressing unmet needs in the market.
+Competitive positioning assessment will evaluate ${companyName}'s differentiation through technology, market approach, partnerships, and value proposition.
 
 ## Technology Advantage
-Proprietary machine learning algorithms trained on extensive embryo development datasets provide superior predictive accuracy compared to traditional manual assessment methods used by competitors.
+Technology advantage analysis will assess proprietary capabilities, technical differentiation, and performance advantages compared to competitive solutions.
 
 ## Market Position
-Early-stage technology company with opportunity to establish category leadership in AI-powered fertility clinical decision support systems through strategic clinic partnerships and regulatory validation.`
+Market position evaluation will analyze ${companyName}'s competitive standing, growth opportunities, and potential for market leadership based on strategic positioning and execution capabilities.`
     );
   }
 
@@ -3032,7 +3031,7 @@ Generate only the content for this specific section based on your custom enhance
    * Intelligent document selection when keyword matching fails
    */
   private getIntelligentDocumentSelection(sectionKey: string, allDocs: string[], limit: number): string[] {
-    // Section-specific document patterns for biotech/medtech companies like BAIBYS
+    // Section-specific document patterns for investment analysis
     const sectionPatterns: Record<string, {
       patterns: string[];
       percentage: number; // percentage of total docs to include
