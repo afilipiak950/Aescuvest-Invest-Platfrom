@@ -39,7 +39,7 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 500 * 1024 * 1024, // 500MB limit (was 5TB - CRITICAL FIX)
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
     files: 1, // Only allow single file uploads
     fieldSize: 1024 * 1024, // 1MB field size limit
   },
@@ -76,7 +76,7 @@ router.post('/api/gcs/proxy-upload/:dealId',
   uploadRateLimit, // Rate limiting to prevent DoS
   optionalApiAuth, // Optional authentication
   validateDealId, // Validate deal ID parameter
-  validateFileSize(500), // Validate file size (500MB max)
+  validateFileSize(5000), // Validate file size (5GB max)
   upload.single('file'), // Secure file upload
   async (req, res) => {
     try {
@@ -381,7 +381,7 @@ router.post('/api/gcs/stream-upload/:dealId',
   strictUploadRateLimit, // Stricter rate limiting for large files
   optionalApiAuth, // Optional authentication
   validateDealId, // Validate deal ID
-  validateFileSize(500), // 500MB limit for stream uploads too
+  validateFileSize(5000), // 5GB limit for stream uploads
   async (req, res) => {
   try {
     const dealId = parseInt(req.params.dealId);

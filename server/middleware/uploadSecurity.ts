@@ -110,7 +110,7 @@ export const strictUploadRateLimit = rateLimit({
  * FILE SIZE VALIDATION MIDDLEWARE
  * Validates file size before processing
  */
-export function validateFileSize(maxSizeMB: number = 500) {
+export function validateFileSize(maxSizeMB: number = 5000) {
   return (req: Request, res: Response, next: NextFunction) => {
     const contentLength = req.headers['content-length'];
     const fileSize = req.headers['x-file-size'];

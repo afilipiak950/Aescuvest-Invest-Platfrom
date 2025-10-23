@@ -46,7 +46,7 @@ router.post('/api/gcs/signed-url/:dealId', async (req: Request, res: Response) =
       expires: Date.now() + 60 * 60 * 1000, // 1 hour
       contentType: 'application/zip',
       extensionHeaders: {
-        'x-goog-content-length-range': `0,${5 * 1024 * 1024 * 1024 * 1024}` // Up to 5TB
+        'x-goog-content-length-range': `0,${5 * 1024 * 1024 * 1024}` // Up to 5GB
       }
     };
 
