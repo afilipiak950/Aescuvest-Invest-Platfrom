@@ -147,8 +147,8 @@ const upload = multer({
     }
   }),
   limits: {
-    fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
-    fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for fields
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
+    fieldSize: 5 * 1024 * 1024 * 1024, // 5GB for fields
     fields: 100, // Allow many fields  
     files: 50 // Allow many files
   },

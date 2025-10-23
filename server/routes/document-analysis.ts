@@ -11,7 +11,7 @@ const router = Router();
 // Configure multer for file uploads
 const upload = multer({
   dest: 'uploads/',
-  limits: { fileSize: 1000 * 1024 * 1024 }, // 1GB limit for large files
+  limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5GB limit for dataroom uploads
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       'application/pdf',

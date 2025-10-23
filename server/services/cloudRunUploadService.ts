@@ -6,7 +6,7 @@ import fs from 'fs';
 // Cloud Run specific upload service to handle 413 errors
 export class CloudRunUploadService {
   private static instance: CloudRunUploadService;
-  private maxDirectUploadSize = 10 * 1024 * 1024 * 1024; // 🚨 MASSIVE 10GB - eliminate Cloud Run limits
+  private maxDirectUploadSize = 5 * 1024 * 1024 * 1024; // 5GB limit for Cloud Run
   
   private constructor() {}
   
@@ -37,8 +37,8 @@ export class CloudRunUploadService {
     return multer({
       storage: storage,
       limits: {
-        fileSize: 50 * 1024 * 1024 * 1024, // 🚨 MASSIVE 50GB limit to eliminate ALL 413 errors
-        fieldSize: 50 * 1024 * 1024 * 1024, // 50GB for field data  
+        fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
+        fieldSize: 5 * 1024 * 1024 * 1024, // 5GB for field data  
         fields: 100, // Allow many fields
         files: 50 // Allow many files
       },
@@ -66,7 +66,7 @@ export class CloudRunUploadService {
         success: false,
         error: 'File too large for direct upload',  
         cloudRunLimit: true,
-        recommendedAction: 'Use chunked upload for files over 10GB',
+        recommendedAction: 'Use chunked upload for files over 5GB',
         maxDirectSize: this.maxDirectUploadSize
       });
       return true;

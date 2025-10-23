@@ -11,7 +11,7 @@ const router = Router();
 const upload = multer({
   dest: 'uploads/',
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
   }
 });
 

@@ -11,7 +11,7 @@ import fs from "fs";
 const apiUpload = multer({
   dest: 'uploads/api',
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1GB limit for large files
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
     files: 10
   },
   fileFilter: (req, file, cb) => {
