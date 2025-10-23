@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 500 * 1024 * 1024, // SECURITY FIX: Reduced from 1GB to 500MB
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
     files: 10, // Limit number of files
     fieldSize: 1024 * 1024, // 1MB field size limit
   },
@@ -71,7 +71,7 @@ const upload = multer({
 router.post('/upload-analyze', 
   uploadRateLimit, // Rate limiting
   optionalApiAuth, // Optional authentication
-  validateFileSize(500), // File size validation
+  validateFileSize(5000), // Validate file size (5GB max)
   upload.array('files', 10), 
   async (req: Request, res: Response) => {
   try {
@@ -196,7 +196,7 @@ router.post('/upload-analyze',
 router.post('/', 
   uploadRateLimit, // Rate limiting
   optionalApiAuth, // Optional authentication
-  validateFileSize(500), // File size validation
+  validateFileSize(5000), // Validate file size (5GB max)
   upload.array('files', 10), 
   async (req: Request, res: Response) => {
   try {

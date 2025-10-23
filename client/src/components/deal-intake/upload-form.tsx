@@ -339,7 +339,7 @@ export default function UploadForm({
               Drag & drop your pitch deck, one-pager, or other documents
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              PDF, PPT, DOCX, ZIP (max 500MB)
+              PDF, PPT, DOCX, ZIP (max 5GB)
             </p>
             <div className="mt-4">
               <input
