@@ -387,12 +387,12 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: Infinity, // 🚨 UNLIMITED - ELIMINATE ALL 413 ERRORS IN PRODUCTION
-    fieldSize: Infinity, // Unlimited for fields
-    fields: Infinity, // Allow unlimited fields
-    files: Infinity, // Allow unlimited files
-    parts: Infinity, // Allow unlimited parts
-    headerPairs: Infinity // Allow unlimited header pairs
+    fileSize: 5 * 1024 * 1024 * 1024, // 5GB limit for dataroom uploads
+    fieldSize: 5 * 1024 * 1024 * 1024, // 5GB for fields
+    fields: 100, // Allow many fields
+    files: 50, // Allow many files
+    parts: 1000, // Allow many parts
+    headerPairs: 2000 // Allow many header pairs
   },
   fileFilter: (req, file, cb) => {
     console.log(`🔧 MULTER: Processing file ${file.originalname} (${file.size || 'unknown'} bytes)`);
@@ -949,7 +949,7 @@ app.use((req, res, next) => {
     
     upload = multer({ 
       storage,
-      limits: { fileSize: Infinity },
+      limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5GB limit for dataroom uploads
       fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed') {
           cb(null, true);

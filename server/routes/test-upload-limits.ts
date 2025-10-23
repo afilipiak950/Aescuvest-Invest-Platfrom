@@ -45,7 +45,7 @@ router.post('/api/test-upload-limit', (req, res) => {
 const testMulter = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: Infinity
+    fileSize: 5 * 1024 * 1024 * 1024 // 5GB limit for dataroom uploads
   }
 });
 
