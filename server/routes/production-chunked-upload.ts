@@ -332,6 +332,19 @@ router.post('/api/deals/:dealId/production-chunked/complete', async (req: Reques
           .catch((err: Error) => {
             console.error('ZIP processing failed:', err);
           });
+        
+        // Clear cache after ZIP processing starts
+        const documentCache = (global as any).documentCache;
+        if (documentCache) {
+          const keysToDelete: string[] = [];
+          for (const key of documentCache.keys()) {
+            if (key.startsWith(`${session.dealId}-`)) {
+              keysToDelete.push(key);
+            }
+          }
+          keysToDelete.forEach((key: string) => documentCache.delete(key));
+          console.log(`🧹 Cleared document cache for deal ${session.dealId} after production chunked ZIP upload - removed ${keysToDelete.length} cache entries`);
+        }
       }
     }
     
