@@ -237,12 +237,21 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       // No need for additional job creation here - the method handles everything
 
       // CRITICAL: Clear cache after ZIP processing so documents appear instantly
-      // Access the server instance to clear cache
-      const server = req.app.get('server');
-      if (server && typeof server.clearPaginatedDocumentCache === 'function') {
-        server.clearPaginatedDocumentCache(parseInt(dealId));
-        console.log(`🧹 Cleared paginated cache for deal ${dealId} after GCS ZIP processing`);
+      // Access the global document cache directly (set in routes.ts)
+      const documentCache = (global as any).documentCache;
+      if (documentCache) {
+        const keysToDelete: string[] = [];
+        for (const key of documentCache.keys()) {
+          if (key.startsWith(`${dealId}-`)) {
+            keysToDelete.push(key);
+          }
+        }
+        keysToDelete.forEach((key: string) => documentCache.delete(key));
+        console.log(`🧹 Cleared document cache for deal ${dealId} after GCS ZIP processing - removed ${keysToDelete.length} cache entries`);
+      } else {
+        console.log(`⚠️ Could not clear document cache - cache not accessible`);
       }
+      
       // Also clear storage cache
       const { storage } = await import('../storage');
       await storage.invalidateDocumentCache(parseInt(dealId));
