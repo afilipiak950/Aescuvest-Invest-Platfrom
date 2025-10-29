@@ -200,7 +200,7 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
                         {/* Evidence Section */}
                         {evaluationResults.find(r => r.criteriaId === criterion.id)?.keyFactors && 
                          Array.isArray(evaluationResults.find(r => r.criteriaId === criterion.id)?.keyFactors) && 
-                         evaluationResults.find(r => r.criteriaId === criterion.id)?.keyFactors?.length > 0 && (
+                         evaluationResults.find(r => r.criteriaId === criterion.id)?.keyFactors && evaluationResults.find(r => r.criteriaId === criterion.id)!.keyFactors!.length > 0 && (
                           <div className="bg-green-900/20 p-3 rounded border border-green-700/30">
                             <h6 className="text-xs font-semibold text-green-400 mb-2 flex items-center gap-1">
                               <CheckCircle className="w-3 h-3" />
