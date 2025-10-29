@@ -138,7 +138,7 @@ export const deals = pgTable("deals", {
   location: text("location"),
   website: text("website"),
   fundingAmount: integer("funding_amount"),
-  aiScore: text("ai_score"),
+  aiScore: integer("ai_score"),
   status: text("status").notNull().default("New Submission"),
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
