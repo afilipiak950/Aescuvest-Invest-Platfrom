@@ -52,6 +52,60 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
     refetchInterval: isEvaluating ? 5000 : false, // Poll every 5s while running
   });
 
+  // Poll for background job progress (ALWAYS enabled to detect in-progress jobs after reload)
+  const { data: jobsData } = useQuery<{success: boolean, jobs: any[]}>({
+    queryKey: [`/api/background-jobs/${dealId}`],
+    refetchInterval: 2000, // Always poll every 2s to detect in-progress jobs
+  });
+
+  // Find the AI evaluation job
+  const aiEvaluationJob = jobsData?.jobs?.find(job => 
+    job.jobType === 'ai_evaluation' && job.status === 'processing'
+  );
+  
+  const evaluationProgress = aiEvaluationJob?.progress ?? 0;
+  const evaluationStep = aiEvaluationJob?.currentStep ?? '';
+
+  // Auto-detect in-progress evaluation on mount or job status change
+  useEffect(() => {
+    if (aiEvaluationJob) {
+      // Found in-progress job, enable evaluating state
+      if (!isEvaluating) {
+        console.log('📊 Detected in-progress AI evaluation, enabling progress tracking');
+        setIsEvaluating(true);
+      }
+    } else if (isEvaluating) {
+      // Job completed, failed, or not found - disable evaluating state
+      const completedJob = jobsData?.jobs?.find(job => 
+        job.jobType === 'ai_evaluation' && job.status === 'completed'
+      );
+      const failedJob = jobsData?.jobs?.find(job => 
+        job.jobType === 'ai_evaluation' && job.status === 'failed'
+      );
+      
+      if (completedJob) {
+        console.log('✅ AI evaluation completed, stopping progress tracking');
+        setIsEvaluating(false);
+        // Refresh results
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/evaluation-results`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
+      } else if (failedJob) {
+        console.error('❌ AI evaluation failed, stopping progress tracking');
+        setIsEvaluating(false);
+        // Show error toast
+        toast({
+          title: "❌ AI Evaluation Failed",
+          description: failedJob.error || "Evaluation failed. Please try again.",
+          variant: "destructive",
+          duration: 7000,
+        });
+        // Refresh results
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/evaluation-results`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
+      }
+    }
+  }, [aiEvaluationJob, isEvaluating, jobsData, dealId, queryClient, toast]);
+
   const runAIEvaluation = useMutation({
     mutationFn: async () => {
       console.log(`🚀 Starting AI evaluation for deal ${dealId}...`);
@@ -177,11 +231,20 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
             </div>
           </div>
           {(runAIEvaluation.isPending || isEvaluating) && (
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-blue-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm font-medium">Processing AI evaluation with company research... This takes 60-75 seconds.</span>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-400">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm font-medium">{evaluationStep || 'Processing AI evaluation...'}</span>
+                </div>
+                <span className="text-sm font-bold text-blue-300">{evaluationProgress}%</span>
               </div>
+              <div className="relative">
+                <Progress value={evaluationProgress} className="h-2" />
+              </div>
+              <p className="text-xs text-blue-300/80">
+                This typically takes 60-75 seconds to complete. You can leave this page and come back.
+              </p>
             </div>
           )}
           <p className="text-gray-300">
