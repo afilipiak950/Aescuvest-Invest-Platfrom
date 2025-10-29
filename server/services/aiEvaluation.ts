@@ -154,79 +154,28 @@ ${enhancedContext}
 EVALUATION CRITERIA:
 ${criteria.map(c => `- ${c.name} (${c.weight}%): ${c.description}`).join('\n')}
 
-DETAILED SCORING INSTRUCTIONS:
+SCORING FRAMEWORK (0-100 scale):
+- 90-100: Exceptional - Best in class, clear market leader with proven execution
+- 80-89: Excellent - Strong performance, clear competitive advantages
+- 70-79: Good - Solid fundamentals, meets investment criteria (PASS)
+- 60-69: Fair - Some strengths but notable gaps (INVESTIGATE)
+- 50-59: Below Average - Significant weaknesses, limited upside (INVESTIGATE)
+- 40-49: Poor - Major concerns, high risk (REJECT)
+- 0-39: Critical Issues - Fundamental problems, should not invest (REJECT)
 
-**CRITICAL EVALUATION FRAMEWORK - BE HIGHLY SELECTIVE:**
+EVALUATION PRINCIPLES:
+1. Evidence-Based Scoring: Base scores on hard evidence, proven metrics, and factual data
+2. Risk Assessment: Identify and weigh downside risks and concerns
+3. Competitive Analysis: Evaluate differentiation and sustainable competitive advantages
+4. Growth Potential: Assess scalability, market opportunity, and realistic growth trajectory
+5. Team Capability: Consider track record, domain expertise, and execution ability
+6. Financial Viability: Analyze unit economics, burn rate, and path to profitability
 
-**Sector Analysis (Healthcare vs Biotech) - STRICT CRITERIA:**
-- Pure Healthcare Tech (software, AI, digital health): 75-85 points (lowered from 90-100)
-- Medical Devices (non-biotech): 65-80 points (lowered from 80-95)
-- Healthcare Services/Platforms: 70-85 points (lowered from 85-95)
-- Biotech/Pharma (wet lab, drug discovery): 0-15 points (lowered from 0-20)
-- Mixed Healthcare-Biotech: 20-45 points (lowered from 30-60)
-
-**Geography Scoring - STRICTER STANDARDS:**
-- Germany, UK, France, Netherlands, Switzerland: 80-90 points (lowered from 95-100)
-- Other EU countries: 65-80 points (lowered from 80-90)
-- Israel: 75-85 points (lowered from 90-100)
-- US/Canada: 45-60 points (lowered from 60-75)
-- Other regions: 0-30 points (lowered from 0-40)
-
-**Stage Preferences - MORE DEMANDING:**
-- Series A: 80-90 points (lowered from 95-100)
-- Series B: 75-85 points (lowered from 90-95)
-- Series C: 70-80 points (lowered from 85-90)
-- Seed: 55-65 points (lowered from 70-80)
-- Pre-seed: 45-55 points (lowered from 60-70)
-- Later stages: 25-45 points (lowered from 40-60)
-
-**Business Model Analysis - HIGHER STANDARDS:**
-- SaaS/Platform: 75-85 points (lowered from 90-100)
-- Automation/AI tools: 70-80 points (lowered from 85-95)
-- Reagents/Consumables: 65-75 points (lowered from 80-90)
-- Hardware only: 45-60 points (lowered from 60-75)
-- Services only: 35-55 points (lowered from 50-70)
-
-**Biotech Exclusion Analysis - ULTRA-STRICT:**
-- Pure software/digital health (no wet lab): 80-90 points (lowered from 95-100)
-- Medical devices (no biologics): 70-80 points (lowered from 85-95)
-- Services/platforms only: 75-85 points (lowered from 90-100)
-- Mixed model with some biotech: 15-35 points (lowered from 30-60)
-- Primarily wet-lab biotech/pharma: 0-15 points (lowered from 0-20)
-
-**Ownership Feasibility Analysis - TOUGHER REQUIREMENTS:**
-- Clear path to 20-30% stake: 75-85 points (lowered from 90-100)
-- Possible 15-25% stake: 65-75 points (lowered from 80-90)
-- Limited to 10-20% stake: 45-65 points (lowered from 60-80)
-- Very diluted ownership <10%: 20-45 points (lowered from 30-60)
-- No meaningful ownership possible: 0-20 points (lowered from 0-30)
-
-**ADDITIONAL CRITICAL FACTORS - ENHANCED SCRUTINY:**
-- Revenue traction: Must show clear path to profitability within 3-5 years
-- Team quality: Proven track record with demonstrated success in similar markets
-- Competition: Must have clear, defensible differentiation and moats
-- Market timing: Must be entering at optimal time with proof of market readiness
-- Scalability: Must demonstrate scalable business model with evidence of potential scale
-- Technology risk: Must assess technological feasibility and competitive advantages
-- Regulatory compliance: Must be compliant with current and anticipated regulations
-- Financial sustainability: Must show realistic path to sustainable unit economics
-
-**INVESTMENT THESIS VALIDATION:**
-Each criterion must be scored with extreme scrutiny. Look for:
-- Hard evidence over claims
-- Proven metrics over projections
-- Defensible advantages over generic features
-- Realistic growth trajectories over hockey stick projections
-- Clear value proposition over vague benefits
-
-**CRITICAL EVALUATION MINDSET:**
-- Be highly skeptical of all claims
-- Demand evidence for every assertion
-- Prioritize downside risk assessment
-- Question sustainability of competitive advantages
-- Challenge revenue projections and growth assumptions
-- Evaluate team experience critically
-- Consider worst-case scenarios in all assessments
+For each criterion, provide:
+- Specific score (0-100) based on evidence
+- Clear reasoning explaining the score with concrete facts
+- Supporting evidence from documents, research, and company data
+- Concerns or risks that could impact the score
 
 CRITICAL: You must evaluate ALL ${criteria.length} criteria listed above. Each criterion must have a score and detailed reasoning.
 
@@ -236,52 +185,17 @@ ${criteria.map(c => `- ${c.name}`).join('\n')}
 Respond in this exact JSON format with ALL ${criteria.length} criteria evaluated:
 {
   "criterionScores": [
-    {
-      "criterion": "Sector",
+${criteria.map((c, idx) => `    {
+      "criterion": "${c.name}",
       "score": 85,
-      "reasoning": "Detailed analysis of why this specific score was assigned, including sector classification and evidence",
+      "reasoning": "Detailed analysis of why this specific score was assigned for ${c.name}. ${c.description}",
       "evidence": ["Specific fact 1 from research", "Specific fact 2 from documents"],
       "concerns": ["Specific risk or concern identified"]
-    },
-    {
-      "criterion": "Biotech Exclusion", 
-      "score": 90,
-      "reasoning": "Analysis of wet-lab vs digital focus",
-      "evidence": ["Evidence of digital focus"],
-      "concerns": ["Any biotech concerns"]
-    },
-    {
-      "criterion": "HQ Geography",
-      "score": 95, 
-      "reasoning": "Location analysis",
-      "evidence": ["Geographic evidence"],
-      "concerns": ["Location concerns"]
-    },
-    {
-      "criterion": "Stage",
-      "score": 90,
-      "reasoning": "Funding stage analysis", 
-      "evidence": ["Stage evidence"],
-      "concerns": ["Stage concerns"]
-    },
-    {
-      "criterion": "Ownership Feasibility",
-      "score": 85,
-      "reasoning": "Ownership stake analysis",
-      "evidence": ["Ownership evidence"], 
-      "concerns": ["Ownership concerns"]
-    },
-    {
-      "criterion": "Business Model Fit",
-      "score": 88,
-      "reasoning": "Business model analysis",
-      "evidence": ["Model evidence"],
-      "concerns": ["Model concerns"]
-    }
+    }${idx < criteria.length - 1 ? ',' : ''}`).join('\n')}
   ],
   "overallScore": 76,
   "recommendation": "INVESTIGATE",
-  "summary": "Executive summary with clear sector classification and investment thesis",
+  "summary": "Executive summary with clear investment thesis and analysis",
   "keyFindings": ["Detailed positive finding 1", "Detailed positive finding 2"],
   "redFlags": ["Specific red flag with evidence", "Specific concern with reasoning"]
 }
