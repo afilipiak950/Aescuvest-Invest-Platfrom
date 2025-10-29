@@ -32,47 +32,118 @@ interface AIEvaluationResult {
 }
 
 export async function evaluateCompanyByDeal(dealId: number): Promise<AIEvaluationResult> {
+  const jobId = `ai-evaluation-${dealId}`;
+  
+  // Check for existing job BEFORE try block to preserve 409 status
+  const existingJob = await storage.getBackgroundJobById(jobId);
+  if (existingJob) {
+    // If a job is currently processing, reject the new run to prevent race conditions
+    if (existingJob.status === 'processing') {
+      const error = new Error('AI evaluation is already in progress for this deal. Please wait for it to complete.');
+      (error as any).statusCode = 409; // Conflict
+      throw error; // Throw 409 without catching it
+    }
+    
+    // If previous job completed or failed, delete it to allow rerun
+    console.log(`🧹 Deleting ${existingJob.status} AI evaluation job for deal ${dealId} to allow rerun`);
+    await storage.deleteBackgroundJob(jobId);
+  }
+  
   try {
     console.log(`🤖 Starting AI evaluation for deal ${dealId}...`);
     
-    // Get deal information
+    // Create background job for progress tracking (0%)
+    await storage.createBackgroundJob({
+      jobId,
+      jobType: 'ai_evaluation',
+      dealId,
+      agentType: 'ai_scoring',
+      status: 'processing',
+      progress: 0,
+      totalDocuments: 0,
+      processedDocuments: 0,
+      currentStep: 'Initializing AI evaluation...',
+      startedAt: new Date()
+    });
+    
+    // Get deal information (5%)
+    await updateJobProgress(jobId, 5, 'Fetching deal information...');
     const deal = await storage.getDealById(dealId);
     if (!deal) {
       throw new Error(`Deal ${dealId} not found`);
     }
 
-    // Get evaluation criteria
+    // Get evaluation criteria (10%)
+    await updateJobProgress(jobId, 10, 'Loading evaluation criteria...');
     const criteria = await storage.getAllEvaluationCriteria();
     if (!criteria || criteria.length === 0) {
       throw new Error('No evaluation criteria configured');
     }
 
-    // Get documents for context
+    // Get documents for context (15%)
+    await updateJobProgress(jobId, 15, 'Gathering document data...');
     const documents = await storage.getDocumentsWithOCRByDealId(dealId);
     
-    // Get agent analyses for additional context
+    // Get agent analyses for additional context (20%)
+    await updateJobProgress(jobId, 20, 'Collecting agent analyses...');
     const analyses = await storage.getAnalysesByDealId(dealId);
     
     console.log(`📊 Evaluating against ${criteria.length} criteria with ${documents.length} documents and ${analyses.length} analyses`);
 
-    // Build comprehensive context for AI evaluation
+    // Build comprehensive context for AI evaluation (25%)
+    await updateJobProgress(jobId, 25, 'Building company context...');
     const companyContext = buildCompanyContext(deal, documents, analyses);
     
-    // Perform AI evaluation
-    const evaluationResult = await performAIEvaluation(companyContext, criteria);
+    // Perform AI evaluation with progress tracking (30-90%)
+    await updateJobProgress(jobId, 30, 'Starting AI analysis...');
+    const evaluationResult = await performAIEvaluation(companyContext, criteria, dealId, jobId);
     
-    // Store results in database
+    // Store results in database (95%)
+    await updateJobProgress(jobId, 95, 'Storing evaluation results...');
     await storeEvaluationResults(dealId, evaluationResult, criteria);
     
-    // Update deal AI score
+    // Update deal AI score (98%)
+    await updateJobProgress(jobId, 98, 'Updating deal score...');
     await storage.updateDealAiScore(dealId, evaluationResult.overallScore);
+    
+    // Mark job as completed (100%)
+    await storage.updateBackgroundJob(jobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: 'AI evaluation completed!',
+      updatedAt: new Date()
+    });
     
     console.log(`✅ AI evaluation completed for deal ${dealId} with score: ${evaluationResult.overallScore}`);
     
     return evaluationResult;
   } catch (error) {
     console.error(`❌ AI evaluation failed for deal ${dealId}:`, error);
+    
+    // Mark job as failed
+    await storage.updateBackgroundJob(jobId, {
+      status: 'failed',
+      progress: 0,
+      error: error.message,
+      currentStep: 'Evaluation failed',
+      updatedAt: new Date()
+    }).catch(err => console.error('Failed to update job status:', err));
+    
     throw error;
+  }
+}
+
+// Helper function to update job progress
+async function updateJobProgress(jobId: string, progress: number, step: string): Promise<void> {
+  try {
+    await storage.updateBackgroundJob(jobId, {
+      progress,
+      currentStep: step,
+      updatedAt: new Date()
+    });
+    console.log(`📊 Progress: ${progress}% - ${step}`);
+  } catch (error) {
+    console.error('Failed to update job progress:', error);
   }
 }
 
@@ -131,19 +202,22 @@ function buildCompanyContext(deal: any, documents: any[], analyses: any[]): stri
   return context.join('\n');
 }
 
-async function performAIEvaluation(companyContext: string, criteria: EvaluationCriteria[]): Promise<AIEvaluationResult> {
+async function performAIEvaluation(companyContext: string, criteria: EvaluationCriteria[], dealId: number, jobId: string): Promise<AIEvaluationResult> {
   console.log(`🔍 Starting enhanced AI evaluation with web research...`);
   
-  // Extract company details for web research
+  // Extract company details for web research (35%)
+  await updateJobProgress(jobId, 35, 'Extracting company information...');
   const companyName = extractCompanyName(companyContext);
   const website = extractWebsite(companyContext);
   
-  // Gather additional intelligence
+  // Gather additional intelligence (40-60%)
+  await updateJobProgress(jobId, 40, 'Conducting company research...');
   let webResearch = '';
   if (website || companyName) {
     webResearch = await gatherCompanyIntelligence(companyName, website);
   }
   
+  await updateJobProgress(jobId, 60, 'Analyzing gathered intelligence...');
   const enhancedContext = `${companyContext}\n\n--- ADDITIONAL RESEARCH ---\n${webResearch}`;
   
   const prompt = `You are an expert venture capital analyst specializing in healthcare and biotech investments. Evaluate this opportunity with DEEP SECTOR ANALYSIS.
@@ -203,6 +277,9 @@ ${criteria.map((c, idx) => `    {
 Be extremely detailed and specific. Use actual facts from the research.`;
 
   try {
+    // Running AI analysis (65-85%)
+    await updateJobProgress(jobId, 65, `Analyzing ${criteria.length} investment criteria...`);
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -219,12 +296,15 @@ Be extremely detailed and specific. Use actual facts from the research.`;
       max_tokens: 3000
     });
 
+    await updateJobProgress(jobId, 80, 'Processing AI analysis results...');
+    
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error('No response from AI evaluation');
     }
 
     // Parse JSON response - handle markdown code blocks
+    await updateJobProgress(jobId, 85, 'Validating evaluation results...');
     let cleanContent = content;
     if (content.includes('```json')) {
       cleanContent = content.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
@@ -237,6 +317,7 @@ Be extremely detailed and specific. Use actual facts from the research.`;
     }
     
     // Calculate weighted score to ensure accuracy
+    await updateJobProgress(jobId, 90, 'Calculating final scores...');
     const calculatedScore = calculateWeightedScore(result.criterionScores, criteria);
     result.overallScore = Math.round(calculatedScore);
     

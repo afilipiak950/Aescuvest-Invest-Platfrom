@@ -3339,9 +3339,14 @@ The company maintains a strong competitive position through its technical moat a
 
     } catch (error) {
       console.error(`❌ AI evaluation failed for deal ${req.params.dealId}:`, error);
-      res.status(500).json({ 
-        message: 'AI evaluation failed', 
-        error: error instanceof Error ? error.message : 'Unknown error'
+      
+      // Preserve custom status codes (e.g., 409 for concurrent runs)
+      const statusCode = (error as any).statusCode || 500;
+      const message = error instanceof Error ? error.message : 'AI evaluation failed';
+      
+      res.status(statusCode).json({ 
+        message,
+        error: message
       });
     }
   });
