@@ -4907,6 +4907,86 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
+  // Initialize default evaluation criteria
+  app.post('/api/evaluation-criteria/initialize-defaults', async (req: Request, res: Response) => {
+    try {
+      console.log('🔧 Initializing default evaluation criteria...');
+      
+      // Check if criteria already exist
+      const existing = await storage.getAllEvaluationCriteria();
+      if (existing.length > 0) {
+        console.log('⚠️ Criteria already exist, skipping initialization');
+        return res.status(200).json({ 
+          message: 'Evaluation criteria already exist', 
+          count: existing.length,
+          criteria: existing
+        });
+      }
+
+      // Define industry-standard VC investment criteria with proper weights
+      const defaultCriteria = [
+        {
+          name: 'Team & Leadership',
+          description: 'Founder experience, team composition, advisory board, execution capability, and domain expertise',
+          weight: 25,
+          isActive: true
+        },
+        {
+          name: 'Market Opportunity',
+          description: 'Market size (TAM/SAM/SOM), growth trajectory, market dynamics, and addressable opportunity',
+          weight: 20,
+          isActive: true
+        },
+        {
+          name: 'Product & Technology',
+          description: 'Product-market fit, technical innovation, competitive advantage, IP/patents, and scalability',
+          weight: 20,
+          isActive: true
+        },
+        {
+          name: 'Financial Performance & Projections',
+          description: 'Revenue model, unit economics, burn rate, path to profitability, and financial projections',
+          weight: 15,
+          isActive: true
+        },
+        {
+          name: 'Traction & Metrics',
+          description: 'Customer adoption, revenue growth, user engagement, retention metrics, and key milestones',
+          weight: 10,
+          isActive: true
+        },
+        {
+          name: 'Competitive Position',
+          description: 'Competitive landscape, barriers to entry, differentiation, and sustainable competitive advantages',
+          weight: 10,
+          isActive: true
+        }
+      ];
+
+      // Insert all criteria
+      const created = [];
+      for (const criteria of defaultCriteria) {
+        const newCriteria = await storage.createEvaluationCriteria(criteria);
+        created.push(newCriteria);
+      }
+
+      console.log(`✅ Successfully initialized ${created.length} default evaluation criteria`);
+      
+      res.status(201).json({
+        success: true,
+        message: `Initialized ${created.length} evaluation criteria`,
+        criteria: created
+      });
+    } catch (error) {
+      console.error('❌ Error initializing default criteria:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Failed to initialize default evaluation criteria',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Enhanced Company Research endpoints
   app.get('/api/deals/:dealId/research', async (req: Request, res: Response) => {
     try {
