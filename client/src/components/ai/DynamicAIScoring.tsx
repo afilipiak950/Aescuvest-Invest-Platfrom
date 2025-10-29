@@ -27,6 +27,11 @@ interface EvaluationResult {
   createdAt: string;
 }
 
+interface EvaluationResultsResponse {
+  results: EvaluationResult[];
+  criteria: EvaluationCriteria[];
+}
+
 interface DynamicAIScoringProps {
   dealId: number;
   overallScore?: number;
@@ -40,7 +45,7 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
     queryKey: ["/api/evaluation-criteria"],
   });
 
-  const { data: evaluationResults, isLoading: loadingResults } = useQuery<EvaluationResult[]>({
+  const { data: evaluationData, isLoading: loadingResults } = useQuery<EvaluationResultsResponse>({
     queryKey: [`/api/deals/${dealId}/evaluation-results`],
   });
 
@@ -77,10 +82,11 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
 
   const activeCriteria = criteria?.filter(c => c.isActive) || [];
   const totalWeight = activeCriteria.reduce((sum, c) => sum + c.weight, 0);
+  const evaluationResults = evaluationData?.results || [];
 
   // Calculate weighted scores
   const scoredCriteria = activeCriteria.map(criteria => {
-    const result = evaluationResults?.find(r => r.criteriaId === criteria.id);
+    const result = evaluationResults.find(r => r.criteriaId === criteria.id);
     const hasResult = result != null;
     const rawScore = hasResult ? result.score : null;
     const weightedScore = hasResult ? (result.score * criteria.weight) / 100 : 0;
