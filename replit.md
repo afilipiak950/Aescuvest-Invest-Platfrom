@@ -44,7 +44,14 @@ Preferred communication style: Simple, everyday language.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
-- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) after company research.
+- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) after company research with live background progress tracking (Oct 29, 2025).
+  - **Live Progress Tracking (Oct 29, 2025)**: Real-time progress display from 0-100% during AI evaluation with granular step-by-step updates (Initializing → Gathering Data → Research → Analyzing Criteria → Complete). Progress bar shows current percentage and descriptive status text, updating every 2 seconds. Implementation includes:
+    - **Background Job System**: Persistent job tracking in PostgreSQL with 12+ progress stages (5% increments from data gathering through final scoring)
+    - **Reload Persistence**: Progress survives page refreshes via unconditional background job polling and auto-detection of in-progress jobs on mount
+    - **Race Condition Protection**: 409 conflict errors prevent concurrent evaluations, ensuring only one evaluation runs at a time per deal
+    - **Failure Recovery**: Failed jobs clear UI state, display error toasts with specific messages, invalidate cached queries, and re-enable retry button
+    - **Concurrent Run Prevention**: Static jobId per deal prevents duplicate evaluations; existing processing jobs return clear "already in progress" messages
+    - **Error Handling**: Route handler preserves custom HTTP status codes (409, 404, 500) for appropriate client-side handling and user feedback
 - **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system ensuring complete information across all 26 sections.
   - **Stale Job Auto-Recovery (Oct 22, 2025)**: Automatic detection and recovery from ghost jobs that block memo generation. Jobs stuck for 20+ minutes without heartbeat updates are automatically marked as failed, allowing new generation to proceed. Prevents permanent blocking from crashed/stuck background jobs while protecting legitimate long-running generations via 5-minute heartbeat updates.
   - **Live Progress Tracking (Oct 22, 2025)**: Real-time progress updates from 30% → 90% during section generation. Updates job status as each of 27 sections completes (e.g., "Generating section 5/27: Market Analysis - 52%"), with WebSocket broadcasts for immediate UI feedback. Eliminates "frozen at 30%" perception during 20-30 minute AI generation for deals with 300+ documents.
