@@ -280,18 +280,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDealAiScore(id: number, score: number): Promise<Deal | undefined> {
+    // Strict validation: only accept valid integers between 0-100
+    // No silent coercion - caller must provide integers
+    if (score === null || score === undefined) {
+      throw new Error('AI score cannot be null or undefined');
+    }
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+      throw new Error(`AI score must be a finite number, got: ${typeof score}`);
+    }
+    if (!Number.isInteger(score)) {
+      throw new Error(`AI score must be an integer, got: ${score}. Use Math.round() in business logic before calling this method.`);
+    }
+    if (score < 0 || score > 100) {
+      throw new Error(`AI score must be between 0-100, got: ${score}`);
+    }
+    
     const [updatedDeal] = await db
       .update(deals)
-      .set({ aiScore: score.toString() })
+      .set({ aiScore: score })
       .where(eq(deals.id, id))
       .returning();
     return updatedDeal || undefined;
   }
 
   async updateDeal(id: number, data: Partial<Deal>): Promise<Deal | undefined> {
+    // Security: Strip aiScore from data to prevent bypassing validation
+    // AI scores MUST be updated through updateDealAiScore which has strict validation
+    const { aiScore, ...safeData } = data;
+    
+    if (aiScore !== undefined) {
+      console.warn(`⚠️ Attempted to update aiScore through updateDeal - use updateDealAiScore instead`);
+    }
+    
     const [updatedDeal] = await db
       .update(deals)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...safeData, updatedAt: new Date() })
       .where(eq(deals.id, id))
       .returning();
     
