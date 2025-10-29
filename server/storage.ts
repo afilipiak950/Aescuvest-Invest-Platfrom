@@ -1533,7 +1533,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEvaluationCriteria(criteria: any): Promise<any> {
-    return criteria;
+    try {
+      const [newCriteria] = await db.insert(evaluationCriteria).values({
+        name: criteria.name,
+        description: criteria.description,
+        weight: criteria.weight || 0,
+        isActive: criteria.isActive !== undefined ? criteria.isActive : true,
+      }).returning();
+      return newCriteria;
+    } catch (error) {
+      console.error('Error creating evaluation criteria:', error);
+      throw error;
+    }
   }
 
 
