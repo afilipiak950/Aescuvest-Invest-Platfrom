@@ -177,7 +177,7 @@ export default function EnhancedCompanyResearch({ dealId }: CompanyResearchProps
     enabled: !!dealId,
     retry: false,
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    gcTime: 0, // Don't cache data (formerly cacheTime in v4)
   });
 
   // Debug logging for research data
