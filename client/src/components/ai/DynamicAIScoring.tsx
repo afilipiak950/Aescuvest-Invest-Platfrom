@@ -81,12 +81,14 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
   // Calculate weighted scores
   const scoredCriteria = activeCriteria.map(criteria => {
     const result = evaluationResults?.find(r => r.criteriaId === criteria.id);
-    const rawScore = result?.score || 0;
-    const weightedScore = (rawScore * criteria.weight) / 100;
+    const hasResult = result != null;
+    const rawScore = hasResult ? result.score : null;
+    const weightedScore = hasResult ? (result.score * criteria.weight) / 100 : 0;
     
     return {
       ...criteria,
       rawScore,
+      hasResult,
       weightedScore,
       reasoning: result?.reasoning || "Not evaluated yet",
       normalizedWeight: (criteria.weight / totalWeight) * 100
@@ -94,7 +96,8 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
   });
 
   const calculatedScore = scoredCriteria.reduce((sum, c) => sum + c.weightedScore, 0);
-  const displayScore = overallScore || Math.round(calculatedScore);
+  const hasAnyResults = evaluationResults && evaluationResults.length > 0;
+  const displayScore = overallScore != null ? overallScore : Math.round(calculatedScore);
 
   return (
     <div className="pt-4 space-y-6">
@@ -107,7 +110,11 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-2xl font-bold text-white">{displayScore}/100</h4>
+              <h4 className="text-2xl font-bold text-white">
+                {hasAnyResults ? `${displayScore}/100` : (
+                  <span className="text-gray-500">Not Evaluated</span>
+                )}
+              </h4>
               <p className="text-gray-400">Overall Investment Score</p>
             </div>
             <div className="flex items-center gap-3">
@@ -129,11 +136,12 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
                 )}
               </Button>
               <div className={`px-4 py-2 rounded-lg text-lg font-medium ${
+                !hasAnyResults ? 'bg-gray-600/20 text-gray-400 border border-gray-600/30' :
                 displayScore >= 85 ? 'bg-green-600/20 text-green-400 border border-green-600/30' :
                 displayScore >= 65 ? 'bg-yellow-600/20 text-yellow-400 border border-yellow-600/30' :
                 'bg-red-600/20 text-red-400 border border-red-600/30'
               }`}>
-                {displayScore >= 85 ? 'PASS' : displayScore >= 65 ? 'INVESTIGATE' : 'REJECT'}
+                {!hasAnyResults ? 'PENDING' : displayScore >= 85 ? 'PASS' : displayScore >= 65 ? 'INVESTIGATE' : 'REJECT'}
               </div>
             </div>
           </div>
@@ -153,10 +161,13 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
         <CardContent className="space-y-6">
           <div className="space-y-4">
             {scoredCriteria.map((criterion) => {
-              const scoreColor = criterion.rawScore >= 80 ? 'text-green-400' : 
-                               criterion.rawScore >= 60 ? 'text-yellow-400' : 'text-red-400';
-              const barColor = criterion.rawScore >= 80 ? 'bg-green-500' : 
-                              criterion.rawScore >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+              const scoreValue = criterion.rawScore ?? 0;
+              const scoreColor = !criterion.hasResult ? 'text-gray-500' :
+                               scoreValue >= 80 ? 'text-green-400' : 
+                               scoreValue >= 60 ? 'text-yellow-400' : 'text-red-400';
+              const barColor = !criterion.hasResult ? 'bg-gray-600' :
+                              scoreValue >= 80 ? 'bg-green-500' : 
+                              scoreValue >= 60 ? 'bg-yellow-500' : 'bg-red-500';
               
               return (
                 <div key={criterion.id} className="space-y-3 p-4 bg-dark-light rounded-lg border border-dark-lighter">
@@ -172,7 +183,7 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
                     </div>
                     <div className="text-right ml-4">
                       <span className={`font-semibold ${scoreColor}`}>
-                        {criterion.rawScore}/100
+                        {criterion.hasResult ? `${scoreValue}/100` : 'Pending'}
                       </span>
                       <p className="text-xs text-gray-500 mt-1">
                         Weighted: {criterion.weightedScore.toFixed(1)}
