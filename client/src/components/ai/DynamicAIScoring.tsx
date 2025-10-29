@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ interface DynamicAIScoringProps {
 export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScoringProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isEvaluating, setIsEvaluating] = useState(false);
 
   const { data: criteria, isLoading: loadingCriteria } = useQuery<EvaluationCriteria[]>({
     queryKey: ["/api/evaluation-criteria"],
@@ -47,30 +49,52 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
 
   const { data: evaluationData, isLoading: loadingResults } = useQuery<EvaluationResultsResponse>({
     queryKey: [`/api/deals/${dealId}/evaluation-results`],
+    refetchInterval: isEvaluating ? 5000 : false, // Poll every 5s while running
   });
 
   const runAIEvaluation = useMutation({
     mutationFn: async () => {
+      console.log(`🚀 Starting AI evaluation for deal ${dealId}...`);
+      setIsEvaluating(true);
       return apiRequest(`/api/deals/${dealId}/evaluate`, {
         method: 'POST'
       });
     },
     onSuccess: (data) => {
+      console.log(`✅ AI Evaluation completed:`, data);
+      setIsEvaluating(false);
       toast({
-        title: "AI Evaluation Complete",
+        title: "✅ AI Evaluation Complete",
         description: `Analysis completed with score: ${data.overallScore}/100`,
+        duration: 5000,
       });
+      // Invalidate queries to fetch fresh data
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/evaluation-results`] });
       queryClient.invalidateQueries({ queryKey: ['/api/deals'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/evaluation-criteria"] });
     },
     onError: (error: any) => {
+      console.error(`❌ AI Evaluation failed:`, error);
+      setIsEvaluating(false);
       toast({
-        title: "AI Evaluation Failed",
+        title: "❌ AI Evaluation Failed",
         description: error.message || "Failed to complete AI evaluation. Please try again.",
         variant: "destructive",
+        duration: 7000,
       });
     }
   });
+
+  // Auto-refresh results when evaluation completes
+  useEffect(() => {
+    if (!isEvaluating && runAIEvaluation.isSuccess) {
+      // Refresh data after 2 seconds to ensure backend has saved
+      const timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/evaluation-results`] });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isEvaluating, runAIEvaluation.isSuccess, dealId, queryClient]);
 
   if (loadingCriteria || loadingResults) {
     return (
@@ -126,13 +150,14 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
             <div className="flex items-center gap-3">
               <Button
                 onClick={() => runAIEvaluation.mutate()}
-                disabled={runAIEvaluation.isPending}
+                disabled={runAIEvaluation.isPending || isEvaluating}
                 className="bg-primary hover:bg-primary-hover"
+                data-testid="button-run-ai-evaluation"
               >
-                {runAIEvaluation.isPending ? (
+                {(runAIEvaluation.isPending || isEvaluating) ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Running AI Analysis...
+                    Running AI Analysis... (~75s)
                   </>
                 ) : (
                   <>
@@ -151,6 +176,14 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
               </div>
             </div>
           </div>
+          {(runAIEvaluation.isPending || isEvaluating) && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-blue-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Processing AI evaluation with company research... This takes 60-75 seconds.</span>
+              </div>
+            </div>
+          )}
           <p className="text-gray-300">
             Evaluated against {activeCriteria.length} active criteria with weighted scoring algorithm.
             Total weight allocation: {totalWeight}%
@@ -200,7 +233,7 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
                   <div className="w-full bg-dark-lighter rounded-full h-2">
                     <div 
                       className={`${barColor} h-2 rounded-full transition-all duration-500`} 
-                      style={{width: `${criterion.rawScore}%`}}
+                      style={{width: `${criterion.rawScore ?? 0}%`}}
                     ></div>
                   </div>
                   
@@ -326,7 +359,9 @@ export default function DynamicAIScoring({ dealId, overallScore }: DynamicAIScor
               {scoredCriteria.map(criterion => (
                 <div key={criterion.id} className="flex justify-between text-gray-300">
                   <span>{criterion.name}:</span>
-                  <span>{criterion.rawScore} × {criterion.weight}% = {criterion.weightedScore.toFixed(1)}</span>
+                  <span>
+                    {criterion.hasResult ? `${criterion.rawScore}` : '—'} × {criterion.weight}% = {criterion.weightedScore.toFixed(1)}
+                  </span>
                 </div>
               ))}
               <hr className="border-dark-lighter my-2" />
