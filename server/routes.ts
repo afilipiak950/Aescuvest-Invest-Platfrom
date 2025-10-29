@@ -3377,18 +3377,7 @@ The company maintains a strong competitive position through its technical moat a
       console.log(`📊 Evaluation results fetched for deal ${dealId} in ${totalTime}ms - CACHED`);
       res.setHeader('X-Cache', 'MISS');
       
-      // Enrich results with criteria information
-      const enrichedResults = results.map(result => {
-        const criterion = criteria.find(c => c.id === result.criteriaId);
-        return {
-          ...result,
-          criteriaName: criterion?.name || 'Unknown Criteria',
-          criteriaDescription: criterion?.description || '',
-          criteriaWeight: criterion?.weight || 0
-        };
-      });
-
-      res.json(enrichedResults);
+      res.json(responseData);
     } catch (error) {
       console.error('Error fetching evaluation results:', error);
       res.status(500).json({ message: 'Failed to fetch evaluation results' });
