@@ -159,7 +159,7 @@ export const documents: any = pgTable("documents", {
   name: text("name").notNull(),
   type: text("type").notNull(),
   path: text("path").notNull(),
-  size: integer("size").notNull(),
+  size: bigint("size", { mode: "number" }).notNull(),
   status: text("status").notNull().default("Pending"),
   ocrText: text("ocr_text"),
   analyses: text("analyses"), // JSON string for AI analyses
