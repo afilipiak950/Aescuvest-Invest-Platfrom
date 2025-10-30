@@ -1922,19 +1922,15 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
   const rerunQuestionMutation = useMutation({
     mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       console.log(`🚀 RERUN MUTATION TRIGGERED for agent ${agent.agentType}, question ${questionId}`);
+      console.log(`📊 Current questionProgress state:`, questionProgress);
       
-      // Check if already running (duplicate prevention on frontend)
-      if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
-        console.log(`❌ BLOCKED: Question ${questionId} is already running (progress: ${questionProgress[questionId]}%)`);
-        throw new Error(`Question ${questionId} is already being rerun`);
-      }
+      // Don't block on frontend - let backend handle duplicate detection
+      // Just set progress to 1% to show it's starting (backend will send real progress)
+      console.log(`✅ Starting rerun for ${agent.agentType} question ${questionId} - setting progress to 1%`);
       
-      console.log(`✅ Starting rerun for ${agent.agentType} question ${questionId} - setting progress to 0%`);
-      
-      // Reset progress to 0 when starting
       setQuestionProgress(prev => ({
         ...prev,
-        [questionId]: 0
+        [questionId]: 1  // Set to 1% to show activity (backend will update to real progress)
       }));
       
       // Use the correct endpoint based on agent type
