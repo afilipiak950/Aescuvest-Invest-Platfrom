@@ -1495,11 +1495,130 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // 🚨 ALWAYS USE GCS FOR ALL FILES (as requested by user)
-    console.log('🚀 FORCING GCS UPLOAD for ALL files regardless of size (user requirement)');
-    const shouldUseProxy = true; // FORCE GCS for ALL files
+    // 🚨 CRITICAL: Cloud Run has a 32MB hard limit for HTTP requests
+    // Files over 30MB MUST use chunked uploads to avoid 413 errors
+    const CLOUD_RUN_LIMIT = 30 * 1024 * 1024; // 30MB (safety margin below 32MB limit)
     
-    // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for all files (TRUE 413 bypass)
+    // 🚀 PRODUCTION FIX: Route large files to chunked upload to bypass 413 errors
+    if (file.size > CLOUD_RUN_LIMIT) {
+      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using PRODUCTION CHUNKED upload to avoid Cloud Run 32MB limit`);
+      
+      try {
+        // Use production-chunked-upload system for large files
+        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (safe for Cloud Run)
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        
+        setUploadProgress({
+          fileName: file.name,
+          progress: 0,
+          status: `Preparing chunked upload (${totalChunks} chunks)...`
+        });
+        
+        // Initialize chunked upload session
+        const initResponse = await fetch(`/api/deals/${dealId}/production-chunked/init`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            totalChunks,
+            fileSize: file.size,
+            checksum: '' // Optional
+          })
+        });
+        
+        if (!initResponse.ok) {
+          throw new Error(`Failed to initialize chunked upload: ${initResponse.statusText}`);
+        }
+        
+        const { sessionId } = await initResponse.json();
+        console.log(`✅ Chunked upload session initialized: ${sessionId}`);
+        
+        // Upload chunks sequentially
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunk = file.slice(start, end);
+          
+          // Upload chunk as raw binary data
+          const chunkResponse = await fetch(`/api/deals/${dealId}/production-chunked/chunk/${sessionId}/${i}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': chunk.size.toString()
+            },
+            body: chunk
+          });
+          
+          if (!chunkResponse.ok) {
+            throw new Error(`Failed to upload chunk ${i + 1}/${totalChunks}: ${chunkResponse.statusText}`);
+          }
+          
+          const progress = ((i + 1) / totalChunks) * 95; // Reserve 5% for final processing
+          setUploadProgress({
+            fileName: file.name,
+            progress: Math.round(progress),
+            status: `Uploading chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`
+          });
+          
+          console.log(`✅ Uploaded chunk ${i + 1}/${totalChunks}`);
+        }
+        
+        // Complete the upload
+        setUploadProgress({
+          fileName: file.name,
+          progress: 95,
+          status: 'Assembling file on server...'
+        });
+        
+        const completeResponse = await fetch(`/api/deals/${dealId}/production-chunked/complete/${sessionId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folderName: null })
+        });
+        
+        if (!completeResponse.ok) {
+          const errorData = await completeResponse.json().catch(() => ({ error: completeResponse.statusText }));
+          throw new Error(`Failed to complete upload: ${errorData.error || completeResponse.statusText}`);
+        }
+        
+        const result = await completeResponse.json();
+        console.log('✅ Chunked upload complete:', result);
+        
+        setUploadProgress({
+          fileName: file.name,
+          progress: 100,
+          status: 'Upload complete! Processing documents...'
+        });
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        
+        setTimeout(() => {
+          setUploadProgress(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }, 2000);
+        
+        return; // Success - exit function
+        
+      } catch (error: any) {
+        console.error('❌ Chunked upload failed:', error);
+        alert(`Upload failed: ${error.message || 'Unknown error'}\n\nPlease try again or contact support if the problem persists.`);
+        setUploadProgress(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+    }
+    
+    // 🚀 SMALL FILES: Use GCS direct upload (< 30MB)
+    console.log('🚀 Using GCS direct upload for small file');
+    const shouldUseProxy = true;
+    
+    // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for small files (< 30MB)
     if (shouldUseProxy) {
       console.log(`🎯 USING DIRECT GCS UPLOAD (COMPLETE 413 BYPASS) for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
       
@@ -2017,117 +2136,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         console.error('Error message:', error?.message);
         // Fall through to chunked upload as last resort
         console.log('📤 Falling back to chunked upload due to proxy error');
-      }
-    }
-    
-    // 🚨 CRITICAL: Cloud Run has a 32MB hard limit for HTTP requests
-    // Files over 30MB MUST use chunked uploads to avoid 413 errors
-    const CLOUD_RUN_LIMIT = 30 * 1024 * 1024; // 30MB (below 32MB limit)
-    
-    if (file.size > CLOUD_RUN_LIMIT) {
-      console.log(`📤 File is ${(file.size / 1024 / 1024).toFixed(1)}MB - using CHUNKED upload to avoid Cloud Run 32MB limit`);
-      
-      try {
-        // Inline chunked upload implementation
-        const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-        
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: `Preparing chunked upload (${totalChunks} chunks)...`
-        });
-        
-        // Initialize chunked upload using GET to bypass Vite interference
-        const params = new URLSearchParams({
-          fileName: file.name,
-          totalSize: file.size.toString(),
-          chunkSize: CHUNK_SIZE.toString()
-        });
-        
-        const initResponse = await fetch(`/api/upload/chunk/init?${params.toString()}`, {
-          method: 'GET'
-        });
-        
-        if (!initResponse.ok) {
-          throw new Error('Failed to initialize chunked upload');
-        }
-        
-        const { uploadId } = await initResponse.json();
-        console.log(`✅ Upload initialized with ID: ${uploadId}`);
-        
-        // Upload chunks
-        for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK_SIZE;
-          const end = Math.min(start + CHUNK_SIZE, file.size);
-          const chunk = file.slice(start, end);
-          
-          const formData = new FormData();
-          formData.append('chunk', chunk);
-          
-          const chunkResponse = await fetch(`/api/upload/chunk/${uploadId}/${i}`, {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!chunkResponse.ok) {
-            throw new Error(`Failed to upload chunk ${i + 1}/${totalChunks}`);
-          }
-          
-          const progress = ((i + 1) / totalChunks) * 100;
-          setUploadProgress({
-            fileName: file.name,
-            progress: Math.round(progress),
-            status: `Uploading chunk ${i + 1}/${totalChunks} (${Math.round(progress)}%)`
-          });
-        }
-        
-        // Complete upload and process
-        setUploadProgress({
-          fileName: file.name,
-          progress: 100,
-          status: 'Processing uploaded file...'
-        });
-        
-        const completeResponse = await fetch(`/api/deals/${dealId}/upload-chunked/${uploadId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folderName })
-        });
-        
-        if (!completeResponse.ok) {
-          throw new Error('Failed to process uploaded file');
-        }
-        
-        const result = await completeResponse.json();
-        console.log('✅ Upload complete:', result);
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-        
-        setUploadProgress(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-      } catch (error: any) {
-        console.error('Chunked upload failed:', error);
-        alert(`Upload failed: ${error.message || 'Unknown error'}\n\nPlease split your file into parts smaller than 30MB and upload them separately.`);
-        setUploadProgress(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-      return;
-    } else {
-      // 🚨 ELIMINATED: Direct server upload path completely removed (GCS-only system)
-      // All uploads now use GCS infrastructure exclusively as requested by user
-      console.error('❌ Upload system error: All upload paths failed');
-      alert('Upload failed: All upload methods unsuccessful. Please try again or contact support.');
-      setUploadProgress(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
       }
     }
   };
