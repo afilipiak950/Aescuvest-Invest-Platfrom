@@ -1614,528 +1614,163 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       }
     }
     
-    // 🚀 SMALL FILES: Use GCS direct upload (< 30MB)
-    console.log('🚀 Using GCS direct upload for small file');
-    const shouldUseProxy = true;
+    // 🚀 SIMPLIFIED SMALL FILE UPLOAD (< 30MB) - Waterproof Version
+    console.log(`🎯 WATERPROOF UPLOAD for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
     
-    // 🚀 MICRO-STEP SOLUTION: Use DIRECT GCS upload for small files (< 30MB)
-    if (shouldUseProxy) {
-      console.log(`🎯 USING DIRECT GCS UPLOAD (COMPLETE 413 BYPASS) for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
+    try {
+      setUploadProgress({
+        fileName: file.name,
+        progress: 0,
+        status: 'Getting upload authorization...'
+      });
       
+      // ⏱️ STEP 1: Request signed URL with strict timeout
+      console.log('📍 STEP 1: Requesting signed URL (10s timeout)...');
+      const signedUrlController = new AbortController();
+      const signedUrlTimeout = setTimeout(() => signedUrlController.abort(), 10000);
+      
+      let signedUrlResponse;
       try {
-        // 🐛 COMPREHENSIVE DEBUGGING: Test environment first
-        console.log('🔍 DEBUGGING ENVIRONMENT:');
-        console.log('- Window location:', window.location.href);
-        console.log('- Current origin:', window.location.origin);
-        console.log('- DealId:', dealId, typeof dealId);
-        console.log('- File details:', { name: file.name, size: file.size, type: file.type });
-        
-        setUploadProgress({
-          fileName: file.name,
-          progress: 0,
-          status: 'Step 1: Getting upload authorization...'
+        signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, fileSize: file.size }),
+          signal: signedUrlController.signal
         });
-        
-        // 🎯 CRITICAL: Create persistent upload session FIRST
-        console.log(`🎯 Creating persistent upload session for: ${file.name}`);
-        const { frontendPersistentUploadService } = await import('../services/persistentUploadService');
-        
-        // 🛠️ RECOVERY: Check for existing stuck sessions and clean them up
-        try {
-          console.log('🔍 Checking for stuck upload sessions...');
-          const existingUploads = await fetch(`/api/deals/${dealId}/persistent-uploads`);
-          if (existingUploads.ok) {
-            const { uploads } = await existingUploads.json();
-            const stuckUploads = uploads.all?.filter((u: any) => 
-              u.status === 'uploading' && u.progress === 0 && u.fileName === file.name
-            ) || [];
-            
-            if (stuckUploads.length > 0) {
-              console.log(`🧹 Found ${stuckUploads.length} stuck uploads for this file, cleaning up...`);
-              for (const stuckUpload of stuckUploads) {
-                await fetch(`/api/persistent-uploads/${stuckUpload.sessionId}`, { method: 'DELETE' }).catch(() => {});
-              }
-            }
-          }
-        } catch (error) {
-          console.log('🔍 Stuck session cleanup failed (non-critical):', error);
+      } catch (fetchError: any) {
+        clearTimeout(signedUrlTimeout);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Upload authorization timed out. Please check your connection and try again.');
         }
-        
-        const sessionId = await frontendPersistentUploadService.createUploadSession(
-          dealId,
-          file.name,
-          file.size,
-          'gcs_direct'
-        );
-        
-        // 📍 MICRO-STEP 1: Request signed URL (tiny request, no file data)
-        console.log('📍 MICRO-STEP 1: Requesting signed URL from server...');
-        const requestUrl = `/api/gcs/signed-url/${dealId}`;
-        const requestPayload = {
-          fileName: file.name,
-          fileSize: file.size
-        };
-        
-        console.log(`🔗 Full request URL: ${window.location.origin}${requestUrl}`);
-        console.log(`📦 Request payload:`, requestPayload);
-        console.log(`📝 JSON payload:`, JSON.stringify(requestPayload));
-        
-        // 🧪 TEST: Try a simple connectivity test first
-        console.log('🧪 Testing basic connectivity...');
-        try {
-          const testResponse = await fetch('/api/persistent-uploads/global');
-          console.log('✅ Basic API connectivity test:', testResponse.status, testResponse.ok);
-        } catch (testError) {
-          console.error('❌ Basic connectivity test failed:', testError);
-        }
-        
-        // 🛠️ Update persistent session to show we're starting signed URL request
-        console.log('🛠️ Updating persistent session before signed URL request...');
-        try {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            1,
-            0,
-            'Requesting signed URL from server...'
-          );
-          console.log('✅ Updated session to 1% before signed URL request');
-        } catch (updateError) {
-          console.error('❌ Failed to update session progress:', updateError);
-        }
-        
-        // 🚨 DETAILED REQUEST ATTEMPT WITH TIMEOUT
-        console.log('🚨 Making signed URL request with timeout and full debugging...');
-        let signedUrlResponse;
-        
-        // 🛠️ Create request with abort controller for timeout
-        const abortController = new AbortController();
-        const timeoutId = setTimeout(() => {
-          abortController.abort();
-          console.error('❌ TIMEOUT: Signed URL request took longer than 10 seconds');
-        }, 10000);
-        
-        try {
-          console.log('🔄 Starting fetch request now...');
-          const startTime = performance.now();
-          
-          signedUrlResponse = await fetch(requestUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestPayload),
-            signal: abortController.signal
-          });
-          
-          clearTimeout(timeoutId);
-          const endTime = performance.now();
-          const duration = Math.round(endTime - startTime);
-          
-          console.log(`📡 Signed URL fetch completed in ${duration}ms`);
-          console.log('📡 Response details:', {
-            status: signedUrlResponse.status,
-            statusText: signedUrlResponse.statusText,
-            ok: signedUrlResponse.ok,
-            url: signedUrlResponse.url,
-            type: signedUrlResponse.type,
-            redirected: signedUrlResponse.redirected,
-            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
-          });
-          
-          // 🛠️ Update persistent session after successful fetch
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              5,
-              0,
-              'Received server response, processing signed URL...'
-            );
-          } catch (e) {
-            console.error('Failed to update progress after fetch:', e);
-          }
-          
-        } catch (fetchError: unknown) {
-          clearTimeout(timeoutId);
-          const error = fetchError instanceof Error ? fetchError : new Error(String(fetchError));
-          console.error('❌ CRITICAL: Signed URL fetch failed completely:', error);
-          console.error('❌ Error name:', error.name);
-          console.error('❌ Error message:', error.message);
-          console.error('❌ Error stack:', error.stack);
-          
-          if (error.name === 'AbortError') {
-            console.error('❌ Request was ABORTED due to timeout');
-          }
-          
-          // 🛠️ Update persistent session with error
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              0,
-              0,
-              `Network error: ${error.message}`
-            );
-          } catch (e) {
-            console.error('Failed to update error status:', e);
-          }
-          
-          throw new Error(`Signed URL request failed: ${error.message}`);
-        }
-
-        if (!signedUrlResponse.ok) {
-          const errorData = await signedUrlResponse.json().catch(() => ({}));
-          console.error('❌ SIGNED URL ERROR:', errorData);
-          console.error('❌ Full response details:', {
-            status: signedUrlResponse.status,
-            statusText: signedUrlResponse.statusText,
-            headers: Object.fromEntries([...signedUrlResponse.headers.entries()])
-          });
-          
-          // 🛠️ Update persistent session with error
-          try {
-            await frontendPersistentUploadService.updateProgress(
-              sessionId,
-              0,
-              0,
-              `Signed URL failed: ${signedUrlResponse.status}`
-            );
-          } catch (e) {
-            console.error('Failed to update error status:', e);
-          }
-          
-          throw new Error(errorData.message || `Failed to get signed URL: ${signedUrlResponse.statusText}`);
-        }
-
-        console.log('🔍 Parsing signed URL response JSON...');
-        let signedUrlData;
-        try {
-          signedUrlData = await signedUrlResponse.json();
-          console.log('✅ JSON parsing successful:', signedUrlData);
-        } catch (jsonError: unknown) {
-          const error = jsonError instanceof Error ? jsonError : new Error(String(jsonError));
-          console.error('❌ Failed to parse JSON response:', error);
-          throw new Error(`Invalid JSON response: ${error.message}`);
-        }
-        
-        const { signedUrl, gcsFileName, uploadId } = signedUrlData;
-        console.log('✅ MICRO-STEP 1 COMPLETE: Got signed URL');
-        console.log(`📝 Upload ID: ${uploadId}`);
-        console.log(`📝 GCS filename: ${gcsFileName}`);
-        console.log(`📝 Signed URL length: ${signedUrl.length} characters`);
-        
-        // 🛠️ Update persistent session after successful signed URL
-        try {
-          await frontendPersistentUploadService.updateProgress(
-            sessionId,
-            10,
-            0,
-            'Starting direct GCS upload...'
-          );
-        } catch (e) {
-          console.error('Failed to update progress after signed URL:', e);
-        }
-        console.log(`📁 GCS Path: ${gcsFileName}`);
-
-        // 📍 MICRO-STEP 2: Upload directly to GCS (bypasses server completely!)
-        console.log('📍 MICRO-STEP 2: Uploading directly to Google Cloud Storage...');
-        setUploadProgress({
-          fileName: file.name,
-          progress: 10,
-          status: 'Step 2: Uploading to cloud storage (bypassing server)...'
-        });
-        
-        // Use XMLHttpRequest for progress tracking
+        throw new Error(`Network error: ${fetchError.message}`);
+      } finally {
+        clearTimeout(signedUrlTimeout);
+      }
+      
+      if (!signedUrlResponse.ok) {
+        const errorText = await signedUrlResponse.text().catch(() => 'Unknown error');
+        throw new Error(`Server error (${signedUrlResponse.status}): ${errorText}`);
+      }
+      
+      const { signedUrl, gcsFileName, uploadId } = await signedUrlResponse.json();
+      console.log(`✅ STEP 1 COMPLETE: Got upload authorization (ID: ${uploadId})`);
+      
+      setUploadProgress({
+        fileName: file.name,
+        progress: 10,
+        status: 'Uploading to cloud storage...'
+      });
+      
+      // ⏱️ STEP 2: Upload directly to GCS with XMLHttpRequest for progress tracking
+      // NO TIMEOUT - let browser handle the upload naturally to avoid false failures on slow connections
+      console.log('📍 STEP 2: Uploading directly to Google Cloud Storage...');
+      
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         
-        // 🎯 CRITICAL: Register abort controller so cancel buttons can stop this upload!
-        const uploadAbortController = new AbortController();
-        frontendPersistentUploadService.registerUploadController(sessionId, uploadAbortController);
-        
-        // Connect abort controller to XMLHttpRequest
-        uploadAbortController.signal.addEventListener('abort', () => {
-          console.log(`🛑 ABORTING XMLHttpRequest for session: ${sessionId}`);
-          xhr.abort();
-        });
-        
-        // Track upload progress to GCS
-        xhr.upload.addEventListener('progress', async (e) => {
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            const percentComplete = 10 + Math.round((e.loaded / e.total) * 80); // 10-90%
+            const mbLoaded = (e.loaded / 1024 / 1024).toFixed(1);
+            const mbTotal = (e.total / 1024 / 1024).toFixed(1);
             setUploadProgress({
               fileName: file.name,
               progress: percentComplete,
-              status: `Step 2: Uploading to cloud (${percentComplete}%) - Bypassing server...`
+              status: `Uploading to cloud (${mbLoaded}/${mbTotal} MB - ${percentComplete}%)...`
             });
-            console.log(`☁️ GCS direct upload progress: ${percentComplete}%`);
-            
-            // Update persistent upload session with progress
-            try {
-              await frontendPersistentUploadService.updateProgress(
-                sessionId,
-                percentComplete,
-                e.loaded,
-                `Uploading to cloud (${percentComplete}%)`
-              );
-            } catch (error) {
-              // Silent fail - don't interrupt upload
-              console.log('Progress update failed (non-critical):', error);
-            }
           }
         });
         
-        // Handle completion
-        xhr.addEventListener('load', async function() {
-          console.log('🔍 GCS DIRECT UPLOAD COMPLETE - Status:', xhr.status);
-          
+        xhr.addEventListener('load', () => {
           if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
-            console.log('✅ MICRO-STEP 2 COMPLETE: File uploaded directly to GCS!');
-            
-            // 📍 MICRO-STEP 3: Notify server that upload is complete
-            console.log('📍 MICRO-STEP 3: Notifying server of completed upload...');
-            setUploadProgress({
-              fileName: file.name,
-              progress: 95,
-              status: 'Step 3: Processing uploaded file...'
-            });
-
-            try {
-              console.log('🔔 Attempting to notify server about completed upload...');
-              console.log('📍 Notification URL:', `/api/gcs/upload-complete/${dealId}`);
-              console.log('📦 Notification payload:', {
-                gcsFileName,
-                uploadId,
-                fileName: file.name
-              });
-
-              const completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  gcsFileName,
-                  uploadId,
-                  fileName: file.name
-                })
-              });
-
-              console.log('📡 Server response status:', completeResponse.status);
-              console.log('📡 Server response ok:', completeResponse.ok);
-
-              if (!completeResponse.ok) {
-                const errorData = await completeResponse.json().catch(() => ({}));
-                console.error('❌ Server error response:', errorData);
-                throw new Error(errorData.message || `Server processing failed: ${completeResponse.statusText}`);
-              }
-
-              const result = await completeResponse.json();
-              console.log('✅ MICRO-STEP 3 COMPLETE: Server processing done', result);
-              
-              setUploadProgress({
-                fileName: file.name,
-                progress: 100,
-                status: `✅ Upload complete! ${result.documentsCreated || 0} documents extracted`
-              });
-              
-              // Refresh documents
-              setTimeout(() => {
-                setUploadProgress(null);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-              }, 2000);
-              
-            } catch (notifyError: any) {
-              console.error('❌ Failed to notify server:', notifyError);
-              console.error('❌ Error details:', {
-                message: notifyError.message,
-                stack: notifyError.stack,
-                name: notifyError.name
-              });
-              
-              // Still try to refresh documents in case they were partially processed
-              setUploadProgress({
-                fileName: file.name,
-                progress: 100,
-                status: 'Upload complete - refreshing documents...'
-              });
-              
-              setTimeout(() => {
-                setUploadProgress(null);
-                refetch();
-                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
-                // 🧹 Cleanup: Remove abort controller since upload completed
-                frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-              }, 3000);
-            }
-            
-          } else if (xhr.status === 413) {
-            // This should NEVER happen with direct GCS upload!
-            console.error('❌ CRITICAL: Got 413 even with direct GCS upload! This indicates misconfiguration.');
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: 'ERROR: 413 with direct upload - contact support'
-            });
-            
-            setTimeout(() => {
-              setUploadProgress(null);
-              // 🧹 Cleanup: Remove abort controller since upload failed
-              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-            }, 5000);
-            
+            console.log('✅ STEP 2 COMPLETE: File uploaded to GCS');
+            resolve();
           } else {
-            // GCS upload failed with unexpected status
-            console.error(`❌ GCS direct upload failed with status ${xhr.status}`);
-            console.error('Response:', xhr.responseText);
-            
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: `GCS upload failed: Status ${xhr.status}`
-            });
-            
-            setTimeout(() => {
-              setUploadProgress(null);
-              // 🧹 Cleanup: Remove abort controller since upload failed
-              frontendPersistentUploadService.cleanupCompletedUpload(sessionId);
-            }, 3000);
+            reject(new Error(`Cloud upload failed with status ${xhr.status}`));
           }
         });
         
-        // Handle errors and implement proper fallback
-        xhr.addEventListener('error', async function() {
-          console.error('❌ GCS direct upload network error - implementing fallback');
-          setUploadProgress({
-            fileName: file.name,
-            progress: 0,
-            status: 'GCS failed - trying proxy upload...'
-          });
-          
-          // Wait a moment then try proxy upload
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // FALLBACK: Try proxy upload (server handles GCS)
-          console.log('🔄 FALLBACK: Attempting proxy upload through server...');
-          
-          try {
-            const proxyFormData = new FormData();
-            proxyFormData.append('file', file);
-            
-            setUploadProgress({
-              fileName: file.name,
-              progress: 10,
-              status: 'Using proxy upload (server will handle GCS)...'
-            });
-            
-            const proxyXhr = new XMLHttpRequest();
-            
-            // Track proxy upload progress
-            proxyXhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable) {
-                const percentComplete = Math.round((e.loaded / e.total) * 100);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: percentComplete,
-                  status: `Proxy upload: ${percentComplete}%`
-                });
-              }
-            });
-            
-            // Handle proxy completion
-            proxyXhr.addEventListener('load', function() {
-              if (proxyXhr.status === 200 || proxyXhr.status === 201) {
-                try {
-                  const result = JSON.parse(proxyXhr.responseText);
-                  console.log('✅ Proxy upload successful:', result);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: 100,
-                    status: 'Upload complete via proxy!'
-                  });
-                  
-                  setTimeout(() => {
-                    setUploadProgress(null);
-                    refetch();
-                  }, 2000);
-                } catch (e) {
-                  console.error('Proxy response parse error:', e);
-                  setUploadProgress({
-                    fileName: file.name,
-                    progress: 0,
-                    status: 'Proxy upload failed - response error'
-                  });
-                }
-              } else {
-                console.error('Proxy upload failed:', proxyXhr.status);
-                setUploadProgress({
-                  fileName: file.name,
-                  progress: 0,
-                  status: `Proxy failed: ${proxyXhr.statusText}`
-                });
-                
-                // Last resort: fall back to chunked upload
-                setTimeout(() => {
-                  console.log('🔄 FINAL FALLBACK: Using chunked upload...');
-                  setUploadProgress(null);
-                  // Trigger chunked upload by simulating file selection with chunked flag
-                  const chunkedEvent = new Event('change');
-                  Object.defineProperty(chunkedEvent, 'target', {
-                    value: { files: [file] },
-                    enumerable: true
-                  });
-                  // Force chunked upload path
-                  handleZipUpload(chunkedEvent as any);
-                }, 2000);
-              }
-            });
-            
-            // Handle proxy error
-            proxyXhr.addEventListener('error', function() {
-              console.error('❌ Proxy upload also failed');
-              setUploadProgress({
-                fileName: file.name,
-                progress: 0,
-                status: 'Both GCS and proxy failed - trying chunked upload...'
-              });
-              
-              // Last resort: chunked upload
-              setTimeout(() => {
-                console.log('🔄 FINAL FALLBACK: Using chunked upload...');
-                setUploadProgress(null);
-                alert('Direct and proxy uploads failed. Please try again with a smaller file or contact support.');
-              }, 2000);
-            });
-            
-            // Send proxy request
-            proxyXhr.open('POST', `/api/gcs/proxy-upload/${dealId}`);
-            proxyXhr.send(proxyFormData);
-            
-          } catch (proxyError) {
-            console.error('Proxy upload setup failed:', proxyError);
-            setUploadProgress({
-              fileName: file.name,
-              progress: 0,
-              status: 'All upload methods failed'
-            });
-            setTimeout(() => {
-              setUploadProgress(null);
-              alert('Upload failed. Please try a smaller file or contact support.');
-            }, 3000);
-          }
+        xhr.addEventListener('error', () => {
+          reject(new Error('Cloud upload network error'));
         });
         
-        // 🚀 CRITICAL: Send directly to GCS using PUT method
-        console.log('🚀 Opening PUT request to GCS signed URL');
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Cloud upload was cancelled'));
+        });
+        
         xhr.open('PUT', signedUrl);
         xhr.setRequestHeader('Content-Type', 'application/zip');
         xhr.send(file);
-        
-        return; // Exit here, upload is handled asynchronously
-        
-      } catch (error: any) {
-        console.error('Proxy upload failed with error:', error);
-        console.error('Error message:', error?.message);
-        // Fall through to chunked upload as last resort
-        console.log('📤 Falling back to chunked upload due to proxy error');
+      });
+      
+      // ⏱️ STEP 3: Notify server and let background processing handle extraction
+      // NO TIMEOUT - let the server respond naturally. Background job continues regardless.
+      console.log('📍 STEP 3: Starting background processing...');
+      setUploadProgress({
+        fileName: file.name,
+        progress: 90,
+        status: 'Starting document extraction...'
+      });
+      
+      let completeResponse;
+      try {
+        completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gcsFileName, uploadId, fileName: file.name })
+          // NO signal/AbortController - let it complete naturally to avoid cancelling backend processing
+        });
+      } catch (fetchError: any) {
+        // Network error only - not a timeout
+        console.warn('Processing notification failed, but background job may still be running:', fetchError);
+        setUploadProgress({
+          fileName: file.name,
+          progress: 100,
+          status: 'Upload complete! Check background jobs for extraction progress...'
+        });
+        setTimeout(() => {
+          setUploadProgress(null);
+          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        }, 3000);
+        return; // Exit gracefully - background job may still be processing
+      }
+      
+      if (!completeResponse.ok) {
+        const errorText = await completeResponse.text().catch(() => 'Unknown error');
+        console.error('Processing API returned error:', completeResponse.status, errorText);
+        throw new Error(`Processing failed (${completeResponse.status}): ${errorText}`);
+      }
+      
+      const result = await completeResponse.json();
+      console.log('✅ STEP 3 COMPLETE: Background processing started:', result);
+      
+      // ✅ SUCCESS: Upload complete, background job will extract documents
+      setUploadProgress({
+        fileName: file.name,
+        progress: 100,
+        status: `Upload complete! Processing ${result.message || 'documents'}...`
+      });
+      
+      setTimeout(() => {
+        setUploadProgress(null);
+        queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }, 3000);
+      
+    } catch (error: any) {
+      // ❌ CLEAR ERROR REPORTING: Show exactly what went wrong
+      console.error('❌ Upload failed:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      
+      alert(`Upload failed: ${errorMessage}\n\nPlease try again or contact support if this persists.`);
+      
+      setUploadProgress(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     }
   };
