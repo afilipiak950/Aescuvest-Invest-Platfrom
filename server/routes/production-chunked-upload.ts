@@ -351,10 +351,10 @@ router.post('/api/deals/:dealId/production-chunked/complete/:sessionId', async (
           try {
             await jobProcessor.updateJobProgress(jobId, 5, 'Preparing to extract ZIP file...');
             
-            await zipProcessor.processZipFile(session.dealId.toString(), finalPath, 'dataroom', document.id);
+            await zipProcessor.processZipFile(finalPath, session.dealId, 'dataroom', document.id);
             
             await jobProcessor.updateJobProgress(jobId, 100, 'ZIP extraction complete!');
-            await jobProcessor.completeJob(jobId);
+            await jobProcessor.completeJob(jobId, { success: true, documentId: document.id });
             
             // Clear cache after ZIP processing completes
             const documentCache = (global as any).documentCache;
@@ -370,7 +370,7 @@ router.post('/api/deals/:dealId/production-chunked/complete/:sessionId', async (
             }
           } catch (err: any) {
             console.error('ZIP processing failed:', err);
-            await jobProcessor.failJob(jobId, err.message || 'ZIP extraction failed');
+            await jobProcessor.completeJob(jobId, null, err.message || 'ZIP extraction failed');
           }
         })();
       }
