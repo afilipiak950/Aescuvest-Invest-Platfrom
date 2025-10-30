@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import PageHeader from '@/components/layout/page-header';
+import EmailSettingsCard from '@/components/EmailSettingsCard';
 import { Settings, User, Bell, Shield, Key, Database, Mail, Palette, Globe, AlertCircle, CheckCircle, Copy, XCircle, RefreshCw, Clock, Building2 } from 'lucide-react';
 
 interface UserSettings {
@@ -440,7 +441,7 @@ export default function SettingsPage() {
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-dark-light border border-dark-lighter">
+          <TabsList className="grid w-full grid-cols-7 bg-dark-light border border-dark-lighter">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -448,6 +449,10 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Notifications
+            </TabsTrigger>
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email
             </TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -591,6 +596,10 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-6">
+            <EmailSettingsCard />
           </TabsContent>
 
           <TabsContent value="security" className="space-y-6">

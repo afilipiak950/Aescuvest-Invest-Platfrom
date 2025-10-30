@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { Link } from 'wouter';
 
 // HTML sanitization function for safe email display
 function sanitizeEmailHtml(html: string): string {
@@ -113,6 +114,12 @@ export default function InboxPage() {
   const { data: microsoftStatus, refetch: refetchMicrosoftStatus } = useQuery({
     queryKey: ['/api/microsoft/status'],
     refetchInterval: 30000, // Check every 30 seconds
+  });
+
+  // Check email configuration status
+  const { data: emailConfigStatus } = useQuery({
+    queryKey: ['/api/inbox/config/status'],
+    refetchInterval: 60000, // Check every minute  
   });
 
   // Check for Microsoft OAuth callback success/failure
@@ -566,6 +573,24 @@ export default function InboxPage() {
         
 
       </div>
+
+      {/* Email Configuration Alert */}
+      {!emailConfigStatus?.configured && !emailsLoading && (
+        <Alert className="mb-6 border-yellow-600 bg-yellow-950/20">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>
+              Email synchronization is not configured. Set up IMAP or Microsoft OAuth to receive emails.
+            </span>
+            <Link to="/settings">
+              <Button variant="outline" size="sm" className="ml-4">
+                <Settings className="h-4 w-4 mr-2" />
+                Configure Email
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Email List */}
       <Card className="bg-gray-900 border-gray-800">
