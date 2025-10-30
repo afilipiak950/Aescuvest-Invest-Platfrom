@@ -574,24 +574,6 @@ export default function InboxPage() {
 
       </div>
 
-      {/* Email Configuration Alert */}
-      {!emailConfigStatus?.configured && !emailsLoading && (
-        <Alert className="mb-6 border-yellow-600 bg-yellow-950/20">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>
-              Email synchronization is not configured. Set up IMAP or Microsoft OAuth to receive emails.
-            </span>
-            <Link to="/settings">
-              <Button variant="outline" size="sm" className="ml-4">
-                <Settings className="h-4 w-4 mr-2" />
-                Configure Email
-              </Button>
-            </Link>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Email List */}
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader>
