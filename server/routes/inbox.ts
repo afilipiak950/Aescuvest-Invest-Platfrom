@@ -13,7 +13,7 @@ const router = Router();
  * @desc Configure IMAP settings
  * @access Private (Admin only)
  */
-router.post('/config', authenticate, requireAdmin, (req: Request, res: Response) => {
+router.post('/config', authenticate, requireAdmin, async (req: Request, res: Response) => {
   // Force JSON response header IMMEDIATELY
   res.setHeader('Content-Type', 'application/json');
   try {
@@ -36,9 +36,9 @@ router.post('/config', authenticate, requireAdmin, (req: Request, res: Response)
       password: String(password),
     };
 
-    // Save config safely without any async operations that could crash
+    // Save config (now async with database persistence)
     try {
-      emailInboxService.setConfig(config);
+      await emailInboxService.setConfig(config);
       console.log('IMAP config saved successfully:', { 
         host: config.host, 
         port: config.port, 
@@ -57,7 +57,7 @@ router.post('/config', authenticate, requireAdmin, (req: Request, res: Response)
     // Return success immediately
     return res.status(200).json({
       success: true,
-      message: 'IMAP configuration saved successfully',
+      message: 'IMAP configuration saved successfully and persisted to database',
       config: {
         host: config.host,
         port: config.port,
@@ -74,6 +74,24 @@ router.post('/config', authenticate, requireAdmin, (req: Request, res: Response)
       success: false,
       message: 'Configuration failed',
       error: error instanceof Error ? error.message : 'Unknown server error'
+    });
+  }
+});
+
+/**
+ * @route GET /api/inbox/config/status
+ * @desc Get current IMAP configuration status
+ * @access Private (Admin only)
+ */
+router.get('/config/status', authenticate, requireAdmin, (req: Request, res: Response) => {
+  try {
+    const status = emailInboxService.getConfigStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Error fetching config status:', error);
+    res.status(500).json({
+      configured: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
