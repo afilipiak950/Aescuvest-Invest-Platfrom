@@ -1805,6 +1805,10 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale Legal question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -1826,11 +1830,11 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
             });
             
             setQuestionProgress(initialProgress);
-            console.log('✅ Restored progress for', runningJobs.length, 'running jobs:', initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running Legal jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing Legal jobs:', error);
       }
     };
     
@@ -2989,6 +2993,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale Research question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -3007,10 +3015,11 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
             });
             
             setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running Research jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing Research jobs:', error);
       }
     };
     
@@ -4898,6 +4907,10 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale Financial question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -4916,10 +4929,11 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             });
             
             setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running Financial jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing Financial jobs:', error);
       }
     };
     
@@ -5634,6 +5648,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale Commercial question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -5652,10 +5670,11 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             });
             
             setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running Commercial jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing Commercial jobs:', error);
       }
     };
     
@@ -6067,6 +6086,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale HR question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -6085,10 +6108,11 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             });
             
             setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running HR jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing HR jobs:', error);
       }
     };
     
@@ -6443,6 +6467,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
+        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
+        setQuestionProgress({});
+        console.log('🧹 Cleared stale IP question progress on mount');
+        
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
         
@@ -6461,10 +6489,11 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             });
             
             setQuestionProgress(initialProgress);
+            console.log('✅ Restored progress for', runningJobs.length, 'running IP jobs:', initialProgress);
           }
         }
       } catch (error) {
-        console.error('Error loading existing jobs:', error);
+        console.error('Error loading existing IP jobs:', error);
       }
     };
     
