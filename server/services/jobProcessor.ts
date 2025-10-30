@@ -395,6 +395,9 @@ class JobProcessor {
       case 'zip_processing':
         await this.processZipFile(job);
         break;
+      case 'gcs_zip_extract':
+        await this.processGCSZipExtract(job);
+        break;
       case 'ai_summary_generation':
         await this.processAISummaryGeneration(job);
         break;
@@ -749,6 +752,79 @@ class JobProcessor {
     await this.completeJob(job.id, result);
     
     console.log(`🔍 MICRO-STEP 5: ZIP job completed successfully`);
+  }
+
+  private async processGCSZipExtract(job: BackgroundJob) {
+    const { gcsFileName, uploadId, fileName, documentId, dealId } = job.jobData as any;
+    
+    console.log(`🚀 GCS ZIP EXTRACT: Starting background processing for ${fileName}`);
+    
+    try {
+      await this.updateJobProgress(job.id, 5, 'Initializing GCS connection...', 'processing');
+      
+      // Initialize GCS
+      const { gcsService } = await import('./gcsService');
+      await gcsService.initializeIfNeeded();
+      
+      await this.updateJobProgress(job.id, 10, 'Downloading ZIP from cloud storage...');
+      
+      // Download file from GCS
+      const file = (gcsService as any).bucket.file(gcsFileName);
+      const tempFilePath = `/tmp/${uploadId}-${fileName}`;
+      
+      await file.download({ destination: tempFilePath });
+      console.log(`✅ Downloaded ${fileName} from GCS to ${tempFilePath}`);
+      
+      await this.updateJobProgress(job.id, 30, 'Extracting documents from ZIP...');
+      
+      // Process the ZIP file
+      const { zipProcessor } = await import('./zipProcessor');
+      const processedDocs = await zipProcessor.processZipFromGCS(
+        tempFilePath,
+        dealId,
+        documentId,
+        gcsFileName
+      );
+      
+      console.log(`✅ Extracted ${processedDocs.length} documents from ZIP`);
+      
+      await this.updateJobProgress(job.id, 90, 'Cleaning up temporary files...');
+      
+      // Clean up temp file
+      await fs.promises.unlink(tempFilePath);
+      
+      await this.updateJobProgress(job.id, 95, 'Clearing caches...');
+      
+      // Clear document caches
+      const documentCache = (global as any).documentCache;
+      if (documentCache) {
+        const keysToDelete: string[] = [];
+        for (const key of documentCache.keys()) {
+          if (key.startsWith(`${dealId}-`)) {
+            keysToDelete.push(key);
+          }
+        }
+        keysToDelete.forEach((key: string) => documentCache.delete(key));
+        console.log(`🧹 Cleared ${keysToDelete.length} cache entries for deal ${dealId}`);
+      }
+      
+      const { storage } = await import('../storage');
+      await storage.invalidateDocumentCache(dealId);
+      
+      await this.updateJobProgress(job.id, 100, `Completed! Extracted ${processedDocs.length} documents`);
+      await this.completeJob(job.id, { 
+        documentsCreated: processedDocs.length,
+        fileName,
+        gcsPath: gcsFileName
+      });
+      
+      console.log(`✅ GCS ZIP extraction completed: ${processedDocs.length} documents created`);
+      
+    } catch (error: any) {
+      console.error(`❌ GCS ZIP extraction failed for ${fileName}:`, error);
+      await this.completeJob(job.id, null, `Failed to extract ZIP: ${error.message}`);
+      throw error;
+    }
   }
 
   private async performAIAnalysis(document: any, analysisTypes: string[]) {

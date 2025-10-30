@@ -201,72 +201,41 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
 
     console.log(`✅ Document created with ID: ${document.id}`);
 
-    // Process ZIP file if it's a ZIP
+    // 🚀 FIRE-AND-FORGET: Create background job for ZIP processing
     if (fileName.toLowerCase().endsWith('.zip')) {
-      console.log('📦 Processing ZIP file from GCS...');
+      console.log('📦 Creating background job for ZIP extraction...');
       
-      // Download file from GCS to process with timeout
-      const tempFilePath = `/tmp/${uploadId}-${fileName}`;
-      console.log(`📥 Downloading to temp: ${tempFilePath}`);
+      // Import job processor
+      const { jobProcessor } = await import('../services/jobProcessor');
       
-      // Add timeout for production reliability
-      await Promise.race([
-        file.download({ destination: tempFilePath }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Download timeout')), 60000) // 1 minute timeout
-        )
-      ]);
-      console.log('✅ File downloaded from GCS');
-
-      // Process the ZIP file
-      const processedDocs = await zipProcessor.processZipFromGCS(
-        tempFilePath,
-        parseInt(dealId),
-        document.id,
-        gcsFileName
-      );
-
-      console.log(`✅ ZIP processed: ${processedDocs.length} documents extracted with automatic OCR and AI processing`);
-
-      // Clean up temp file
-      const fs = await import('fs');
-      await fs.promises.unlink(tempFilePath);
-      console.log('🧹 Temp file cleaned up');
-
-      // Note: OCR and AI processing jobs are now automatically created by processZipFromGCS()
-      // No need for additional job creation here - the method handles everything
-
-      // CRITICAL: Clear cache after ZIP processing so documents appear instantly
-      // Access the global document cache directly (set in routes.ts)
-      const documentCache = (global as any).documentCache;
-      if (documentCache) {
-        const keysToDelete: string[] = [];
-        for (const key of documentCache.keys()) {
-          if (key.startsWith(`${dealId}-`)) {
-            keysToDelete.push(key);
-          }
+      // Create background job that will handle everything asynchronously
+      const jobId = await jobProcessor.createJob({
+        jobType: 'gcs_zip_extract',
+        dealId: parseInt(dealId),
+        documentId: document.id,
+        jobData: {
+          gcsFileName,
+          uploadId,
+          fileName,
+          documentId: document.id,
+          dealId: parseInt(dealId)
         }
-        keysToDelete.forEach((key: string) => documentCache.delete(key));
-        console.log(`🧹 Cleared document cache for deal ${dealId} after GCS ZIP processing - removed ${keysToDelete.length} cache entries`);
-      } else {
-        console.log(`⚠️ Could not clear document cache - cache not accessible`);
-      }
-      
-      // Also clear storage cache
-      const { storage } = await import('../storage');
-      await storage.invalidateDocumentCache(parseInt(dealId));
-      console.log(`🧹 Cleared storage cache for deal ${dealId} after GCS ZIP processing`);
+      });
 
+      console.log(`✅ Background job ${jobId} created for ZIP extraction`);
+
+      // 🎯 INSTANT RESPONSE: Return immediately, background job handles processing
       return res.status(200).json({
         success: true,
-        message: 'ZIP file processed successfully',
+        message: `ZIP upload complete! Extracting documents in background (Job #${jobId})`,
         documentId: document.id,
-        documentsCreated: processedDocs.length,
-        gcsPath: gcsFileName
+        gcsPath: gcsFileName,
+        jobId,
+        backgroundProcessing: true
       });
     }
 
-    // For non-ZIP files
+    // For non-ZIP files, return immediately
     return res.status(200).json({
       success: true,
       message: 'File uploaded successfully',
