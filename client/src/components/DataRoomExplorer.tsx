@@ -1481,10 +1481,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size - with GCS, we support up to 5TB
-    const maxSize = 5 * 1024 * 1024 * 1024 * 1024; // 5TB with GCS
+    // Check maximum file size - with GCS direct upload, we support up to 5GB
+    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB with GCS direct upload
     if (file.size > maxSize) {
-      alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 5TB.`);
+      alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 5GB.`);
       return;
     }
 
