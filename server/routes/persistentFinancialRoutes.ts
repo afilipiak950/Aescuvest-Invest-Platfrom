@@ -232,6 +232,7 @@ router.post('/api/deals/:dealId/financial-analysis/question/:questionId/rerun', 
   try {
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     
     if (isNaN(dealId)) {
       return res.status(400).json({ 
@@ -265,7 +266,7 @@ router.post('/api/deals/:dealId/financial-analysis/question/:questionId/rerun', 
     
     // Schedule background job execution
     setImmediate(() => {
-      comprehensiveFinancialAnalysisService.rerunSingleQuestion(dealId, questionId)
+      comprehensiveFinancialAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background financial rerun completed for question ${questionId} on deal ${dealId}`);
         })

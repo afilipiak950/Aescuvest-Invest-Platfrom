@@ -349,6 +349,7 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/question/:qu
   try {
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     
     if (isNaN(dealId)) {
       return res.status(400).json({ 
@@ -383,7 +384,7 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/question/:qu
     
     // Schedule background job execution
     setImmediate(() => {
-      service.rerunSingleQuestion(dealId, questionId)
+      service.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background research rerun completed for question ${questionId} on deal ${dealId}`);
         })

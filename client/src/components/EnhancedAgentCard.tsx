@@ -1781,6 +1781,8 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Track progress for multiple concurrent reruns - if a question has progress, it's running
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
 
   // Check if analysis is available from comprehensive endpoint (dynamic based on agent type)
@@ -1909,7 +1911,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       console.log(`🚀 RERUN MUTATION TRIGGERED for agent ${agent.agentType}, question ${questionId}`);
       
       // Check if already running (duplicate prevention on frontend)
@@ -1933,6 +1935,8 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
       console.log(`📡 Making API request to: ${endpoint}`);
       const response = await apiRequest(endpoint, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customInstructions }),
       });
       console.log(`✅ API response received for ${agent.agentType}:`, response);
       return { ...response, questionId };
@@ -2160,12 +2164,9 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
                               <button
                                 data-testid={`rerun-question-${question.id}`}
                                 onClick={(e) => {
-                                  console.log('🔥🔥🔥 BUTTON CLICKED!!!', question.id);
-                                  console.log('Event:', e);
-                                  console.log('Disabled:', questionProgress[question.id] !== undefined && questionProgress[question.id] < 100);
-                                  console.log('Progress state:', questionProgress);
                                   e.stopPropagation();
-                                  rerunQuestionMutation.mutate(question.id);
+                                  setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                  setRerunDialogOpen(true);
                                 }}
                                 disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                                 className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
@@ -2362,6 +2363,19 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
           )}
         </div>
       ))}
+      
+      {selectedQuestionForRerun && (
+        <RerunQuestionDialog
+          questionId={selectedQuestionForRerun.id}
+          questionText={selectedQuestionForRerun.text}
+          isOpen={rerunDialogOpen}
+          onOpenChange={setRerunDialogOpen}
+          onSubmit={(questionId, customInstructions) => {
+            rerunQuestionMutation.mutate({ questionId, customInstructions });
+          }}
+          isLoading={rerunQuestionMutation.isPending}
+        />
+      )}
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
@@ -2961,6 +2975,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{ id: string; text: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Check if research analysis is available from agent endpoint
@@ -3054,7 +3070,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
         throw new Error(`Question ${questionId} is already being rerun`);
       }
@@ -3066,6 +3082,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       
       const response = await apiRequest(`/api/deals/${dealId}/research-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ customInstructions })
       });
       return { ...response, questionId };
     },
@@ -3073,10 +3093,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
       refetchComprehensive();
     },
-    onError: (error: Error, questionId: string) => {
+    onError: (error: Error, variables: { questionId: string; customInstructions?: string }) => {
       setQuestionProgress(prev => {
         const newProgress = { ...prev };
-        delete newProgress[questionId];
+        delete newProgress[variables.questionId];
         return newProgress;
       });
     },
@@ -3244,7 +3264,10 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              onClick={() => {
+                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                setRerunDialogOpen(true);
+                              }}
                               disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                               className="p-1.5 hover:bg-cyan-500/20 rounded transition-colors"
                               title="Re-run this question"
@@ -3458,6 +3481,19 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           )}
         </div>
       ))}
+      
+      {selectedQuestionForRerun && (
+        <RerunQuestionDialog
+          questionId={selectedQuestionForRerun.id}
+          questionText={selectedQuestionForRerun.text}
+          isOpen={rerunDialogOpen}
+          onOpenChange={setRerunDialogOpen}
+          onSubmit={(questionId, customInstructions) => {
+            rerunQuestionMutation.mutate({ questionId, customInstructions });
+          }}
+          isLoading={rerunQuestionMutation.isPending}
+        />
+      )}
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
@@ -4846,6 +4882,8 @@ interface FinancialQuestionsSectionProps {
 function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: FinancialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Income Statements"]));
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
 
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Legal agent
@@ -4941,7 +4979,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
         throw new Error(`Question ${questionId} is already being rerun`);
       }
@@ -4953,6 +4991,8 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
       
       const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customInstructions }),
       });
       return { ...response, questionId };
     },
@@ -5091,7 +5131,10 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              onClick={() => {
+                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                setRerunDialogOpen(true);
+                              }}
                               disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                               className="p-1.5 hover:bg-green-500/20 rounded transition-colors"
                               title="Re-run this question"
@@ -5267,6 +5310,17 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
           )}
         </div>
       ))}
+      
+      <RerunQuestionDialog
+        questionId={selectedQuestionForRerun?.id || ''}
+        questionText={selectedQuestionForRerun?.text || ''}
+        isOpen={rerunDialogOpen}
+        onOpenChange={setRerunDialogOpen}
+        onSubmit={(questionId, customInstructions) => {
+          rerunQuestionMutation.mutate({ questionId, customInstructions });
+        }}
+        isLoading={rerunQuestionMutation.isPending}
+      />
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
@@ -5567,6 +5621,8 @@ interface CommercialQuestionsSectionProps {
 function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: CommercialQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Analysis Decks"]));
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
 
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -5659,7 +5715,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
         throw new Error(`Question ${questionId} is already being rerun`);
       }
@@ -5671,6 +5727,8 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
       
       const response = await apiRequest(`/api/deals/${dealId}/commercial-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customInstructions }),
       });
       return { ...response, questionId };
     },
@@ -5678,10 +5736,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/commercial/results`] });
       refetchComprehensive();
     },
-    onError: (error: Error, questionId: string) => {
+    onError: (error: Error, variables: { questionId: string; customInstructions?: string }) => {
       setQuestionProgress(prev => {
         const newProgress = { ...prev };
-        delete newProgress[questionId];
+        delete newProgress[variables.questionId];
         return newProgress;
       });
     },
@@ -5770,7 +5828,10 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              onClick={() => {
+                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                setRerunDialogOpen(true);
+                              }}
                               disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                               className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
                               title="Re-run this question"
@@ -5950,6 +6011,17 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
         </div>
       ))}
       
+      <RerunQuestionDialog
+        questionId={selectedQuestionForRerun?.id || ''}
+        questionText={selectedQuestionForRerun?.text || ''}
+        isOpen={rerunDialogOpen}
+        onOpenChange={setRerunDialogOpen}
+        onSubmit={(questionId, customInstructions) => {
+          rerunQuestionMutation.mutate({ questionId, customInstructions });
+        }}
+        isLoading={rerunQuestionMutation.isPending}
+      />
+      
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
         onClose={() => setQuoteViewerOpen(false)}
@@ -5977,6 +6049,8 @@ interface HrQuestionsSectionProps {
 function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: HrQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Team Structure & Leadership"]));
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
 
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -6074,7 +6148,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
         throw new Error(`Question ${questionId} is already being rerun`);
       }
@@ -6086,6 +6160,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       
       const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customInstructions }),
       });
       return { ...response, questionId };
     },
@@ -6190,10 +6266,14 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              onClick={() => {
+                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                setRerunDialogOpen(true);
+                              }}
                               disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                               className="p-1.5 hover:bg-orange-500/20 rounded transition-colors"
                               title="Re-run this question"
+                              data-testid={`rerun-question-${question.id}`}
                             >
                               {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
                                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -6320,6 +6400,17 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         </div>
       ))}
       
+      <RerunQuestionDialog
+        questionId={selectedQuestionForRerun?.id || ''}
+        questionText={selectedQuestionForRerun?.text || ''}
+        isOpen={rerunDialogOpen}
+        onOpenChange={setRerunDialogOpen}
+        onSubmit={(questionId, customInstructions) => {
+          rerunQuestionMutation.mutate({ questionId, customInstructions });
+        }}
+        isLoading={rerunQuestionMutation.isPending}
+      />
+      
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
         onClose={() => setQuoteViewerOpen(false)}
@@ -6336,6 +6427,8 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: { dealId: number; analysisData?: any; assignedDocuments: number; documents?: any[]; handleDocumentClick: (sourceName: string) => void; quoteViewerOpen: boolean; setQuoteViewerOpen: (open: boolean) => void; selectedQuoteData: any; setSelectedQuoteData: (data: any) => void }) {
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Patent Portfolio"]));
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{ id: string; text: string } | null>(null);
   const queryClient = useQueryClient();
 
   // CRITICAL FIX: Use comprehensive results endpoint EXACTLY like Financial agent
@@ -6431,7 +6524,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
 
   // Mutation for re-running individual questions
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions: string }) => {
       if (questionProgress[questionId] !== undefined && questionProgress[questionId] < 100) {
         throw new Error(`Question ${questionId} is already being rerun`);
       }
@@ -6443,6 +6536,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       
       const response = await apiRequest(`/api/deals/${dealId}/ip-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ customInstructions })
       });
       return { ...response, questionId };
     },
@@ -6450,10 +6547,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
       refetchComprehensive();
     },
-    onError: (error: Error, questionId: string) => {
+    onError: (error: Error, variables: { questionId: string; customInstructions: string }) => {
       setQuestionProgress(prev => {
         const newProgress = { ...prev };
-        delete newProgress[questionId];
+        delete newProgress[variables.questionId];
         return newProgress;
       });
     },
@@ -6657,7 +6754,10 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                             {/* Re-run button for individual question */}
                             <button
                               data-testid={`rerun-question-${question.id}`}
-                              onClick={() => rerunQuestionMutation.mutate(question.id)}
+                              onClick={() => {
+                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                setRerunDialogOpen(true);
+                              }}
                               disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                               className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
                               title="Re-run this question"
@@ -6888,6 +6988,17 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
           </div>
         </div>
       )}
+      
+      <RerunQuestionDialog
+        questionId={selectedQuestionForRerun?.id || ''}
+        questionText={selectedQuestionForRerun?.text || ''}
+        isOpen={rerunDialogOpen}
+        onOpenChange={setRerunDialogOpen}
+        onSubmit={(questionId, customInstructions) => {
+          rerunQuestionMutation.mutate({ questionId, customInstructions });
+        }}
+        isLoading={rerunQuestionMutation.isPending}
+      />
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}

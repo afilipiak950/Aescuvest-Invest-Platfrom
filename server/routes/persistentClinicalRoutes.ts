@@ -132,6 +132,7 @@ router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', a
     
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     const jobId = `clinical-question-rerun-${dealId}-${questionId}`;
     
     console.log(`🎯 Clinical question rerun requested: ${questionId} for deal ${dealId}`);
@@ -162,7 +163,7 @@ router.post('/api/deals/:dealId/clinical-analysis/question/:questionId/rerun', a
     // Defer actual processing to next event loop tick (non-blocking)
     // This ensures we respond to the client in <50ms
     setImmediate(() => {
-      comprehensiveClinicalAnalysisService.rerunSingleQuestion(dealId, questionId)
+      comprehensiveClinicalAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background Clinical rerun completed for question ${questionId}`);
         })

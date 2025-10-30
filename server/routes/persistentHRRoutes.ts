@@ -96,6 +96,7 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/question/:questionId/rer
   try {
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     
     if (isNaN(dealId)) {
       return res.status(400).json({ 
@@ -129,7 +130,7 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/question/:questionId/rer
     
     // Schedule background job execution on next event loop tick
     setImmediate(() => {
-      comprehensiveHRAnalysisService.rerunSingleQuestion(dealId, questionId)
+      comprehensiveHRAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background HR rerun completed for question ${questionId} on deal ${dealId}`);
         })
