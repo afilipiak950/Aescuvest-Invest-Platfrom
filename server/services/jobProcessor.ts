@@ -763,7 +763,7 @@ class JobProcessor {
       await this.updateJobProgress(job.id, 5, 'Initializing GCS connection...', 'processing');
       
       // Initialize GCS
-      const { gcsService } = await import('./gcsService');
+      const { gcsService } = await import('./googleCloudStorage');
       await gcsService.initializeIfNeeded();
       
       await this.updateJobProgress(job.id, 10, 'Downloading ZIP from cloud storage...');
