@@ -64,6 +64,20 @@ Preferred communication style: Simple, everyday language.
   - **Rate Limiting**: 500ms delay between chunk embeddings to prevent API overload
   - **Error Classification**: Distinguishes retryable (timeout, rate limit, server errors) vs non-retryable errors
   - **Prevents 95% Stuck Jobs**: Eliminates socket timeout failures that previously caused jobs to hang at "Adding to RAG system" step
+- **Email Inbox Integration (Oct 30, 2025)**: Persistent email configuration system with dual authentication support for automated deal flow monitoring:
+  - **Persistent Configuration Storage**: Database-backed email settings (IMAP/Microsoft OAuth) stored in system_settings table with automatic loading on server startup
+  - **Dual Authentication Support**: 
+    - **IMAP Configuration**: Support for Gmail (imap.gmail.com:993), Outlook (outlook.office365.com:993), and custom IMAP servers with SSL/TLS
+    - **Microsoft OAuth Integration**: Azure MSAL-based OAuth2 authentication for Microsoft 365 mailboxes with automatic token refresh
+  - **Configuration UI**: Comprehensive settings page (Settings → Email tab) with provider-specific setup instructions, test connection button, and real-time status display
+  - **Inbox Page Integration**: Configuration status banner with one-click link to settings when email is not configured
+  - **API Endpoints**: 
+    - GET `/api/inbox/config/status` - Check configuration status
+    - POST `/api/inbox/config` - Save IMAP configuration
+    - GET `/api/inbox/test` - Test IMAP connection
+    - GET `/api/microsoft/status` - Check Microsoft OAuth status
+  - **Setup Wizard**: Step-by-step instructions for generating App Passwords (Gmail/Outlook) with visual guidance and inline validation
+  - **Graceful Degradation**: Service handles missing configuration gracefully, allowing manual email processing as fallback
 
 ### Deployment
 - **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.

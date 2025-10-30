@@ -2,11 +2,36 @@
 import { ImapFlow } from 'imapflow';
 import { parseEmailForDealInfo, generateFounderResponse } from './emailParser';
 import { MailService } from '@sendgrid/mail';
+import crypto from 'crypto';
 
 // Initialize SendGrid for sending responses (keep this for outgoing emails)
 const mailService = new MailService();
 if (process.env.SENDGRID_API_KEY) {
   mailService.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+// Email configuration encryption using AES-256-GCM
+const ENCRYPTION_KEY = process.env.EMAIL_CONFIG_KEY || 'aescuvest-email-config-encryption-key-32b';
+const KEY = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+
+function encryptPassword(password: string): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+  let encrypted = cipher.update(password, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+function decryptPassword(encryptedData: string): string {
+  const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const authTag = Buffer.from(authTagHex, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', KEY, iv);
+  decipher.setAuthTag(authTag);
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
 }
 
 export interface EmailMessage {
@@ -39,10 +64,11 @@ export class EmailInboxService {
   async setConfig(config: ImapConfig) {
     this.config = config;
     
-    // Persist to database
+    // Persist to database with encrypted password
     try {
       const { storage } = await import('../storage');
-      await storage.setSystemSetting('email_imap_config', JSON.stringify(config), 'IMAP email configuration', 'email');
+      const configToStore = { ...config, password: encryptPassword(config.password) };
+      await storage.setSystemSetting('email_imap_config', JSON.stringify(configToStore), 'IMAP email configuration', 'email');
       console.log('📧 IMAP configuration persisted to database');
     } catch (error) {
       console.error('Failed to persist IMAP config to database:', error);
@@ -58,7 +84,22 @@ export class EmailInboxService {
       const setting = await storage.getSystemSetting('email_imap_config');
       
       if (setting && setting.value) {
-        this.config = JSON.parse(setting.value);
+        const savedConfig = JSON.parse(setting.value);
+        
+        // Decrypt password if it's encrypted (backward compatibility)
+        if (savedConfig.password) {
+          try {
+            // Check if password is encrypted (contains colons in format iv:authTag:encrypted)
+            if (savedConfig.password.includes(':') && savedConfig.password.split(':').length === 3) {
+              savedConfig.password = decryptPassword(savedConfig.password);
+            }
+            // If no colons, it's plaintext (old format) - use as-is
+          } catch (decryptError) {
+            console.warn('Failed to decrypt password, using as-is:', decryptError);
+          }
+        }
+        
+        this.config = savedConfig;
         console.log('📧 Loaded IMAP configuration from database');
         return true;
       }
@@ -156,7 +197,7 @@ export class EmailInboxService {
       secure: this.config.secure,
       auth: {
         user: this.config.username,
-        pass: decodeURIComponent(this.config.password), // Handle URL-encoded special characters
+        pass: this.config.password,
       },
     });
 

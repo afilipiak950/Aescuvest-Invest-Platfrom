@@ -5,8 +5,19 @@ import { storage } from '../storage';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { fetchMicrosoftEmails, markEmailAsRead, getMicrosoftEmailFolders, searchMicrosoftEmails, getMicrosoftEmail, getMicrosoftEmailAttachments } from '../services/microsoftEmails';
 import { loadMicrosoftTokens } from '../services/microsoftAuth';
+import { z } from 'zod';
 
 const router = Router();
+
+// IMAP Configuration validation schema
+const imapConfigSchema = z.object({
+  email: z.string().email('Invalid email address').trim().optional(),
+  username: z.string().min(1, 'Username is required').trim(),
+  password: z.string().min(1, 'Password is required'),
+  host: z.string().min(1, 'Host is required').trim(),
+  port: z.number().int().min(1).max(65535),
+  secure: z.boolean()
+});
 
 /**
  * @route POST /api/inbox/config
@@ -17,23 +28,19 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
   // Force JSON response header IMMEDIATELY
   res.setHeader('Content-Type', 'application/json');
   try {
-    const { host, port, secure, username, password } = req.body;
-
-    // Validation
-    if (!host || !username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: host, username, password'
-      });
-    }
+    // Validate request body with Zod
+    const validatedConfig = imapConfigSchema.parse({
+      ...req.body,
+      port: Number(req.body.port) || (req.body.secure ? 993 : 143)
+    });
 
     // Create safe config object
     const config: ImapConfig = {
-      host: String(host).trim(),
-      port: Number(port) || (secure ? 993 : 143),
-      secure: Boolean(secure),
-      username: String(username).trim(),
-      password: String(password),
+      host: validatedConfig.host,
+      port: validatedConfig.port,
+      secure: validatedConfig.secure,
+      username: validatedConfig.username,
+      password: validatedConfig.password,
     };
 
     // Save config (now async with database persistence)
@@ -43,7 +50,8 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
         host: config.host, 
         port: config.port, 
         secure: config.secure, 
-        username: config.username 
+        username: config.username,
+        password: '***REDACTED***'
       });
     } catch (configError) {
       console.error('Config save error:', configError);
@@ -67,6 +75,18 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
     });
 
   } catch (error) {
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
+    }
+    
     console.error('Inbox config route error:', error);
     
     // Absolutely ensure JSON response
