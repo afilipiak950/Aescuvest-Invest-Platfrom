@@ -323,28 +323,55 @@ router.post('/api/deals/:dealId/production-chunked/complete', async (req: Reques
     
     // Process ZIP if applicable
     if (session.fileName.toLowerCase().endsWith('.zip')) {
-      console.log('🗂️ Starting ZIP processing...');
+      console.log('🗂️ Starting ZIP processing with background job tracking...');
+      
       // Import dynamically to avoid circular dependencies
+      const { jobProcessor } = await import('../services/jobProcessor');
       const { zipProcessor } = await import('../services/zipProcessor');
       
-      if (typeof zipProcessor.processZipFile === 'function') {
-        zipProcessor.processZipFile(session.dealId.toString(), finalPath, 'dataroom', document.id)
-          .catch((err: Error) => {
-            console.error('ZIP processing failed:', err);
-          });
-        
-        // Clear cache after ZIP processing starts
-        const documentCache = (global as any).documentCache;
-        if (documentCache) {
-          const keysToDelete: string[] = [];
-          for (const key of documentCache.keys()) {
-            if (key.startsWith(`${session.dealId}-`)) {
-              keysToDelete.push(key);
-            }
-          }
-          keysToDelete.forEach((key: string) => documentCache.delete(key));
-          console.log(`🧹 Cleared document cache for deal ${session.dealId} after production chunked ZIP upload - removed ${keysToDelete.length} cache entries`);
+      // Create background job for ZIP extraction
+      const jobId = await jobProcessor.createJob({
+        jobType: 'zip_extraction',
+        dealId: session.dealId,
+        targetId: document.id,
+        metadata: {
+          fileName: session.fileName,
+          fileSize: stats.size,
+          documentId: document.id,
+          extractionPath: finalPath
         }
+      });
+      
+      console.log(`✅ Created background job ${jobId} for ZIP extraction`);
+      
+      // Process ZIP in background with progress tracking
+      if (typeof zipProcessor.processZipFile === 'function') {
+        (async () => {
+          try {
+            await jobProcessor.updateJobProgress(jobId, 5, 'Preparing to extract ZIP file...');
+            
+            await zipProcessor.processZipFile(session.dealId.toString(), finalPath, 'dataroom', document.id);
+            
+            await jobProcessor.updateJobProgress(jobId, 100, 'ZIP extraction complete!');
+            await jobProcessor.completeJob(jobId);
+            
+            // Clear cache after ZIP processing completes
+            const documentCache = (global as any).documentCache;
+            if (documentCache) {
+              const keysToDelete: string[] = [];
+              for (const key of documentCache.keys()) {
+                if (key.startsWith(`${session.dealId}-`)) {
+                  keysToDelete.push(key);
+                }
+              }
+              keysToDelete.forEach((key: string) => documentCache.delete(key));
+              console.log(`🧹 Cleared document cache for deal ${session.dealId} after ZIP processing - removed ${keysToDelete.length} cache entries`);
+            }
+          } catch (err: any) {
+            console.error('ZIP processing failed:', err);
+            await jobProcessor.failJob(jobId, err.message || 'ZIP extraction failed');
+          }
+        })();
       }
     }
     
