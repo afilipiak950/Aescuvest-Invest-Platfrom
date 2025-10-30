@@ -16,7 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Bot, FileText, TrendingUp, AlertTriangle, Play, CheckCircle, XCircle, AlertCircle, RefreshCw, HelpCircle, ChevronDown, ChevronUp, ChevronRight, Zap, Square, PlayCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
@@ -227,6 +229,94 @@ const normalizeConfidence = (confidence: number | string | undefined): number =>
   
   return Math.min(Math.max(Math.round(numConfidence), 0), 100); // Ensure 0-100 range
 };
+
+// Reusable Rerun Question Dialog Component
+interface RerunQuestionDialogProps {
+  questionId: string;
+  questionText: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (questionId: string, customInstructions: string) => void;
+  isLoading?: boolean;
+}
+
+function RerunQuestionDialog({ 
+  questionId, 
+  questionText, 
+  isOpen, 
+  onOpenChange, 
+  onSubmit,
+  isLoading = false 
+}: RerunQuestionDialogProps) {
+  const [customInstructions, setCustomInstructions] = useState('');
+
+  const handleSubmit = () => {
+    onSubmit(questionId, customInstructions);
+    setCustomInstructions(''); // Clear for next use
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-gray-900 border-gray-800 max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-white">Re-run Question Analysis</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            {questionText}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="custom-instructions" className="text-white">
+              Custom Focus Instructions (Optional)
+            </Label>
+            <Textarea
+              id="custom-instructions"
+              placeholder="Example: Focus more on regulatory compliance aspects, emphasize financial projections, analyze competitor landscape in detail..."
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              className="min-h-[120px] bg-dark border-gray-700 text-white placeholder:text-gray-500"
+              data-testid="custom-instructions-input"
+            />
+            <p className="text-xs text-gray-500">
+              Add specific instructions to guide the AI analysis. Leave blank for standard analysis.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+            className="border-gray-700"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className="bg-primary hover:bg-primary/90"
+            data-testid="submit-rerun-button"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Re-running...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Re-run Analysis
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function EnhancedAgentCard({ 
   dealId, 
@@ -2305,6 +2395,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Track progress for multiple concurrent reruns - if a question has progress, it's running
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
+  const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
+  const queryClient = useQueryClient();
 
   // Check if clinical analysis is available from comprehensive endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
@@ -2426,7 +2519,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
 
   // Mutation for re-running a single Clinical question
   const rerunQuestionMutation = useMutation({
-    mutationFn: async (questionId: string) => {
+    mutationFn: async ({ questionId, customInstructions }: { questionId: string; customInstructions?: string }) => {
       console.log(`🚀 RERUN CLICKED: Starting rerun for question ${questionId}`);
       console.log(`📊 Current progress state:`, questionProgress);
       
@@ -2447,6 +2540,8 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       console.log(`📡 Making API request to: /api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`);
       const response = await apiRequest(`/api/deals/${dealId}/clinical-analysis/question/${questionId}/rerun`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customInstructions }),
       });
       console.log(`✅ API response received:`, response);
       return { ...response, questionId };
@@ -2682,12 +2777,9 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
                               <button
                                 data-testid={`rerun-question-${question.id}`}
                                 onClick={(e) => {
-                                  console.log('🔥🔥🔥 BUTTON CLICKED!!!', question.id);
-                                  console.log('Event:', e);
-                                  console.log('Disabled:', questionProgress[question.id] !== undefined && questionProgress[question.id] < 100);
-                                  console.log('Progress state:', questionProgress);
                                   e.stopPropagation();
-                                  rerunQuestionMutation.mutate(question.id);
+                                  setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                  setRerunDialogOpen(true);
                                 }}
                                 disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
                                 className="p-1.5 rounded hover:bg-dark-lighter transition-colors text-gray-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
@@ -2825,6 +2917,19 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
           )}
         </div>
       ))}
+      
+      {selectedQuestionForRerun && (
+        <RerunQuestionDialog
+          questionId={selectedQuestionForRerun.id}
+          questionText={selectedQuestionForRerun.text}
+          isOpen={rerunDialogOpen}
+          onOpenChange={setRerunDialogOpen}
+          onSubmit={(questionId, customInstructions) => {
+            rerunQuestionMutation.mutate({ questionId, customInstructions });
+          }}
+          isLoading={rerunQuestionMutation.isPending}
+        />
+      )}
       
       <DocumentQuoteViewer
         isOpen={quoteViewerOpen}
