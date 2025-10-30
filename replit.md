@@ -57,7 +57,13 @@ Preferred communication style: Simple, everyday language.
   - **Live Progress Tracking (Oct 22, 2025)**: Real-time progress updates from 30% → 90% during section generation. Updates job status as each of 27 sections completes (e.g., "Generating section 5/27: Market Analysis - 52%"), with WebSocket broadcasts for immediate UI feedback. Eliminates "frozen at 30%" perception during 20-30 minute AI generation for deals with 300+ documents.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
-- **Large File Upload System (Oct 30, 2025)**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking, resumable uploads, real-time progress tracking, and integration with document processing. **Production 413 Fix**: Intelligent file size routing ensures files >30MB use production-chunked-upload system (5MB chunks) to bypass Cloud Run's 32MB request body limit, eliminating 413 errors for large ZIP files in production. Small files (<30MB) use optimized GCS direct upload.
+- **Large File Upload System (Oct 30, 2025)**: Bulletproof upload infrastructure with fire-and-forget architecture for handling files up to 5GB:
+  - **Intelligent File Size Routing**: Files >30MB use chunked upload (5MB chunks), files <30MB use GCS direct upload to bypass Cloud Run's 32MB limit
+  - **Fire-and-Forget ZIP Processing (Oct 30, 2025)**: GCS upload endpoint responds within 1-2 seconds by creating background job for ZIP extraction. Eliminates 2-3 minute browser timeouts that occurred during synchronous processing.
+  - **Background Job Architecture**: New `gcs_zip_extract` job type handles asynchronous ZIP download, extraction, OCR, and AI processing with real-time progress updates (5% → 10% → 30% → 90% → 100%)
+  - **Timeout Resilience**: Removed ALL artificial timeouts from upload flow. Browser-native timeout handling supports slow connections without errors
+  - **Live Progress Tracking**: WebSocket broadcasts show extraction progress via BackgroundJobProgress component. Job state survives page refreshes and server restarts
+  - **Graceful Error Handling**: Network errors handled gracefully without blocking background processing. Failed jobs surface user-visible errors with retry options
 - **RAG Embedding System (Oct 13, 2025)**: Resilient vector embedding pipeline for instant document search with:
   - **Timeout Protection**: 30s timeout per embedding API call using Promise.race
   - **Retry Logic**: 3-attempt exponential backoff (2s → 4s → 8s delays) for timeout/429/5xx errors
