@@ -57,7 +57,7 @@ Preferred communication style: Simple, everyday language.
   - **Live Progress Tracking (Oct 22, 2025)**: Real-time progress updates from 30% → 90% during section generation. Updates job status as each of 27 sections completes (e.g., "Generating section 5/27: Market Analysis - 52%"), with WebSocket broadcasts for immediate UI feedback. Eliminates "frozen at 30%" perception during 20-30 minute AI generation for deals with 300+ documents.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
-- **Large File Upload System**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking, resumable uploads, real-time progress tracking, and integration with document processing via a specialized Cloud Run upload service.
+- **Large File Upload System (Oct 30, 2025)**: Comprehensive chunked upload infrastructure supporting files up to 5GB with automatic chunking, resumable uploads, real-time progress tracking, and integration with document processing. **Production 413 Fix**: Intelligent file size routing ensures files >30MB use production-chunked-upload system (5MB chunks) to bypass Cloud Run's 32MB request body limit, eliminating 413 errors for large ZIP files in production. Small files (<30MB) use optimized GCS direct upload.
 - **RAG Embedding System (Oct 13, 2025)**: Resilient vector embedding pipeline for instant document search with:
   - **Timeout Protection**: 30s timeout per embedding API call using Promise.race
   - **Retry Logic**: 3-attempt exponential backoff (2s → 4s → 8s delays) for timeout/429/5xx errors
