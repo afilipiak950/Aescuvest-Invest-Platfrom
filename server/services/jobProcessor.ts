@@ -813,6 +813,7 @@ class JobProcessor {
       
       await this.updateJobProgress(job.id, 100, `Completed! Extracted ${processedDocs.length} documents`);
       await this.completeJob(job.id, { 
+        success: true,
         documentsCreated: processedDocs.length,
         fileName,
         gcsPath: gcsFileName
