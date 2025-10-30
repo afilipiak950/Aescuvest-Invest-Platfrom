@@ -15,6 +15,16 @@ router.post('/api/gcs/signed-url/:dealId', async (req: Request, res: Response) =
   console.log('🔐 MICRO-STEP 1: Generating signed URL for direct upload');
   
   try {
+    // Check if GCS is available
+    if (!gcsService || !gcsService.isAvailable()) {
+      console.error('❌ GCS not configured in this environment');
+      return res.status(503).json({
+        success: false,
+        message: 'File upload service unavailable. Please contact support.',
+        error: 'GCS_NOT_CONFIGURED'
+      });
+    }
+    
     const { dealId } = req.params;
     const { fileName, fileSize } = req.body;
     
@@ -100,6 +110,16 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
   console.log('🎯 MICRO-STEP 2: Processing completed GCS upload');
   
   try {
+    // Check if GCS is available
+    if (!gcsService || !gcsService.isAvailable()) {
+      console.error('❌ GCS not configured in this environment');
+      return res.status(503).json({
+        success: false,
+        message: 'File upload service unavailable. Please configure Google Cloud Storage credentials.',
+        error: 'GCS_NOT_CONFIGURED'
+      });
+    }
+    
     const { dealId } = req.params;
     const { gcsFileName, uploadId, fileName } = req.body;
     
