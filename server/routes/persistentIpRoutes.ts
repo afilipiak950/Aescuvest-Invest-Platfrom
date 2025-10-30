@@ -520,6 +520,7 @@ router.post('/api/deals/:dealId/ip-analysis/question/:questionId/rerun', async (
   try {
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     
     if (isNaN(dealId)) {
       return res.status(400).json({ 
@@ -553,7 +554,7 @@ router.post('/api/deals/:dealId/ip-analysis/question/:questionId/rerun', async (
     
     // Schedule background job execution
     setImmediate(() => {
-      comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, questionId)
+      comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background IP rerun completed for question ${questionId} on deal ${dealId}`);
         })

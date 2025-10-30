@@ -242,6 +242,7 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
   try {
     const dealId = parseInt(req.params.dealId);
     const questionId = req.params.questionId;
+    const { customInstructions } = req.body;
     
     if (isNaN(dealId)) {
       return res.status(400).json({ 
@@ -278,7 +279,7 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     // Schedule background job execution on next event loop tick
     // HTTP response will be sent BEFORE the heavy database/AI work begins
     setImmediate(() => {
-      comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, questionId)
+      comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
         .then(() => {
           console.log(`✅ Background rerun completed for question ${questionId} on deal ${dealId}`);
         })
