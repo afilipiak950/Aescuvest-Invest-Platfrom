@@ -22,9 +22,9 @@ const imapConfigSchema = z.object({
 /**
  * @route POST /api/inbox/config
  * @desc Configure IMAP settings
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.post('/config', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.post('/config', authenticate, async (req: Request, res: Response) => {
   // Force JSON response header IMMEDIATELY
   res.setHeader('Content-Type', 'application/json');
   try {
@@ -101,9 +101,9 @@ router.post('/config', authenticate, requireAdmin, async (req: Request, res: Res
 /**
  * @route GET /api/inbox/config/status
  * @desc Get current IMAP configuration status
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.get('/config/status', authenticate, requireAdmin, (req: Request, res: Response) => {
+router.get('/config/status', authenticate, (req: Request, res: Response) => {
   try {
     const status = emailInboxService.getConfigStatus();
     res.json(status);
@@ -119,9 +119,9 @@ router.get('/config/status', authenticate, requireAdmin, (req: Request, res: Res
 /**
  * @route GET /api/inbox/test
  * @desc Test IMAP connection
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.get('/test', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.get('/test', authenticate, async (req: Request, res: Response) => {
   try {
     const testResult = await emailInboxService.testConnection();
     
