@@ -216,11 +216,12 @@ router.post('/api/deals/:dealId/production-chunked/chunk',
 );
 
 // Complete upload and reassemble file
-router.post('/api/deals/:dealId/production-chunked/complete', async (req: Request, res: Response) => {
+router.post('/api/deals/:dealId/production-chunked/complete/:sessionId', async (req: Request, res: Response) => {
   console.log('🔄 PRODUCTION CHUNKED: Completing upload...');
   
   try {
-    const { sessionId, checksum } = req.body;
+    const { sessionId } = req.params;
+    const { checksum } = req.body;
     
     const session = uploadSessions.get(sessionId);
     if (!session) {
