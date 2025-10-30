@@ -113,7 +113,7 @@ interface ConfigStatus {
   };
 }
 
-export function EmailSettingsCard() {
+export default function EmailSettingsCard() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<

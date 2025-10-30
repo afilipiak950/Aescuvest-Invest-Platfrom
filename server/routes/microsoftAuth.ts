@@ -94,9 +94,9 @@ async function clearMicrosoftTokens(): Promise<void> {
 /**
  * @route GET /api/microsoft/auth-url
  * @desc Get Microsoft OAuth2 authorization URL
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.get('/auth-url', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.get('/auth-url', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('[Microsoft OAuth] Starting auth URL generation...');
     console.log('[Microsoft OAuth] Protocol:', req.protocol);
@@ -168,9 +168,9 @@ router.get('/callback', async (req: Request, res: Response) => {
 /**
  * @route GET /api/microsoft/status
  * @desc Check Microsoft authentication status
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.get('/status', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.get('/status', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('[Microsoft OAuth] Checking authentication status...');
     const tokens = await loadMicrosoftTokens();
@@ -205,9 +205,9 @@ router.get('/status', authenticate, requireAdmin, async (req: Request, res: Resp
 /**
  * @route POST /api/microsoft/refresh
  * @desc Refresh Microsoft tokens
- * @access Private (Admin only)
+ * @access Private (Authenticated users)
  */
-router.post('/refresh', authenticate, requireAdmin, async (req: Request, res: Response) => {
+router.post('/refresh', authenticate, async (req: Request, res: Response) => {
   try {
     console.log('[Microsoft OAuth] Attempting token refresh...');
     const tokens = await loadMicrosoftTokens();
