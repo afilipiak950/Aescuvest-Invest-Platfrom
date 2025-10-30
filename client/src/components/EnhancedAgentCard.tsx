@@ -251,7 +251,12 @@ function RerunQuestionDialog({
   const [customInstructions, setCustomInstructions] = useState('');
 
   const handleSubmit = () => {
+    console.log('🔵 [RerunDialog] handleSubmit called');
+    console.log('🔵 [RerunDialog] questionId:', questionId);
+    console.log('🔵 [RerunDialog] customInstructions:', customInstructions);
+    console.log('🔵 [RerunDialog] Calling onSubmit callback...');
     onSubmit(questionId, customInstructions);
+    console.log('🔵 [RerunDialog] onSubmit callback completed');
     setCustomInstructions(''); // Clear for next use
     onOpenChange(false);
   };
@@ -2375,7 +2380,13 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
           isOpen={rerunDialogOpen}
           onOpenChange={setRerunDialogOpen}
           onSubmit={(questionId, customInstructions) => {
+            console.log('🟢 [LegalSection] onSubmit callback received in parent');
+            console.log('🟢 [LegalSection] questionId:', questionId);
+            console.log('🟢 [LegalSection] customInstructions:', customInstructions);
+            console.log('🟢 [LegalSection] questionProgress state:', questionProgress);
+            console.log('🟢 [LegalSection] About to call mutation.mutate()...');
             rerunQuestionMutation.mutate({ questionId, customInstructions });
+            console.log('🟢 [LegalSection] mutation.mutate() called successfully');
           }}
           isLoading={rerunQuestionMutation.isPending}
         />
