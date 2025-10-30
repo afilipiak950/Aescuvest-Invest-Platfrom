@@ -387,6 +387,13 @@ class GoogleCloudStorageService {
   }
 
   /**
+   * Check if GCS is available and configured
+   */
+  isAvailable(): boolean {
+    return this.storage !== null && this.bucket !== null;
+  }
+
+  /**
    * Get bucket instance (for direct access when needed)
    */
   // Initialize storage if not already done
