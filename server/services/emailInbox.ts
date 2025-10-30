@@ -34,10 +34,57 @@ export class EmailInboxService {
   private client: ImapFlow | null = null;
 
   /**
-   * Configure IMAP connection settings
+   * Configure IMAP connection settings and persist to database
    */
-  setConfig(config: ImapConfig) {
+  async setConfig(config: ImapConfig) {
     this.config = config;
+    
+    // Persist to database
+    try {
+      const { storage } = await import('../storage');
+      await storage.setSystemSetting('email_imap_config', JSON.stringify(config), 'IMAP email configuration', 'email');
+      console.log('📧 IMAP configuration persisted to database');
+    } catch (error) {
+      console.error('Failed to persist IMAP config to database:', error);
+    }
+  }
+
+  /**
+   * Load IMAP configuration from database
+   */
+  async loadConfigFromDatabase() {
+    try {
+      const { storage } = await import('../storage');
+      const setting = await storage.getSystemSetting('email_imap_config');
+      
+      if (setting && setting.value) {
+        this.config = JSON.parse(setting.value);
+        console.log('📧 Loaded IMAP configuration from database');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Failed to load IMAP config from database:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get current configuration (without sensitive data)
+   */
+  getConfigStatus() {
+    if (!this.config) {
+      return { configured: false };
+    }
+    
+    return {
+      configured: true,
+      host: this.config.host,
+      port: this.config.port,
+      secure: this.config.secure,
+      username: this.config.username
+    };
   }
 
   /**

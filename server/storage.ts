@@ -173,6 +173,12 @@ export interface IStorage {
   getResearchJobById(id: number): Promise<ResearchJob | undefined>;
   getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
   getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  
+  // System settings methods
+  getSystemSetting(key: string): Promise<any | undefined>;
+  setSystemSetting(key: string, value: string, description?: string, category?: string): Promise<any>;
+  deleteSystemSetting(key: string): Promise<boolean>;
+  getAllSystemSettings(category?: string): Promise<any[]>;
 }
 
 // Database storage implementation
@@ -2521,6 +2527,84 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching research job progress for deal ${dealId}:`, error);
       return undefined;
+    }
+  }
+
+  // System settings methods
+  async getSystemSetting(key: string): Promise<any | undefined> {
+    try {
+      const { systemSettings } = await import('../shared/schema');
+      const [result] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error fetching system setting ${key}:`, error);
+      return undefined;
+    }
+  }
+
+  async setSystemSetting(key: string, value: string, description?: string, category?: string): Promise<any> {
+    try {
+      const { systemSettings } = await import('../shared/schema');
+      
+      // Check if setting exists
+      const existing = await this.getSystemSetting(key);
+      
+      if (existing) {
+        // Update existing setting
+        const [updated] = await db.update(systemSettings)
+          .set({ 
+            value, 
+            description: description || existing.description,
+            category: category || existing.category,
+            updatedAt: new Date()
+          })
+          .where(eq(systemSettings.key, key))
+          .returning();
+        console.log(`📝 Updated system setting: ${key}`);
+        return updated;
+      } else {
+        // Create new setting
+        const [created] = await db.insert(systemSettings)
+          .values({ 
+            key, 
+            value, 
+            description: description || '', 
+            category: category || 'general' 
+          })
+          .returning();
+        console.log(`✨ Created system setting: ${key}`);
+        return created;
+      }
+    } catch (error) {
+      console.error(`Error setting system setting ${key}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteSystemSetting(key: string): Promise<boolean> {
+    try {
+      const { systemSettings } = await import('../shared/schema');
+      const result = await db.delete(systemSettings).where(eq(systemSettings.key, key));
+      console.log(`🗑️ Deleted system setting: ${key}`);
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error(`Error deleting system setting ${key}:`, error);
+      return false;
+    }
+  }
+
+  async getAllSystemSettings(category?: string): Promise<any[]> {
+    try {
+      const { systemSettings } = await import('../shared/schema');
+      
+      if (category) {
+        return await db.select().from(systemSettings).where(eq(systemSettings.category, category));
+      }
+      
+      return await db.select().from(systemSettings);
+    } catch (error) {
+      console.error('Error fetching system settings:', error);
+      return [];
     }
   }
 }

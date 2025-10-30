@@ -1343,6 +1343,20 @@ app.use((req, res, next) => {
         console.error('❌ Failed to initialize persistent financial analysis:', err);
       });
       
+      // Load email configuration from database
+      console.log('📧 Loading email configuration from database...');
+      import('./services/emailInbox').then(({ emailInboxService }) => {
+        emailInboxService.loadConfigFromDatabase().then(loaded => {
+          if (loaded) {
+            console.log('✅ Email configuration loaded successfully');
+          } else {
+            console.log('ℹ️ No email configuration found - IMAP not configured');
+          }
+        }).catch(err => {
+          console.error('❌ Failed to load email configuration:', err);
+        });
+      });
+      
       console.log('✅ All background services initialized');
     });
   });
