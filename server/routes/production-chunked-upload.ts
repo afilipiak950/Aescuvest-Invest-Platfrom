@@ -65,14 +65,14 @@ interface UploadSession {
 
 const uploadSessions = new Map<string, UploadSession>();
 
-// Session cleanup daemon
+// Session cleanup daemon - VERY GENEROUS TIMEOUT for large uploads
 setInterval(() => {
   const now = Date.now();
-  const timeout = 30 * 60 * 1000; // 30 minutes
+  const timeout = 4 * 60 * 60 * 1000; // 4 HOURS - generous for large files on slow connections
   
   for (const [sessionId, session] of Array.from(uploadSessions.entries())) {
     if (now - session.lastActivity > timeout) {
-      console.log(`🧹 Cleaning expired session: ${sessionId}`);
+      console.log(`🧹 Cleaning expired session: ${sessionId} (inactive for ${Math.round((now - session.lastActivity) / 1000 / 60)} minutes)`);
       try {
         if (fs.existsSync(session.tempDir)) {
           fs.rmSync(session.tempDir, { recursive: true, force: true });
@@ -83,7 +83,7 @@ setInterval(() => {
       }
     }
   }
-}, 5 * 60 * 1000);
+}, 15 * 60 * 1000); // Check every 15 minutes instead of 5
 
 // Initialize chunked upload with validation
 router.post('/api/deals/:dealId/production-chunked/init', async (req: Request, res: Response) => {
@@ -98,8 +98,8 @@ router.post('/api/deals/:dealId/production-chunked/init', async (req: Request, r
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    if (totalChunks > 10000) { // Max 10k chunks (50GB with 5MB chunks)
-      return res.status(400).json({ error: 'Too many chunks' });
+    if (totalChunks > 100000) { // Max 100k chunks (500GB with 5MB chunks) - VERY GENEROUS
+      return res.status(400).json({ error: 'Too many chunks - file exceeds 500GB limit' });
     }
     
     // Generate cryptographically secure session ID
