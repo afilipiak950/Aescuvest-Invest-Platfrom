@@ -496,6 +496,22 @@ class ComprehensiveLegalAnalysisService {
       return answer;
     } catch (error) {
       console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      // Mark job as failed in database
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'failed',
+          progress: 0,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+      
+      console.log(`❌ Marked job ${jobId} as failed`);
+      
       throw error;
     } finally {
       // Schedule cleanup of completed job after 1 hour
