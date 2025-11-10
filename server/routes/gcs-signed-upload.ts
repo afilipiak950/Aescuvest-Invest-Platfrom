@@ -208,6 +208,7 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       path: gcsFileName, // Fix: Add required path field pointing to GCS location
       size: parseInt(metadata.size),
       uploadedAt: new Date(),
+      assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
       metadata: {
         originalName: fileName,
         gcsPath: gcsFileName,
