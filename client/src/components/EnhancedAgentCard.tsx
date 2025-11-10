@@ -3280,6 +3280,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
+                              data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
                                 setSelectedQuestionForRerun({ id: question.id, text: question.question });
                                 setRerunDialogOpen(true);
@@ -5152,6 +5153,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
+                              data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
                                 setSelectedQuestionForRerun({ id: question.id, text: question.question });
                                 setRerunDialogOpen(true);
@@ -5854,6 +5856,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
                             <button
+                              data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
                                 setSelectedQuestionForRerun({ id: question.id, text: question.question });
                                 setRerunDialogOpen(true);
