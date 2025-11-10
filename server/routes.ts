@@ -1141,7 +1141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: fileExt,
           path: file.path,
           size: file.size,
-          status: 'Pending'
+          status: 'Pending',
+          assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
         };
         
         const result = insertDocumentSchema.safeParse(documentData);
