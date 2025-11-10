@@ -2151,51 +2151,6 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             
             {!isSelectionMode ? (
               <>
-
-                {/* AI Agent Assignment Button */}
-                {documents && Array.isArray(documents) && documents.length > 0 && (
-                  <Button
-                    onClick={() => assignAgentsMutation.mutate()}
-                    size="sm"
-                    variant="outline" 
-                    disabled={assignAgentsMutation.isPending || (backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) && backgroundJobs.jobs.some((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')))}
-                    className="border-purple-600 text-purple-300 hover:bg-purple-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px]"
-                  >
-                    {assignAgentsMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        Starting...
-                      </>
-                    ) : (() => {
-                      const assignmentJob = backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) ? backgroundJobs.jobs.find((job: any) => 
-                        job.jobType === 'document_assignment' && 
-                        (job.status === 'processing' || job.status === 'pending')
-                      ) : null;
-                      
-                      if (assignmentJob) {
-                        const processedCount = assignmentJob.processedDocuments || 0;
-                        const totalCount = assignmentJob.totalDocuments || documents.length;
-                        
-                        return (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                            <span className="text-sm">
-                              {processedCount}/{totalCount} assigned
-                            </span>
-                          </>
-                        );
-                      }
-                      
-                      return (
-                        <>
-                          <Brain className="w-4 h-4 mr-1" />
-                          AI Assign Agents
-                        </>
-                      );
-                    })()}
-                  </Button>
-                )}
-                
                 <Button
                   onClick={() => setShowAdditionalUpload(true)}
                   size="sm"
