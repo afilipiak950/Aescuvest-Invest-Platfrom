@@ -316,7 +316,8 @@ router.post('/api/deals/:dealId/production-chunked/complete/:sessionId', async (
       processingStatus: 'pending' as const,
       type: 'dataroom' as const,
       uploadDate: new Date(),
-      fileSize: stats.size
+      fileSize: stats.size,
+      assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
     }).returning();
     
     const document = Array.isArray(documentResult) ? documentResult[0] : documentResult;
