@@ -1047,7 +1047,8 @@ Respond in JSON:
     const job = await db.query.backgroundJobs.findFirst({
       where: eq(backgroundJobs.jobId, jobId)
     });
-    return job !== undefined && job.progress < 100;
+    // Consider it running if job exists (not null or undefined) and progress is not 100
+    return job != null && job.progress < 100;
   }
 
   /**
