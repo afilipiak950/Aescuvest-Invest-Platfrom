@@ -1894,11 +1894,12 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
               newProgress[questionId] = backendProgress[questionId];
             }
             
-            // Only remove questions that backend no longer tracks AND have reached 100%
-            // This prevents premature removal during transient gaps
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
-                // Question completed and backend cleaned it up
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -2518,11 +2519,12 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
               }
             }
             
-            // Only remove questions that backend no longer tracks AND have reached 100%
-            // This prevents premature removal during transient gaps
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
-                // Question completed and backend cleaned it up
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -3064,8 +3066,12 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
               }
             }
             
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -4979,8 +4985,12 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
               }
             }
             
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -5721,8 +5731,12 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
               }
             }
             
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -6160,8 +6174,12 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
               }
             }
             
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
@@ -6541,8 +6559,12 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
               }
             }
             
+            // Clear progress for questions no longer tracked by backend
+            // This handles completed jobs, failed jobs, and cancelled jobs
             for (const questionId in prev) {
-              if (backendProgress[questionId] === undefined && prev[questionId] >= 100) {
+              if (backendProgress[questionId] === undefined) {
+                // Backend no longer tracking this question - clear it
+                // This handles: completed (100%), failed (any %), or manually cancelled
                 delete newProgress[questionId];
               }
             }
