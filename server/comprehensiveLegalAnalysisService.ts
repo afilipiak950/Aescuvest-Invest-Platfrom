@@ -392,8 +392,8 @@ class ComprehensiveLegalAnalysisService {
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     const job = await storage.getBackgroundJobById(jobId);
     
-    // Consider it running if job exists and progress is not 100
-    return job !== undefined && job.progress < 100;
+    // Consider it running if job exists (not null or undefined) and progress is not 100
+    return job != null && job.progress < 100;
   }
   
   /**
