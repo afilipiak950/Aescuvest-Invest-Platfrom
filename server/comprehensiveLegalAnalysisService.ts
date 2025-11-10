@@ -404,32 +404,30 @@ class ComprehensiveLegalAnalysisService {
     console.log(`🔄 Re-running single legal question ${questionId} for deal ${dealId}`);
     const jobId = `legal-question-rerun-${dealId}-${questionId}`;
     
-    // 🔒 ATOMIC JOB REGISTRATION: Check if job already exists
-    let jobAlreadyExists = false;
+    // Check if job already initialized by route (atomic registration pattern)
     const existingJob = await storage.getBackgroundJobById(jobId);
+    const alreadyInitialized = existingJob != null;
     
-    if (existingJob && existingJob.progress < 100) {
-      throw new Error(`Question ${questionId} is already being rerun (progress: ${existingJob.progress}%)`);
-    }
-    
-    if (existingJob && existingJob.progress === 100) {
-      jobAlreadyExists = true;
-      console.log(`♻️ Rerunning completed question ${questionId}`);
-    } else {
-      // Create new job using storage service
-      await storage.createBackgroundJob({
-        jobId,
-        jobType: 'legal_question_rerun',
-        dealId,
-        status: 'pending',
-        progress: 0,
-        runId: questionId,
-        currentStep: `Initializing question rerun: ${questionId}`
-      });
-      console.log(`✅ Registered new job for question ${questionId}`);
+    // Only check for duplicates if not already initialized by the route
+    // This prevents double-checking while still protecting against concurrent direct calls
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
     }
     
     try {
+      // Initialize progress only if not already set by route
+      if (!alreadyInitialized) {
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'legal_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ Registered new job for question ${questionId}`);
+      }
       
       // Find the question
       const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
