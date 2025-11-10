@@ -1040,7 +1040,21 @@ Respond in JSON:
       
     } catch (error) {
       console.error(`❌ Failed to rerun commercial question ${questionId}:`, error);
-      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      
+      // Mark job as failed in database
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
+
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'failed',
+          progress: 0,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+
+      console.log(`❌ Marked job ${jobId} as failed`);
       throw error;
     }
   }

@@ -583,6 +583,8 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
   }
 
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+    const jobId = `research-question-rerun-${dealId}-${questionId}`;
+    
     try {
       const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'research');
       
@@ -616,6 +618,22 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
     } catch (error) {
       console.error('Error in research question rerun:', error);
+      
+      // Mark job as failed in database
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { db } = await import('./db');
+
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'failed',
+          progress: 0,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+
+      console.log(`❌ Marked job ${jobId} as failed`);
       throw error;
     }
   }

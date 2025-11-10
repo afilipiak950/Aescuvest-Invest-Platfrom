@@ -995,6 +995,8 @@ Respond in JSON:
   }
 
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+    const jobId = `ip-question-rerun-${dealId}-${questionId}`;
+    
     try {
       const analysis = await storage.getAgentAnalysis(dealId, 'IP');
       
@@ -1033,6 +1035,22 @@ Respond in JSON:
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
     } catch (error) {
       console.error('Error in IP question rerun:', error);
+      
+      // Mark job as failed in database
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { db } = await import('./db');
+
+      await db
+        .update(backgroundJobs)
+        .set({
+          status: 'failed',
+          progress: 0,
+          updatedAt: new Date()
+        })
+        .where(eq(backgroundJobs.jobId, jobId));
+
+      console.log(`❌ Marked job ${jobId} as failed`);
       throw error;
     }
   }

@@ -2092,8 +2092,21 @@ export async function rerunSingleClinicalQuestion(
   } catch (error) {
     console.error(`❌ Error rerunning Clinical question ${questionId}:`, error);
     
-    // Mark as failed
-    await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 100);
+    // Mark job as failed in database
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq } = await import('drizzle-orm');
+    const { db } = await import('./db');
+    
+    await db
+      .update(backgroundJobs)
+      .set({
+        status: 'failed',
+        progress: 0,
+        updatedAt: new Date()
+      })
+      .where(eq(backgroundJobs.jobId, jobId));
+    
+    console.log(`❌ Marked job ${jobId} as failed`);
     
     throw error;
   }
