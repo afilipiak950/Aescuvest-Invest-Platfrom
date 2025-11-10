@@ -109,6 +109,7 @@ export class ZipProcessor {
             documentType: fileType,
             parentId: parentDocumentId,
             uploadedAt: new Date(),
+            assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
             metadata: {
               originalPath: relativePath,
               extractedFrom: gcsPath,
@@ -160,7 +161,8 @@ export class ZipProcessor {
               category: 'General',
               documentType: 'Unknown',
               parentId: parentDocumentId,
-              uploadedAt: new Date()
+              uploadedAt: new Date(),
+              assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
             } as any);
             documents.push(doc);
             console.log(`⚠️ Created basic document entry for ${path.basename(filePath)}`);
@@ -303,7 +305,8 @@ export class ZipProcessor {
             folderPath: folderPath,
             isFolder: false,
             category: 'General',
-            documentType: fileType
+            documentType: fileType,
+            assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
           } as any);
           
           console.log(`✅ Created document ${document.id}: ${fileName}`);
@@ -354,7 +357,8 @@ export class ZipProcessor {
               folderPath: '',
               isFolder: false,
               category: 'General',
-              documentType: 'Unknown'
+              documentType: 'Unknown',
+              assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
             } as any);
             console.log(`⚠️ Created basic document entry for ${path.basename(filePath)}`);
           } catch (dbError) {
