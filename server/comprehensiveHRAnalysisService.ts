@@ -1118,7 +1118,9 @@ Respond in JSON:
     
     const result: Record<string, number> = {};
     for (const job of jobs) {
-      if (job.runId) {
+      // Only include jobs that are actively processing (not failed or completed)
+      // Failed jobs should return undefined so frontend can clear the progress bar
+      if (job.runId && job.status === 'processing' && job.progress < 100) {
         result[job.runId] = job.progress;
       }
     }

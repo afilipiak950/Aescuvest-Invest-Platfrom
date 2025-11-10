@@ -566,14 +566,26 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
     }
   }
 
-  getAllQuestionProgress(dealId: number): Record<string, number> {
+  async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
+    const { backgroundJobs } = await import('../shared/schema');
+    const { and, eq } = await import('drizzle-orm');
+    
+    const jobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.jobType, 'research_question_rerun')
+      )
+    });
+    
     const result: Record<string, number> = {};
-    for (const [key, progress] of Array.from(this.questionRerunProgress.entries())) {
-      if (key.startsWith(`${dealId}-`)) {
-        const questionId = key.substring(`${dealId}-`.length);
-        result[questionId] = progress;
+    for (const job of jobs) {
+      // Only include jobs that are actively processing (not failed or completed)
+      // Failed jobs should return undefined so frontend can clear the progress bar
+      if (job.runId && job.status === 'processing' && job.progress < 100) {
+        result[job.runId] = job.progress;
       }
     }
+    
     return result;
   }
 
