@@ -1789,6 +1789,22 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
   }
 ];
 
+// Helper function to check if a job is a question rerun job for a specific agent
+// Handles both underscore (clinical_question_rerun) and hyphen (clinical-question-rerun) formats
+// to ensure compatibility with different backend implementations
+function isRerunJob(job: any, agentKey: string): boolean {
+  const agentLower = agentKey.toLowerCase();
+  
+  // Check jobType with both underscore and hyphen variants
+  const matchesJobType = job.jobType === `${agentLower}_question_rerun` || 
+                        job.jobType === `${agentLower}-question-rerun`;
+  
+  // Check jobId pattern (format: "agent-question-rerun-{dealId}-{questionId}")
+  const matchesJobId = job.jobId?.startsWith(`${agentLower}-question-rerun-`);
+  
+  return matchesJobType || matchesJobId;
+}
+
 function LegalQuestionsSection({ dealId, agent, analysisData, findings, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData }: LegalQuestionsSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
@@ -1828,7 +1844,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
         if (data.success && data.jobs) {
           // Filter for legal question rerun jobs that are still running
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'legal_question_rerun' && 
+            isRerunJob(job, 'legal') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -2460,7 +2476,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
         if (data.success && data.jobs) {
           // Filter for clinical question rerun jobs that are still running
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'clinical_question_rerun' && 
+            isRerunJob(job, 'clinical') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -3019,7 +3035,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         
         if (data.success && data.jobs) {
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'research_question_rerun' && 
+            isRerunJob(job, 'research') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -4954,7 +4970,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
         
         if (data.success && data.jobs) {
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'financial_question_rerun' && 
+            isRerunJob(job, 'financial') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -5716,7 +5732,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
         
         if (data.success && data.jobs) {
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'commercial_question_rerun' && 
+            isRerunJob(job, 'commercial') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -6175,7 +6191,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         
         if (data.success && data.jobs) {
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'hr_question_rerun' && 
+            isRerunJob(job, 'hr') && 
             job.status === 'processing' &&
             job.progress < 100
           );
@@ -6576,7 +6592,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
         
         if (data.success && data.jobs) {
           const runningJobs = data.jobs.filter((job: any) => 
-            job.jobType === 'ip_question_rerun' && 
+            isRerunJob(job, 'ip') && 
             job.status === 'processing' &&
             job.progress < 100
           );
