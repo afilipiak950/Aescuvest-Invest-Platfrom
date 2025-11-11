@@ -170,6 +170,9 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
+// Statuses that indicate an active job (for progress tracking and polling)
+const ACTIVE_STATUSES = new Set(['processing', 'queued']);
+
 interface ComprehensiveResults {
   success?: boolean;
   analysis?: AnalysisData;
@@ -407,9 +410,9 @@ export default function EnhancedAgentCard({
     const { data: jobProgress } = useQuery({
       queryKey: [`/api/background-jobs/${dealId}`],
       refetchInterval: (data) => {
-        // Smart polling: faster when jobs are running, slower when idle
-        const hasActiveJob = data?.jobs?.some(j => j.status === 'processing');
-        return hasActiveJob ? 3000 : 15000; // 3s when active, 15s when idle
+        // Smart polling: faster when jobs are running (processing or queued), slower when idle
+        const hasActiveJob = data?.jobs?.some(j => ACTIVE_STATUSES.has(j.status));
+        return hasActiveJob ? 2000 : 15000; // 2s when active, 15s when idle
       },
     });
 
@@ -477,7 +480,7 @@ export default function EnhancedAgentCard({
                             job.jobId?.includes(`${agentLower}_`);
         
         return (matchesJobType || matchesJobId) &&
-               job.status === 'processing' &&
+               ACTIVE_STATUSES.has(job.status) &&
                job.progress >= 0;
       });
     };
@@ -539,7 +542,35 @@ export default function EnhancedAgentCard({
         );
       }
       
-      // Show background job progress if active
+      // Show queued job status if waiting to process
+      if (activeJob && activeJob.status === 'queued') {
+        return (
+          <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+              <div className="flex-1">
+                <p className="text-blue-400 font-medium">{currentAgentType} Question Rerun Queued</p>
+                <p className="text-gray-400 text-sm">
+                  Waiting to process... Your request will begin shortly.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-white font-medium">0%</p>
+              </div>
+            </div>
+            <Progress 
+              value={0} 
+              className="h-2 bg-dark-lighter"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Question rerun pending</span>
+              <span>In queue</span>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show background job progress if active (processing)
       if (activeJob) {
         return (
           <div className="bg-dark-lighter/50 border border-dark-lighter rounded-lg p-4 mb-4">
@@ -1989,6 +2020,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
       
       // Also invalidate and refetch as backup
       queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, questionId: string) => {
@@ -2616,6 +2648,7 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
         
         // Also invalidate and refetch as backup
         queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/clinical-analysis/comprehensive/results`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         refetchComprehensive();
       } catch (error) {
         console.warn('⚠️ Non-critical error in onSuccess handler:', error);
@@ -3137,6 +3170,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, variables: { questionId: string; customInstructions?: string }) => {
@@ -5070,6 +5104,7 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, questionId: string) => {
@@ -5832,6 +5867,7 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/commercial/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, variables: { questionId: string; customInstructions?: string }) => {
@@ -6291,6 +6327,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/hr/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, questionId: string) => {
@@ -6694,6 +6731,7 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
     onError: (error: Error, variables: { questionId: string; customInstructions: string }) => {
