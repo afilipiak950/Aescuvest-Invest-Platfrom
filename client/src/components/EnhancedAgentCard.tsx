@@ -3285,6 +3285,20 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
+                            {/* Progress bar - shown when question is being rerun */}
+                            {questionProgress[question.id] !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                  <div 
+                                    className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${questionProgress[question.id]}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                  {questionProgress[question.id]}%
+                                </span>
+                              </div>
+                            )}
                             <button
                               data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
@@ -5162,6 +5176,20 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
+                            {/* Progress bar - shown when question is being rerun */}
+                            {questionProgress[question.id] !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                  <div 
+                                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${questionProgress[question.id]}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                  {questionProgress[question.id]}%
+                                </span>
+                              </div>
+                            )}
                             <button
                               data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
@@ -5869,6 +5897,20 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
+                            {/* Progress bar - shown when question is being rerun */}
+                            {questionProgress[question.id] !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${questionProgress[question.id]}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                  {questionProgress[question.id]}%
+                                </span>
+                              </div>
+                            )}
                             <button
                               data-testid={`rerun-question-${question.id}`}
                               onClick={() => {
@@ -6317,6 +6359,20 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
+                            {/* Progress bar - shown when question is being rerun */}
+                            {questionProgress[question.id] !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                  <div 
+                                    className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${questionProgress[question.id]}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                  {questionProgress[question.id]}%
+                                </span>
+                              </div>
+                            )}
                             <button
                               onClick={() => {
                                 setSelectedQuestionForRerun({ id: question.id, text: question.question });
@@ -6812,6 +6868,20 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                         <div className="flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-white font-medium text-sm flex-1">{question.question}</p>
+                            {/* Progress bar - shown when question is being rerun */}
+                            {questionProgress[question.id] !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                  <div 
+                                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${questionProgress[question.id]}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                  {questionProgress[question.id]}%
+                                </span>
+                              </div>
+                            )}
                             {/* Re-run button for individual question */}
                             <button
                               data-testid={`rerun-question-${question.id}`}
