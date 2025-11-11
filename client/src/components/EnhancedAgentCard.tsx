@@ -4337,10 +4337,18 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [isQueued, setIsQueued] = useState(false);
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      const hasActiveJobs = data?.jobs?.some((job: any) => 
+        (job.agentType === 'financial' || job.jobType === 'comprehensive_financial_analysis') &&
+        (job.status === 'processing' || job.status === 'queued')
+      );
+      return hasActiveJobs ? 2000 : 15000;
+    },
   });
 
   // REMOVED: No longer check old comprehensive financial analysis progress - ONLY use background jobs like Clinical
@@ -4358,9 +4366,10 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
       const financialJob = jobProgress.jobs.find((job: any) => 
         job.agentType === 'financial' || job.jobType === 'comprehensive_financial_analysis'
       );
-      if (financialJob && financialJob.status === 'processing') {
+      if (financialJob && (financialJob.status === 'processing' || financialJob.status === 'queued')) {
         setProgress(financialJob.progress || 0);
-        setCurrentStep(financialJob.currentDocument || financialJob.currentStep || 'Processing financial analysis...');
+        setIsQueued(financialJob.status === 'queued');
+        setCurrentStep(financialJob.currentDocument || financialJob.currentStep || (financialJob.status === 'queued' ? 'Queued for processing...' : 'Processing financial analysis...'));
         setIsVisible(true);
         
         // Handle jobs stuck at 100%
@@ -4388,21 +4397,23 @@ function FinancialAnalysisProgress({ dealId }: { dealId: number }) {
   if (!isVisible) return null;
 
   return (
-    <div className="mb-4 p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-lg">
+    <div className={`mb-4 p-4 ${isQueued ? 'bg-blue-500/10 border-blue-500/20' : 'bg-emerald-400/10 border-emerald-400/20'} border rounded-lg`}>
       <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+        <Loader2 className={`h-5 w-5 animate-spin ${isQueued ? 'text-blue-400' : 'text-emerald-400'}`} />
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-emerald-400">Financial Analysis in Progress</span>
-            <span className="text-sm text-emerald-300">{Math.round(progress)}%</span>
+            <span className={`text-sm font-medium ${isQueued ? 'text-blue-400' : 'text-emerald-400'}`}>
+              {isQueued ? 'Financial Analysis Queued' : 'Financial Analysis in Progress'}
+            </span>
+            <span className={`text-sm ${isQueued ? 'text-blue-300' : 'text-emerald-300'}`}>{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-emerald-400/20 rounded-full h-2 mb-2">
+          <div className={`w-full ${isQueued ? 'bg-blue-400/20' : 'bg-emerald-400/20'} rounded-full h-2 mb-2`}>
             <div 
-              className="bg-emerald-400 h-2 rounded-full transition-all duration-500" 
+              className={`${isQueued ? 'bg-blue-400' : 'bg-emerald-400'} h-2 rounded-full transition-all duration-500`}
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </div>
-          <div className="text-xs text-emerald-300/80 truncate">
+          <div className={`text-xs ${isQueued ? 'text-blue-300/80' : 'text-emerald-300/80'} truncate`}>
             {currentStep && currentStep.includes('batch') ? 
               currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
               currentStep
