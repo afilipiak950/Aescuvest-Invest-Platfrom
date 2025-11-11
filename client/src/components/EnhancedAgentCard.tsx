@@ -3283,44 +3283,46 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-between gap-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
-                            {/* Progress bar - shown when question is being rerun */}
-                            {questionProgress[question.id] !== undefined && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 bg-dark-lighter rounded-full h-2">
-                                  <div 
-                                    className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${questionProgress[question.id]}%` }}
-                                  />
+                            <div className="flex items-center gap-2">
+                              {/* Progress bar - shown when question is being rerun */}
+                              {questionProgress[question.id] !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                    <div 
+                                      className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${questionProgress[question.id]}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                    {questionProgress[question.id]}%
+                                  </span>
                                 </div>
-                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
-                                  {questionProgress[question.id]}%
-                                </span>
-                              </div>
-                            )}
-                            <button
-                              data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
-                                setRerunDialogOpen(true);
-                              }}
-                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
-                              className="p-1.5 hover:bg-cyan-500/20 rounded transition-colors"
-                              title="Re-run this question"
-                            >
-                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
-                                  <path d="M15 9h6v-6"/>
-                                </svg>
                               )}
-                            </button>
+                              <button
+                                data-testid={`rerun-question-${question.id}`}
+                                onClick={() => {
+                                  setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                  setRerunDialogOpen(true);
+                                }}
+                                disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                                className="p-1.5 hover:bg-cyan-500/20 rounded transition-colors"
+                                title="Re-run this question"
+                              >
+                                {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                    <path d="M15 9h6v-6"/>
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
                           
                           {answer ? (
@@ -5174,44 +5176,46 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
                     <div className="space-y-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-between gap-2">
                             <p className="font-medium text-white flex-1">{question.question}</p>
-                            {/* Progress bar - shown when question is being rerun */}
-                            {questionProgress[question.id] !== undefined && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 bg-dark-lighter rounded-full h-2">
-                                  <div 
-                                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${questionProgress[question.id]}%` }}
-                                  />
+                            <div className="flex items-center gap-2">
+                              {/* Progress bar - shown when question is being rerun */}
+                              {questionProgress[question.id] !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                    <div 
+                                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${questionProgress[question.id]}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                    {questionProgress[question.id]}%
+                                  </span>
                                 </div>
-                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
-                                  {questionProgress[question.id]}%
-                                </span>
-                              </div>
-                            )}
-                            <button
-                              data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
-                                setRerunDialogOpen(true);
-                              }}
-                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
-                              className="p-1.5 hover:bg-green-500/20 rounded transition-colors"
-                              title="Re-run this question"
-                            >
-                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
-                                  <path d="M15 9h6v-6"/>
-                                </svg>
                               )}
-                            </button>
+                              <button
+                                data-testid={`rerun-question-${question.id}`}
+                                onClick={() => {
+                                  setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                  setRerunDialogOpen(true);
+                                }}
+                                disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                                className="p-1.5 hover:bg-green-500/20 rounded transition-colors"
+                                title="Re-run this question"
+                              >
+                                {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                    <path d="M15 9h6v-6"/>
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
                           
                           {answer ? (
@@ -6872,43 +6876,45 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                         <div className="flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-white font-medium text-sm flex-1">{question.question}</p>
-                            {/* Progress bar - shown when question is being rerun */}
-                            {questionProgress[question.id] !== undefined && (
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 bg-dark-lighter rounded-full h-2">
-                                  <div 
-                                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${questionProgress[question.id]}%` }}
-                                  />
+                            <div className="flex items-center gap-2">
+                              {/* Progress bar - shown when question is being rerun */}
+                              {questionProgress[question.id] !== undefined && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-24 bg-dark-lighter rounded-full h-2">
+                                    <div 
+                                      className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${questionProgress[question.id]}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-medium w-10 text-right">
+                                    {questionProgress[question.id]}%
+                                  </span>
                                 </div>
-                                <span className="text-xs text-gray-400 font-medium w-10 text-right">
-                                  {questionProgress[question.id]}%
-                                </span>
-                              </div>
-                            )}
-                            {/* Re-run button for individual question */}
-                            <button
-                              data-testid={`rerun-question-${question.id}`}
-                              onClick={() => {
-                                setSelectedQuestionForRerun({ id: question.id, text: question.question });
-                                setRerunDialogOpen(true);
-                              }}
-                              disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
-                              className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
-                              title="Re-run this question"
-                            >
-                              {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
-                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
-                                  <path d="M15 9h6v-6"/>
-                                </svg>
                               )}
-                            </button>
+                              {/* Re-run button for individual question */}
+                              <button
+                                data-testid={`rerun-question-${question.id}`}
+                                onClick={() => {
+                                  setSelectedQuestionForRerun({ id: question.id, text: question.question });
+                                  setRerunDialogOpen(true);
+                                }}
+                                disabled={questionProgress[question.id] !== undefined && questionProgress[question.id] < 100}
+                                className="p-1.5 hover:bg-purple-500/20 rounded transition-colors"
+                                title="Re-run this question"
+                              >
+                                {(questionProgress[question.id] !== undefined && questionProgress[question.id] < 100) ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                                    <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.56.93 6.18 2.44l-2.18 2.18"/>
+                                    <path d="M15 9h6v-6"/>
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           </div>
                           
                           {hasAnswer ? (
