@@ -4430,12 +4430,20 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [isQueued, setIsQueued] = useState(false);
   const [lastJobId, setLastJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: jobProgress } = useQuery({
     queryKey: [`/api/background-jobs/${dealId}`],
-    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      const hasActiveJobs = data?.jobs?.some((job: any) => 
+        job.agentType === 'IP' &&
+        (job.status === 'processing' || job.status === 'queued')
+      );
+      return hasActiveJobs ? 2000 : 15000;
+    },
     retry: false,
     staleTime: 0, // Always fetch fresh data
   });
@@ -4443,7 +4451,10 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   // Also check for comprehensive IP analysis progress
   const { data: ipProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/progress`],
-    refetchInterval: 15000, // ⚡ PERFORMANCE: Reduced from 1s to 15s
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      return data?.isRunning ? 2000 : 15000;
+    },
     retry: false,
     staleTime: 0, // Always fetch fresh data
   });
@@ -4456,6 +4467,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
       setProgress(ipProgress.progress || 0);
       setCurrentStep(ipProgress.currentStep || 'Processing comprehensive IP analysis...');
       setIsVisible(true);
+      setIsQueued(false);
       setLastJobId('comprehensive-ip');
       
       // Handle comprehensive analysis at 100% - auto-cleanup after 3 seconds
@@ -4481,7 +4493,7 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
     // Then check for regular IP jobs
     if (jobProgress?.jobs) {
       const ipJob = jobProgress.jobs.find((job: any) => job.agentType === 'IP');
-      if (ipJob && ipJob.status === 'processing') {
+      if (ipJob && (ipJob.status === 'processing' || ipJob.status === 'queued')) {
         // Check if this is a new job or continuing existing one
         if (lastJobId && lastJobId !== ipJob.jobId) {
           // Reset state for new job
@@ -4490,7 +4502,8 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
         }
         
         setProgress(ipJob.progress || 0);
-        setCurrentStep(ipJob.currentDocument || ipJob.currentStep || 'Processing IP analysis...');
+        setIsQueued(ipJob.status === 'queued');
+        setCurrentStep(ipJob.currentDocument || ipJob.currentStep || (ipJob.status === 'queued' ? 'Queued for processing...' : 'Processing IP analysis...'));
         setIsVisible(true);
         setLastJobId(ipJob.jobId);
         
@@ -4533,26 +4546,28 @@ function IpAnalysisProgress({ dealId }: { dealId: number }) {
   }, [jobProgress, ipProgress, lastJobId, dealId]);
 
   // Extra safety check - if no IP jobs exist at all, never show progress
-  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && job.status === 'processing') || ipProgress?.isRunning;
+  const hasActiveIpJob = jobProgress?.jobs?.some((job: any) => job.agentType === 'IP' && (job.status === 'processing' || job.status === 'queued')) || ipProgress?.isRunning;
   
   if (!isVisible || !hasActiveIpJob) return null;
 
   return (
-    <div className="mb-4 p-4 bg-pink-400/10 border border-pink-400/20 rounded-lg">
+    <div className={`mb-4 p-4 ${isQueued ? 'bg-blue-500/10 border-blue-500/20' : 'bg-pink-400/10 border-pink-400/20'} border rounded-lg`}>
       <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-pink-400" />
+        <Loader2 className={`h-5 w-5 animate-spin ${isQueued ? 'text-blue-400' : 'text-pink-400'}`} />
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-pink-400">IP Analysis in Progress</span>
-            <span className="text-sm text-pink-300">{Math.round(progress)}%</span>
+            <span className={`text-sm font-medium ${isQueued ? 'text-blue-400' : 'text-pink-400'}`}>
+              {isQueued ? 'IP Analysis Queued' : 'IP Analysis in Progress'}
+            </span>
+            <span className={`text-sm ${isQueued ? 'text-blue-300' : 'text-pink-300'}`}>{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-pink-400/20 rounded-full h-2 mb-2">
+          <div className={`w-full ${isQueued ? 'bg-blue-400/20' : 'bg-pink-400/20'} rounded-full h-2 mb-2`}>
             <div 
-              className="bg-pink-400 h-2 rounded-full transition-all duration-500" 
+              className={`${isQueued ? 'bg-blue-400' : 'bg-pink-400'} h-2 rounded-full transition-all duration-500`}
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </div>
-          <div className="text-xs text-pink-300/80 truncate">
+          <div className={`text-xs ${isQueued ? 'text-blue-300/80' : 'text-pink-300/80'} truncate`}>
             {currentStep && currentStep.includes('batch') ? 
               currentStep.replace(/\s*\([^)]*documents?\)/g, '') :
               currentStep
