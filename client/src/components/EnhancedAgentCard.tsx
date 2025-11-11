@@ -467,11 +467,19 @@ export default function EnhancedAgentCard({
     // Function to get agent-specific jobs based on current agent type
     const getAgentJobs = (agentTypeToCheck: string) => {
       if (!jobProgress?.jobs) return [];
-      return jobProgress.jobs.filter((job: any) => 
-        job.agentType?.toLowerCase() === agentTypeToCheck.toLowerCase() && 
-        job.status === 'processing' &&
-        job.progress >= 0
-      );
+      const agentLower = agentTypeToCheck.toLowerCase();
+      return jobProgress.jobs.filter((job: any) => {
+        // Match by jobType pattern (e.g., 'clinical_question_rerun', 'hr_question_rerun')
+        // or jobId pattern (e.g., 'clinical-question-rerun-1-q1', 'hr-question-rerun-1-q1')
+        const matchesJobType = job.jobType === `${agentLower}_question_rerun` || 
+                              job.jobType === `comprehensive_${agentLower}_analysis`;
+        const matchesJobId = job.jobId?.includes(`${agentLower}-question-rerun-`) ||
+                            job.jobId?.includes(`${agentLower}_`);
+        
+        return (matchesJobType || matchesJobId) &&
+               job.status === 'processing' &&
+               job.progress >= 0;
+      });
     };
 
     // Universal progress bar display for any agent type
