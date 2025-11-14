@@ -233,14 +233,7 @@ class GoogleCloudStorageService {
         version: 'v4',
         action: 'write',
         expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-        contentType,
-        // Add extension headers for CORS
-        extensionHeaders: {
-          'x-goog-content-type': contentType,
-        },
-        // Use resumable upload for better CORS support
-        virtualHostedStyle: false,
-        cname: undefined,
+        contentType, // This sets the required Content-Type that must match in the upload request
       });
       
       const gcsPath = `gs://${this.bucketName}/${gcsFileName}`;
