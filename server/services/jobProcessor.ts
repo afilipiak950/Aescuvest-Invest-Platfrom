@@ -295,7 +295,7 @@ class JobProcessor {
     }
 
     this.isProcessing = true;
-    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
+    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs (NEW CODE ACTIVE)`);
 
     try {
       // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
