@@ -806,6 +806,11 @@ class JobProcessor {
     
     console.log(`🔍 MICRO-STEP 4: ZIP processing result:`, result);
     
+    // CRITICAL: Clear document cache so extracted files appear in UI immediately
+    const { storage } = await import('../storage');
+    await storage.invalidateDocumentCache(dealId);
+    console.log(`🧹 Cleared document cache for deal ${dealId} after ZIP extraction`);
+    
     await this.updateJobProgress(job.id, 100, 'ZIP processing completed');
     await this.completeJob(job.id, result);
     
