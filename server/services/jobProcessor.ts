@@ -849,7 +849,7 @@ class JobProcessor {
         success: true,
         documentsCreated: processedDocs.length,
         fileName,
-        gcsPath: gcsFileName
+        gcsPath
       });
       
       console.log(`✅ GCS ZIP extraction completed: ${processedDocs.length} documents created`);

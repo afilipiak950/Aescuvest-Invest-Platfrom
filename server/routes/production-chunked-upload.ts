@@ -333,48 +333,21 @@ router.post('/api/deals/:dealId/production-chunked/complete/:sessionId', async (
       
       // Create background job for ZIP extraction
       const jobId = await jobProcessor.createJob({
-        jobType: 'zip_extraction',
+        jobType: 'zip_processing',
         dealId: session.dealId,
-        targetId: document.id,
-        metadata: {
+        documentId: document.id,
+        status: 'pending',
+        progress: 0,
+        currentStep: 'Queued for ZIP extraction',
+        jobData: {
+          zipPath: finalPath,
           fileName: session.fileName,
-          fileSize: stats.size,
-          documentId: document.id,
-          extractionPath: finalPath
+          folderName: 'dataroom',
+          documentId: document.id
         }
       });
       
-      console.log(`✅ Created background job ${jobId} for ZIP extraction`);
-      
-      // Process ZIP in background with progress tracking
-      if (typeof zipProcessor.processZipFile === 'function') {
-        (async () => {
-          try {
-            await jobProcessor.updateJobProgress(jobId, 5, 'Preparing to extract ZIP file...');
-            
-            await zipProcessor.processZipFile(finalPath, session.dealId, 'dataroom', document.id);
-            
-            await jobProcessor.updateJobProgress(jobId, 100, 'ZIP extraction complete!');
-            await jobProcessor.completeJob(jobId, { success: true, documentId: document.id });
-            
-            // Clear cache after ZIP processing completes
-            const documentCache = (global as any).documentCache;
-            if (documentCache) {
-              const keysToDelete: string[] = [];
-              for (const key of documentCache.keys()) {
-                if (key.startsWith(`${session.dealId}-`)) {
-                  keysToDelete.push(key);
-                }
-              }
-              keysToDelete.forEach((key: string) => documentCache.delete(key));
-              console.log(`🧹 Cleared document cache for deal ${session.dealId} after ZIP processing - removed ${keysToDelete.length} cache entries`);
-            }
-          } catch (err: any) {
-            console.error('ZIP processing failed:', err);
-            await jobProcessor.completeJob(jobId, null, err.message || 'ZIP extraction failed');
-          }
-        })();
-      }
+      console.log(`✅ Created background job ${jobId} for ZIP extraction - processing will happen automatically in background`);
     }
     
     const duration = (Date.now() - session.startTime) / 1000;
