@@ -141,7 +141,7 @@ export class EmbeddingService {
       const embeddingString = `[${embedding.join(',')}]`;
       const tokenCount = chunk.split(/\s+/).length;
       
-      // Use raw SQL for pgvector insertion
+      // Use raw SQL for embedding insertion (stored as JSON per schema)
       await db.execute(sql`
         INSERT INTO document_embeddings (
           document_id, 
@@ -156,7 +156,7 @@ export class EmbeddingService {
           ${dealId},
           ${i},
           ${chunk},
-          ${embeddingString}::vector,
+          ${embeddingString}::json,
           ${tokenCount},
           ${JSON.stringify(metadata)}::jsonb
         )
