@@ -37,7 +37,11 @@ class BackgroundJobManager {
     const { db } = await import('../db');
     const { backgroundJobs } = await import('../../shared/schema');
     
+    // Generate unique job ID
+    const uniqueJobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
     const [dbJob] = await db.insert(backgroundJobs).values({
+      jobId: uniqueJobId,
       jobType: data.jobType,
       dealId: data.dealId,
       documentId: data.documentId,
