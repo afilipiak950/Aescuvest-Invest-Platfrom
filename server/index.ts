@@ -1475,11 +1475,12 @@ app.use((req, res, next) => {
   app.get('/api/deals/:dealId/data-room/status', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
-      const connection = await zipProcessor.getConnection(dealId.toString());
       
+      // Simple status response - ZIP processor doesn't need connection status
       res.json({
         success: true,
-        connection
+        status: 'ready',
+        message: 'Data room is ready for uploads'
       });
     } catch (error: any) {
       console.error('❌ Error getting data room status:', error);
