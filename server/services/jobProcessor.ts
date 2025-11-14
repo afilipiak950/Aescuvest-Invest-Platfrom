@@ -297,89 +297,105 @@ class JobProcessor {
     this.isProcessing = true;
     console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs`);
 
-    // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
-    // OPTIMIZED: Increased from 3 to 10 to handle 264+ documents efficiently
-    const MAX_CONCURRENT_JOBS = 3; // REDUCED from 10 to prevent API rate limits (Mistral/OpenAI)
-    
-    while (this.jobQueue.length > 0) {
-      // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
-      const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
+    try {
+      // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
+      // OPTIMIZED: Increased from 3 to 10 to handle 264+ documents efficiently
+      const MAX_CONCURRENT_JOBS = 3; // REDUCED from 10 to prevent API rate limits (Mistral/OpenAI)
       
-      // MEMORY MANAGEMENT: Add delay between batches to prevent memory buildup
-      if (this.processingJobs.size > 0) {
-        console.log(`⏳ Waiting 1 second between batches for memory management...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      if (batch.length === 1) {
-        // Single job - process normally
-        const job = batch[0];
-        console.log(`📋 Processing single job ${job.id}: ${job.jobType}`);
+      while (this.jobQueue.length > 0) {
+        // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
+        const batch = this.jobQueue.splice(0, Math.min(MAX_CONCURRENT_JOBS, this.jobQueue.length));
         
-        if (this.processingJobs.has(job.id)) {
-          console.log(`⏭️ Skipping job ${job.id} - already processing`);
-          continue;
+        // MEMORY MANAGEMENT: Add delay between batches to prevent memory buildup
+        if (this.processingJobs.size > 0) {
+          console.log(`⏳ Waiting 1 second between batches for memory management...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        this.processingJobs.add(job.id);
         
-        try {
-          console.log(`🎯 Executing job ${job.id}`);
-          await this.processJob(job);
-          console.log(`✅ Job ${job.id} completed successfully`);
-        } catch (error) {
-          console.error(`❌ Error processing job ${job.id}:`, error);
-          await this.completeJob(job.id, null, String(error));
-        }
-      } else {
-        // Multiple jobs - BULLETPROOF PARALLEL PROCESSING with rate limiting
-        console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
-        
-        const parallelPromises = batch.map(async (job, index) => {
-          // Stagger job starts to prevent API rate limit bursts
-          if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms between each job start
-          }
+        if (batch.length === 1) {
+          // Single job - process normally
+          const job = batch[0];
+          console.log(`📋 Processing single job ${job.id}: ${job.jobType}`);
+          
           if (this.processingJobs.has(job.id)) {
-            console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
-            return null;
+            console.log(`⏭️ Skipping job ${job.id} - already processing`);
+            continue;
           }
 
           this.processingJobs.add(job.id);
           
           try {
-            console.log(`🎯 Executing parallel job ${job.id}: ${job.jobType}`);
+            console.log(`🎯 Executing job ${job.id}`);
             await this.processJob(job);
-            console.log(`✅ Parallel job ${job.id} completed successfully`);
-            return job.id;
+            console.log(`✅ Job ${job.id} completed successfully`);
           } catch (error) {
-            console.error(`❌ Parallel job ${job.id} failed:`, error);
+            console.error(`❌ Error processing job ${job.id}:`, error);
             await this.completeJob(job.id, null, String(error));
-            return null;
+          } finally {
+            this.processingJobs.delete(job.id);
           }
-        });
-        
-        // Wait for all parallel jobs to complete
-        const results = await Promise.allSettled(parallelPromises);
-        const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-        const failed = results.length - successful;
-        
-        console.log(`🎉 BULLETPROOF BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
-        
-        if (successful > 0) {
-          console.log(`✅ PRODUCTION SAFE: ${successful} documents processed without hitting rate limits!`);
-        }
-        
-        // Force garbage collection hint after batch processing
-        if (global.gc) {
-          global.gc();
-          console.log(`🧹 Memory cleanup performed after batch`);
+        } else {
+          // Multiple jobs - BULLETPROOF PARALLEL PROCESSING with rate limiting
+          console.log(`🛡️ BULLETPROOF PROCESSING: Starting ${batch.length} jobs with rate limiting protection`);
+          
+          const parallelPromises = batch.map(async (job, index) => {
+            // Stagger job starts to prevent API rate limit bursts
+            if (index > 0) {
+              await new Promise(resolve => setTimeout(resolve, index * 200)); // 200ms between each job start
+            }
+            if (this.processingJobs.has(job.id)) {
+              console.log(`⏭️ Skipping parallel job ${job.id} - already processing`);
+              return null;
+            }
+
+            this.processingJobs.add(job.id);
+            
+            try {
+              console.log(`🎯 Executing parallel job ${job.id}: ${job.jobType}`);
+              await this.processJob(job);
+              console.log(`✅ Parallel job ${job.id} completed successfully`);
+              return job.id;
+            } catch (error) {
+              console.error(`❌ Parallel job ${job.id} failed:`, error);
+              await this.completeJob(job.id, null, String(error));
+              return null;
+            } finally {
+              this.processingJobs.delete(job.id);
+            }
+          });
+          
+          // Wait for all parallel jobs to complete
+          const results = await Promise.allSettled(parallelPromises);
+          const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+          const failed = results.length - successful;
+          
+          console.log(`🎉 BULLETPROOF BATCH COMPLETED: ${successful} successful, ${failed} failed out of ${batch.length} jobs`);
+          
+          if (successful > 0) {
+            console.log(`✅ PRODUCTION SAFE: ${successful} documents processed without hitting rate limits!`);
+          }
+          
+          // Force garbage collection hint after batch processing
+          if (global.gc) {
+            global.gc();
+            console.log(`🧹 Memory cleanup performed after batch`);
+          }
         }
       }
-    }
 
-    this.isProcessing = false;
-    console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
+      console.log(`🏁 PARALLEL queue processing completed - MASSIVE speed improvement achieved!`);
+    } catch (error) {
+      console.error(`🚨 CRITICAL: Uncaught error in processQueue:`, error);
+      console.error(`Stack trace:`, (error as Error).stack);
+    } finally {
+      this.isProcessing = false;
+      console.log(`🔓 ProcessQueue lock released - isProcessing now false`);
+      
+      if (this.jobQueue.length > 0) {
+        console.log(`📋 ${this.jobQueue.length} jobs remaining in queue - scheduling next batch`);
+        setImmediate(() => this.processQueue());
+      }
+    }
   }
 
   private async processJob(job: BackgroundJob) {
