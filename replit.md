@@ -38,7 +38,38 @@ The backend is built with Node.js and Express.js, leveraging TypeScript. Postgre
 
 ## Recent Changes (2025-11-14)
 
-### CRITICAL PRODUCTION FIX: Dataroom Upload System (COMPLETED - 2025-11-14)
+### CRITICAL PRODUCTION FIX: Job Queue Priority System (COMPLETED - 2025-11-14)
+**Issue**: ZIP upload jobs stuck behind long-running OCR/embedding tasks, zero user feedback after upload
+**Root Cause**: FIFO job queue with massive Excel file (3149 chunks) monopolizing processing slot, blocking all queued jobs
+
+**Solution - Priority-Aware Job Queue**:
+1. ✅ **Database Schema**: Added `priority INTEGER NOT NULL DEFAULT 0` to `background_jobs` table
+2. ✅ **Priority Ordering**: Modified `loadPendingJobsFromDatabase()` to ORDER BY priority DESC, created_at ASC
+3. ✅ **Queue Sorting**: Added `sortQueueByPriority()` method, called at start of `processQueue()`
+4. ✅ **Queue Reload**: Implemented `reloadQueue()` method for manual priority-based queue refresh
+5. ✅ **Priority Assignments**:
+   - ZIP Processing: 100 (highest - immediate processing)
+   - Document OCR: 10 (normal priority)
+   - Document Embedding: 0 (lowest priority)
+
+**Implementation Files**:
+- `shared/schema.ts`: Added priority field to backgroundJobs table (line 658)
+- `server/services/jobProcessor.ts`: 
+  - Added desc/asc imports for Drizzle ordering
+  - Modified loadPendingJobsFromDatabase() with ORDER BY priority DESC, created_at ASC
+  - Added sortQueueByPriority() method (lines 319-328)
+  - Added reloadQueue() method (lines 294-317)
+  - Modified processQueue() to sort by priority before processing (line 334)
+
+**Impact**:
+- ✅ ZIP jobs process IMMEDIATELY (never blocked by long-running jobs)
+- ✅ Queue automatically prioritizes critical tasks
+- ✅ Large embedding jobs no longer monopolize worker slots
+- ✅ User gets instant progress feedback after ZIP upload
+
+**Verified**: Job 2127 (zip_processing) completed successfully with 4 PDFs extracted
+
+### Dataroom Upload System (COMPLETED - 2025-11-14)
 **Issues Fixed**:
 1. **Large File Upload (>30MB)**: ZIP files not being extracted after upload
 2. **Small File Upload (<30MB)**: 500 Internal Server Error, upload completely failing

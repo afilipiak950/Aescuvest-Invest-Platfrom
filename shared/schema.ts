@@ -652,6 +652,7 @@ export const backgroundJobs = pgTable("background_jobs", {
   jobType: varchar("job_type", { length: 50 }).notNull(), // 'document_ocr', 'document_analysis', 'zip_processing', 'agent_analysis', 'document_assignment'
   status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
   progress: integer("progress").notNull().default(0), // 0-100 percentage
+  priority: integer("priority").notNull().default(0), // Job priority: ZIP=100, OCR=10, Embedding=0
   dealId: integer("deal_id").references(() => deals.id),
   documentId: integer("document_id").references(() => documents.id, { onDelete: "cascade" }),
   agentType: text("agent_type"), // For agent analysis jobs

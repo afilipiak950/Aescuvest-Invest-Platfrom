@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { documents as documentsTable } from '../../shared/schema';
 import { backgroundJobs, documents, InsertBackgroundJob, BackgroundJob } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, asc } from 'drizzle-orm';
 import { websocketManager } from './websocketManager';
 import { bulletproofRateLimiter } from './bulletproofRateLimiter';
 import fs from 'fs';
@@ -175,9 +175,11 @@ class JobProcessor {
   async loadPendingJobsFromDatabase() {
     try {
       // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
+      // ⚡ PRIORITY SYSTEM: Order by priority DESC (highest first), then created_at ASC (oldest first)
       const pendingJobs = await db.select()
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'pending'))
+        .orderBy(desc(backgroundJobs.priority), asc(backgroundJobs.createdAt))
         .limit(50); // Load up to 50 pending jobs at a time
       
       if (pendingJobs.length > 0) {
@@ -286,8 +288,47 @@ class JobProcessor {
     }
   }
 
+  async reloadQueue() {
+    console.log('♻️ Reloading job queue from database to honor updated priorities...');
+    this.jobQueue = [];
+    try {
+      const pendingJobs = await db.select()
+        .from(backgroundJobs)
+        .where(eq(backgroundJobs.status, 'pending'))
+        .orderBy(desc(backgroundJobs.priority), asc(backgroundJobs.createdAt))
+        .limit(100);
+
+      for (const job of pendingJobs) {
+        if (!this.processingJobs.has(job.id)) {
+          this.jobQueue.push(job);
+        }
+      }
+
+      if (this.jobQueue.length > 0) {
+        console.log(`✅ Reloaded queue with ${this.jobQueue.length} jobs; kicking off processing`);
+        setImmediate(() => this.processQueue());
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload job queue:', error);
+    }
+  }
+
+  private sortQueueByPriority() {
+    this.jobQueue.sort((a, b) => {
+      if ((b.priority ?? 0) !== (a.priority ?? 0)) {
+        return (b.priority ?? 0) - (a.priority ?? 0);
+      }
+      const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return aCreated - bCreated;
+    });
+  }
+
   private async processQueue() {
     console.log(`🔄 ProcessQueue called - isProcessing: ${this.isProcessing}, queueLength: ${this.jobQueue.length}`);
+    
+    // ⚡ PRIORITY SORT: Always sort queue by priority before processing
+    this.sortQueueByPriority();
     
     if (this.isProcessing || this.jobQueue.length === 0) {
       console.log(`⏸️ Skipping queue processing - isProcessing: ${this.isProcessing}, queueLength: ${this.jobQueue.length}`);
@@ -295,7 +336,7 @@ class JobProcessor {
     }
 
     this.isProcessing = true;
-    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs (NEW CODE ACTIVE)`);
+    console.log(`🚀 Starting PARALLEL queue processing with ${this.jobQueue.length} jobs (PRIORITY-SORTED)`);
 
     try {
       // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
