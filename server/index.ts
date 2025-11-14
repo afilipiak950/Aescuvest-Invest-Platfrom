@@ -9,6 +9,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { zipProcessor } from "./services/zipProcessor";
 import { backgroundJobManager } from "./services/backgroundJobManager";
+import { jobProcessor } from "./services/jobProcessor";
 import { aiProcessingTimeoutService } from "./services/aiProcessingTimeout";
 import { persistentClinicalAnalysisService } from "./services/persistentClinicalAnalysis";
 import { persistentLegalAnalysisService } from "./services/persistentLegalAnalysis";
@@ -1229,9 +1230,12 @@ app.use((req, res, next) => {
 
       console.log(`📥 GCS callback received for ${fileName} at ${gcsPath}`);
 
-      // Create background job for ZIP extraction
-      const jobId = await backgroundJobManager.createJob({
+      // Create background job for ZIP extraction using jobProcessor (triggers actual processing)
+      const jobId = await jobProcessor.createJob({
+        jobId: `job_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         jobType: 'gcs_zip_extract',
+        status: 'pending',
+        progress: 0,
         dealId: dealId,
         documentId: null,
         jobData: {
