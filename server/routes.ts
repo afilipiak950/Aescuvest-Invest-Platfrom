@@ -54,6 +54,22 @@ import { chunkedUploadService } from './services/chunkedUploadService';
 import { zipProcessor } from './services/zipProcessor';
 import { gcsService } from './services/googleCloudStorage';
 
+// In-memory cache for paginated documents (used in GET /api/deals/:dealId/documents)
+const documentCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 60 seconds
+
+// Helper function to clear paginated document cache for a deal
+function clearPaginatedDocumentCache(dealId: number): void {
+  const keysToDelete: string[] = [];
+  for (const [key] of documentCache) {
+    if (key.startsWith(`${dealId}-`)) {
+      keysToDelete.push(key);
+    }
+  }
+  keysToDelete.forEach(key => documentCache.delete(key));
+  console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
+}
+
 // Background processing function for AI evaluation
 async function processAIEvaluationForDeal(
   dealId: number, 
@@ -1181,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // ⚡ Document Cache for Dashboard Performance (5 minute cache) - Updated for pagination
-  const documentCache = new Map<string, { data: any, timestamp: number }>();
+  // Note: documentCache already defined at top of file
   
   // Make document cache globally accessible for cache clearing after ZIP uploads
   (global as any).documentCache = documentCache;
@@ -10082,18 +10098,7 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Global AI Assistant endpoints registered');
 
-  // Export function to clear paginated document cache from other modules
-  const clearPaginatedDocumentCache = (dealId: number): void => {
-    // Clear all cache entries for this deal (across all pages/limits/summary modes)
-    const keysToDelete: string[] = [];
-    for (const [key] of documentCache) {
-      if (key.startsWith(`${dealId}-`)) {
-        keysToDelete.push(key);
-      }
-    }
-    keysToDelete.forEach(key => documentCache.delete(key));
-    console.log(`📄 ✅ CLEARED paginated document cache for deal ${dealId} - removed ${keysToDelete.length} cache entries`);
-  }
+  // Note: clearPaginatedDocumentCache function is defined at top of file (line 65)
   
   // Debug endpoint to manually clear document cache
   app.post('/api/deals/:dealId/debug/clear-cache', async (req: Request, res: Response) => {
