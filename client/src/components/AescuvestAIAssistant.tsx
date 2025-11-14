@@ -204,22 +204,35 @@ export const AescuvestAIAssistant: React.FC<AescuvestAIAssistantProps> = ({ deal
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       })
-      .then(res => {
-        // Check if response is HTML (Vite blocking)
+      .then(async res => {
+        // Check if response is HTML (Vite blocking) or not OK
+        if (!res.ok) {
+          console.warn(`AI preload failed with status ${res.status}, continuing anyway`);
+          return null;
+        }
+        
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
           console.warn('Vite blocked preload endpoint, continuing anyway');
           return null;
         }
-        return res.json();
+        
+        // Safely parse JSON with try-catch
+        try {
+          return await res.json();
+        } catch (jsonError) {
+          console.warn('Failed to parse preload response as JSON, continuing anyway');
+          return null;
+        }
       })
       .then(data => {
         if (data && data.success) {
-          console.log('🚀 AI Assistant context pre-loaded:', data.contextStats);
+          console.log('🚀 AI Assistant context pre-loaded:', data.loadTime + 'ms');
         }
       })
       .catch(err => {
-        console.error('Failed to pre-load context:', err);
+        // Silent failure - preload is optional optimization
+        console.warn('AI preload request failed (non-critical):', err.message);
       })
       .finally(() => {
         // Always clear loading state

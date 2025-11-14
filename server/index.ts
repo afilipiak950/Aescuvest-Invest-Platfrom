@@ -297,6 +297,11 @@ app.use((req, res, next) => {
     console.log(`📋 Allowing JSON parsing for upload-complete: ${req.path}`);
     return express.json({ limit: '10mb' })(req, res, next);
   }
+  // Special case: Allow JSON parsing for upload negotiation & GCS callback endpoints
+  if (req.path.includes('/upload/negotiate') || req.path.includes('/upload/gcs-callback')) {
+    console.log(`📋 Allowing JSON parsing for negotiation/callback: ${req.path}`);
+    return express.json({ limit: '10mb' })(req, res, next);
+  }
   // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
   // EXCEPT for PATCH progress/status routes which need body parsing
   if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
