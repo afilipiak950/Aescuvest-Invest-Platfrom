@@ -1,100 +1,40 @@
 # Aescuvest AI Investment Platform
 
 ## Overview
-The Aescuvest AI Investment Platform is a venture capital investment platform that uses artificial intelligence for advanced investment analysis and decision-making. It aims to streamline the investment process from deal flow management to in-depth AI-powered analysis and intelligent matching, transforming complex investment data into actionable insights through intelligent technology, comprehensive research, and automated due diligence.
+The Aescuvest AI Investment Platform is a venture capital investment platform leveraging artificial intelligence for advanced investment analysis and decision-making. Its primary purpose is to streamline the investment process, from deal flow management to in-depth AI-powered analysis and intelligent matching, by transforming complex investment data into actionable insights through intelligent technology, comprehensive research, and automated due diligence. The platform aims to revolutionize venture capital investment by providing a sophisticated, AI-driven solution.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend
-- **Framework**: React 18 with TypeScript
-- **Routing**: Wouter
-- **State Management**: TanStack Query
-- **UI Components**: Shadcn/UI (built on Radix UI)
-- **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Build Tool**: Vite
+### UI/UX
+The platform utilizes React 18 with TypeScript, Wouter for routing, TanStack Query for state management, and Shadcn/UI (built on Radix UI) for UI components. Styling is managed with Tailwind CSS, and animations are handled by Framer Motion. The build process uses Vite.
 
-### Backend
-- **Runtime**: Node.js with Express.js
-- **Language**: TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
-- **File Handling**: Multer for multipart uploads
-- **Authentication**: Passport.js with Express sessions
-- **Background Processing**: Database-backed job queue with persistent progress tracking, WebSocket updates, and aggressive stuck job cleanup (auto-removes stuck jobs after 30 minutes, checks every 5 minutes)
+### Technical Implementations
+The backend is built with Node.js and Express.js, leveraging TypeScript. PostgreSQL with Drizzle ORM is used for the database. File handling incorporates Multer for multipart uploads, and authentication is managed via Passport.js with Express sessions. Background processing is handled by a database-backed job queue with persistent progress tracking, WebSocket updates, and aggressive stuck job cleanup.
 
-### Key Features
+### Feature Specifications
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
-- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. All agents use comprehensive document processing (analyzing ALL documents with AI summaries for cross-agent insights), ensuring full analysis runs match rerun quality. Features persistent question reruns with database-backed progress tracking that survives page refreshes and server restarts.
-  - **Resilient Architecture (All 7 Comprehensive Agents - Oct 2025)**: Complete architectural alignment achieved. All agents (Legal, Clinical, Commercial, HR, Financial, IP, Research) now use identical batch→synthesis flow with:
-    - **Token-based batching**: 6K token limit per batch for optimal API efficiency
-    - **Timeout hierarchy**: 90s evidence extraction → 120s batch processing → 180s final synthesis (cleaned conflicting 10s/15s sub-timeouts Oct 13, 2025)
-    - **Retry patterns**: 3-5 exponential backoff retries via resilientOpenAI wrapper
-    - **Partial result caching**: Global cache persistence with automatic recovery on synthesis failures
-    - **Rate limiting**: Centralized 50 calls/min semaphore shared across all agents
-    - **Cache cleanup**: Automatic cleanup of partial results after successful synthesis
-    - **No document limits**: All agents process ALL relevant documents (removed arbitrary limits like "top 5")
-    - **Stuck Job Prevention (Oct 12, 2025)**: Aggressive cleanup service auto-terminates stuck jobs after 360 minutes (6 hours, increased from 120 min Oct 13), with 5-minute monitoring intervals to prevent indefinite processing states
-    - **Promise Resilience (Oct 13, 2025)**: All agents use Promise.allSettled with type guards for error resilience, eliminating failures from single document errors
-    - **Database Column Fix (Oct 13, 2025 + Nov 10, 2025)**: Fixed critical bug where agent Q&A results weren't saving. Drizzle ORM expects camelCase property names (legalAnswers, clinicalAnswers, commercialAnswers) which it automatically maps to snake_case database columns (legal_answers, clinical_answers, commercial_answers). Using snake_case directly in insert/update operations causes Drizzle to silently drop the data. Fixed Legal and Clinical services (Nov 10) to use correct camelCase properties, joining Commercial which was already correct. Other agents (HR, Financial, IP, Research) use snake_case properties matching their schema definitions.
-    - **Question Rerun Error Handling (Nov 10, 2025)**: Fixed critical bug where failed question reruns left jobs stuck at 30% progress and disabled rerun buttons indefinitely. Root cause: Progress tracking endpoints returned ALL jobs (including failed ones with progress=0), preventing frontend from clearing stale progress bars. Solution implemented in two parts:
-      - **Error marking**: All 7 comprehensive agents (Clinical, Legal, Commercial, HR, Financial, IP, Research) now mark jobs as 'failed' with progress=0 in database when errors occur (e.g., OpenAI rate limits)
-      - **Progress filtering**: Modified `getAllQuestionProgress` methods to only return actively processing jobs (status='processing' and progress<100), filtering out failed/completed jobs. Frontend now receives `undefined` for failed jobs and properly clears progress bars, re-enabling retry functionality.
-    - **Progress Bar Job Matching (Nov 11, 2025)**: Fixed mount-time job detection for question reruns across all 7 agents. Created `isRerunJob()` helper function in EnhancedAgentCard.tsx that normalizes agent keys and checks both underscore (`{agent}_question_rerun`) and hyphen (`{agent}-question-rerun`) jobType formats, plus jobId pattern matching as fallback. All agents now use this helper to reliably restore progress bars after page refreshes, ensuring consistent UX across Legal, Clinical, Commercial, HR, Financial, IP, and Research agent sections.
-  - **Standardized Output Formatting (Oct 2025)**: All 7 comprehensive agents use identical markdown formatting in synthesis prompts - markdown bullets (•) for evidence lists, **bold** for key terms/metrics, and structured sections with domain-appropriate examples. Ensures consistent, readable output across all agent types.
+- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. These agents comprehensively process all documents, ensuring full analysis runs and offering persistent question reruns with database-backed progress tracking. The architecture includes token-based batching, a hierarchical timeout system, exponential backoff retries, partial result caching, centralized rate limiting, and automatic cache cleanup. Robust error handling, including Promise.allSettled with type guards and proper database column mapping, ensures resilience.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
-- **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis alignment.
+- **Matching Intelligence System**: AI-powered organization-to-deal matching based on various criteria (sector, stage, geography, check size, thesis).
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
-- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) after company research with live background progress tracking (Oct 29, 2025).
-  - **Live Progress Tracking (Oct 29, 2025)**: Real-time progress display from 0-100% during AI evaluation with granular step-by-step updates (Initializing → Gathering Data → Research → Analyzing Criteria → Complete). Progress bar shows current percentage and descriptive status text, updating every 2 seconds. Implementation includes:
-    - **Background Job System**: Persistent job tracking in PostgreSQL with 12+ progress stages (5% increments from data gathering through final scoring)
-    - **Reload Persistence**: Progress survives page refreshes via unconditional background job polling and auto-detection of in-progress jobs on mount
-    - **Race Condition Protection**: 409 conflict errors prevent concurrent evaluations, ensuring only one evaluation runs at a time per deal
-    - **Failure Recovery**: Failed jobs clear UI state, display error toasts with specific messages, invalidate cached queries, and re-enable retry button
-    - **Concurrent Run Prevention**: Static jobId per deal prevents duplicate evaluations; existing processing jobs return clear "already in progress" messages
-    - **Error Handling**: Route handler preserves custom HTTP status codes (409, 404, 500) for appropriate client-side handling and user feedback
-- **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system ensuring complete information across all 26 sections.
-  - **Stale Job Auto-Recovery (Oct 22, 2025)**: Automatic detection and recovery from ghost jobs that block memo generation. Jobs stuck for 20+ minutes without heartbeat updates are automatically marked as failed, allowing new generation to proceed. Prevents permanent blocking from crashed/stuck background jobs while protecting legitimate long-running generations via 5-minute heartbeat updates.
-  - **Live Progress Tracking (Oct 22, 2025)**: Real-time progress updates from 30% → 90% during section generation. Updates job status as each of 27 sections completes (e.g., "Generating section 5/27: Market Analysis - 52%"), with WebSocket broadcasts for immediate UI feedback. Eliminates "frozen at 30%" perception during 20-30 minute AI generation for deals with 300+ documents.
+- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) with live background progress tracking, reload persistence, and race condition protection.
+- **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system and live progress tracking with stale job auto-recovery.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
-- **Large File Upload System (Oct 30, 2025)**: Bulletproof upload infrastructure with fire-and-forget architecture for handling files up to 5GB:
-  - **Intelligent File Size Routing**: Files >30MB use chunked upload (5MB chunks), files <30MB use GCS direct upload to bypass Cloud Run's 32MB limit
-  - **Fire-and-Forget ZIP Processing (Oct 30, 2025)**: GCS upload endpoint responds within 1-2 seconds by creating background job for ZIP extraction. Eliminates 2-3 minute browser timeouts that occurred during synchronous processing.
-  - **Background Job Architecture**: New `gcs_zip_extract` job type handles asynchronous ZIP download, extraction, OCR, and AI processing with real-time progress updates (5% → 10% → 30% → 90% → 100%)
-  - **Timeout Resilience**: Removed ALL artificial timeouts from upload flow. Browser-native timeout handling supports slow connections without errors
-  - **Live Progress Tracking**: WebSocket broadcasts show extraction progress via BackgroundJobProgress component. Job state survives page refreshes and server restarts
-  - **Graceful Error Handling**: Network errors handled gracefully without blocking background processing. Failed jobs surface user-visible errors with retry options
-- **RAG Embedding System (Oct 13, 2025)**: Resilient vector embedding pipeline for instant document search with:
-  - **Timeout Protection**: 30s timeout per embedding API call using Promise.race
-  - **Retry Logic**: 3-attempt exponential backoff (2s → 4s → 8s delays) for timeout/429/5xx errors
-  - **Rate Limiting**: 500ms delay between chunk embeddings to prevent API overload
-  - **Error Classification**: Distinguishes retryable (timeout, rate limit, server errors) vs non-retryable errors
-  - **Prevents 95% Stuck Jobs**: Eliminates socket timeout failures that previously caused jobs to hang at "Adding to RAG system" step
-- **Email Inbox Integration (Oct 30, 2025)**: Persistent email configuration system with dual authentication support for automated deal flow monitoring:
-  - **Persistent Configuration Storage**: Database-backed email settings (IMAP/Microsoft OAuth) stored in system_settings table with automatic loading on server startup
-  - **Dual Authentication Support**: 
-    - **IMAP Configuration**: Support for Gmail (imap.gmail.com:993), Outlook (outlook.office365.com:993), and custom IMAP servers with SSL/TLS
-    - **Microsoft OAuth Integration**: Azure MSAL-based OAuth2 authentication for Microsoft 365 mailboxes with automatic token refresh
-  - **Configuration UI**: Comprehensive settings page (Settings → Email tab) with provider-specific setup instructions, test connection button, and real-time status display
-  - **Inbox Page Integration**: Configuration status banner with one-click link to settings when email is not configured
-  - **API Endpoints**: 
-    - GET `/api/inbox/config/status` - Check configuration status
-    - POST `/api/inbox/config` - Save IMAP configuration
-    - GET `/api/inbox/test` - Test IMAP connection
-    - GET `/api/microsoft/status` - Check Microsoft OAuth status
-  - **Setup Wizard**: Step-by-step instructions for generating App Passwords (Gmail/Outlook) with visual guidance and inline validation
-  - **Graceful Degradation**: Service handles missing configuration gracefully, allowing manual email processing as fallback
+- **Large File Upload System**: Hybrid upload infrastructure supporting files up to 5GB using intelligent routing (direct GCS signed URL for large files, direct server upload for smaller files). It includes an upload negotiation endpoint, fire-and-forget ZIP processing via a GCS callback, a background job architecture for asynchronous ZIP extraction and processing, XHR progress tracking, and graceful error handling.
+- **RAG Embedding System**: Resilient vector embedding pipeline for instant document search, featuring timeout protection, retry logic, rate limiting, and robust error classification to prevent stuck jobs.
+- **Email Inbox Integration**: Persistent email configuration system with dual authentication support (IMAP/Microsoft OAuth) for automated deal flow monitoring. It includes a comprehensive settings UI, test connection functionality, and API endpoints for configuration management.
 
-### Deployment
-- **Development**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
-- **Production**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
-- **Configuration**: Environment variables, modular service architecture.
+### System Design Choices
+- **Development Environment**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
+- **Production Environment**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
+- **Configuration**: Environment variables and a modular service architecture.
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
-- **Size Optimization**: Enhanced .dockerignore, automated cleanup, Node modules optimization, and production build pipeline for minification and tree-shaking, ensuring deployment size under 2GB.
+- **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline for minification and tree-shaking ensure deployment size under 2GB.
 
 ## External Dependencies
 
