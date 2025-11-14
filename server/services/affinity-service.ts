@@ -208,7 +208,7 @@ export class AffinityService {
   async testConnection(): Promise<{ success: boolean; user?: any; error?: string }> {
     try {
       const response = await this.rateLimitedRequest(async () => {
-        return await this.apiRequest('/v2/auth/whoami');
+        return await this.apiRequest('/auth/whoami');
       });
 
       return {
@@ -223,7 +223,7 @@ export class AffinityService {
     }
   }
 
-  // Get all persons from Affinity (direct endpoint)
+  // Get all persons from Affinity (v1 API endpoint)
   async getPersons(params: {
     cursor?: string;
     limit?: number;
@@ -232,39 +232,43 @@ export class AffinityService {
   } = {}): Promise<{ persons: AffinityPerson[]; next_cursor?: string }> {
     try {
       const searchParams = new URLSearchParams();
-      if (params.cursor) searchParams.append('cursor', params.cursor);
-      if (params.limit) searchParams.append('limit', params.limit.toString());
+      if (params.cursor) searchParams.append('page_token', params.cursor);
+      if (params.limit) searchParams.append('page_size', params.limit.toString());
       if (params.term) searchParams.append('term', params.term);
       if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
-      console.log('🔍 Affinity API Debug - Persons Request:');
-      console.log('- URL:', `/v2/persons?${searchParams.toString()}`);
+      console.log('🔍 Affinity API v1 - Persons Request:');
+      console.log('- URL:', `/persons?${searchParams.toString()}`);
       console.log('- Params:', params);
 
       const response = await this.rateLimitedRequest(async () => {
-        return await this.apiRequest(`/v2/persons?${searchParams.toString()}`);
+        return await this.apiRequest(`/persons?${searchParams.toString()}`);
       });
 
-      console.log('📊 Affinity API Debug - Persons Response:');
+      console.log('📊 Affinity API v1 - Persons Response:');
       console.log('- Response type:', typeof response);
       console.log('- Response keys:', Object.keys(response || {}));
-      console.log('- Response sample:', JSON.stringify(response, null, 2).slice(0, 500));
+      console.log('- Total persons in response:', response.persons?.length || 0);
 
-      // Transform the response to match expected format
-      const persons = response.data?.map((person: any) => ({
-        id: person.id,
-        type: 'person',
-        first_name: person.firstName,
-        last_name: person.lastName,
-        emails: person.emailAddresses || [],
-        phone_numbers: [],
-        entity_id: person.id,
-        list_entries: []
-      })) || [];
+      // v1 API returns {persons: [...], next_page_token: "..."}
+      const personsArray = response.persons || [];
+      
+      const persons = personsArray.map((person: any) => ({
+        id: String(person.id),
+        type: 'person' as const,
+        first_name: person.first_name,
+        last_name: person.last_name,
+        emails: person.emails || [],
+        phone_numbers: person.phone_numbers || [],
+        entity_id: String(person.id),
+        list_entries: person.list_entries || [],
+        field_values: person.field_values || {},
+        interaction_dates: person.interaction_dates || {}
+      }));
 
       return {
         persons,
-        next_cursor: response.pagination?.nextUrl ? new URL(response.pagination.nextUrl).searchParams.get('cursor') : null
+        next_cursor: response.next_page_token || null
       };
     } catch (error) {
       console.error('Error fetching persons:', error);
@@ -289,7 +293,7 @@ export class AffinityService {
     };
   }
 
-  // Get all organizations from Affinity using the search API
+  // Get all organizations from Affinity (v1 API endpoint)
   async getOrganizations(params: {
     cursor?: string;
     limit?: number;
@@ -297,10 +301,10 @@ export class AffinityService {
     with_interaction_dates?: boolean;
   } = {}): Promise<{ organizations: AffinityCompany[]; next_cursor?: string; total_entries?: number }> {
     try {
-      // Use the proper organizations endpoint - not lists!
+      // Use the proper organizations endpoint with v1 pagination params
       const searchParams = new URLSearchParams();
-      if (params.cursor) searchParams.append('page_token', params.cursor); // Changed from 'cursor' to 'page_token'
-      if (params.limit) searchParams.append('limit', params.limit.toString());
+      if (params.cursor) searchParams.append('page_token', params.cursor);
+      if (params.limit) searchParams.append('page_size', params.limit.toString());
       if (params.term) searchParams.append('term', params.term);
       if (params.with_interaction_dates) searchParams.append('with_interaction_dates', 'true');
 
@@ -313,35 +317,31 @@ export class AffinityService {
         return await this.apiRequest(`/organizations?${searchParams.toString()}`);
       });
 
-      console.log('📊 Affinity API Debug - Organizations Response:');
+      console.log('📊 Affinity API v1 - Organizations Response:');
       console.log('- Response type:', typeof response);
       console.log('- Response keys:', Object.keys(response || {}));
       console.log('- Total organizations in response:', response.organizations?.length || 0);
 
-      if (response.organizations && response.organizations.length > 0) {
-        const organizations = response.organizations.map((org: any) => ({
-          id: org.id,
-          name: org.name,
-          domain: org.domain,
-          domains: org.domains,
-          type: 'organization',
-          entity_id: org.id,
-          global: org.global,
-          list_entries: org.list_entries || []
-        }));
+      // v1 API returns {organizations: [...], next_page_token: "..."}
+      const orgsArray = response.organizations || [];
+      
+      const organizations = orgsArray.map((org: any) => ({
+        id: String(org.id),
+        name: org.name,
+        domain: org.domain,
+        domains: org.domains || [],
+        type: 'organization' as const,
+        entity_id: String(org.id),
+        global: org.global || false,
+        list_entries: org.list_entries || [],
+        field_values: org.field_values || {},
+        interaction_dates: org.interaction_dates || {}
+      }));
 
-        return {
-          organizations,
-          next_cursor: response.next_page_token || null,
-          total_entries: response.organizations.length
-        };
-      }
-
-      // If no organizations found, return empty result
       return {
-        organizations: [],
-        next_cursor: null,
-        total_entries: 0
+        organizations,
+        next_cursor: response.next_page_token || null,
+        total_entries: orgsArray.length
       };
     } catch (error) {
       console.error('Error fetching organizations:', error);
@@ -349,13 +349,14 @@ export class AffinityService {
     }
   }
 
-  // Get all lists from Affinity
+  // Get all lists from Affinity (v1 API endpoint)
   async getLists(): Promise<AffinityList[]> {
     const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest('/v2/lists');
+      return await this.apiRequest('/lists');
     });
 
-    return response.data || [];
+    // v1 API returns array directly
+    return Array.isArray(response) ? response : [];
   }
 
   // Get list entries for a specific list
@@ -369,7 +370,7 @@ export class AffinityService {
     if (params.limit) searchParams.append('limit', params.limit.toString());
 
     const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/lists/${listId}/list-entries?${searchParams.toString()}`);
+      return await this.apiRequest(`/lists/${listId}/list-entries?${searchParams.toString()}`);
     });
 
     return {
@@ -381,7 +382,7 @@ export class AffinityService {
   // Get field values for a list entry
   async getFieldValues(listId: string, listEntryId: string): Promise<AffinityFieldValue[]> {
     const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/lists/${listId}/list-entries/${listEntryId}/fields`);
+      return await this.apiRequest(`/lists/${listId}/list-entries/${listEntryId}/fields`);
     });
 
     return response.field_values || [];
@@ -393,7 +394,7 @@ export class AffinityService {
     value: any;
   }>): Promise<void> {
     await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/lists/${listId}/list-entries/${listEntryId}/fields`, {
+      return await this.apiRequest(`/lists/${listId}/list-entries/${listEntryId}/fields`, {
         method: 'PATCH',
         body: JSON.stringify({ field_values: fieldUpdates })
       });
@@ -415,7 +416,7 @@ export class AffinityService {
     if (params.list_id) searchParams.append('list_id', params.list_id);
 
     const response = await this.rateLimitedRequest(async () => {
-      return await this.apiRequest(`/v2/opportunities?${searchParams.toString()}`);
+      return await this.apiRequest(`/opportunities?${searchParams.toString()}`);
     });
 
     return {
@@ -598,7 +599,7 @@ export class AffinityService {
     try {
       // Try to get as person first
       const personResponse = await this.rateLimitedRequest(async () => {
-        return await this.apiRequest(`/v2/persons/${affinityId}`);
+        return await this.apiRequest(`/persons/${affinityId}`);
       });
 
       if (personResponse.person) {
@@ -608,7 +609,7 @@ export class AffinityService {
       // If person not found, try company
       try {
         const companyResponse = await this.rateLimitedRequest(async () => {
-          return await this.apiRequest(`/v2/companies/${affinityId}`);
+          return await this.apiRequest(`/organizations/${affinityId}`);
         });
 
         if (companyResponse.company) {
@@ -683,6 +684,6 @@ export function createAffinityService(apiKey: string): AffinityService {
   return new AffinityService({
     apiKey,
     baseUrl: 'https://api.affinity.co',
-    version: 'v2'
+    version: 'v1'
   });
 }

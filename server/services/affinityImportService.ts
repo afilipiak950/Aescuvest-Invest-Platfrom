@@ -269,6 +269,8 @@ export class AffinityImportService {
     let cursor: string | undefined;
     let pageCount = 0;
     let allOrganizations: any[] = [];
+    let orgs: any[] = [];
+    let totalFetched = 0;
 
     console.log(`📊 Starting organization import with cursor-based pagination...`);
 
@@ -285,12 +287,13 @@ export class AffinityImportService {
         })
       ) as any;
 
-      const orgs = result?.organizations || [];
+      orgs = result?.organizations || [];
       
       if (orgs.length > 0) {
         allOrganizations = allOrganizations.concat(orgs);
-        progress.totalOrganizations = allOrganizations.length + progress.processedOrganizations;
-        console.log(`✅ Fetched ${orgs.length} organizations (total so far: ${progress.totalOrganizations})`);
+        totalFetched += orgs.length;
+        progress.totalOrganizations = totalFetched;
+        console.log(`✅ Fetched ${orgs.length} organizations (total fetched: ${totalFetched}, processed: ${progress.processedOrganizations})`);
       }
       
       cursor = result?.next_cursor;
@@ -298,12 +301,21 @@ export class AffinityImportService {
       if (allOrganizations.length >= batchSize || !cursor) {
         await this.processBatch(allOrganizations, progress);
         allOrganizations = [];
+        
+        // Update overall progress percentage
+        if (progress.totalOrganizations > 0) {
+          progress.progress = Math.floor((progress.processedOrganizations / progress.totalOrganizations) * 100);
+        }
       }
 
     } while (cursor && orgs.length > 0);
 
     if (allOrganizations.length > 0) {
       await this.processBatch(allOrganizations, progress);
+      // Final progress update
+      if (progress.totalOrganizations > 0) {
+        progress.progress = 100;
+      }
     }
 
     console.log(`✅ Completed importing ${progress.processedOrganizations} organizations`);
