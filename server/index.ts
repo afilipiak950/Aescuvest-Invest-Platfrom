@@ -258,6 +258,86 @@ app.post('/api/deals/:dealId/ai-assistant/query', async (req: Request, res: Resp
   }
 });
 
+// 🩺 DIAGNOSTIC ENDPOINT: Check production environment and services
+app.get('/api/diagnostics', async (req, res) => {
+  try {
+    const diagnostics: any = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV || 'development',
+        isCloudRun: !!process.env.K_SERVICE,
+        isReplit: !!process.env.REPL_ID,
+        platform: process.env.K_SERVICE ? 'Cloud Run' : process.env.REPL_ID ? 'Replit' : 'Unknown'
+      },
+      environmentVariables: {
+        DATABASE_URL: !!process.env.DATABASE_URL ? '✅ SET' : '❌ MISSING',
+        OPENAI_API_KEY: !!process.env.OPENAI_API_KEY ? '✅ SET' : '❌ MISSING',
+        GOOGLE_CLOUD_CREDENTIALS: !!process.env.GOOGLE_CLOUD_CREDENTIALS ? '✅ SET' : '❌ MISSING',
+        AFFINITY_API_KEY: !!process.env.AFFINITY_API_KEY ? '✅ SET' : '❌ MISSING'
+      },
+      services: {
+        jobProcessor: 'Unknown',
+        database: 'Unknown',
+        gcsService: 'Unknown'
+      },
+      backgroundJobs: {
+        pendingCount: 0,
+        processingCount: 0
+      }
+    };
+
+    // Test Database Connection
+    try {
+      const { db } = await import('./db');
+      const { backgroundJobs } = await import('../shared/schema');
+      const { sql } = await import('drizzle-orm');
+      
+      // Quick health check query
+      await db.execute(sql`SELECT 1`);
+      diagnostics.services.database = '✅ Connected';
+      
+      // Get background job counts
+      const jobsResult = await db.select().from(backgroundJobs).limit(100);
+      const pendingJobs = jobsResult.filter((j: any) => j.status === 'pending').length;
+      const processingJobs = jobsResult.filter((j: any) => j.status === 'processing').length;
+      
+      diagnostics.backgroundJobs.pendingCount = pendingJobs;
+      diagnostics.backgroundJobs.processingCount = processingJobs;
+      diagnostics.backgroundJobs.totalInDB = jobsResult.length;
+    } catch (dbError: any) {
+      diagnostics.services.database = `❌ Error: ${dbError.message}`;
+    }
+
+    // Test Job Processor
+    try {
+      const { jobProcessor } = await import('./services/jobProcessor');
+      diagnostics.services.jobProcessor = jobProcessor ? '✅ Loaded' : '❌ Not loaded';
+    } catch (jpError: any) {
+      diagnostics.services.jobProcessor = `❌ Error: ${jpError.message}`;
+    }
+
+    // Test GCS Service (only if credentials exist)
+    if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
+      try {
+        const { gcsService } = await import('./services/googleCloudStorage');
+        await gcsService.initializeIfNeeded();
+        diagnostics.services.gcsService = '✅ Initialized';
+      } catch (gcsError: any) {
+        diagnostics.services.gcsService = `❌ Error: ${gcsError.message}`;
+      }
+    } else {
+      diagnostics.services.gcsService = '⚠️ No credentials (large file uploads will fail)';
+    }
+
+    res.json(diagnostics);
+  } catch (error: any) {
+    res.status(500).json({
+      error: 'Diagnostic check failed',
+      message: error.message
+    });
+  }
+});
+
 // 🔍 ULTRA-DEBUG: Add comprehensive 413 debugging
 app.use(debug413Middleware);
 app.use(bypass413Middleware);
