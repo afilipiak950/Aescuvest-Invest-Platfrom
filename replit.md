@@ -38,17 +38,48 @@ The backend is built with Node.js and Express.js, leveraging TypeScript. Postgre
 
 ## Recent Changes (2025-11-14)
 
-### CRITICAL PRODUCTION FIX: Dataroom ZIP Extraction (COMPLETED)
-**Issue**: After dataroom upload in production, ZIP files were not being extracted - no documents displayed, no file processing.
+### CRITICAL PRODUCTION FIX: Dataroom Upload System (COMPLETED - 2025-11-14)
+**Issues Fixed**:
+1. **Large File Upload (>30MB)**: ZIP files not being extracted after upload
+2. **Small File Upload (<30MB)**: 500 Internal Server Error, upload completely failing
+3. **Body Parser Interference**: Global middleware blocking Multer and raw chunk uploads
 
-**Root Cause**: Job type mismatch between job creation (`zip_extraction`) and job processor (no handler for that type).
+**Root Causes**:
+1. Job type mismatch (`zip_extraction` created but no processor existed)
+2. Small file route registered after Vite middleware
+3. Global middleware consuming request bodies before Multer could process them
 
-**Fix Applied**:
-- Changed job type from `zip_extraction` → `zip_processing` in production-chunked-upload.ts
-- Removed redundant manual processing code (background job handles it automatically)
-- Verified all other upload routes use correct job types
+**Fixes Applied**:
 
-**Impact**: ZIP extraction now works correctly for all dataroom uploads (production + development).
+**1. Large File Upload Fix** (production-chunked-upload.ts):
+- Changed job type from `zip_extraction` → `zip_processing`
+- Removed redundant manual processing (background job handles it)
+
+**2. Small File Upload Route** (server/index.ts lines 1287-1384):
+- Moved from server/routes.ts to server/index.ts (before setupVite())
+- Creates document record and background job with `zip_processing` job type
+- Fixed negotiation endpoint field name (`zipFile`)
+
+**3. Deny-List Body Parser Middleware** (server/index.ts lines 298-327):
+- Implemented deny-list approach: skip parsers ONLY for raw/multipart routes
+- All other routes automatically get JSON + URL-encoded parsing
+- **7 routes skip parsers** (raw stream/multipart handling):
+  1. `/api/deals/[^/]+/data-room/upload-zip` - Multer multipart
+  2. `/api/deals/[^/]+/upload-zip` - Multer multipart
+  3. `/api/deals/[^/]+/ultra-bypass-upload` - Raw stream
+  4. `/api/deals/[^/]+/production-chunked/chunk` - Raw chunk
+  5. `/api/deals/[^/]+/chunked-upload/chunk` - Raw chunk
+  6. `/api/deals/[^/]+/persistent-uploads/[^/]+/chunk` - Raw chunk
+  7. `/api/deals/[^/]+/data-room/upload-zip/chunk` - Raw chunk
+- Uses `[^/]+` pattern to match both integer and slug-style deal IDs
+- **All other upload routes** (negotiation, init/complete, GCS helpers) get JSON parsing
+
+**Impact**: Complete fix for all dataroom upload paths:
+- ✅ Small file uploads (<30MB) via direct multipart
+- ✅ Large file uploads (>30MB) via GCS signed URL
+- ✅ Chunked uploads (legacy and production)
+- ✅ Persistent upload resumption
+- ✅ All negotiation and callback endpoints
 
 ### Affinity Import System Implementation (In Progress)
 **Goal**: Import ALL investors from Affinity API for intelligent deal-to-investor matching.

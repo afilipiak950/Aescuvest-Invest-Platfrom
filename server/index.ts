@@ -292,52 +292,39 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🚨 CRITICAL: Completely skip Express body parsers for upload routes
+// 🚨 CRITICAL: Deny-list body parser middleware
+// Strategy: Skip parsers ONLY for routes that need raw/multipart handling
+// All other routes get JSON + URL-encoded parsing
 app.use((req, res, next) => {
-  // Special case: Allow JSON parsing for upload-complete endpoint
-  if (req.path.includes('/upload-complete')) {
-    console.log(`📋 Allowing JSON parsing for upload-complete: ${req.path}`);
-    return express.json({ limit: '10mb' })(req, res, next);
+  // DENY-LIST: Routes that MUST skip built-in parsers (use [^/]+ to match integers AND slugs)
+  // IMPORTANT: Add ALL raw body streaming routes here to prevent parser interference
+  const skipPatterns = [
+    /^\/api\/deals\/[^/]+\/data-room\/upload-zip$/,          // Multer multipart upload
+    /^\/api\/deals\/[^/]+\/upload-zip$/,                      // Multer multipart upload
+    /^\/api\/deals\/[^/]+\/ultra-bypass-upload$/,             // Raw stream upload
+    /^\/api\/deals\/[^/]+\/production-chunked\/chunk$/,       // Raw production chunk upload
+    /^\/api\/deals\/[^/]+\/chunked-upload\/chunk$/,           // Raw legacy chunk upload
+    /^\/api\/deals\/[^/]+\/persistent-uploads\/[^/]+\/chunk$/, // Raw persistent upload chunk
+    /^\/api\/deals\/[^/]+\/data-room\/upload-zip\/chunk$/     // Raw data-room chunk upload
+  ];
+  
+  // Check if route needs parsers skipped
+  if (skipPatterns.some(rx => rx.test(req.path))) {
+    console.log(`🔧 Skipping parsers for raw/multipart route: ${req.path}`);
+    return next(); // Skip to Multer or raw handler middleware
   }
-  // Special case: Allow JSON parsing for upload negotiation & GCS callback endpoints
-  if (req.path.includes('/upload/negotiate') || req.path.includes('/upload/gcs-callback')) {
-    console.log(`📋 Allowing JSON parsing for negotiation/callback: ${req.path}`);
-    return express.json({ limit: '10mb' })(req, res, next);
-  }
-  // PRODUCTION FIX: Completely skip ALL body parsing for upload routes
-  // EXCEPT for PATCH progress/status routes which need body parsing
-  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
-    console.log(`🔧 BYPASSING body parsing for upload route: ${req.path}`);
-    return next();
-  }
-  // Apply minimal body parsers for non-upload routes only
-  express.json({ limit: '10mb' })(req, res, next); // Small limit for API routes
-});
-
-app.use((req, res, next) => {
-  // PRODUCTION FIX: Completely skip ALL body parsing for upload routes  
-  // EXCEPT for PATCH progress/status routes which need body parsing
-  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
-    return next();
-  }
-  // Apply minimal URL-encoded parser for non-upload routes only
-  express.urlencoded({ limit: '10mb', extended: true })(req, res, next); // Small limit for forms
-});
-
-// COMPLETELY SKIP raw parser for upload routes
-app.use((req, res, next) => {
-  // Skip raw parsing for upload routes but allow PATCH persistent-upload routes
-  if ((req.path.includes('/upload') || req.path.includes('/data-room') || req.path.includes('zip'))
-      && !(req.method === 'PATCH' && req.path.includes('/persistent-uploads/'))) {
-    return next(); // Skip raw parsing too
-  }
+  
+  // Webhooks need raw parser
   if (req.path.includes('/api/webhooks')) {
-    express.raw({ limit: '10mb', type: '*/*' })(req, res, next);
-  } else {
-    next();
+    console.log(`📋 Applying raw parser for webhook: ${req.path}`);
+    return express.raw({ limit: '10mb', type: '*/*' })(req, res, next);
   }
+  
+  // All other routes get JSON + URL-encoded parsing
+  express.json({ limit: '10mb' })(req, res, (err) => {
+    if (err) return next(err);
+    express.urlencoded({ limit: '10mb', extended: true })(req, res, next);
+  });
 });
 
 // 🚨 CRITICAL: Error handling middleware to catch and prevent 413 errors
@@ -1196,7 +1183,7 @@ app.use((req, res, next) => {
           instructions: {
             method: 'POST',
             contentType: 'multipart/form-data',
-            field: 'file'
+            field: 'zipFile'
           }
         });
       }
@@ -1277,6 +1264,108 @@ app.use((req, res, next) => {
     }
   });
   console.log('✅ GCS callback endpoint registered successfully');
+
+  // 🚨 CRITICAL: Direct upload route for small files (<30MB)
+  // MUST be registered BEFORE setupVite() to avoid middleware interference
+  console.log('🚀 Registering small file upload endpoint: POST /api/deals/:dealId/data-room/upload-zip');
+  app.post('/api/deals/:dealId/data-room/upload-zip', async (req: Request, res: Response) => {
+    console.log('🎯 SMALL FILE UPLOAD HANDLER EXECUTING');
+    
+    // Import multer for file uploads
+    const multer = await import('multer');
+    const upload = multer.default({
+      dest: path.join(process.cwd(), 'uploads', 'temp'),
+      limits: {
+        fileSize: 30 * 1024 * 1024 // 30MB max for direct uploads
+      }
+    });
+    
+    // Use multer middleware
+    upload.single('zipFile')(req, res, async (err: any) => {
+      if (err) {
+        console.error('❌ MULTER ERROR:', err);
+        return res.status(400).json({
+          success: false,
+          error: `Upload failed: ${err.message}`
+        });
+      }
+      
+      try {
+        const dealId = parseInt(req.params.dealId);
+        const file = req.file;
+        const folderName = req.body?.folderName || 'Data Room';
+        
+        if (!file) {
+          return res.status(400).json({
+            success: false,
+            error: 'No file provided'
+          });
+        }
+        
+        console.log(`📦 Small file upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+        
+        if (!file.originalname.toLowerCase().endsWith('.zip')) {
+          fs.unlinkSync(file.path);
+          return res.status(400).json({
+            success: false,
+            error: 'File must be a ZIP archive'
+          });
+        }
+        
+        // Create document record for the ZIP file
+        const document = await db.insert(documentsTable).values({
+          dealId,
+          name: file.originalname,
+          content: file.path,
+          uploadStatus: 'processing' as const,
+          processingStatus: 'pending' as const,
+          type: 'dataroom' as const,
+          uploadDate: new Date(),
+          fileSize: file.size,
+          assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
+        }).returning();
+        
+        const doc = Array.isArray(document) ? document[0] : document;
+        console.log(`📄 Document created with ID: ${doc.id}`);
+        
+        // Create background job for ZIP processing
+        const jobId = await jobProcessor.createJob({
+          jobType: 'zip_processing',
+          dealId,
+          documentId: doc.id,
+          status: 'pending',
+          progress: 0,
+          currentStep: 'Queued for ZIP extraction',
+          jobData: {
+            zipPath: file.path,
+            fileName: file.originalname,
+            folderName,
+            documentId: doc.id
+          }
+        });
+        
+        console.log(`✅ Created background job ${jobId} for ZIP processing`);
+        
+        return res.json({
+          success: true,
+          message: 'ZIP file uploaded successfully, extraction queued',
+          documentId: doc.id,
+          jobId,
+          fileName: file.originalname,
+          fileSize: file.size
+        });
+        
+      } catch (error: any) {
+        console.error('❌ Small file upload failed:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to process upload',
+          details: error.message
+        });
+      }
+    });
+  });
+  console.log('✅ Small file upload endpoint registered successfully');
 
   // Get data room connection status
   app.get('/api/deals/:dealId/data-room/status', async (req: Request, res: Response) => {
