@@ -1349,7 +1349,13 @@ app.use((req, res, next) => {
   // MUST be registered BEFORE setupVite() to avoid middleware interference
   console.log('🚀 Registering small file upload endpoint: POST /api/deals/:dealId/data-room/upload-zip');
   app.post('/api/deals/:dealId/data-room/upload-zip', async (req: Request, res: Response) => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🎯 SMALL FILE UPLOAD HANDLER EXECUTING');
+    console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+    console.log('☁️ Platform:', process.env.K_SERVICE ? 'Cloud Run' : 'Replit');
+    console.log('📍 Request Path:', req.path);
+    console.log('📦 Content-Type:', req.headers['content-type']);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     // Import multer for file uploads
     const multer = await import('multer');
@@ -1382,7 +1388,10 @@ app.use((req, res, next) => {
           });
         }
         
-        console.log(`📦 Small file upload: ${file.originalname} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+        console.log(`✅ File received successfully!`);
+        console.log(`   📁 Filename: ${file.originalname}`);
+        console.log(`   📏 Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
+        console.log(`   📂 Temp Path: ${file.path}`);
         
         if (!file.originalname.toLowerCase().endsWith('.zip')) {
           fs.unlinkSync(file.path);
@@ -1406,9 +1415,12 @@ app.use((req, res, next) => {
         }).returning();
         
         const doc = Array.isArray(document) ? document[0] : document;
-        console.log(`📄 Document created with ID: ${doc.id}`);
+        console.log(`✅ Document created successfully!`);
+        console.log(`   🆔 Document ID: ${doc.id}`);
+        console.log(`   📋 Deal ID: ${dealId}`);
         
         // Create background job for ZIP processing
+        console.log('🔄 Creating background job for ZIP extraction...');
         const jobId = await jobProcessor.createJob({
           jobType: 'zip_processing',
           dealId,
