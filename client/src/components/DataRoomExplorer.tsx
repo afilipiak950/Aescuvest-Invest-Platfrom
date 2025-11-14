@@ -1303,11 +1303,15 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   // Delete files mutation with optimistic updates and immediate UI refresh
   const deleteFilesMutation = useMutation({
     mutationFn: async (fileIds: number[]) => {
-      return await apiRequest(`/api/documents/delete`, {
+      console.log('🔥 DELETE MUTATION CALLED with fileIds:', fileIds);
+      console.log('🔥 Sending DELETE request to /api/documents/delete');
+      const result = await apiRequest(`/api/documents/delete`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileIds })
       });
+      console.log('✅ DELETE request completed, result:', result);
+      return result;
     },
     onMutate: async (fileIds) => {
       // Cancel any outgoing refetches to prevent race conditions
@@ -1700,10 +1704,20 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   };
 
   const handleDeleteSelected = () => {
-    if (selectedFiles.size === 0) return;
+    console.log('🗑️ handleDeleteSelected called, selectedFiles:', selectedFiles.size);
+    if (selectedFiles.size === 0) {
+      console.log('❌ No files selected, aborting delete');
+      return;
+    }
+    
+    const fileIdsToDelete = Array.from(selectedFiles);
+    console.log('🗑️ About to delete file IDs:', fileIdsToDelete);
     
     if (confirm(`Delete ${selectedFiles.size} selected files? This action cannot be undone.`)) {
-      deleteFilesMutation.mutate(Array.from(selectedFiles));
+      console.log('✅ User confirmed deletion, calling mutation...');
+      deleteFilesMutation.mutate(fileIdsToDelete);
+    } else {
+      console.log('❌ User cancelled deletion');
     }
   };
 
