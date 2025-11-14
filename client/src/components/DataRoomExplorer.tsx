@@ -1586,15 +1586,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
           status: 'Starting background extraction...'
         });
         
+        console.log('📍 STEP 3: Calling GCS callback endpoint with JSON payload...');
+        const callbackPayload = {
+          sessionId: negotiation.sessionId,
+          gcsPath: negotiation.gcsPath,
+          fileName: file.name,
+          folderName: 'Data Room' // Default to Data Room folder
+        };
+        console.log('📦 Callback payload:', callbackPayload);
+        
         const callbackResponse = await fetch(`/api/deals/${dealId}/upload/gcs-callback`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            sessionId: negotiation.sessionId,
-            gcsPath: negotiation.gcsPath,
-            fileName: file.name,
-            folderName: 'Data Room' // Default to Data Room folder
-          })
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(callbackPayload)
         });
         
         if (!callbackResponse.ok) {
