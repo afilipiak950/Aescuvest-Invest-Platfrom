@@ -33,6 +33,17 @@ import { gcsService } from './services/googleCloudStorage';
 
 const app = express();
 
+// 🚨 CRITICAL FIX: Create upload temp directory for Cloud Run
+// Cloud Run's ephemeral filesystem doesn't have this directory by default
+// This MUST happen before Multer is configured
+const uploadTempDir = path.join(process.cwd(), 'uploads', 'temp');
+if (!fs.existsSync(uploadTempDir)) {
+  fs.mkdirSync(uploadTempDir, { recursive: true });
+  console.log(`✅ Created upload temp directory: ${uploadTempDir}`);
+} else {
+  console.log(`✅ Upload temp directory exists: ${uploadTempDir}`);
+}
+
 // ⚡ CRITICAL: Health check MUST be FIRST for Cloud Run to recognize service is ready
 // Cloud Run requires immediate response from health endpoint, BEFORE any middleware
 app.get('/health', (req: Request, res: Response) => {
@@ -1281,8 +1292,9 @@ app.use((req, res, next) => {
   // 🎯 GCS CALLBACK ENDPOINT - Triggers background ZIP extraction after GCS upload
   // CRITICAL: Must be registered BEFORE setupVite() to avoid middleware interference
   console.log('🚀 Registering GCS callback endpoint: POST /api/deals/:dealId/upload/gcs-callback');
-  app.post('/api/deals/:dealId/upload/gcs-callback', async (req: Request, res: Response) => {
+  app.post('/api/deals/:dealId/upload/gcs-callback', express.json({ limit: '5mb' }), async (req: Request, res: Response) => {
     console.log('🎯 GCS CALLBACK HANDLER EXECUTING - Background job creation starting');
+    console.log('📦 Request body:', JSON.stringify(req.body));
     try {
       const dealId = parseInt(req.params.dealId);
       const { sessionId, gcsPath, fileName, folderName } = req.body;
