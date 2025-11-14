@@ -56,7 +56,7 @@ import { gcsService } from './services/googleCloudStorage';
 
 // In-memory cache for paginated documents (used in GET /api/deals/:dealId/documents)
 const documentCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 60 * 1000; // 60 seconds
+const CACHE_TTL = 10 * 1000; // 10 seconds for instant updates
 
 // Helper function to clear paginated document cache for a deal
 function clearPaginatedDocumentCache(dealId: number): void {
@@ -1220,9 +1220,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cacheKey = `${dealId}-${page}-${limit}-${summary}`;
       const cached = documentCache.get(cacheKey);
       
-      if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) { // 5 minute cache
+      if (cached && (Date.now() - cached.timestamp) < 10 * 1000) { // 10 second cache for instant updates
         console.log(`⚡ Using cached documents for deal ${dealId} page ${page} (${cached.data.documents.length} docs)`);
         res.setHeader('X-Cache', 'HIT');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         return res.status(200).json(cached.data);
       }
       
@@ -1241,6 +1244,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`📄 Documents fetch completed for deal ${dealId} page ${page}: ${result.documents.length}/${result.total} docs in ${totalTime}ms (DB: ${dbEndTime - dbStartTime}ms) - PAGINATED`);
       
       res.setHeader('X-Cache', 'MISS');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       return res.status(200).json(result);
     } catch (error) {
       const totalTime = Date.now() - startTime;
