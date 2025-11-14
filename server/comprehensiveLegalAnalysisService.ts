@@ -1020,36 +1020,123 @@ Respond in JSON:
   }
 
   /**
-   * Generate comprehensive findings - ALIGNED WITH Financial/Clinical agents
-   * CRITICAL FIX: Removed vague "Insufficient information" disclaimers that made answers look incomplete
+   * Generate comprehensive findings - FIXED: Comprehensive coverage and proper risk classification
+   * Follows architect guidance: emit findings for ALL questions, classify risks properly, show full content
    */
   private generateComprehensiveLegalFindings(answers: Record<string, any>): any[] {
     const findings = [];
+    let findingIdCounter = 1; // Use counter to ensure unique IDs
+    
+    // Risk keywords for classification
+    const RISK_KEYWORDS = [
+      'litigation', 'lawsuit', 'dispute', 'claim', 'violation', 'non-compliance',
+      'breach', 'penalty', 'fine', 'risk', 'concern', 'liability', 'exposure',
+      'infringement', 'lawsuit', 'complaint', 'enforcement', 'sanction',
+      'default', 'termination', 'insufficient', 'missing', 'gap', 'lacking'
+    ];
+    
+    const RISK_CATEGORIES = ['litigation & legal risks', 'regulatory compliance'];
     
     for (const [questionId, answer] of Object.entries(answers)) {
       const question = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
       if (!question) continue;
       
-      // High confidence findings - show full answer like Financial agent
-      if (answer.confidence > 70) {
-        findings.push({
-          id: findings.length + 1,
-          type: 'positive',
-          content: `${question.question}: ${answer.answer.substring(0, 150)}...`,
-          source: answer.sources.length > 0 ? answer.sources[0] : 'Legal Documents',
-          confidence: answer.confidence / 100,
-          category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-          evidenceCount: answer.evidenceCount || 0
+      // Check for meaningful gaps (not just empty array or generic placeholders)
+      const GAP_PLACEHOLDERS = [
+        'no gaps identified',
+        'none',
+        'n/a',
+        'none noted',
+        'no missing information',
+        'complete',
+        'sufficient',
+        'adequate'
+      ];
+      
+      const hasMeaningfulGaps = answer.gaps && 
+        Array.isArray(answer.gaps) && 
+        answer.gaps.length > 0 &&
+        answer.gaps.some((gap: string) => {
+          if (!gap || !gap.trim()) return false;
+          const normalizedGap = gap.trim().toLowerCase();
+          // Ignore placeholder text
+          return !GAP_PLACEHOLDERS.some(placeholder => normalizedGap.includes(placeholder));
         });
+      
+      // Negation-aware negative signal detection (architect-approved hybrid approach)
+      const NEGATIVE_SIGNALS = [
+        'litigation pending',
+        'lawsuit filed',
+        'violation identified',
+        'breach detected',
+        'non-compliant',
+        'compliance violation',
+        'regulatory breach',
+        'ongoing dispute',
+        'legal claim',
+        'infringement detected',
+        'penalty imposed',
+        'enforcement action'
+      ];
+      
+      const NEGATION_WORDS = ['no', 'not', 'without', 'none', 'neither', 'never'];
+      
+      const answerText = (answer.answer || '').toLowerCase();
+      const hasNegativeSignals = NEGATIVE_SIGNALS.some(signal => {
+        const signalIndex = answerText.indexOf(signal);
+        if (signalIndex === -1) return false;
+        
+        // Check for negation words within 10 characters before the signal
+        const precedingText = answerText.substring(Math.max(0, signalIndex - 10), signalIndex);
+        const hasNegation = NEGATION_WORDS.some(neg => precedingText.includes(neg));
+        
+        // Only count as negative signal if NOT negated
+        return !hasNegation;
+      });
+      
+      // Normalize and validate confidence to prevent NaN
+      const rawConfidence = answer.confidence ?? 0;
+      const clampedConfidence = Math.max(0, Math.min(100, rawConfidence)); // Clamp to [0, 100]
+      const normalizedConfidence = clampedConfidence / 100; // Convert to decimal [0, 1]
+      
+      // Hybrid risk classification (architect-approved)
+      // Classify as risk when: (1) meaningful gaps exist OR (2) negation-aware negative signals detected
+      let findingType: 'positive' | 'risk';
+      if (hasMeaningfulGaps || hasNegativeSignals) {
+        findingType = 'risk';
+      } else {
+        findingType = 'positive';
       }
       
-      // REMOVED: Vague "Insufficient legal information" disclaimers
-      // The answer.gaps field already contains specific gap information
-      // Adding generic disclaimers made answers look incomplete and unprofessional
-      // Now matches Financial/Clinical agent behavior
+      // Generate one comprehensive finding per question with full content
+      findings.push({
+        id: findingIdCounter++, // Use counter for unique IDs
+        type: findingType,
+        content: `${question.question}: ${answer.answer || 'No detailed analysis available'}`,
+        source: answer.sources.length > 0 ? answer.sources[0] : 'Legal Documents',
+        confidence: normalizedConfidence,
+        category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        evidenceCount: answer.evidenceCount || 0
+      });
+      
+      // ALSO generate granular findings from keyFindings for better coverage
+      // Use same classification logic as main finding (no keyword check)
+      if (answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0) {
+        for (const keyFinding of answer.keyFindings) {
+          findings.push({
+            id: findingIdCounter++, // Use counter for unique IDs
+            type: findingType, // Use same type as parent question finding
+            content: keyFinding,
+            source: answer.sources.length > 0 ? answer.sources[0] : 'Legal Documents',
+            confidence: normalizedConfidence,
+            category: question.category.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+            evidenceCount: 1
+          });
+        }
+      }
     }
     
-    console.log(`📊 Generated ${findings.length} comprehensive legal findings`);
+    console.log(`📊 Generated ${findings.length} comprehensive legal findings (${findings.filter(f => f.type === 'risk').length} risks, ${findings.filter(f => f.type === 'positive').length} positive)`);
     return findings;
   }
   
