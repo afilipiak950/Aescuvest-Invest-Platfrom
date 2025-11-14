@@ -1288,12 +1288,11 @@ app.use((req, res, next) => {
         const document = await db.insert(documentsTable).values({
           dealId,
           name: file.originalname,
-          content: file.path,
-          uploadStatus: 'processing' as const,
-          processingStatus: 'pending' as const,
+          path: file.path,
+          status: 'Pending',
+          size: file.size,
           type: 'dataroom' as const,
-          uploadDate: new Date(),
-          fileSize: file.size,
+          uploadedAt: new Date(),
           assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
         }).returning();
         
