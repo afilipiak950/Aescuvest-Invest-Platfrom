@@ -1593,7 +1593,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
             sessionId: negotiation.sessionId,
             gcsPath: negotiation.gcsPath,
             fileName: file.name,
-            folderName: currentFolder === 'Data Room' ? '' : currentFolder // Use current folder or root
+            folderName: 'Data Room' // Default to Data Room folder
           })
         });
         
@@ -1618,7 +1618,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         console.log(`🚀 Using direct upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
         
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('zipFile', file); // ✅ FIXED: Server expects 'zipFile' not 'file'
         formData.append('dealId', dealId.toString());
         
         // Use existing mutation for small files
@@ -2087,7 +2087,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       )}
 
       {/* Document Assignment Progress Bar */}
-      {backgroundJobs && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) && backgroundJobs.jobs.some((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
+      {backgroundJobs && typeof backgroundJobs === 'object' && 'jobs' in backgroundJobs && Array.isArray(backgroundJobs.jobs) && backgroundJobs.jobs.some((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')) && (
         <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
           {backgroundJobs.jobs.filter((job: any) => job.jobType === 'document_assignment' && (job.status === 'processing' || job.status === 'pending')).map((job: any) => (
             <div key={job.jobId}>
