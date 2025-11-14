@@ -38,6 +38,18 @@ The backend is built with Node.js and Express.js, leveraging TypeScript. Postgre
 
 ## Recent Changes (2025-11-14)
 
+### CRITICAL PRODUCTION FIX: Dataroom ZIP Extraction (COMPLETED)
+**Issue**: After dataroom upload in production, ZIP files were not being extracted - no documents displayed, no file processing.
+
+**Root Cause**: Job type mismatch between job creation (`zip_extraction`) and job processor (no handler for that type).
+
+**Fix Applied**:
+- Changed job type from `zip_extraction` → `zip_processing` in production-chunked-upload.ts
+- Removed redundant manual processing code (background job handles it automatically)
+- Verified all other upload routes use correct job types
+
+**Impact**: ZIP extraction now works correctly for all dataroom uploads (production + development).
+
 ### Affinity Import System Implementation (In Progress)
 **Goal**: Import ALL investors from Affinity API for intelligent deal-to-investor matching.
 
