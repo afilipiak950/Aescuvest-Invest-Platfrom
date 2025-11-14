@@ -5275,10 +5275,10 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         return res.status(400).json({ success: false, error: 'Invalid deal ID' });
       }
 
-      // Get running background jobs from storage with error handling
+      // Get background jobs with active statuses (pending, processing, completed) from storage
       let jobs = [];
       try {
-        const dbJobs = await storage.getRunningBackgroundJobs(dealId);
+        const dbJobs = await storage.getBackgroundJobsByStatus(dealId, ['pending', 'processing', 'completed']);
         
         // Transform to expected format
         jobs = dbJobs.map(job => {
