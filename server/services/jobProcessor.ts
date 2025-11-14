@@ -299,7 +299,7 @@ class JobProcessor {
 
     // 🔥 OPTIMIZED PROCESSING: Process up to 10 jobs simultaneously for faster processing
     // OPTIMIZED: Increased from 3 to 10 to handle 264+ documents efficiently
-    const MAX_CONCURRENT_JOBS = 10; // Balanced limit for speed vs stability
+    const MAX_CONCURRENT_JOBS = 3; // REDUCED from 10 to prevent API rate limits (Mistral/OpenAI)
     
     while (this.jobQueue.length > 0) {
       // Take up to MAX_CONCURRENT_JOBS from the queue for parallel processing
