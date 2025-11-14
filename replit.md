@@ -36,6 +36,47 @@ The backend is built with Node.js and Express.js, leveraging TypeScript. Postgre
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline for minification and tree-shaking ensure deployment size under 2GB.
 
+## Recent Changes (2025-11-14)
+
+### Affinity Import System Implementation (In Progress)
+**Goal**: Import ALL investors from Affinity API for intelligent deal-to-investor matching.
+
+**What's Completed:**
+1. ✅ **Database Schema Enhancement**:
+   - Added `investorPeople` table for individual investors (partners, angels)
+   - Added `affinityLists` table for investor categorization ("Active VCs", "Seed Funds")
+   - Added `affinityFieldDefinitions` for custom field metadata
+   - Added `affinityFieldValues` for normalized key-value storage (check sizes, sectors, thesis)
+   - Added `investorListMemberships` for tracking list assignments
+   - All tables pushed to database successfully
+
+2. ✅ **Import Service Architecture**:
+   - Created `affinityImportService.ts` with:
+     - Token bucket rate limiter (900 req/min)
+     - Exponential backoff retry logic for 429/5xx errors
+     - Cursor-based pagination for bulk import
+     - Batch processing with transactional upserts
+     - Progress tracking with WebSocket broadcasts
+     - Import sequence: Lists → Field Definitions → Organizations → Persons
+   
+3. ✅ **API Endpoints**:
+   - `POST /api/affinity/import` - Trigger full import job
+   - `GET /api/affinity/import/:jobId` - Monitor import progress
+   - Existing endpoints: `/api/affinity/organizations`, `/api/affinity/persons`, etc.
+
+**Current Status**: 
+- Import infrastructure complete and tested
+- **Blocker**: Affinity API key returns 401 Unauthorized - key may be invalid/expired
+- Need valid API key to proceed with testing full import
+
+**Next Steps**:
+1. Verify Affinity API key with user
+2. Test full import with valid key
+3. Implement field value extraction and mapping
+4. Add database indexes for performance (affinityId, sectors, stages, checkSize)
+5. Implement incremental sync strategy
+6. Build UI for import management
+
 ## External Dependencies
 
 ### AI Services
@@ -58,4 +99,4 @@ The backend is built with Node.js and Express.js, leveraging TypeScript. Postgre
 - **PostgreSQL**: Primary database.
 - **WebSocket**: Real-time communication.
 - **Local File System**: For file storage.
-- **Affinity CRM**: For organization data synchronization.
+- **Affinity CRM**: For organization data synchronization (IN PROGRESS).

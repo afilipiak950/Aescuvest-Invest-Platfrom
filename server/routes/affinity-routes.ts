@@ -476,5 +476,55 @@ export function registerAffinityRoutes(app: Express) {
     }
   });
 
+  // Trigger full Affinity import
+  app.post('/api/affinity/import', async (req: Request, res: Response) => {
+    try {
+      const { affinityImportService } = await import('../services/affinityImportService');
+      
+      const options = {
+        syncOrganizations: req.body.syncOrganizations !== false,
+        syncPersons: req.body.syncPersons !== false,
+        syncLists: req.body.syncLists !== false,
+        syncFields: req.body.syncFields !== false,
+        batchSize: req.body.batchSize || 100
+      };
+
+      const jobId = await affinityImportService.startFullImport(options);
+      
+      res.json({
+        success: true,
+        jobId,
+        message: 'Import job started successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to start import'
+      });
+    }
+  });
+
+  // Get import job status
+  app.get('/api/affinity/import/:jobId', async (req: Request, res: Response) => {
+    try {
+      const { affinityImportService } = await import('../services/affinityImportService');
+      const jobId = parseInt(req.params.jobId);
+      
+      const job = await affinityImportService.getJobStatus(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+
+      res.json({
+        success: true,
+        job
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to get job status'
+      });
+    }
+  });
+
   console.log('✅ Affinity CRM API routes registered successfully');
 }

@@ -1174,6 +1174,150 @@ export const insertComprehensiveHrAnalysisSchema = createInsertSchema(comprehens
 export type ComprehensiveHrAnalysis = typeof comprehensiveHrAnalyses.$inferSelect;
 export type InsertComprehensiveHrAnalysis = z.infer<typeof insertComprehensiveHrAnalysisSchema>;
 
+// Investor People table for individual investors (partners, angels, etc.)
+export const investorPeople = pgTable("investor_people", {
+  id: serial("id").primaryKey(),
+  affinityId: text("affinity_id").notNull().unique(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  fullName: text("full_name").notNull(),
+  emails: text("emails").array().default([]),
+  phoneNumbers: text("phone_numbers").array().default([]),
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+  organizationName: text("organization_name"),
+  title: text("title"),
+  linkedinUrl: text("linkedin_url"),
+  twitterHandle: text("twitter_handle"),
+  bio: text("bio"),
+  affinityData: json("affinity_data").$type<{
+    listEntries?: any[];
+    fieldValues?: Record<string, any>;
+    interactionDates?: any;
+  }>().default({}),
+  investmentFocus: text("investment_focus").array().default([]),
+  investmentStages: text("investment_stages").array().default([]),
+  checkSizeMin: bigint("check_size_min", { mode: "number" }),
+  checkSizeMax: bigint("check_size_max", { mode: "number" }),
+  geography: text("geography").array().default([]),
+  portfolio: text("portfolio").array().default([]),
+  thesis: text("thesis"),
+  lastSyncAt: timestamp("last_sync_at"),
+  syncStatus: text("sync_status").default("pending"),
+  syncErrors: text("sync_errors").array().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInvestorPersonSchema = createInsertSchema(investorPeople).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InvestorPerson = typeof investorPeople.$inferSelect;
+export type InsertInvestorPerson = z.infer<typeof insertInvestorPersonSchema>;
+
+// Affinity Field Definitions table for storing custom field metadata
+export const affinityFieldDefinitions = pgTable("affinity_field_definitions", {
+  id: serial("id").primaryKey(),
+  affinityFieldId: text("affinity_field_id").notNull().unique(),
+  name: text("name").notNull(),
+  valueType: text("value_type").notNull(),
+  listId: text("list_id"),
+  entityType: text("entity_type"),
+  allowsMultiple: boolean("allows_multiple").default(false),
+  dropdownOptions: text("dropdown_options").array().default([]),
+  mappedToColumn: text("mapped_to_column"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAffinityFieldDefinitionSchema = createInsertSchema(affinityFieldDefinitions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AffinityFieldDefinition = typeof affinityFieldDefinitions.$inferSelect;
+export type InsertAffinityFieldDefinition = z.infer<typeof insertAffinityFieldDefinitionSchema>;
+
+// Affinity Field Values table for normalized key-value storage
+export const affinityFieldValues = pgTable("affinity_field_values", {
+  id: serial("id").primaryKey(),
+  fieldDefinitionId: integer("field_definition_id").notNull().references(() => affinityFieldDefinitions.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id").notNull(),
+  affinityEntityId: text("affinity_entity_id").notNull(),
+  value: json("value"),
+  textValue: text("text_value"),
+  numberValue: numeric("number_value", { precision: 20, scale: 2 }),
+  dateValue: timestamp("date_value"),
+  arrayValue: text("array_value").array().default([]),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAffinityFieldValueSchema = createInsertSchema(affinityFieldValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AffinityFieldValue = typeof affinityFieldValues.$inferSelect;
+export type InsertAffinityFieldValue = z.infer<typeof insertAffinityFieldValueSchema>;
+
+// Affinity Lists table for tracking investor categorization
+export const affinityLists = pgTable("affinity_lists", {
+  id: serial("id").primaryKey(),
+  affinityListId: text("affinity_list_id").notNull().unique(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  isPublic: boolean("is_public").default(false),
+  listSize: integer("list_size").default(0),
+  category: text("category"),
+  description: text("description"),
+  ownerId: text("owner_id"),
+  affinityData: json("affinity_data"),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAffinityListSchema = createInsertSchema(affinityLists).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AffinityList = typeof affinityLists.$inferSelect;
+export type InsertAffinityList = z.infer<typeof insertAffinityListSchema>;
+
+// Investor List Memberships table for tracking which lists entities belong to
+export const investorListMemberships = pgTable("investor_list_memberships", {
+  id: serial("id").primaryKey(),
+  listId: integer("list_id").notNull().references(() => affinityLists.id, { onDelete: "cascade" }),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id").notNull(),
+  affinityEntityId: text("affinity_entity_id").notNull(),
+  affinityListEntryId: text("affinity_list_entry_id").notNull(),
+  position: integer("position"),
+  addedAt: timestamp("added_at"),
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInvestorListMembershipSchema = createInsertSchema(investorListMemberships).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InvestorListMembership = typeof investorListMemberships.$inferSelect;
+export type InsertInvestorListMembership = z.infer<typeof insertInvestorListMembershipSchema>;
+
 
 
 
