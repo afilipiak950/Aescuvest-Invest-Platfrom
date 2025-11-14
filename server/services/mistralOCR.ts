@@ -250,47 +250,76 @@ export class MistralOCRService {
   }
 
   private async extractTextFromImage(filePath: string): Promise<string> {
-    try {
-      // Convert image to base64
-      const imageBuffer = await sharp(filePath)
-        .jpeg({ quality: 90 })
-        .toBuffer();
-      
-      const base64Image = imageBuffer.toString('base64');
-      
-      // Add timeout wrapper for Mistral API call
-      const mistralPromise = mistral.chat.complete({
-        model: 'pixtral-12b-2409',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
-              },
-              {
-                type: 'image_url',
-                imageUrl: `data:image/jpeg;base64,${base64Image}`
-              }
-            ]
-          }
-        ],
-        maxTokens: 4000,
-        // Note: Mistral client doesn't support timeout parameter directly
-      });
-      
-      const mistralTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
-      });
-      
-      const response = await Promise.race([mistralPromise, mistralTimeout]);
-      const content = response.choices[0]?.message?.content;
-      return typeof content === 'string' ? content : '';
-    } catch (error) {
-      console.error('Error in Mistral image OCR:', error);
-      throw error;
+    const maxRetries = 5;
+    const baseDelay = 2000; // 2 seconds
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Convert image to base64
+        const imageBuffer = await sharp(filePath)
+          .jpeg({ quality: 90 })
+          .toBuffer();
+        
+        const base64Image = imageBuffer.toString('base64');
+        
+        // Add timeout wrapper for Mistral API call
+        const mistralPromise = mistral.chat.complete({
+          model: 'pixtral-12b-2409',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Extract all text from this image. Preserve formatting, structure, and layout as much as possible. Include all visible text, numbers, and readable content. If the image contains tables, preserve the table structure. Return only the extracted text without any commentary.'
+                },
+                {
+                  type: 'image_url',
+                  imageUrl: `data:image/jpeg;base64,${base64Image}`
+                }
+              ]
+            }
+          ],
+          maxTokens: 4000,
+          // Note: Mistral client doesn't support timeout parameter directly
+        });
+        
+        const mistralTimeout = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Mistral API timeout after 45 seconds')), 45000);
+        });
+        
+        const response = await Promise.race([mistralPromise, mistralTimeout]);
+        const content = response.choices[0]?.message?.content;
+        return typeof content === 'string' ? content : '';
+        
+      } catch (error: any) {
+        const isRateLimitError = error?.statusCode === 429 || 
+                                 error?.message?.includes('Service tier capacity exceeded') ||
+                                 error?.message?.includes('service_tier_capacity_exceeded');
+        
+        const isLastAttempt = attempt === maxRetries;
+        
+        if (isRateLimitError && !isLastAttempt) {
+          // Calculate exponential backoff with jitter
+          const exponentialDelay = baseDelay * Math.pow(2, attempt);
+          const jitter = Math.random() * 1000; // Random 0-1000ms jitter
+          const waitTime = exponentialDelay + jitter;
+          const cappedWaitTime = Math.min(waitTime, 30000); // Cap at 30 seconds
+          
+          console.warn(`⏳ Mistral rate limit hit (attempt ${attempt + 1}/${maxRetries + 1}). Retrying after ${(cappedWaitTime/1000).toFixed(1)}s...`);
+          
+          await new Promise(resolve => setTimeout(resolve, cappedWaitTime));
+          continue; // Retry
+        }
+        
+        // For non-rate-limit errors or final attempt, log and throw
+        console.error(`Error in Mistral image OCR (attempt ${attempt + 1}/${maxRetries + 1}):`, error);
+        throw error;
+      }
     }
+    
+    // Should never reach here, but TypeScript needs a return
+    throw new Error('Max retries exceeded for Mistral OCR');
   }
 
   private async extractTextFromPDF(filePath: string): Promise<string> {
