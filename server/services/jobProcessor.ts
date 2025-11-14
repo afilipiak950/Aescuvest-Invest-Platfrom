@@ -755,9 +755,10 @@ class JobProcessor {
   }
 
   private async processGCSZipExtract(job: BackgroundJob) {
-    const { gcsFileName, uploadId, fileName, documentId, dealId } = job.jobData as any;
+    const { gcsPath, sessionId, fileName, folderName } = job.jobData as any;
+    const dealId = job.dealId;
     
-    console.log(`🚀 GCS ZIP EXTRACT: Starting background processing for ${fileName}`);
+    console.log(`🚀 GCS ZIP EXTRACT: Starting background processing for ${fileName} from ${gcsPath}`);
     
     try {
       await this.updateJobProgress(job.id, 5, 'Initializing GCS connection...', 'processing');
@@ -766,24 +767,54 @@ class JobProcessor {
       const { gcsService } = await import('./googleCloudStorage');
       await gcsService.initializeIfNeeded();
       
-      await this.updateJobProgress(job.id, 10, 'Downloading ZIP from cloud storage...');
+      await this.updateJobProgress(job.id, 10, `Downloading ZIP from cloud storage (${fileName})...`);
       
-      // Download file from GCS
-      const file = (gcsService as any).bucket.file(gcsFileName);
-      const tempFilePath = `/tmp/${uploadId}-${fileName}`;
+      // Download file from GCS to temp directory
+      const tempDir = '/tmp';
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      const tempFilePath = path.join(tempDir, `${sessionId}-${fileName}`);
       
-      await file.download({ destination: tempFilePath });
-      console.log(`✅ Downloaded ${fileName} from GCS to ${tempFilePath}`);
+      // Extract actual GCS file path from gs:// URL
+      const gcsFilePath = gcsPath.replace('gs://' + (gcsService as any).bucketName + '/', '');
       
-      await this.updateJobProgress(job.id, 30, 'Extracting documents from ZIP...');
+      await gcsService.downloadFile(gcsPath, tempFilePath);
+      const fileStats = fs.statSync(tempFilePath);
+      console.log(`✅ Downloaded ${fileName} from GCS (${(fileStats.size / 1024 / 1024).toFixed(1)}MB) to ${tempFilePath}`);
       
-      // Process the ZIP file
+      await this.updateJobProgress(job.id, 30, `Extracting documents from ZIP archive...`);
+      
+      // Create a parent document entry for the ZIP file
+      const { storage } = await import('../storage');
+      const parentDoc = await storage.createDocument({
+        dealId,
+        name: fileName,
+        type: 'ZIP Archive',
+        path: gcsPath,
+        size: fileStats.size,
+        status: 'Processing',
+        folderPath: folderName || 'Data Room',
+        isFolder: true,
+        category: 'Archive',
+        documentType: 'ZIP',
+        assignedAgents: [],
+        metadata: {
+          sessionId,
+          extractedFrom: gcsPath,
+          uploadMethod: 'gcs_signed_url'
+        }
+      } as any);
+      
+      console.log(`📦 Created parent document ${parentDoc.id} for ZIP archive`);
+      
+      // Process the ZIP file with streaming extraction
       const { zipProcessor } = await import('./zipProcessor');
       const processedDocs = await zipProcessor.processZipFromGCS(
         tempFilePath,
         dealId,
-        documentId,
-        gcsFileName
+        parentDoc.id,
+        gcsPath
       );
       
       console.log(`✅ Extracted ${processedDocs.length} documents from ZIP`);
@@ -791,11 +822,13 @@ class JobProcessor {
       await this.updateJobProgress(job.id, 90, 'Cleaning up temporary files...');
       
       // Clean up temp file
-      await fs.promises.unlink(tempFilePath);
+      if (fs.existsSync(tempFilePath)) {
+        await fs.promises.unlink(tempFilePath);
+      }
       
       await this.updateJobProgress(job.id, 95, 'Clearing caches...');
       
-      // Clear document caches
+      // Clear document caches for this deal
       const documentCache = (global as any).documentCache;
       if (documentCache) {
         const keysToDelete: string[] = [];
@@ -808,7 +841,7 @@ class JobProcessor {
         console.log(`🧹 Cleared ${keysToDelete.length} cache entries for deal ${dealId}`);
       }
       
-      const { storage } = await import('../storage');
+      // Reuse storage variable from above to invalidate document cache
       await storage.invalidateDocumentCache(dealId);
       
       await this.updateJobProgress(job.id, 100, `Completed! Extracted ${processedDocs.length} documents`);

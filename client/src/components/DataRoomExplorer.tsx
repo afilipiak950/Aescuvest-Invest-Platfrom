@@ -1485,8 +1485,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Check maximum file size - with GCS direct upload, we support up to 5GB
-    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB with GCS direct upload
+    // Check maximum file size - with GCS upload, we support up to 5GB
+    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB
     if (file.size > maxSize) {
       alert(`File size (${(file.size / 1024 / 1024 / 1024).toFixed(1)}GB) exceeds the maximum limit of 5GB.`);
       return;
@@ -1499,144 +1499,132 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
     console.log(`Uploading ZIP file: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(1)}MB`);
     
-    // 🚀 GCS DIRECT UPLOAD - Bypasses ALL server limits (supports up to 5GB)
-    // File goes directly from browser → Google Cloud Storage, never touches Express server!
-    console.log(`🎯 Using GCS DIRECT UPLOAD for ${(file.size / 1024 / 1024).toFixed(1)}MB file - bypasses Cloud Run limits`);
-    
     try {
       setUploadProgress({
         fileName: file.name,
         progress: 0,
-        status: 'Getting upload authorization...'
+        status: 'Checking upload method...'
       });
       
-      // ⏱️ STEP 1: Request signed URL with strict timeout
-      console.log('📍 STEP 1: Requesting signed URL (10s timeout)...');
-      const signedUrlController = new AbortController();
-      const signedUrlTimeout = setTimeout(() => signedUrlController.abort(), 10000);
+      // ✨ STEP 1: Negotiate upload method (automatic routing based on file size)
+      console.log('📍 STEP 1: Negotiating upload method...');
+      const negotiateResponse = await fetch(`/api/deals/${dealId}/upload/negotiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fileName: file.name, 
+          fileSize: file.size,
+          contentType: 'application/zip'
+        })
+      });
       
-      let signedUrlResponse;
-      try {
-        signedUrlResponse = await fetch(`/api/gcs/signed-url/${dealId}`, {
+      if (!negotiateResponse.ok) {
+        const errorText = await negotiateResponse.text().catch(() => 'Unknown error');
+        throw new Error(`Upload negotiation failed (${negotiateResponse.status}): ${errorText}`);
+      }
+      
+      const negotiation = await negotiateResponse.json();
+      console.log(`✅ STEP 1 COMPLETE: Upload method = ${negotiation.uploadMethod}`, negotiation);
+      
+      if (negotiation.uploadMethod === 'gcs_signed_url') {
+        // Large file (>30MB) → GCS Signed URL upload (bypasses Cloud Run 32MB limit)
+        console.log(`☁️ Using GCS Signed URL for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
+        
+        setUploadProgress({
+          fileName: file.name,
+          progress: 10,
+          status: 'Uploading to cloud storage...'
+        });
+      
+        // STEP 2: Upload directly to GCS with XMLHttpRequest for progress tracking
+        console.log('📍 STEP 2: Uploading directly to Google Cloud Storage...');
+        
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          
+          // Track upload progress
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const percentComplete = 10 + Math.round((e.loaded / e.total) * 70); // 10-80%
+              const mbLoaded = (e.loaded / 1024 / 1024).toFixed(1);
+              const mbTotal = (e.total / 1024 / 1024).toFixed(1);
+              setUploadProgress({
+                fileName: file.name,
+                progress: percentComplete,
+                status: `Uploading to cloud (${mbLoaded}/${mbTotal} MB - ${percentComplete}%)...`
+              });
+            }
+          });
+          
+          xhr.addEventListener('load', () => {
+            if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
+              console.log('✅ STEP 2 COMPLETE: File uploaded to GCS');
+              resolve();
+            } else {
+              reject(new Error(`Cloud upload failed with status ${xhr.status}`));
+            }
+          });
+          
+          xhr.addEventListener('error', () => {
+            reject(new Error('Cloud upload network error'));
+          });
+          
+          xhr.addEventListener('abort', () => {
+            reject(new Error('Cloud upload was cancelled'));
+          });
+          
+          xhr.open('PUT', negotiation.uploadUrl);
+          xhr.setRequestHeader('Content-Type', 'application/zip');
+          xhr.send(file);
+        });
+        
+        // STEP 3: Notify server - background job handles extraction
+        console.log('📍 STEP 3: Notifying server (background processing will start)...');
+        setUploadProgress({
+          fileName: file.name,
+          progress: 85,
+          status: 'Starting background extraction...'
+        });
+        
+        const callbackResponse = await fetch(`/api/deals/${dealId}/upload/gcs-callback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: file.name, fileSize: file.size }),
-          signal: signedUrlController.signal
+          body: JSON.stringify({ 
+            sessionId: negotiation.sessionId,
+            gcsPath: negotiation.gcsPath,
+            fileName: file.name,
+            folderName: currentFolder === 'Data Room' ? '' : currentFolder // Use current folder or root
+          })
         });
-      } catch (fetchError: any) {
-        clearTimeout(signedUrlTimeout);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Upload authorization timed out. Please check your connection and try again.');
+        
+        if (!callbackResponse.ok) {
+          const errorText = await callbackResponse.text().catch(() => 'Unknown error');
+          console.error('Callback API error:', callbackResponse.status, errorText);
+          throw new Error(`Background processing failed to start (${callbackResponse.status}): ${errorText}`);
         }
-        throw new Error(`Network error: ${fetchError.message}`);
-      } finally {
-        clearTimeout(signedUrlTimeout);
-      }
-      
-      if (!signedUrlResponse.ok) {
-        const errorText = await signedUrlResponse.text().catch(() => 'Unknown error');
-        throw new Error(`Server error (${signedUrlResponse.status}): ${errorText}`);
-      }
-      
-      const { signedUrl, gcsFileName, uploadId } = await signedUrlResponse.json();
-      console.log(`✅ STEP 1 COMPLETE: Got upload authorization (ID: ${uploadId})`);
-      
-      setUploadProgress({
-        fileName: file.name,
-        progress: 10,
-        status: 'Uploading to cloud storage...'
-      });
-      
-      // ⏱️ STEP 2: Upload directly to GCS with XMLHttpRequest for progress tracking
-      // NO TIMEOUT - let browser handle the upload naturally to avoid false failures on slow connections
-      console.log('📍 STEP 2: Uploading directly to Google Cloud Storage...');
-      
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
         
-        // Track upload progress
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = 10 + Math.round((e.loaded / e.total) * 80); // 10-90%
-            const mbLoaded = (e.loaded / 1024 / 1024).toFixed(1);
-            const mbTotal = (e.total / 1024 / 1024).toFixed(1);
-            setUploadProgress({
-              fileName: file.name,
-              progress: percentComplete,
-              status: `Uploading to cloud (${mbLoaded}/${mbTotal} MB - ${percentComplete}%)...`
-            });
-          }
-        });
+        const result = await callbackResponse.json();
+        console.log('✅ STEP 3 COMPLETE: Background processing started:', result);
         
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 200 || xhr.status === 201 || xhr.status === 204) {
-            console.log('✅ STEP 2 COMPLETE: File uploaded to GCS');
-            resolve();
-          } else {
-            reject(new Error(`Cloud upload failed with status ${xhr.status}`));
-          }
-        });
-        
-        xhr.addEventListener('error', () => {
-          reject(new Error('Cloud upload network error'));
-        });
-        
-        xhr.addEventListener('abort', () => {
-          reject(new Error('Cloud upload was cancelled'));
-        });
-        
-        xhr.open('PUT', signedUrl);
-        xhr.setRequestHeader('Content-Type', 'application/zip');
-        xhr.send(file);
-      });
-      
-      // ⏱️ STEP 3: Notify server and let background processing handle extraction
-      // NO TIMEOUT - let the server respond naturally. Background job continues regardless.
-      console.log('📍 STEP 3: Starting background processing...');
-      setUploadProgress({
-        fileName: file.name,
-        progress: 90,
-        status: 'Starting document extraction...'
-      });
-      
-      let completeResponse;
-      try {
-        completeResponse = await fetch(`/api/gcs/upload-complete/${dealId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gcsFileName, uploadId, fileName: file.name })
-          // NO signal/AbortController - let it complete naturally to avoid cancelling backend processing
-        });
-      } catch (fetchError: any) {
-        // Network error only - not a timeout
-        console.warn('Processing notification failed, but background job may still be running:', fetchError);
+        // ✅ SUCCESS: Upload complete, background job will extract documents
         setUploadProgress({
           fileName: file.name,
           progress: 100,
-          status: 'Upload complete! Check background jobs for extraction progress...'
+          status: `Upload complete! Extraction in progress (check background jobs)...`
         });
-        setTimeout(() => {
-          setUploadProgress(null);
-          queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
-        }, 3000);
-        return; // Exit gracefully - background job may still be processing
+        
+      } else {
+        // Small file (≤30MB) → Direct server upload (existing chunked upload)
+        console.log(`🚀 Using direct upload for ${(file.size / 1024 / 1024).toFixed(1)}MB file`);
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('dealId', dealId.toString());
+        
+        // Use existing mutation for small files
+        uploadZipMutation.mutate(formData);
+        return; // Exit early - mutation handles the rest
       }
-      
-      if (!completeResponse.ok) {
-        const errorText = await completeResponse.text().catch(() => 'Unknown error');
-        console.error('Processing API returned error:', completeResponse.status, errorText);
-        throw new Error(`Processing failed (${completeResponse.status}): ${errorText}`);
-      }
-      
-      const result = await completeResponse.json();
-      console.log('✅ STEP 3 COMPLETE: Background processing started:', result);
-      
-      // ✅ SUCCESS: Upload complete, background job will extract documents
-      setUploadProgress({
-        fileName: file.name,
-        progress: 100,
-        status: `Upload complete! Processing ${result.message || 'documents'}...`
-      });
       
       setTimeout(() => {
         setUploadProgress(null);
