@@ -2285,6 +2285,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getBackgroundJobsByStatus(dealId: number, statuses: string[] = ['running']): Promise<BackgroundJob[]> {
+    try {
+      const whereConditions = [eq(backgroundJobs.dealId, dealId)];
+      
+      if (statuses.length > 0) {
+        const statusConditions = statuses.map(status => eq(backgroundJobs.status, status));
+        whereConditions.push(or(...statusConditions));
+      }
+      
+      const jobs = await db.select().from(backgroundJobs)
+        .where(and(...whereConditions))
+        .orderBy(desc(backgroundJobs.createdAt));
+      
+      console.log(`📊 Found ${jobs.length} background jobs for deal ${dealId} with statuses: ${statuses.join(', ')}`);
+      return jobs;
+    } catch (error) {
+      console.error(`Error fetching background jobs for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
   async completeBackgroundJob(jobId: string, results: any): Promise<void> {
     try {
       await db
