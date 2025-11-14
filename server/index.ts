@@ -17,6 +17,8 @@ import { persistentResearchAnalysisService } from "./services/persistentResearch
 import { persistentFinancialAnalysisService } from "./services/persistentFinancialAnalysis";
 import { cloudRunUploadService } from "./services/cloudRunUploadService";
 import { debug413Middleware, bypass413Middleware } from "./debug-413";
+import { db } from "./db";
+import { documents as documentsTable } from "../shared/schema";
 
 // Import chunked upload router
 import chunkedUploadRouter from './routes/chunked-upload';
