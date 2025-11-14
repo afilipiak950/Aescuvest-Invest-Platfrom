@@ -28,6 +28,7 @@ import { persistentLegalRoutes } from './routes/persistentLegalRoutes';
 import persistentClinicalRoutes from './routes/persistentClinicalRoutes';
 import { persistentCommercialRoutes } from './routes/persistentCommercialRoutes';
 import { persistentHRRoutes } from './routes/persistentHRRoutes';
+import { gcsService } from './services/googleCloudStorage';
 
 const app = express();
 
@@ -471,6 +472,16 @@ app.use((req, res, next) => {
   // 🚨 ULTIMATE ANTI-VITE MIDDLEWARE: Bulletproof API route protection
   app.use('/api/*', (req: Request, res: Response, next: NextFunction) => {
     console.log(`🎯 API route hit: ${req.method} ${req.originalUrl}`);
+    
+    // 🚀 CRITICAL: Skip anti-Vite overrides for upload routes entirely
+    if (req.originalUrl.includes('/upload') || 
+        req.originalUrl.includes('/data-room') || 
+        req.originalUrl.includes('zip') ||
+        req.originalUrl.includes('/ai-assistant/') ||
+        req.originalUrl.includes('-analysis/comprehensive')) {
+      console.log(`📦 EARLY SKIP - No overrides for upload route: ${req.originalUrl}`);
+      return next();
+    }
     
     // 🚨 CRITICAL: Override all response methods to prevent Vite HTML interference  
     const originalSend = res.send.bind(res);
@@ -1120,6 +1131,148 @@ app.use((req, res, next) => {
   // ZIP file upload routes - REMOVED
   // The correct ZIP upload implementation is in server/routes.ts and should not be overridden
   console.log('✅ ZIP UPLOAD ROUTES: Using implementation from server/routes.ts (no override needed)');
+
+  // ✨ UPLOAD NEGOTIATION ENDPOINT - Auto-routes large files to GCS Signed URL
+  // CRITICAL: Must be registered BEFORE setupVite() to avoid middleware interference
+  console.log('🚀 Registering upload negotiation endpoint: POST /api/deals/:dealId/upload/negotiate');
+  app.post('/api/deals/:dealId/upload/negotiate', async (req: Request, res: Response) => {
+    console.log('🎯 NEGOTIATION HANDLER EXECUTING - Upload decision logic starting');
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { fileName, fileSize, contentType } = req.body;
+
+      if (!fileName || !fileSize) {
+        console.log('⚠️ Missing required parameters in negotiation request');
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: fileName, fileSize'
+        });
+      }
+
+      console.log(`📊 Upload negotiation for ${fileName}: ${(fileSize / 1024 / 1024).toFixed(1)}MB`);
+
+      // CRITICAL: Cloud Run Load Balancer limit is ~32MB
+      // Files >30MB MUST use GCS Signed URL to bypass this infrastructure limit
+      const CLOUD_RUN_LIMIT = 30 * 1024 * 1024; // 30MB (buffer under 32MB)
+
+      if (fileSize > CLOUD_RUN_LIMIT) {
+        // Large file -> Use GCS Signed URL upload + background processing
+        console.log(`☁️ File >30MB - routing to GCS signed URL upload`);
+        
+        const { uploadUrl, gcsPath } = await gcsService.generateUploadUrl(
+          dealId,
+          fileName,
+          contentType || 'application/zip'
+        );
+
+        return res.json({
+          success: true,
+          uploadMethod: 'gcs_signed_url',
+          uploadUrl,
+          gcsPath,
+          sessionId: `gcs-${Date.now()}`,
+          callbackUrl: `/api/deals/${dealId}/upload/gcs-callback`,
+          expiresIn: 900, // 15 minutes
+          instructions: {
+            step1: 'Upload file directly to GCS using signed URL (PUT request)',
+            step2: 'Call callback URL with sessionId and gcsPath to start processing',
+            step3: 'Monitor background job progress via WebSocket'
+          },
+          limits: {
+            infrastructureLimit: '32MB (Cloud Run Load Balancer)',
+            recommendedMethod: 'GCS Signed URL for files >30MB',
+            maxFileSize: '5GB'
+          }
+        });
+      } else {
+        // Small file -> Use direct server upload (existing multipart upload)
+        console.log(`📦 File <30MB - using direct server upload`);
+        return res.json({
+          success: true,
+          uploadMethod: 'direct',
+          uploadUrl: `/api/deals/${dealId}/data-room/upload-zip`,
+          maxFileSize: 30 * 1024 * 1024,
+          instructions: {
+            method: 'POST',
+            contentType: 'multipart/form-data',
+            field: 'file'
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Upload negotiation error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to negotiate upload method',
+        details: error.message
+      });
+    }
+  });
+  console.log('✅ Upload negotiation endpoint registered successfully');
+
+  // 🎯 GCS CALLBACK ENDPOINT - Triggers background ZIP extraction after GCS upload
+  // CRITICAL: Must be registered BEFORE setupVite() to avoid middleware interference
+  console.log('🚀 Registering GCS callback endpoint: POST /api/deals/:dealId/upload/gcs-callback');
+  app.post('/api/deals/:dealId/upload/gcs-callback', async (req: Request, res: Response) => {
+    console.log('🎯 GCS CALLBACK HANDLER EXECUTING - Background job creation starting');
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const { sessionId, gcsPath, fileName, folderName } = req.body;
+
+      if (!sessionId || !gcsPath || !fileName) {
+        console.log('⚠️ Missing required parameters in GCS callback');
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: sessionId, gcsPath, fileName'
+        });
+      }
+
+      console.log(`📥 GCS callback received for ${fileName} at ${gcsPath}`);
+
+      // Create background job for ZIP extraction
+      const jobId = await backgroundJobManager.addJob({
+        jobType: 'gcs_zip_extract',
+        dealId: dealId,
+        documentId: null,
+        jobData: {
+          gcsPath,
+          fileName,
+          sessionId,
+          folderName: folderName || 'Data Room',
+          fileSize: 0 // Will be determined during download
+        }
+      });
+
+      console.log(`🚀 Created background job ${jobId} for GCS ZIP extraction`);
+
+      // Send WebSocket notification that job has started
+      // Note: wsManager is initialized in routes.ts, but we need to access it here
+      // For now, we'll skip WebSocket notification and rely on job polling
+      console.log(`📡 Background job ${jobId} queued - client can poll /api/background-jobs/${dealId}`);
+
+      return res.json({
+        success: true,
+        message: 'ZIP extraction job created successfully',
+        jobId,
+        status: 'queued',
+        instructions: {
+          step1: 'Job is queued for processing',
+          step2: 'Monitor progress via WebSocket or /api/background-jobs/:dealId',
+          step3: 'Documents will appear in Data Room after extraction completes'
+        },
+        estimatedTime: 'Depends on file size - typically 5-30 minutes for large archives'
+      });
+
+    } catch (error: any) {
+      console.error('❌ GCS callback failed:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to process GCS callback',
+        details: error.message
+      });
+    }
+  });
+  console.log('✅ GCS callback endpoint registered successfully');
 
   // Get data room connection status
   app.get('/api/deals/:dealId/data-room/status', async (req: Request, res: Response) => {
