@@ -785,7 +785,8 @@ class JobProcessor {
   }
 
   private async processZipFile(job: BackgroundJob) {
-    const { zipPath, dealId, folderName } = job.jobData as any;
+    const { zipPath, folderName } = job.jobData as any;
+    const dealId = job.dealId; // Read from job.dealId column, not jobData
     
     console.log(`🔍 MICRO-STEP 1: processZipFile called with:`, {
       jobId: job.id,
