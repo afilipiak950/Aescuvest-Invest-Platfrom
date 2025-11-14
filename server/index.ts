@@ -1230,7 +1230,7 @@ app.use((req, res, next) => {
       console.log(`📥 GCS callback received for ${fileName} at ${gcsPath}`);
 
       // Create background job for ZIP extraction
-      const jobId = await backgroundJobManager.addJob({
+      const jobId = await backgroundJobManager.createJob({
         jobType: 'gcs_zip_extract',
         dealId: dealId,
         documentId: null,
