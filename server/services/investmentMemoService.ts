@@ -2483,6 +2483,15 @@ ${ragContext.substring(0, 150000)}`
       const topDocs = relevantChunks.slice(0, 5).map(c => c.documentName || 'Unknown').join(', ');
       console.log(`📊 Top similarity scores: ${topScores}`);
       console.log(`📄 Top documents: ${topDocs}`);
+      
+      // RAG HEALTH CHECK: Log similarity score histogram
+      const avgSimilarity = relevantChunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / relevantChunks.length;
+      console.log(`📊 Average similarity score: ${avgSimilarity.toFixed(3)} (healthy > 0.5, warning < 0.3)`);
+      
+      if (avgSimilarity < 0.3) {
+        console.warn(`⚠️ LOW SIMILARITY SCORES detected! This may indicate embedding model mismatch.`);
+        console.warn(`⚠️ Expected: Query and document embeddings from same model (${EMBEDDING_MODEL})`);
+      }
     } else {
       console.warn(`⚠️ No RAG results for section "${sectionKey}" - falling back to agent analyses only`);
     }

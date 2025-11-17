@@ -26,7 +26,7 @@ The backend is developed with Node.js and Express.js, leveraging TypeScript. Pos
 -   **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting for exports.
 -   **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass strategy.
 -   **Large File Upload System**: A hybrid upload infrastructure supporting files up to 5GB, intelligently routing uploads to bypass Cloud Run limits. Files ≤30MB use direct server upload, while larger files are routed to GCS signed URLs, with background ZIP extraction jobs and WebSocket progress notifications.
--   **RAG Embedding System**: Resilient vector embedding pipeline for instant document search, featuring timeout protection, retry logic, rate limiting, and robust error classification.
+-   **RAG Embedding System**: Resilient vector embedding pipeline for instant document search using OpenAI text-embedding-ada-002, featuring timeout protection, retry logic, rate limiting, robust error classification, and similarity score health monitoring. **Critical**: All embeddings must use the same model for accurate vector similarity.
 -   **Email Inbox Integration**: Persistent email configuration with dual authentication (IMAP/Microsoft OAuth) for automated deal flow monitoring.
 
 ### System Design Choices
