@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { storage } from '../storage';
 import { InsertInvestmentMemo } from '../../shared/schema';
 import { safeGetDocumentContent } from '../utils/documentUtils';
-import { openaiQuotaManager } from './openaiQuotaManager';
+import { claudeQuotaManager } from './claudeQuotaManager';
 import { getMemoFallback } from './memoFallbackContent';
 import { websocketManager } from './websocketManager';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface ComprehensiveMemoData {
   dealId: number;
@@ -780,12 +780,12 @@ ${companyInfo}`
     
     const combinedExtractions = extractedInfo.join('\n\n=== NEXT EXTRACTION ===\n\n');
     
-    const finalSynthesis = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `You are synthesizing multiple company information extractions into one comprehensive company profile. 
+    const finalSynthesis = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        temperature: 0.1,
+        system: `You are synthesizing multiple company information extractions into one comprehensive company profile. 
 
 Combine and deduplicate information from multiple sources. Prioritize the most specific and detailed information. If information conflicts, note both versions.
 
@@ -797,16 +797,14 @@ Output a comprehensive company profile with:
 5. Financial Information (funding, valuation, revenue)
 6. Key Partnerships and Strategic Alliances
 
-Be specific with names, dates, addresses, and percentages. If information is not found, state "Not found in available documents".`
-        }, {
+Be specific with names, dates, addresses, and percentages. If information is not found, state "Not found in available documents".`,
+        messages: [{
           role: "user",
           content: `Synthesize these company information extractions for ${data.companyName}:
 
 ${combinedExtractions}`
-        }],
-        temperature: 0.1,
-        max_tokens: 4000
-      }).then(response => response.choices[0].message.content || 'No specific company information could be extracted from the available documents and analyses.'),
+        }]
+      }).then(response => response.content[0].text || 'No specific company information could be extracted from the available documents and analyses.'),
       {
         description: 'Final company info synthesis',
         priority: 'high',
@@ -823,12 +821,12 @@ ${combinedExtractions}`
     try {
       console.log(`🔍 Extracting from ${sourceType} (${content.length.toLocaleString()} characters)`);
       
-      const response = await openaiQuotaManager.makeRequest(
-        () => openai.chat.completions.create({
-          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-          messages: [{
-            role: "system",
-            content: `Extract specific company information from this content. Focus on:
+      const response = await claudeQuotaManager.makeRequest(
+        () => anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          temperature: 0.1,
+          system: `Extract specific company information from this content. Focus on:
 
 1. Executive names and roles (CEO, CTO, CFO, founders)
 2. Corporate details (addresses, incorporation dates, registration numbers)
@@ -838,16 +836,14 @@ ${combinedExtractions}`
 6. Company structure (employee count, departments, subsidiaries)
 7. Key partnerships and agreements
 
-Extract only factual information explicitly mentioned. Include exact names, dates, addresses, percentages.`
-          }, {
+Extract only factual information explicitly mentioned. Include exact names, dates, addresses, percentages.`,
+          messages: [{
             role: "user",
             content: `Extract company information for ${companyName} from this ${sourceType}:
 
-${content.substring(0, 120000)}`
-          }],
-          temperature: 0.1,
-          max_tokens: 2000
-        }).then(response => response.choices[0].message.content || `No information extracted from ${sourceType}`),
+${content.substring(0, 180000)}`
+          }]
+        }).then(response => response.content[0].text || `No information extracted from ${sourceType}`),
         {
           description: `Company info extraction from ${sourceType}`,
           priority: 'medium',
