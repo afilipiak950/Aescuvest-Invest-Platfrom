@@ -400,10 +400,15 @@ class InvestmentMemoService {
       }
     };
     
-    // Generate ALL sections with progress tracking
+    // Ensure dealId is available for RAG context building
+    if (!dealId) {
+      throw new Error('dealId is required for RAG-based memo generation');
+    }
+    
+    // Generate ALL sections with progress tracking (RAG-enhanced)
     const sections = await Promise.all([
       this.generateCoverPage(data).then(async r => { await updateProgress('Cover Page'); return r; }),
-      this.generateExecutiveSummary(context, data.companyName).then(async r => { await updateProgress('Executive Summary'); return r; }),
+      this.generateExecutiveSummary(dealId, data).then(async r => { await updateProgress('Executive Summary'); return r; }),
       this.generateInvestmentHighlights(context, data.companyName).then(async r => { await updateProgress('Investment Highlights'); return r; }),
       this.generateSWOTAnalysis(context, data).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
       this.generateMarketAnalysis(context, data.companyName).then(async r => { await updateProgress('Market Analysis'); return r; }),
@@ -912,7 +917,12 @@ ${content.substring(0, 180000)}`
 
   // ==================== MEMO SECTION GENERATORS ====================
 
-  private async generateExecutiveSummary(context: string, companyName: string): Promise<string> {
+  private async generateExecutiveSummary(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Executive Summary with RAG for Deal ${dealId}`);
+    
+    // Build RAG-enhanced context with intelligent AI summary retrieval
+    const ragContext = await this.buildRAGEnhancedContext('executiveSummary', dealId, memoData);
+    
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
@@ -922,10 +932,10 @@ ${content.substring(0, 180000)}`
 
 **MANDATORY AUTHENTIC DATA EXTRACTION:**
 1. **Company Details**: Exact founding date, headquarters location, incorporation details from documents
-2. **Real Executive Team**: Actual names (Dr. Yaron Silberman, Gal Golov, Dr. Nino Guy Cassuto if in documents), verified titles and backgrounds
+2. **Real Executive Team**: Actual names and verified titles and backgrounds from documents
 3. **Authentic Funding**: Real investment amounts, pre-money valuations, funding rounds from documents
 4. **Actual Shareholding**: Specific percentages and investor names from documents
-5. **Strategic Partnerships**: Real company partnerships (Rohto Pharmaceuticals if mentioned), KOL networks
+5. **Strategic Partnerships**: Real company partnerships, KOL networks
 6. **Technical Specifications**: AI training data size, performance metrics, regulatory approvals from documents
 7. **Investment Terms**: Liquidation preferences, board rights, interest rates from term sheets
 
@@ -947,11 +957,11 @@ ${content.substring(0, 180000)}`
 Extract and verify all data from provided context - reject any fabricated information.`,
         messages: [{
           role: "user",
-          content: `Generate executive summary using ONLY authentic data from this comprehensive analysis for ${companyName} (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', companyName, 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
+          content: `Generate executive summary using ONLY authentic data from this RAG-enhanced comprehensive analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || ''),
       {
-        description: 'Executive Summary Generation',
+        description: 'Executive Summary Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: getMemoFallback('executiveSummary')
       }
