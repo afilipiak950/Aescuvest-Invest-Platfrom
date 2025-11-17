@@ -8,7 +8,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Chunk size for splitting documents
 const CHUNK_SIZE = 500; // tokens
 const CHUNK_OVERLAP = 50; // tokens
-const EMBEDDING_MODEL = 'text-embedding-ada-002'; // CRITICAL: Must match existing document embeddings in DB
+const EMBEDDING_MODEL = 'text-embedding-3-small'; // CRITICAL: Using newest model for fresh embeddings
 const TOP_K_RESULTS = 50; // Number of relevant chunks to retrieve (CRITICAL: Must be 50 for comprehensive memo coverage)
 
 interface ChunkMetadata {
