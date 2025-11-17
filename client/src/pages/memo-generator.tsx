@@ -1779,10 +1779,10 @@ export default function MemoGenerator() {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleGenerateMemo}
-                    disabled={!selectedDeal || isGenerating}
+                    disabled={!selectedDeal || showGenerating}
                     className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isGenerating ? (
+                    {showGenerating ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Generating...
