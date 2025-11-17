@@ -2645,8 +2645,102 @@ ${chunk.chunk}
     return extracted;
   }
 
+  /**
+   * QUALITY GATE: Check memo quality before saving
+   * Rejects memos filled with placeholders or "not available" content
+   */
+  private checkMemoQuality(memo: InvestmentMemoSections): { passed: boolean; issues: string[]; placeholderRatio: number } {
+    const issues: string[] = [];
+    let totalSections = 0;
+    let placeholderSections = 0;
+    
+    // Placeholder patterns to detect
+    const placeholderPatterns = [
+      /information not available/gi,
+      /data not available/gi,
+      /temporarily unavailable/gi,
+      /content generation.*unavailable/gi,
+      /analysis.*unavailable/gi,
+      /being compiled/gi,
+      /will be provided/gi,
+      /please refer to/gi,
+      /not found in.*documents/gi,
+      /no.*information.*found/gi
+    ];
+    
+    // Check all text fields in the memo
+    const checkField = (fieldName: string, content: any) => {
+      totalSections++;
+      const text = typeof content === 'string' ? content : JSON.stringify(content);
+      
+      // Count placeholder matches
+      let placeholderMatches = 0;
+      for (const pattern of placeholderPatterns) {
+        const matches = text.match(pattern);
+        if (matches) {
+          placeholderMatches += matches.length;
+        }
+      }
+      
+      // Flag if >30% of words are placeholders or content is very short
+      const wordCount = text.split(/\s+/).length;
+      const placeholderDensity = placeholderMatches / Math.max(wordCount / 5, 1);
+      
+      if (placeholderDensity > 0.3 || wordCount < 50) {
+        placeholderSections++;
+        issues.push(`${fieldName}: ${placeholderMatches} placeholder phrases, ${wordCount} words (density: ${Math.round(placeholderDensity * 100)}%)`);
+      }
+    };
+    
+    // Check all sections
+    checkField('Executive Summary', memo.executiveSummary);
+    checkField('Cover Page', memo.coverPage);
+    checkField('Investment Highlights', memo.investmentHighlights);
+    checkField('SWOT Analysis', memo.swotAnalysis);
+    checkField('Market Analysis', memo.marketAnalysis);
+    checkField('TAM/SAM/SOM', memo.tamSamSomAnalysis);
+    checkField('Competitive Analysis', memo.competitiveAnalysis);
+    checkField('Technology Assessment', memo.technologyAssessment);
+    checkField('Product Analysis', memo.productAnalysis);
+    checkField('Business Model', memo.businessModel);
+    checkField('Team Assessment', memo.teamAssessment);
+    checkField('Management Analysis', memo.managementAnalysis);
+    checkField('Financial Analysis', memo.financialAnalysis);
+    checkField('Legal Assessment', memo.legalAssessment);
+    checkField('Clinical Assessment', memo.clinicalAssessment);
+    checkField('IP Analysis', memo.ipAnalysis);
+    checkField('Risk Assessment', memo.riskAssessment);
+    checkField('Recommendation', memo.recommendation);
+    
+    const placeholderRatio = placeholderSections / totalSections;
+    const passed = placeholderRatio < 0.3; // Fail if >30% of sections are placeholders
+    
+    return { passed, issues, placeholderRatio };
+  }
+
   private async storeMemo(dealId: number, memo: InvestmentMemoSections): Promise<void> {
     console.log(`💾 Investment memo ready for deal ${dealId} - comprehensive 30-50 page memo generated`);
+    
+    // QUALITY GATE: Check memo quality before saving
+    console.log(`🔍 Running quality check on investment memo...`);
+    const qualityCheck = this.checkMemoQuality(memo);
+    console.log(`📊 Quality check results:`, {
+      passed: qualityCheck.passed,
+      placeholderRatio: `${Math.round(qualityCheck.placeholderRatio * 100)}%`,
+      issueCount: qualityCheck.issues.length
+    });
+    
+    if (!qualityCheck.passed) {
+      console.error(`❌ MEMO QUALITY CHECK FAILED!`);
+      console.error(`❌ Placeholder ratio: ${Math.round(qualityCheck.placeholderRatio * 100)}% (threshold: 30%)`);
+      console.error(`❌ Issues found:`, qualityCheck.issues.slice(0, 5)); // Show first 5 issues
+      throw new Error(
+        `Memo quality check failed: ${Math.round(qualityCheck.placeholderRatio * 100)}% of sections contain placeholders or insufficient data. ` +
+        `This indicates missing embeddings or document context. Please ensure all documents are properly embedded before generating memo.`
+      );
+    }
+    
+    console.log(`✅ Quality check passed - memo has ${Math.round((1 - qualityCheck.placeholderRatio) * 100)}% authentic content`);
     
     try {
       // Get company name from deal
