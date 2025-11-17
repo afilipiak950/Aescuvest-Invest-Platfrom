@@ -1,7 +1,7 @@
 # Aescuvest AI Investment Platform
 
 ## Overview
-The Aescuvest AI Investment Platform is a venture capital investment platform leveraging artificial intelligence for advanced investment analysis and decision-making. Its primary purpose is to streamline the investment process, from deal flow management to in-depth AI-powered analysis and intelligent matching, by transforming complex investment data into actionable insights through intelligent technology, comprehensive research, and automated due diligence. The platform aims to revolutionize venture capital investment by providing a sophisticated, AI-driven solution.
+The Aescuvest AI Investment Platform is a venture capital investment platform that utilizes artificial intelligence for advanced investment analysis and decision-making. Its primary purpose is to streamline the investment process, from deal flow management to in-depth AI-powered analysis and intelligent matching. The platform aims to transform complex investment data into actionable insights through intelligent technology, comprehensive research, and automated due diligence, thereby revolutionizing venture capital investment.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,170 +9,53 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX
-The platform utilizes React 18 with TypeScript, Wouter for routing, TanStack Query for state management, and Shadcn/UI (built on Radix UI) for UI components. Styling is managed with Tailwind CSS, and animations are handled by Framer Motion. The build process uses Vite.
+The frontend is built with React 18 and TypeScript, using Wouter for routing, TanStack Query for state management, and Shadcn/UI (based on Radix UI) for UI components. Styling is handled with Tailwind CSS, and animations with Framer Motion. Vite is used for the build process.
 
 ### Technical Implementations
-The backend is built with Node.js and Express.js, leveraging TypeScript. PostgreSQL with Drizzle ORM is used for the database. File handling incorporates Multer for multipart uploads, and authentication is managed via Passport.js with Express sessions. Background processing is handled by a database-backed job queue with persistent progress tracking, WebSocket updates, and aggressive stuck job cleanup.
+The backend is developed with Node.js and Express.js, leveraging TypeScript. PostgreSQL with Drizzle ORM serves as the database. File handling uses Multer for multipart uploads, and authentication is managed via Passport.js with Express sessions. Background processing is facilitated by a database-backed job queue featuring persistent progress tracking, WebSocket updates, and aggressive stuck job cleanup.
 
 ### Feature Specifications
-- **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
-- **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
-- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) for due diligence, founder assessment, strategic guidance, and intelligent scoring. These agents comprehensively process all documents, ensuring full analysis runs and offering persistent question reruns with database-backed progress tracking. The architecture includes token-based batching, a hierarchical timeout system, exponential backoff retries, partial result caching, centralized rate limiting, and automatic cache cleanup. Robust error handling, including Promise.allSettled with type guards and proper database column mapping, ensures resilience.
-- **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
-- **Matching Intelligence System**: AI-powered organization-to-deal matching based on various criteria (sector, stage, geography, check size, thesis).
-- **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
-- **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) with live background progress tracking, reload persistence, and race condition protection.
-- **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system and live progress tracking with stale job auto-recovery.
-- **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
-- **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
-- **Large File Upload System**: Hybrid upload infrastructure supporting files up to 5GB using intelligent routing to bypass Cloud Run's 32MB load balancer limit. Files ≤30MB use direct server upload; files >30MB automatically route to GCS signed URLs. The system includes: (1) upload negotiation endpoint that determines optimal upload method based on file size, (2) GCS signed URL generation with 15-minute expiration for large file uploads, (3) callback endpoint that triggers background ZIP extraction jobs after successful GCS upload, (4) background job architecture with persistent progress tracking (downloading→extracting→completed), (5) WebSocket real-time progress notifications, and (6) graceful error handling with clear infrastructure limit guidance. Endpoints are registered early in server/index.ts before Vite middleware to ensure proper execution.
-- **RAG Embedding System**: Resilient vector embedding pipeline for instant document search, featuring timeout protection, retry logic, rate limiting, and robust error classification to prevent stuck jobs.
-- **Email Inbox Integration**: Persistent email configuration system with dual authentication support (IMAP/Microsoft OAuth) for automated deal flow monitoring. It includes a comprehensive settings UI, test connection functionality, and API endpoints for configuration management.
+-   **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
+-   **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
+-   **Multi-Agent AI Analysis**: Specialized AI agents (e.g., Clinical, Legal, Financial) conduct due diligence, founder assessment, and strategic guidance with intelligent scoring. This includes token-based batching, hierarchical timeouts, exponential backoff retries, partial result caching, centralized rate limiting, and automatic cache cleanup.
+-   **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, and competitor analysis.
+-   **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, and investment criteria.
+-   **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
+-   **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) with live background progress tracking and reload persistence.
+-   **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with live progress tracking and a robust fallback system.
+-   **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting for exports.
+-   **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass strategy.
+-   **Large File Upload System**: A hybrid upload infrastructure supporting files up to 5GB, intelligently routing uploads to bypass Cloud Run limits. Files ≤30MB use direct server upload, while larger files are routed to GCS signed URLs, with background ZIP extraction jobs and WebSocket progress notifications.
+-   **RAG Embedding System**: Resilient vector embedding pipeline for instant document search, featuring timeout protection, retry logic, rate limiting, and robust error classification.
+-   **Email Inbox Integration**: Persistent email configuration with dual authentication (IMAP/Microsoft OAuth) for automated deal flow monitoring.
 
 ### System Design Choices
-- **Development Environment**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
-- **Production Environment**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
-- **Configuration**: Environment variables and a modular service architecture.
-- **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
-- **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline for minification and tree-shaking ensure deployment size under 2GB.
-
-## Recent Changes (2025-11-14)
-
-### CRITICAL PRODUCTION FIX: Job Queue Priority System (COMPLETED - 2025-11-14)
-**Issue**: ZIP upload jobs stuck behind long-running OCR/embedding tasks, zero user feedback after upload
-**Root Cause**: FIFO job queue with massive Excel file (3149 chunks) monopolizing processing slot, blocking all queued jobs
-
-**Solution - Priority-Aware Job Queue**:
-1. ✅ **Database Schema**: Added `priority INTEGER NOT NULL DEFAULT 0` to `background_jobs` table
-2. ✅ **Priority Ordering**: Modified `loadPendingJobsFromDatabase()` to ORDER BY priority DESC, created_at ASC
-3. ✅ **Queue Sorting**: Added `sortQueueByPriority()` method, called at start of `processQueue()`
-4. ✅ **Queue Reload**: Implemented `reloadQueue()` method for manual priority-based queue refresh
-5. ✅ **Priority Assignments**:
-   - ZIP Processing: 100 (highest - immediate processing)
-   - Document OCR: 10 (normal priority)
-   - Document Embedding: 0 (lowest priority)
-
-**Implementation Files**:
-- `shared/schema.ts`: Added priority field to backgroundJobs table (line 658)
-- `server/services/jobProcessor.ts`: 
-  - Added desc/asc imports for Drizzle ordering
-  - Modified loadPendingJobsFromDatabase() with ORDER BY priority DESC, created_at ASC
-  - Added sortQueueByPriority() method (lines 319-328)
-  - Added reloadQueue() method (lines 294-317)
-  - Modified processQueue() to sort by priority before processing (line 334)
-
-**Impact**:
-- ✅ ZIP jobs process IMMEDIATELY (never blocked by long-running jobs)
-- ✅ Queue automatically prioritizes critical tasks
-- ✅ Large embedding jobs no longer monopolize worker slots
-- ✅ User gets instant progress feedback after ZIP upload
-
-**Verified**: Job 2127 (zip_processing) completed successfully with 4 PDFs extracted
-
-### Dataroom Upload System (COMPLETED - 2025-11-14)
-**Issues Fixed**:
-1. **Large File Upload (>30MB)**: ZIP files not being extracted after upload
-2. **Small File Upload (<30MB)**: 500 Internal Server Error, upload completely failing
-3. **Body Parser Interference**: Global middleware blocking Multer and raw chunk uploads
-
-**Root Causes**:
-1. Job type mismatch (`zip_extraction` created but no processor existed)
-2. Small file route registered after Vite middleware
-3. Global middleware consuming request bodies before Multer could process them
-
-**Fixes Applied**:
-
-**1. Large File Upload Fix** (production-chunked-upload.ts):
-- Changed job type from `zip_extraction` → `zip_processing`
-- Removed redundant manual processing (background job handles it)
-
-**2. Small File Upload Route** (server/index.ts lines 1287-1384):
-- Moved from server/routes.ts to server/index.ts (before setupVite())
-- Creates document record and background job with `zip_processing` job type
-- Fixed negotiation endpoint field name (`zipFile`)
-
-**3. Deny-List Body Parser Middleware** (server/index.ts lines 298-327):
-- Implemented deny-list approach: skip parsers ONLY for raw/multipart routes
-- All other routes automatically get JSON + URL-encoded parsing
-- **7 routes skip parsers** (raw stream/multipart handling):
-  1. `/api/deals/[^/]+/data-room/upload-zip` - Multer multipart
-  2. `/api/deals/[^/]+/upload-zip` - Multer multipart
-  3. `/api/deals/[^/]+/ultra-bypass-upload` - Raw stream
-  4. `/api/deals/[^/]+/production-chunked/chunk` - Raw chunk
-  5. `/api/deals/[^/]+/chunked-upload/chunk` - Raw chunk
-  6. `/api/deals/[^/]+/persistent-uploads/[^/]+/chunk` - Raw chunk
-  7. `/api/deals/[^/]+/data-room/upload-zip/chunk` - Raw chunk
-- Uses `[^/]+` pattern to match both integer and slug-style deal IDs
-- **All other upload routes** (negotiation, init/complete, GCS helpers) get JSON parsing
-
-**Impact**: Complete fix for all dataroom upload paths:
-- ✅ Small file uploads (<30MB) via direct multipart
-- ✅ Large file uploads (>30MB) via GCS signed URL
-- ✅ Chunked uploads (legacy and production)
-- ✅ Persistent upload resumption
-- ✅ All negotiation and callback endpoints
-
-### Affinity Import System Implementation (In Progress)
-**Goal**: Import ALL investors from Affinity API for intelligent deal-to-investor matching.
-
-**What's Completed:**
-1. ✅ **Database Schema Enhancement**:
-   - Added `investorPeople` table for individual investors (partners, angels)
-   - Added `affinityLists` table for investor categorization ("Active VCs", "Seed Funds")
-   - Added `affinityFieldDefinitions` for custom field metadata
-   - Added `affinityFieldValues` for normalized key-value storage (check sizes, sectors, thesis)
-   - Added `investorListMemberships` for tracking list assignments
-   - All tables pushed to database successfully
-
-2. ✅ **Import Service Architecture**:
-   - Created `affinityImportService.ts` with:
-     - Token bucket rate limiter (900 req/min)
-     - Exponential backoff retry logic for 429/5xx errors
-     - Cursor-based pagination for bulk import
-     - Batch processing with transactional upserts
-     - Progress tracking with WebSocket broadcasts
-     - Import sequence: Lists → Field Definitions → Organizations → Persons
-   
-3. ✅ **API Endpoints**:
-   - `POST /api/affinity/import` - Trigger full import job
-   - `GET /api/affinity/import/:jobId` - Monitor import progress
-   - Existing endpoints: `/api/affinity/organizations`, `/api/affinity/persons`, etc.
-
-**Current Status**: ✅ **FULLY OPERATIONAL**
-- ✅ Root cause identified: API key only supports v1 endpoints, not v2
-- ✅ Complete v1 API migration: All endpoints migrated from v2 to v1
-- ✅ Successfully imported 1,200+ organizations from Affinity
-- ✅ Progress tracking fixed: No longer shows 100% prematurely
-- ✅ Database indexes added for performance optimization
-- ✅ Zero errors during import, all organizations synced
-
-**Next Steps**:
-1. Implement field value extraction and mapping (parse sectors, check sizes, thesis)
-2. Add list memberships import (link organizations to lists)
-3. Implement person import (individual investors)
-4. Build incremental sync strategy (update changed records)
-5. Build UI for import management and monitoring
+-   **Development Environment**: Replit (Node.js 20), PostgreSQL 16, Vite, Express.
+-   **Production Environment**: Google Cloud Run, optimized Node.js runtime, external PostgreSQL.
+-   **Configuration**: Environment variables and a modular service architecture.
+-   **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
+-   **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, and production build pipeline ensure deployment size under 2GB.
 
 ## External Dependencies
 
 ### AI Services
-- **OpenAI GPT-4o**: Core AI model for analysis, evaluation, and NLP.
-- **Mistral AI**: OCR and document text extraction.
-- **Anthropic Claude**: Comprehensive research tasks.
+-   **OpenAI GPT-4o**: Core AI model for analysis, evaluation, and NLP.
+-   **Mistral AI**: OCR and document text extraction.
+-   **Anthropic Claude**: Comprehensive research tasks.
 
 ### Authentication & Email
-- **Microsoft Graph API**: OAuth2 for email inbox monitoring.
-- **SendGrid**: Transactional email delivery.
-- **Azure MSAL**: Microsoft authentication.
+-   **Microsoft Graph API**: OAuth2 for email inbox monitoring.
+-   **SendGrid**: Transactional email delivery.
+-   **Azure MSAL**: Microsoft authentication.
 
 ### Document Processing Libraries
-- **Sharp**: Image processing.
-- **Mammoth**: .docx text extraction.
-- **XLSX**: Excel spreadsheet processing.
-- **Custom PDF utilities**: For text extraction.
+-   **Sharp**: Image processing.
+-   **Mammoth**: .docx text extraction.
+-   **XLSX**: Excel spreadsheet processing.
+-   **Custom PDF utilities**: For text extraction.
 
 ### Infrastructure
-- **PostgreSQL**: Primary database.
-- **WebSocket**: Real-time communication.
-- **Local File System**: For file storage.
-- **Affinity CRM**: For organization data synchronization (IN PROGRESS).
+-   **PostgreSQL**: Primary database.
+-   **WebSocket**: Real-time communication.
+-   **Local File System**: For file storage.
+-   **Affinity CRM**: For organization data synchronization.
