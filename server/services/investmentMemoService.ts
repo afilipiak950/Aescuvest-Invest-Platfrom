@@ -64,6 +64,42 @@ function extractTextFromResponse(response: Anthropic.Messages.Message): string {
   return '';
 }
 
+/**
+ * Safely parse JSON from AI responses that may be wrapped in markdown code fences
+ * Strips ```json and ``` markers before parsing
+ * @param text - Text to parse, possibly containing markdown code fences
+ * @param fallback - Fallback value if parsing fails
+ * @returns Parsed JSON object or fallback value
+ */
+function safeJsonParse<T = any>(text: string, fallback: T = {} as T): T {
+  try {
+    // Strip markdown code fences if present
+    let cleanText = text.trim();
+    
+    // Remove ```json or ``` at start
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.slice(7); // Remove ```json
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.slice(3); // Remove ```
+    }
+    
+    // Remove ``` at end
+    if (cleanText.endsWith('```')) {
+      cleanText = cleanText.slice(0, -3);
+    }
+    
+    // Trim again after removing fences
+    cleanText = cleanText.trim();
+    
+    // Parse the cleaned JSON
+    return JSON.parse(cleanText);
+  } catch (error) {
+    console.error('❌ JSON parsing error:', error);
+    console.error('❌ Response content:', text.substring(0, 500));
+    return fallback;
+  }
+}
+
 export interface ComprehensiveMemoData {
   dealId: number;
   companyName: string;
@@ -1011,7 +1047,7 @@ Output valid JSON only with "highlights" array of detailed strings. No other tex
       }
     );
 
-    const result = JSON.parse(await response);
+    const result = safeJsonParse(await response);
     return result.highlights || [];
   }
 
@@ -1064,7 +1100,7 @@ Extract specific, actionable points with authentic data. Output valid JSON only 
       }
     );
 
-    const result = JSON.parse(await response);
+    const result = safeJsonParse(await response);
     const swotAnalysis = {
       strengths: result.strengths || [],
       weaknesses: result.weaknesses || [],
@@ -1122,7 +1158,7 @@ Output valid JSON only with authentic data. No other text.`,
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`📊 Market analysis generated: ${JSON.stringify(result).length} characters`);
       
       // BULLETPROOF FALLBACK: Never allow "No information available" responses
@@ -1220,7 +1256,7 @@ Output valid JSON only with detailed product information from authentic sources.
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`🔬 Product analysis generated: ${JSON.stringify(result).length} characters`);
       
       // BULLETPROOF FALLBACK: Never allow "No information available" responses
@@ -1312,7 +1348,7 @@ Output valid JSON only with detailed business model. No other text.`,
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`💼 Business model generated: ${JSON.stringify(result).length} characters`);
       // BULLETPROOF FALLBACK: Never allow "No information available" responses
       const ensureAuthenticContent = (content: string, fallback: string) => {
@@ -1430,7 +1466,7 @@ Output valid JSON only. No other text.`,
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`👥 Team assessment generated: ${JSON.stringify(result).length} characters`);
       
       // Log the extracted content for debugging
@@ -1509,7 +1545,7 @@ Output valid JSON only with detailed financial information from authentic source
     );
 
     try {
-      const result = JSON.parse(await response);
+      const result = safeJsonParse(await response);
       console.log(`💰 Financial analysis generated: ${JSON.stringify(result).length} characters`);
       
       const financialAnalysis = {
@@ -1577,7 +1613,7 @@ Output valid JSON only with detailed legal information from authentic sources. N
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`⚖️ Legal assessment generated: ${JSON.stringify(result).length} characters`);
       
       const legalAssessment = {
@@ -1669,7 +1705,7 @@ Output valid JSON only with detailed risk arrays from authentic sources. No othe
   );
 
   try {
-    const result = JSON.parse(response || '{}');
+    const result = safeJsonParse(response || '{}');
     console.log(`⚠️ Risk assessment generated: ${JSON.stringify(result).length} characters`);
     
     // BULLETPROOF FALLBACK: Never allow empty arrays or "temporarily unavailable" responses
@@ -1796,7 +1832,7 @@ Format as JSON with detailed investment terms from authentic sources only.`,
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`💰 Investment terms generated: ${JSON.stringify(result).length} characters`);
       
       // BULLETPROOF FALLBACK: Never allow "No information available" responses
@@ -1882,7 +1918,7 @@ Output valid JSON only with detailed investment recommendation. No other text.`,
     );
 
     try {
-      const result = JSON.parse(response || '{}');
+      const result = safeJsonParse(response || '{}');
       console.log(`📋 Investment recommendation generated: ${JSON.stringify(result).length} characters`);
       
       // BULLETPROOF FALLBACK: Never allow "No information available" responses
