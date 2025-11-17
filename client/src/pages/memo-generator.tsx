@@ -121,53 +121,6 @@ export default function MemoGenerator() {
   
   // Local generating state - prevents flicker during mutation->WebSocket transition
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
-  
-  // WebSocket connection for real-time progress updates
-  const { isConnected: wsConnected, latestProgress: wsLatestProgress } = useWebSocketProgress({
-    dealId: selectedDeal,
-    enabled: isLocalGenerating || !!wsProgress, // Enable during generation
-    onProgress: (progress) => {
-      console.log('📡 WebSocket progress update:', progress);
-      if (progress.jobType === 'investment_memo_generation') {
-        setWsProgress({
-          isRunning: progress.status === 'processing',
-          progress: progress.progress,
-          currentStep: progress.currentStep,
-          status: progress.status,
-          jobId: progress.jobId
-        });
-      }
-    },
-    onComplete: (progress) => {
-      console.log('✅ WebSocket: Job completed');
-      setIsLocalGenerating(false);
-      // Refresh memo from database
-      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      }, 500);
-      
-      // Show success toast
-      const jobId = progress.jobId?.toString();
-      if (jobId && !shownSuccessJobsRef.current.has(jobId)) {
-        shownSuccessJobsRef.current.add(jobId);
-        toast({
-          title: "Memo Generated Successfully",
-          description: "Your investment memo is ready to view.",
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('❌ WebSocket: Job failed', error);
-      setIsLocalGenerating(false);
-      setWsProgress(null);
-      toast({
-        title: "Memo Generation Failed",
-        description: error || "There was an error generating the memo. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
 
   // 🔥 AUTO-SELECT DEAL FROM URL PARAMETER (when clicking Edit from memos page)
   useEffect(() => {
@@ -377,6 +330,66 @@ export default function MemoGenerator() {
         }
       }
       return data;
+    }
+  });
+
+  // WebSocket connection for real-time progress updates
+  // CRITICAL FIX: Enable WebSocket if ANY job is running (not just locally started)
+  const hasPollingJob = useMemo(() => {
+    const jobs = jobProgressData?.jobs || [];
+    return jobs.some((job: any) => {
+      if (!job || !job.jobType) return false;
+      const jobType = job.jobType.toLowerCase();
+      const isMemoJob = jobType === 'investment_memo_generation' || 
+                       jobType.includes('memo') || 
+                       jobType.includes('investment_memo');
+      return isMemoJob && job.status === 'processing';
+    });
+  }, [jobProgressData]);
+  
+  const shouldEnableWebSocket = isLocalGenerating || !!wsProgress || hasPollingJob;
+  
+  const { isConnected: wsConnected } = useWebSocketProgress({
+    dealId: selectedDeal,
+    enabled: shouldEnableWebSocket && !!selectedDeal,
+    onProgress: (progress) => {
+      console.log('📡 WebSocket progress update:', progress);
+      if (progress.jobType === 'investment_memo_generation') {
+        setWsProgress({
+          isRunning: progress.status === 'processing',
+          progress: progress.progress,
+          currentStep: progress.currentStep,
+          status: progress.status,
+          jobId: progress.jobId
+        });
+      }
+    },
+    onComplete: (progress) => {
+      console.log('✅ WebSocket: Job completed');
+      setIsLocalGenerating(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      }, 500);
+      
+      const jobId = progress.jobId?.toString();
+      if (jobId && !shownSuccessJobsRef.current.has(jobId)) {
+        shownSuccessJobsRef.current.add(jobId);
+        toast({
+          title: "Memo Generated Successfully",
+          description: "Your investment memo is ready to view.",
+        });
+      }
+    },
+    onError: (error) => {
+      console.error('❌ WebSocket: Job failed', error);
+      setIsLocalGenerating(false);
+      setWsProgress(null);
+      toast({
+        title: "Memo Generation Failed",
+        description: error || "There was an error generating the memo. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
