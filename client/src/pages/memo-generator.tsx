@@ -366,7 +366,22 @@ export default function MemoGenerator() {
     },
     onComplete: (progress) => {
       console.log('✅ WebSocket: Job completed');
-      setIsLocalGenerating(false);
+      
+      // Update wsProgress to completion state BEFORE clearing isLocalGenerating
+      // This prevents gap where both states are false
+      setWsProgress({
+        isRunning: false,
+        progress: 100,
+        currentStep: 'Completed',
+        status: 'completed',
+        jobId: progress.jobId
+      });
+      
+      // Small delay before clearing isLocalGenerating to ensure UI has updated
+      setTimeout(() => {
+        setIsLocalGenerating(false);
+      }, 100);
+      
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
@@ -414,6 +429,17 @@ export default function MemoGenerator() {
       jobId: memoJob.id
     };
   }, [wsProgress, jobProgressData]);
+
+  // DEFENSIVE: Clear isLocalGenerating if job completes but WebSocket didn't fire onComplete
+  // This prevents stuck progress bar in edge cases where WebSocket fails
+  useEffect(() => {
+    if (memoProgress && (memoProgress.status === 'completed' || memoProgress.status === 'failed')) {
+      console.log('🛡️ Defensive: Job completed/failed, clearing isLocalGenerating as fallback');
+      setTimeout(() => {
+        setIsLocalGenerating(false);
+      }, 200); // Small delay to let WebSocket handle it first if it's going to
+    }
+  }, [memoProgress?.status]);
 
   // Auto-refresh memo when job completes
   useEffect(() => {
@@ -473,44 +499,35 @@ export default function MemoGenerator() {
         method: 'POST',
       });
       
-      console.log('📝 Generate memo response:', { success: response.success, hasMemo: !!response.memo, error: response.error });
+      console.log('📝 Generate memo response:', { 
+        success: response.success, 
+        jobId: response.jobId,
+        error: response.error 
+      });
       
       if (!response.success) {
         setIsLocalGenerating(false);
         throw new Error(response.error || 'Failed to generate memo');
       }
       
-      return response.memo;
+      return response; // Returns { success, message, jobId, dealId }
     },
-    onSuccess: (memo: ComprehensiveMemo) => {
-      console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
-      setGeneratedMemo(memo);
+    onSuccess: (response: any) => {
+      console.log('✅ Investment memo generation job started', { 
+        jobId: response.jobId,
+        dealId: response.dealId 
+      });
       
-      // CRITICAL: Keep isLocalGenerating TRUE - WebSocket will set it to FALSE on completion
-      // This prevents progress bar flicker during mutation->WebSocket transition
+      // API ALWAYS creates background job - no synchronous completion
+      // Keep isLocalGenerating TRUE until WebSocket reports completion
+      // Defensive useEffect will clear it as fallback if WebSocket fails
       
-      // Immediately refetch background jobs to start progress tracking (fallback)
+      console.log('📡 Background job created - enabling WebSocket tracking');
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-      
-      // Show initial toast
-      if (memo && Object.keys(memo).length > 0) {
-        // Memo completed immediately (rare case)
-        setIsLocalGenerating(false);
-        toast({
-          title: "Investment Memo Generated",
-          description: "Comprehensive memo created successfully.",
-        });
-        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        setTimeout(() => {
-          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        }, 500);
-      } else {
-        // Job running in background - WebSocket will track progress
-        toast({
-          title: "Generating Investment Memo",
-          description: "Real-time progress tracking enabled via WebSocket.",
-        });
-      }
+      toast({
+        title: "Generating Investment Memo",
+        description: "Real-time progress tracking enabled. This may take several minutes.",
+      });
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
