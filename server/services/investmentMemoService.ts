@@ -780,11 +780,12 @@ ${companyInfo}`
     
     const combinedExtractions = extractedInfo.join('\n\n=== NEXT EXTRACTION ===\n\n');
     
-    const finalSynthesis = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `You are synthesizing multiple company information extractions into one comprehensive company profile. 
+    const finalSynthesis = await openaiQuotaManager.makeRequest(
+      () => openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        messages: [{
+          role: "system",
+          content: `You are synthesizing multiple company information extractions into one comprehensive company profile. 
 
 Combine and deduplicate information from multiple sources. Prioritize the most specific and detailed information. If information conflicts, note both versions.
 
@@ -797,30 +798,37 @@ Output a comprehensive company profile with:
 6. Key Partnerships and Strategic Alliances
 
 Be specific with names, dates, addresses, and percentages. If information is not found, state "Not found in available documents".`
-      }, {
-        role: "user",
-        content: `Synthesize these company information extractions for ${data.companyName}:
+        }, {
+          role: "user",
+          content: `Synthesize these company information extractions for ${data.companyName}:
 
 ${combinedExtractions}`
-      }],
-      temperature: 0.1,
-      max_tokens: 4000
-    });
+        }],
+        temperature: 0.1,
+        max_tokens: 4000
+      }).then(response => response.choices[0].message.content || 'No specific company information could be extracted from the available documents and analyses.'),
+      {
+        description: 'Final company info synthesis',
+        priority: 'high',
+        fallbackContent: 'Company information synthesis timed out. Please review available documents manually.'
+      }
+    );
     
     console.log(`✅ Multi-pass extraction completed for ${data.companyName}`);
     
-    return finalSynthesis.choices[0].message.content || 'No specific company information could be extracted from the available documents and analyses.';
+    return finalSynthesis as string;
   }
   
   private async extractFromContent(content: string, companyName: string, sourceType: string): Promise<string> {
     try {
       console.log(`🔍 Extracting from ${sourceType} (${content.length.toLocaleString()} characters)`);
       
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Extract specific company information from this content. Focus on:
+      const response = await openaiQuotaManager.makeRequest(
+        () => openai.chat.completions.create({
+          model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+          messages: [{
+            role: "system",
+            content: `Extract specific company information from this content. Focus on:
 
 1. Executive names and roles (CEO, CTO, CFO, founders)
 2. Corporate details (addresses, incorporation dates, registration numbers)
@@ -831,17 +839,23 @@ ${combinedExtractions}`
 7. Key partnerships and agreements
 
 Extract only factual information explicitly mentioned. Include exact names, dates, addresses, percentages.`
-        }, {
-          role: "user",
-          content: `Extract company information for ${companyName} from this ${sourceType}:
+          }, {
+            role: "user",
+            content: `Extract company information for ${companyName} from this ${sourceType}:
 
 ${content.substring(0, 120000)}`
-        }],
-        temperature: 0.1,
-        max_tokens: 2000
-      });
+          }],
+          temperature: 0.1,
+          max_tokens: 2000
+        }).then(response => response.choices[0].message.content || `No information extracted from ${sourceType}`),
+        {
+          description: `Company info extraction from ${sourceType}`,
+          priority: 'medium',
+          fallbackContent: `Unable to extract information from ${sourceType} due to API timeout or error`
+        }
+      );
       
-      return response.choices[0].message.content || `No information extracted from ${sourceType}`;
+      return response as string;
     } catch (error) {
       console.error(`Error extracting from ${sourceType}:`, error);
       return `Error processing ${sourceType}`;
