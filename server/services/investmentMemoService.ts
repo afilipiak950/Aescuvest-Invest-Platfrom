@@ -639,12 +639,12 @@ ${summaryText}
     // Extract comprehensive company information from ALL sources
     const companyInfo = await this.extractComprehensiveCompanyInformation(data);
     
-    return await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `You are a professional VC investment memo writer. Create a professional cover page with two-column layout:
+    return await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2500,
+        temperature: 0.2,
+        system: `You are a professional VC investment memo writer. Create a professional cover page with two-column layout:
 
 LEFT COLUMN - "The Company":
 - Headquarters: [Extract exact address from documents]
@@ -668,18 +668,16 @@ CRITICAL REQUIREMENTS:
 5. Use bullet points and clear structure for readability
 6. Include investment-specific language (liquidation preferences, board rights, etc.)
 
-Format as professional markdown with clear headers and bullet points.`
-        }, {
+Format as professional markdown with clear headers and bullet points.`,
+        messages: [{
           role: "user",
           content: `Generate comprehensive cover page for ${data.companyName} investment memo.
 
 Use this extracted company information:
 
 ${companyInfo}`
-        }],
-        temperature: 0.2,
-        max_tokens: 2500
-      }).then(response => response.choices[0].message.content || ''),
+        }]
+      }).then(response => response.content[0].text || ''),
       {
         description: 'Cover Page Generation',
         priority: 'high',
@@ -861,12 +859,12 @@ ${content.substring(0, 180000)}`
   // ==================== MEMO SECTION GENERATORS ====================
 
   private async generateExecutiveSummary(context: string, companyName: string): Promise<string> {
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system", 
-          content: `Generate comprehensive executive summary (3-4 pages) with professional VC quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        temperature: 0.2,
+        system: `Generate comprehensive executive summary (3-4 pages) with professional VC quality. Extract ONLY authentic data from provided context - never fabricate names, numbers, or details. Include:
 
 **MANDATORY AUTHENTIC DATA EXTRACTION:**
 1. **Company Details**: Exact founding date, headquarters location, incorporation details from documents
@@ -892,14 +890,12 @@ ${content.substring(0, 180000)}`
 - Technology differentiation with actual performance specifications
 - Management assessment with verified executive backgrounds
 
-Extract and verify all data from provided context - reject any fabricated information.`
-        }, {
+Extract and verify all data from provided context - reject any fabricated information.`,
+        messages: [{
           role: "user",
           content: `Generate executive summary using ONLY authentic data from this comprehensive analysis for ${companyName} (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', companyName, 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
-        }],
-        temperature: 0.2,
-        max_tokens: 4000
-      }).then(response => response.choices[0].message.content || ''),
+        }]
+      }).then(response => response.content[0].text || ''),
       {
         description: 'Executive Summary Generation',
         priority: 'high',
@@ -911,12 +907,12 @@ Extract and verify all data from provided context - reject any fabricated inform
   }
 
   private async generateInvestmentHighlights(context: string, companyName: string): Promise<string[]> {
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Extract 4-6 specific investment highlights in professional format. Each highlight must be authentic and specific:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        temperature: 0.3,
+        system: `Extract 4-6 specific investment highlights in professional format. Each highlight must be authentic and specific:
 
 **REQUIRED INVESTMENT HIGHLIGHTS STRUCTURE:**
 1. **Innovative Technology**: Quantified performance metrics, AI capabilities, automation benefits
@@ -933,14 +929,12 @@ Extract and verify all data from provided context - reject any fabricated inform
 - Focus on quantified investment attractiveness
 - Match professional VC language with concrete benefits
 
-Format as JSON object with "highlights" array of detailed strings.`
-        }, {
+Output valid JSON only with "highlights" array of detailed strings. No other text.`,
+        messages: [{
           role: "user", 
           content: `Extract authentic investment highlights for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      }).then(response => response.choices[0].message.content || '{"highlights": []}'),
+        }]
+      }).then(response => response.content[0].text || '{"highlights": []}'),
       {
         description: 'Investment Highlights Extraction',
         priority: 'high',
@@ -981,12 +975,12 @@ Format as JSON object with "highlights" array of detailed strings.`
       ? `=== AGENT ANALYSES (PRIORITY - Findings & Recommendations) ===\n${agentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${swotContext}`
       : swotContext;
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate professional SWOT analysis in standard VC format with specific, investment-relevant points:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.4,
+        system: `Generate professional SWOT analysis in standard VC format with specific, investment-relevant points:
 
 **STRENGTHS** - Extract authentic competitive advantages:
 - IP position (specific patents, AI training data size)
@@ -1013,14 +1007,12 @@ Format as JSON object with "highlights" array of detailed strings.`
 - Competitive threats and barriers
 - Technical or operational risks
 
-Extract specific, actionable points with authentic data. Format as JSON with detailed arrays.`
-        }, {
+Extract specific, actionable points with authentic data. Output valid JSON only with detailed arrays. No other text.`,
+        messages: [{
           role: "user",
           content: `Generate authentic SWOT analysis for ${data.companyName}. Prioritize findings and recommendations from agent analyses:\n\n${prioritizedContext}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.4
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'SWOT Analysis Generation',
         priority: 'medium',
@@ -1047,12 +1039,12 @@ Extract specific, actionable points with authentic data. Format as JSON with det
   private async generateMarketAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['marketAnalysis']> {
     console.log(`📊 Generating market analysis from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate comprehensive market analysis with professional VC quality. Extract ONLY authentic market data from context. Include:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `Generate comprehensive market analysis with professional VC quality. Extract ONLY authentic market data from context. Include:
 
 **AUTHENTIC MARKET DATA EXTRACTION:**
 1. **Specific Market Sizes**: Extract exact TAM/SAM/SOM figures with sources and CAGR from documents
@@ -1074,15 +1066,12 @@ Extract specific, actionable points with authentic data. Format as JSON with det
 - If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate market numbers - extract only from authentic document analysis
 
-Format as JSON with authentic data only - never fabricate market numbers.`
-        }, {
+Output valid JSON only with authentic data. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract authentic market analysis data for ${companyName}:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Market Analysis Generation',
         priority: 'high',
@@ -1143,12 +1132,12 @@ Format as JSON with authentic data only - never fabricate market numbers.`
   private async generateProductAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['productAnalysis']> {
     console.log(`🔬 Generating product analysis from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate comprehensive product analysis matching reference PDF quality. Extract ONLY authentic product information:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `Generate comprehensive product analysis matching reference PDF quality. Extract ONLY authentic product information:
 
 **AUTHENTIC PRODUCT DATA EXTRACTION:**
 1. **Product Overview**: Extract actual product description, system specifications, AI capabilities
@@ -1169,15 +1158,12 @@ Format as JSON with authentic data only - never fabricate market numbers.`
 - If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate technical specifications - extract only from authentic document analysis
 
-Format as JSON with detailed product information from authentic sources only.`
-        }, {
+Output valid JSON only with detailed product information from authentic sources. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract authentic product analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Product Analysis Generation',
         priority: 'high',
@@ -1234,12 +1220,12 @@ Format as JSON with detailed product information from authentic sources only.`
   private async generateBusinessModel(context: string, companyName: string): Promise<InvestmentMemoSections['businessModel']> {
     console.log(`💼 Generating business model from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `You are analyzing comprehensive business model information for ${companyName}. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `You are analyzing comprehensive business model information for ${companyName}. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
 
 **CRITICAL SEARCH TARGETS:**
 Look specifically for:
@@ -1268,17 +1254,14 @@ Look specifically for:
 - Include real commercial metrics from agent analyses
 - If no specific information found, state "No [specific metric] information available in provided documents"
 
-Format as JSON with detailed business model extracted from commercial analyses and financial documents.`
-        }, {
+Output valid JSON only with detailed business model. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract business model for ${companyName} from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
 
 ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strategy', 'monetization', 'customer', 'acquisition', 'pricing', 'commercial'], 70000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Business Model Generation',
         priority: 'high',
@@ -1353,12 +1336,12 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
       ? `=== HR AGENT ANALYSIS (PRIORITY) ===\n${hrAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${personnelContext}`
       : personnelContext;
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{
-          role: "system",
-          content: `You are analyzing ${data.companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        temperature: 0.1,
+        system: `You are analyzing ${data.companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
 
 **MANDATORY EXTRACTION REQUIREMENTS:**
 
@@ -1413,27 +1396,12 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
 - Extract educational credentials (PhD, MD, MBA, BS, etc.)
 - Note previous companies with timeframes when available
 
-**OUTPUT FORMAT (JSON):**
-{
-  "management": "Detailed paragraph with CEO NAME, CTO NAME, other execs with their backgrounds",
-  "keyPersonnel": [
-    "NAME - TITLE: Specific background with previous companies, education, and achievements",
-    "NAME - TITLE: Specific background...",
-    ...
-  ],
-  "advisors": "Paragraph listing each advisor by NAME with their affiliation and expertise",
-  "boardComposition": "Paragraph listing each board member by NAME with their background"
-}
-
-Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and employment documents for concrete names and backgrounds.`
-        }, {
+Output valid JSON only. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract CONCRETE team details with ACTUAL NAMES for ${data.companyName}. Search especially the HR AGENT ANALYSIS and CEO PROFILE sections:\n\n${prioritizedContext}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.1, // Lower temperature for more factual extraction
-        max_tokens: 4000 // Increased for detailed personnel info
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Team Assessment Generation',
         priority: 'high',
@@ -1499,12 +1467,12 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
     
     console.log(`💰 Enhanced financial context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on financial content`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [{
-          role: "system",
-          content: `Generate comprehensive financial analysis matching reference PDF quality. Extract ONLY authentic financial data:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `Generate comprehensive financial analysis matching reference PDF quality. Extract ONLY authentic financial data:
 
 **AUTHENTIC FINANCIAL DATA EXTRACTION:**
 1. **Current Financials**: Extract actual revenue figures, burn rate, cash position from documents
@@ -1524,14 +1492,12 @@ Search the CEO PROFILE, LEADERSHIP TEAM, HR ANALYSIS, organizational charts, and
 
 Extract specific numbers, dates, and financial terms from documents. Never fabricate financial data.
 
-Format as JSON with detailed financial information only from authentic sources.`
-        }, {
+Output valid JSON only with detailed financial information from authentic sources. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract authentic financial analysis for ${data.companyName}. Prioritize financial agent Q&A data:\n\n${prioritizedContext}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Financial Analysis Generation',
         priority: 'high',
@@ -1590,12 +1556,12 @@ Format as JSON with detailed financial information only from authentic sources.`
     
     console.log(`⚖️ Enhanced legal context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on legal content`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate professional legal assessment matching reference PDF quality. Extract ONLY authentic legal information from the comprehensive analysis:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `Generate professional legal assessment matching reference PDF quality. Extract ONLY authentic legal information from the comprehensive analysis:
 
 **AUTHENTIC LEGAL DATA EXTRACTION:**
 1. **Corporate Structure**: Extract actual corporate entity details, jurisdictions, subsidiaries from documents
@@ -1616,15 +1582,12 @@ Format as JSON with detailed financial information only from authentic sources.`
 - If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate legal information - extract only from authentic document analysis
 
-Format as JSON with detailed legal information from authentic sources only.`
-        }, {
+Output valid JSON only with detailed legal information from authentic sources. No other text.`,
+        messages: [{
           role: "user",
           content: `Extract authentic legal assessment for ${data.companyName}. Prioritize legal agent Q&A data:\n\n${prioritizedContext}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Legal Assessment Generation',
         priority: 'high',
@@ -1663,12 +1626,12 @@ Format as JSON with detailed legal information from authentic sources only.`
   private async generateRiskAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['riskAssessment']> {
     console.log(`⚠️ Generating risk assessment from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-        role: "system",
-        content: `Generate comprehensive investment risk assessment matching reference PDF format. Extract ONLY authentic risk factors:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.3,
+        system: `Generate comprehensive investment risk assessment matching reference PDF format. Extract ONLY authentic risk factors:
 
 **TECHNICAL RISKS** - Extract actual technology challenges:
 - AI/ML model performance and validation risks
@@ -1706,14 +1669,12 @@ Format as JSON with detailed legal information from authentic sources only.`
 - Reference competitive threats and commercial obstacles
 - Never fabricate risks - extract only documented concerns
 
-Format as JSON with detailed risk arrays from authentic sources only.`
-      }, {
-        role: "user",
-        content: `Extract authentic risk assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
-      }],
-      response_format: { type: "json_object" },
-      temperature: 0.3
-    }).then(response => response.choices[0].message.content || '{}'),
+Output valid JSON only with detailed risk arrays from authentic sources. No other text.`,
+        messages: [{
+          role: "user",
+          content: `Extract authentic risk assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
+        }]
+      }).then(response => response.content[0].text || '{}'),
     {
       description: 'Risk Assessment Generation',
       priority: 'high',
@@ -1812,12 +1773,12 @@ Format as JSON with detailed risk arrays from authentic sources only.`
   private async generateInvestmentTerms(context: string, companyName: string): Promise<InvestmentMemoSections['investmentTerms']> {
     console.log(`💰 Generating investment terms from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate professional investment terms matching reference PDF format. Extract ONLY authentic investment terms from documents:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.2,
+        system: `Generate professional investment terms matching reference PDF format. Extract ONLY authentic investment terms from documents:
 
 **INVESTMENT TERMS EXTRACTION:**
 1. **Valuation**: Extract pre-money/post-money valuations from term sheets
@@ -1844,11 +1805,8 @@ Format as JSON with detailed investment terms from authentic sources only.`
         }, {
           role: "user",
           content: `Extract authentic investment terms for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-        max_tokens: 3000
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Investment Terms Generation',
         priority: 'high',
@@ -1900,12 +1858,12 @@ Format as JSON with detailed investment terms from authentic sources only.`
   private async generateRecommendation(context: string, companyName: string): Promise<InvestmentMemoSections['recommendation']> {
     console.log(`📋 Generating investment recommendation from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate professional investment recommendation matching reference PDF format. Provide clear investment decision framework:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3000,
+        temperature: 0.3,
+        system: `Generate professional investment recommendation matching reference PDF format. Provide clear investment decision framework:
 
 **INVESTMENT RECOMMENDATION STRUCTURE:**
 1. **Investment Decision**: INVEST/PASS/INVESTIGATE with clear rationale
@@ -1928,14 +1886,12 @@ Format as JSON with detailed investment terms from authentic sources only.`
 - Reference real market opportunities and competitive positioning
 - Use evidence-based rationale from comprehensive document analysis
 
-Format as JSON with detailed investment recommendation based on authentic analysis.`
-        }, {
+Output valid JSON only with detailed investment recommendation. No other text.`,
+        messages: [{
           role: "user",
           content: `Generate authentic investment recommendation for ${companyName}:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
-        }],
-        response_format: { type: "json_object" },
-        temperature: 0.3
-      }).then(response => response.choices[0].message.content || '{}'),
+        }]
+      }).then(response => response.content[0].text || '{}'),
       {
         description: 'Investment Recommendation Generation',
         priority: 'high',
@@ -1987,12 +1943,12 @@ Format as JSON with detailed investment recommendation based on authentic analys
   private async generateTAMSAMSOMAnalysis(context: string, companyName: string): Promise<string> {
     console.log(`📊 Generating TAM/SAM/SOM analysis from ${context.length.toLocaleString()} characters of context`);
     
-    const response = await openaiQuotaManager.makeRequest(
-      () => openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages: [{
-          role: "system",
-          content: `Generate comprehensive TAM/SAM/SOM analysis (4-5 pages) with detailed market sizing, methodology, data sources, and supporting calculations. Include:
+    const response = await claudeQuotaManager.makeRequest(
+      () => anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 3500,
+        temperature: 0.5,
+        system: `Generate comprehensive TAM/SAM/SOM analysis (4-5 pages) with detailed market sizing, methodology, data sources, and supporting calculations. Include:
 
 1. Total Addressable Market (TAM) - Global market size with specific numbers and growth rates
 2. Serviceable Addressable Market (SAM) - Reachable market segments with geographic and demographic breakdown
@@ -2004,14 +1960,12 @@ Format as JSON with detailed investment recommendation based on authentic analys
 8. Competitive market share analysis
 9. Market timing and opportunity assessment
 
-Extract specific market data from the analysis including market values, growth rates, customer numbers, pricing data, and competitive positioning. Use tables and structured presentation.`
-      }, {
-        role: "user",
-        content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${this.extractRelevantContext(context, ['TAM', 'SAM', 'SOM', 'market', 'size', 'addressable', 'obtainable', 'serviceable', 'total'], 60000)}`
-      }],
-      temperature: 0.5,
-      max_tokens: 3500
-    }).then(response => response.choices[0].message.content || ''),
+Extract specific market data from the analysis including market values, growth rates, customer numbers, pricing data, and competitive positioning. Use tables and structured presentation.`,
+        messages: [{
+          role: "user",
+          content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${this.extractRelevantContext(context, ['TAM', 'SAM', 'SOM', 'market', 'size', 'addressable', 'obtainable', 'serviceable', 'total'], 60000)}`
+        }]
+      }).then(response => response.content[0].text || ''),
     {
       description: 'TAM/SAM/SOM Analysis Generation',
       priority: 'high',
@@ -2048,11 +2002,11 @@ Market sizing methodology will be derived from available market research, indust
   }
 
   private async generateCompetitiveAnalysis(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive competitive analysis (3-4 pages) covering the complete competitive landscape. Include:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3500,
+      temperature: 0.5,
+      system: `Generate comprehensive competitive analysis (3-4 pages) covering the complete competitive landscape. Include:
 
 1. Direct competitors with company profiles, funding, market position, and technology comparison
 2. Indirect competitors and alternative solutions
@@ -2065,16 +2019,14 @@ Market sizing methodology will be derived from available market research, indust
 9. Barriers to entry and competitive moats
 10. First-mover advantages and competitive timing
 
-Extract specific competitor information including company names, funding rounds, market positions, technology features, pricing models, and strategic partnerships. Present in structured format with competitive comparison tables.`
-      }, {
+Extract specific competitor information including company names, funding rounds, market positions, technology features, pricing models, and strategic partnerships. Present in structured format with competitive comparison tables.`,
+      messages: [{
         role: "user",
         content: `Generate comprehensive competitive analysis:\n\n${this.extractRelevantContext(context, ['competitive', 'competitor', 'competition', 'landscape', 'positioning', 'advantage', 'differentiation'], 60000)}`
-      }],
-      temperature: 0.5,
-      max_tokens: 3500
+      }]
     });
     
-    const content = response.choices[0].message.content || '';
+    const content = response.content[0].text || '';
     
     // BULLETPROOF FALLBACK: Never allow empty or "No information available" responses
     const ensureAuthenticContent = (content: string, fallback: string) => {
@@ -2105,41 +2057,39 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
   }
 
   private async generateTechnologyAssessment(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Assess technology stack, innovation, IP protection, technical risks, and development roadmap.`,
       messages: [{
-        role: "system",
-        content: `Assess technology stack, innovation, IP protection, technical risks, and development roadmap.`
-      }, {
         role: "user",
         content: `Generate technology assessment:\n\n${this.extractRelevantContext(context, ['technology', 'technical', 'innovation', 'platform', 'system', 'architecture', 'algorithm'], 50000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateCommercialStrategy(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Analyze go-to-market strategy, sales approach, customer acquisition, and partnerships.`,
       messages: [{
-        role: "system",
-        content: `Analyze go-to-market strategy, sales approach, customer acquisition, and partnerships.`
-      }, {
         role: "user",
         content: `Generate commercial strategy:\n\n${this.extractRelevantContext(context, ['commercial', 'strategy', 'sales', 'marketing', 'distribution', 'channel', 'partnership'], 55000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateManagementAnalysis(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive management analysis (2-3 pages) with detailed assessment of leadership team. Include:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      temperature: 0.3,
+      system: `Generate comprehensive management analysis (2-3 pages) with detailed assessment of leadership team. Include:
 
 1. CEO/Founder profiles with specific names, backgrounds, education, and track record
 2. Key executive assessment (CTO, CFO, COO) with experience and expertise
@@ -2152,23 +2102,21 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
 9. Cultural and operational capabilities
 10. Management compensation and equity alignment
 
-Extract specific details including executive names, previous companies, educational backgrounds, years of experience, notable achievements, and board composition from the comprehensive analysis.`
-      }, {
+Extract specific details including executive names, previous companies, educational backgrounds, years of experience, notable achievements, and board composition from the comprehensive analysis.`,
+      messages: [{
         role: "user",
         content: `Generate comprehensive management analysis:\n\n${this.extractRelevantContext(context, ['management', 'executive', 'leadership', 'CEO', 'founder', 'team', 'governance'], 65000)}`
-      }],
-      temperature: 0.3,
-      max_tokens: 3000
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateFinancialProjections(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive financial projections (4-5 pages) with detailed financial modeling and forecasts. Include:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3500,
+      temperature: 0.4,
+      system: `Generate comprehensive financial projections (4-5 pages) with detailed financial modeling and forecasts. Include:
 
 1. Revenue projections with detailed breakdown by product/service lines
 2. Cost structure analysis including COGS, operating expenses, and scaling factors
@@ -2181,121 +2129,111 @@ Extract specific details including executive names, previous companies, educatio
 9. Funding requirements and use of proceeds
 10. Key financial ratios and benchmarking against industry standards
 
-Extract specific financial data from documents including historical financials, revenue run rates, cost structures, funding history, and growth metrics. Present in table format with detailed assumptions.`
-      }, {
+Extract specific financial data from documents including historical financials, revenue run rates, cost structures, funding history, and growth metrics. Present in table format with detailed assumptions.`,
+      messages: [{
         role: "user",
         content: `Generate comprehensive financial projections:\n\n${this.extractRelevantContext(context, ['financial', 'projection', 'forecast', 'revenue', 'growth', 'expense', 'budget', 'cash'], 70000)}`
-      }],
-      temperature: 0.4,
-      max_tokens: 3500
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateValuationAnalysis(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Analyze valuation using multiple methodologies including DCF, comparable companies, and precedent transactions.`,
       messages: [{
-        role: "system",
-        content: `Analyze valuation using multiple methodologies including DCF, comparable companies, and precedent transactions.`
-      }, {
         role: "user",
         content: `Generate valuation analysis:\n\n${this.extractRelevantContext(context, ['valuation', 'value', 'price', 'multiple', 'DCF', 'comparable', 'worth'], 50000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateRegulatoryAnalysis(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Analyze regulatory environment, compliance requirements, and pathway to market approval.`,
       messages: [{
-        role: "system",
-        content: `Analyze regulatory environment, compliance requirements, and pathway to market approval.`
-      }, {
         role: "user",
         content: `Generate regulatory analysis:\n\n${this.extractRelevantContext(context, ['regulatory', 'regulation', 'FDA', 'CE', 'approval', 'compliance', 'pathway'], 50000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateClinicalAssessment(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      temperature: 0.7,
+      system: `Generate comprehensive clinical assessment (3-4 pages) analyzing clinical development plan, trial design, regulatory pathway, clinical risks, and timeline to market. Include specific clinical data, endpoints, patient populations, and regulatory milestones with detailed analysis.`,
       messages: [{
-        role: "system",
-        content: `Generate comprehensive clinical assessment (3-4 pages) analyzing clinical development plan, trial design, regulatory pathway, clinical risks, and timeline to market. Include specific clinical data, endpoints, patient populations, and regulatory milestones with detailed analysis.`
-      }, {
         role: "user",
         content: `Generate comprehensive clinical assessment:\n\n${this.extractRelevantContext(context, ['clinical', 'trial', 'study', 'medical', 'patient', 'efficacy', 'safety', 'outcome'], 65000)}`
-      }],
-      temperature: 0.7,
-      max_tokens: 3000
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateIPAnalysis(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Analyze intellectual property portfolio, patent landscape, and IP protection strategy.`,
       messages: [{
-        role: "system",
-        content: `Analyze intellectual property portfolio, patent landscape, and IP protection strategy.`
-      }, {
         role: "user",
         content: `Generate IP analysis:\n\n${this.extractRelevantContext(context, ['patent', 'IP', 'intellectual', 'property', 'trademark', 'copyright', 'protection'], 45000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateResearchInsights(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Provide research insights including scientific foundation, technical innovation, and research differentiation.`,
       messages: [{
-        role: "system",
-        content: `Provide research insights including scientific foundation, technical innovation, and research differentiation.`
-      }, {
         role: "user",
         content: `Generate research insights:\n\n${this.extractRelevantContext(context, ['research', 'insight', 'analysis', 'finding', 'data', 'study', 'intelligence'], 55000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateMitigationStrategies(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Develop comprehensive risk mitigation strategies with specific action plans and contingencies.`,
       messages: [{
-        role: "system",
-        content: `Develop comprehensive risk mitigation strategies with specific action plans and contingencies.`
-      }, {
         role: "user",
         content: `Generate risk mitigation strategies:\n\n${this.extractRelevantContext(context, ['mitigation', 'strategy', 'solution', 'plan', 'approach', 'counter', 'address'], 45000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateExitStrategy(context: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: `Analyze potential exit strategies including IPO readiness, strategic acquisition targets, and exit timing.`,
       messages: [{
-        role: "system",
-        content: `Analyze potential exit strategies including IPO readiness, strategic acquisition targets, and exit timing.`
-      }, {
         role: "user",
         content: `Generate exit strategy:\n\n${this.extractRelevantContext(context, ['exit', 'strategy', 'acquisition', 'IPO', 'sale', 'buyout', 'liquidity'], 40000)}`
-      }],
-      temperature: 0.7
+      }]
     });
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   private async generateAppendices(data: ComprehensiveMemoData): Promise<string> {
@@ -2314,11 +2252,11 @@ Extract specific financial data from documents including historical financials, 
     // Prepare comprehensive context including ALL available data
     const fullContext = await this.prepareIntelligentOCRExtractionContext(data);
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{
-        role: "system",
-        content: `Generate comprehensive high-quality appendices with AUTHENTIC extracted data from documents. Include:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      temperature: 0.2,
+      system: `Generate comprehensive high-quality appendices with AUTHENTIC extracted data from documents. Include:
 
 **APPENDIX A: DOCUMENT INDEX AND SUMMARY**
 - Complete listing of all ${data.documents.length} documents with names, types, dates, and relevance
@@ -2349,8 +2287,8 @@ Extract specific financial data from documents including historical financials, 
 - Shareholding structure and cap table details
 - Corporate governance documents
 
-**EXTRACT ONLY AUTHENTIC DATA - Never fabricate. Use specific names, numbers, dates, and details found in the documents. If no data found, state "Not available in provided documents".**`
-      }, {
+**EXTRACT ONLY AUTHENTIC DATA - Never fabricate. Use specific names, numbers, dates, and details found in the documents. If no data found, state "Not available in provided documents".**`,
+      messages: [{
         role: "user",
         content: `Generate comprehensive appendices using authentic data extracted from ${data.companyName} documents:
 
@@ -2359,12 +2297,10 @@ ${documentIndex.map(doc => `- ${doc.name} (${doc.type}, ${(doc.size/1024).toFixe
 
 COMPREHENSIVE ANALYSIS CONTEXT:
 ${fullContext.substring(0, 45000)}`
-      }],
-      temperature: 0.2,
-      max_tokens: 4000
+      }]
     });
     
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
@@ -2607,11 +2543,11 @@ ${allExtractions.join('\n\n')}
    * Extract specific company details from OCR batch using focused AI analysis
    */
   private async extractCompanyDetailsFromBatch(ocrContent: string, companyName: string): Promise<string> {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `Extract specific company information from OCR text. Focus on:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      temperature: 0.3,
+      system: `Extract specific company information from OCR text. Focus on:
         - Company incorporation details (date, jurisdiction, registration numbers)
         - Executive team (CEO, CTO, CFO names, backgrounds, previous companies)
         - Headquarters and office locations (specific addresses)
@@ -2621,16 +2557,14 @@ ${allExtractions.join('\n\n')}
         - Business partnerships and key customers
         - Regulatory approvals or compliance details
         
-        Return structured, specific information with exact details found in the documents.`
-      }, {
+        Return structured, specific information with exact details found in the documents.`,
+      messages: [{
         role: "user",
         content: `Extract company details for ${companyName} from this OCR content:\n\n${ocrContent.substring(0, 120000)}`
-      }],
-      temperature: 0.3,
-      max_tokens: 4000
+      }]
     });
     
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   /**
@@ -2639,11 +2573,11 @@ ${allExtractions.join('\n\n')}
   private async synthesizeCompanyProfile(extractions: string[], companyName: string): Promise<string> {
     if (extractions.length === 0) return `No detailed company information extracted from documents for ${companyName}.`;
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{
-        role: "system",
-        content: `Synthesize all extracted company information into a comprehensive profile. Include:
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 6000,
+      temperature: 0.2,
+      system: `Synthesize all extracted company information into a comprehensive profile. Include:
         - Complete executive team with names and backgrounds
         - Corporate structure and shareholding details
         - Headquarters and operational locations
@@ -2651,16 +2585,14 @@ ${allExtractions.join('\n\n')}
         - Key partnerships and customers
         - Regulatory status and compliance
         
-        Ensure all specific details (names, dates, addresses, numbers) are preserved accurately.`
-      }, {
+        Ensure all specific details (names, dates, addresses, numbers) are preserved accurately.`,
+      messages: [{
         role: "user",
         content: `Synthesize comprehensive profile for ${companyName} from these extractions:\n\n${extractions.join('\n\n===\n\n')}`
-      }],
-      temperature: 0.2,
-      max_tokens: 6000
+      }]
     });
     
-    return response.choices[0].message.content || '';
+    return response.content[0].text || '';
   }
 
   /**
@@ -2742,14 +2674,18 @@ Generate only the content for this specific section based on your custom enhance
         }
       ];
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-        messages,
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
         temperature: 0.7,
-        max_tokens: 4000
+        system: messages[0].content,
+        messages: [{
+          role: "user",
+          content: messages[1].content
+        }]
       });
 
-      const regeneratedContent = response.choices[0].message.content || `Enhanced ${sectionKey} content not available`;
+      const regeneratedContent = response.content[0].text || `Enhanced ${sectionKey} content not available`;
       
       // Update the memo in database
       const existingMemo = await storage.getMemoByDealId(dealId);
