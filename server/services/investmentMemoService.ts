@@ -228,8 +228,8 @@ class InvestmentMemoService {
           currentStep: 'Generating embeddings for documents (required for quality memo)'
         }, dealId);
         
-        // Auto-trigger embedding generation for all documents
-        await EmbeddingService.embedMissingDocuments(dealId);
+        // Auto-trigger embedding generation with progress tracking (5% → 25%)
+        await EmbeddingService.embedMissingDocuments(dealId, jobId, numericJobId, storage);
         
         // Verify embeddings were created
         const newStats = await EmbeddingService.getEmbeddingStats(dealId);
@@ -242,10 +242,10 @@ class InvestmentMemoService {
         console.log(`✅ Found ${embeddingStats.totalChunks} existing embeddings from ${embeddingStats.uniqueDocuments} documents`);
       }
       
-      // Update progress: Data gathering phase (10%)
+      // Update progress: Data gathering phase (30%) - after embeddings
       await storage.updateBackgroundJob(jobId, {
         status: 'processing',
-        progress: 10,
+        progress: 30,
         currentStep: 'Gathering comprehensive data with full OCR extraction',
         updatedAt: new Date()
       });
@@ -255,7 +255,7 @@ class InvestmentMemoService {
         jobId: numericJobId,
         jobType: 'investment_memo_generation',
         status: 'processing',
-        progress: 10,
+        progress: 30,
         currentStep: 'Gathering comprehensive data with full OCR extraction'
       }, dealId);
       
@@ -263,16 +263,16 @@ class InvestmentMemoService {
       const existingMemo = await storage.getMemoByDealId(dealId);
       if (existingMemo) {
         await storage.updateMemo(existingMemo.id, {
-          executiveSummary: 'Gathering comprehensive data from documents, analyses, and research... (10% complete)',
+          executiveSummary: 'Gathering comprehensive data from documents, analyses, and research... (30% complete)',
           status: 'DRAFT'
         });
       }
       
       const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      // Update progress: Section generation phase (30%)
+      // Update progress: Section generation phase (35%)
       await storage.updateBackgroundJob(jobId, {
-        progress: 30,
+        progress: 35,
         currentStep: 'Generating 26 comprehensive sections with AI analysis',
         updatedAt: new Date()
       });
@@ -282,14 +282,14 @@ class InvestmentMemoService {
         jobId: numericJobId,
         jobType: 'investment_memo_generation',
         status: 'processing',
-        progress: 30,
+        progress: 35,
         currentStep: 'Generating 26 comprehensive sections with AI analysis'
       }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo to show section generation
       if (existingMemo) {
         await storage.updateMemo(existingMemo.id, {
-          executiveSummary: `Generating ultra-deep 26 comprehensive sections with AI analysis for ${memoData.companyName}... (30% complete)`,
+          executiveSummary: `Generating ultra-deep 26 comprehensive sections with AI analysis for ${memoData.companyName}... (35% complete)`,
           status: 'DRAFT'
         });
       }

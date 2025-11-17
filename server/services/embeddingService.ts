@@ -312,7 +312,12 @@ export class EmbeddingService {
   }
 
   // New method for auto-embedding missing documents for specific deal
-  static async embedMissingDocuments(dealId: number): Promise<void> {
+  static async embedMissingDocuments(
+    dealId: number, 
+    jobId?: string, 
+    numericJobId?: number, 
+    storage?: any
+  ): Promise<void> {
     try {
       console.log(`🚀 Auto-embedding missing documents for deal ${dealId}...`);
       
@@ -328,14 +333,16 @@ export class EmbeddingService {
         ORDER BY d.id
       `);
       
-      console.log(`Found ${documentsToEmbed.rows.length} documents to embed for deal ${dealId}`);
+      const totalDocs = documentsToEmbed.rows.length;
+      console.log(`📊 Found ${totalDocs} documents to embed for deal ${dealId}`);
       
-      if (documentsToEmbed.rows.length === 0) {
+      if (totalDocs === 0) {
         console.log(`✅ All documents already embedded for deal ${dealId}`);
         return;
       }
 
-      // Process documents in batches to avoid rate limits
+      // Process documents with progress tracking (5% → 25% range)
+      let processed = 0;
       for (const doc of documentsToEmbed.rows) {
         try {
           await this.embedDocument(
@@ -346,6 +353,37 @@ export class EmbeddingService {
             doc.agent_type as string
           );
           
+          processed++;
+          
+          // Update progress every 10 documents or on last document
+          if (processed % 10 === 0 || processed === totalDocs) {
+            const embeddingProgress = 5 + Math.floor((processed / totalDocs) * 20); // 5% → 25%
+            const statusMsg = `Embedded ${processed}/${totalDocs} documents (${Math.round((processed/totalDocs)*100)}% complete)`;
+            
+            console.log(`📊 ${statusMsg}`);
+            
+            // Update job progress if tracking enabled
+            if (jobId && storage) {
+              await storage.updateBackgroundJob(jobId, {
+                progress: embeddingProgress,
+                currentStep: statusMsg,
+                updatedAt: new Date()
+              });
+              
+              // Broadcast WebSocket update if available
+              if (numericJobId) {
+                const { websocketManager } = await import('./websocketManager');
+                websocketManager.broadcastJobProgress({
+                  jobId: numericJobId,
+                  jobType: 'investment_memo_generation',
+                  status: 'processing',
+                  progress: embeddingProgress,
+                  currentStep: statusMsg
+                }, dealId);
+              }
+            }
+          }
+          
           // Small delay to respect rate limits
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
@@ -353,7 +391,7 @@ export class EmbeddingService {
         }
       }
       
-      console.log(`✅ Completed auto-embedding for deal ${dealId}`);
+      console.log(`✅ Completed auto-embedding ${processed}/${totalDocs} documents for deal ${dealId}`);
     } catch (error) {
       console.error(`❌ Auto-embedding failed for deal ${dealId}:`, error);
       throw error;
