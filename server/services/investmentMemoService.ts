@@ -9,6 +9,29 @@ import { websocketManager } from './websocketManager';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+/**
+ * Safely extracts text content from Anthropic API response
+ * Handles the ContentBlock union type (TextBlock | ToolUseBlock) with type guard
+ * @param response - Anthropic API response
+ * @returns Extracted text content or empty string if no text block found
+ */
+function extractTextFromResponse(response: Anthropic.Messages.Message): string {
+  const firstBlock = response.content[0];
+  
+  if (!firstBlock) {
+    console.error('⚠️ No content blocks in Anthropic response');
+    return '';
+  }
+  
+  if (firstBlock.type === 'text') {
+    return firstBlock.text;
+  }
+  
+  // Unexpected case: tool-use block or unknown type
+  console.error(`⚠️ Unexpected content block type: ${firstBlock.type}, expected 'text'`);
+  return '';
+}
+
 export interface ComprehensiveMemoData {
   dealId: number;
   companyName: string;
@@ -677,7 +700,7 @@ Use this extracted company information:
 
 ${companyInfo}`
         }]
-      }).then(response => response.content[0].text || ''),
+      }).then(response => extractTextFromResponse(response) || ''),
       {
         description: 'Cover Page Generation',
         priority: 'high',
@@ -802,7 +825,7 @@ Be specific with names, dates, addresses, and percentages. If information is not
 
 ${combinedExtractions}`
         }]
-      }).then(response => response.content[0].text || 'No specific company information could be extracted from the available documents and analyses.'),
+      }).then(response => extractTextFromResponse(response) || 'No specific company information could be extracted from the available documents and analyses.'),
       {
         description: 'Final company info synthesis',
         priority: 'high',
@@ -841,7 +864,7 @@ Extract only factual information explicitly mentioned. Include exact names, date
 
 ${content.substring(0, 180000)}`
           }]
-        }).then(response => response.content[0].text || `No information extracted from ${sourceType}`),
+        }).then(response => extractTextFromResponse(response) || `No information extracted from ${sourceType}`),
         {
           description: `Company info extraction from ${sourceType}`,
           priority: 'medium',
@@ -895,7 +918,7 @@ Extract and verify all data from provided context - reject any fabricated inform
           role: "user",
           content: `Generate executive summary using ONLY authentic data from this comprehensive analysis for ${companyName} (extract real names, numbers, dates):\n\n${this.extractRelevantContext(context, ['company', companyName, 'executive', 'overview', 'summary', 'business', 'investment', 'technology', 'market', 'financial', 'clinical'], 90000)}`
         }]
-      }).then(response => response.content[0].text || ''),
+      }).then(response => extractTextFromResponse(response) || ''),
       {
         description: 'Executive Summary Generation',
         priority: 'high',
@@ -934,7 +957,7 @@ Output valid JSON only with "highlights" array of detailed strings. No other tex
           role: "user", 
           content: `Extract authentic investment highlights for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
         }]
-      }).then(response => response.content[0].text || '{"highlights": []}'),
+      }).then(response => extractTextFromResponse(response) || '{"highlights": []}'),
       {
         description: 'Investment Highlights Extraction',
         priority: 'high',
@@ -1012,7 +1035,7 @@ Extract specific, actionable points with authentic data. Output valid JSON only 
           role: "user",
           content: `Generate authentic SWOT analysis for ${data.companyName}. Prioritize findings and recommendations from agent analyses:\n\n${prioritizedContext}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'SWOT Analysis Generation',
         priority: 'medium',
@@ -1071,7 +1094,7 @@ Output valid JSON only with authentic data. No other text.`,
           role: "user",
           content: `Extract authentic market analysis data for ${companyName}:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Market Analysis Generation',
         priority: 'high',
@@ -1163,7 +1186,7 @@ Output valid JSON only with detailed product information from authentic sources.
           role: "user",
           content: `Extract authentic product analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Product Analysis Generation',
         priority: 'high',
@@ -1261,7 +1284,7 @@ Output valid JSON only with detailed business model. No other text.`,
 
 ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strategy', 'monetization', 'customer', 'acquisition', 'pricing', 'commercial'], 70000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Business Model Generation',
         priority: 'high',
@@ -1401,7 +1424,7 @@ Output valid JSON only. No other text.`,
           role: "user",
           content: `Extract CONCRETE team details with ACTUAL NAMES for ${data.companyName}. Search especially the HR AGENT ANALYSIS and CEO PROFILE sections:\n\n${prioritizedContext}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Team Assessment Generation',
         priority: 'high',
@@ -1497,7 +1520,7 @@ Output valid JSON only with detailed financial information from authentic source
           role: "user",
           content: `Extract authentic financial analysis for ${data.companyName}. Prioritize financial agent Q&A data:\n\n${prioritizedContext}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Financial Analysis Generation',
         priority: 'high',
@@ -1587,7 +1610,7 @@ Output valid JSON only with detailed legal information from authentic sources. N
           role: "user",
           content: `Extract authentic legal assessment for ${data.companyName}. Prioritize legal agent Q&A data:\n\n${prioritizedContext}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Legal Assessment Generation',
         priority: 'high',
@@ -1674,7 +1697,7 @@ Output valid JSON only with detailed risk arrays from authentic sources. No othe
           role: "user",
           content: `Extract authentic risk assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
     {
       description: 'Risk Assessment Generation',
       priority: 'high',
@@ -1801,12 +1824,12 @@ Output valid JSON only with detailed risk arrays from authentic sources. No othe
 - If information is not found in documents, state "Information not available in provided documents"
 - Never fabricate investment terms - extract only from documents
 
-Format as JSON with detailed investment terms from authentic sources only.`
-        }, {
+Format as JSON with detailed investment terms from authentic sources only.`,
+        messages: [{
           role: "user",
           content: `Extract authentic investment terms for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Investment Terms Generation',
         priority: 'high',
@@ -1891,7 +1914,7 @@ Output valid JSON only with detailed investment recommendation. No other text.`,
           role: "user",
           content: `Generate authentic investment recommendation for ${companyName}:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
         }]
-      }).then(response => response.content[0].text || '{}'),
+      }).then(response => extractTextFromResponse(response) || '{}'),
       {
         description: 'Investment Recommendation Generation',
         priority: 'high',
@@ -1965,7 +1988,7 @@ Extract specific market data from the analysis including market values, growth r
           role: "user",
           content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${this.extractRelevantContext(context, ['TAM', 'SAM', 'SOM', 'market', 'size', 'addressable', 'obtainable', 'serviceable', 'total'], 60000)}`
         }]
-      }).then(response => response.content[0].text || ''),
+      }).then(response => extractTextFromResponse(response) || ''),
     {
       description: 'TAM/SAM/SOM Analysis Generation',
       priority: 'high',
@@ -2026,7 +2049,7 @@ Extract specific competitor information including company names, funding rounds,
       }]
     });
     
-    const content = response.content[0].text || '';
+    const content = extractTextFromResponse(response) || '';
     
     // BULLETPROOF FALLBACK: Never allow empty or "No information available" responses
     const ensureAuthenticContent = (content: string, fallback: string) => {
@@ -2067,7 +2090,7 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
         content: `Generate technology assessment:\n\n${this.extractRelevantContext(context, ['technology', 'technical', 'innovation', 'platform', 'system', 'architecture', 'algorithm'], 50000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateCommercialStrategy(context: string, companyName: string): Promise<string> {
@@ -2081,7 +2104,7 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
         content: `Generate commercial strategy:\n\n${this.extractRelevantContext(context, ['commercial', 'strategy', 'sales', 'marketing', 'distribution', 'channel', 'partnership'], 55000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateManagementAnalysis(context: string, companyName: string): Promise<string> {
@@ -2108,7 +2131,7 @@ Extract specific details including executive names, previous companies, educatio
         content: `Generate comprehensive management analysis:\n\n${this.extractRelevantContext(context, ['management', 'executive', 'leadership', 'CEO', 'founder', 'team', 'governance'], 65000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateFinancialProjections(context: string, companyName: string): Promise<string> {
@@ -2135,7 +2158,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate comprehensive financial projections:\n\n${this.extractRelevantContext(context, ['financial', 'projection', 'forecast', 'revenue', 'growth', 'expense', 'budget', 'cash'], 70000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateValuationAnalysis(context: string, companyName: string): Promise<string> {
@@ -2149,7 +2172,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate valuation analysis:\n\n${this.extractRelevantContext(context, ['valuation', 'value', 'price', 'multiple', 'DCF', 'comparable', 'worth'], 50000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateRegulatoryAnalysis(context: string, companyName: string): Promise<string> {
@@ -2163,7 +2186,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate regulatory analysis:\n\n${this.extractRelevantContext(context, ['regulatory', 'regulation', 'FDA', 'CE', 'approval', 'compliance', 'pathway'], 50000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateClinicalAssessment(context: string, companyName: string): Promise<string> {
@@ -2177,7 +2200,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate comprehensive clinical assessment:\n\n${this.extractRelevantContext(context, ['clinical', 'trial', 'study', 'medical', 'patient', 'efficacy', 'safety', 'outcome'], 65000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateIPAnalysis(context: string, companyName: string): Promise<string> {
@@ -2191,7 +2214,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate IP analysis:\n\n${this.extractRelevantContext(context, ['patent', 'IP', 'intellectual', 'property', 'trademark', 'copyright', 'protection'], 45000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateResearchInsights(context: string, companyName: string): Promise<string> {
@@ -2205,7 +2228,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate research insights:\n\n${this.extractRelevantContext(context, ['research', 'insight', 'analysis', 'finding', 'data', 'study', 'intelligence'], 55000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateMitigationStrategies(context: string, companyName: string): Promise<string> {
@@ -2219,7 +2242,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate risk mitigation strategies:\n\n${this.extractRelevantContext(context, ['mitigation', 'strategy', 'solution', 'plan', 'approach', 'counter', 'address'], 45000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateExitStrategy(context: string, companyName: string): Promise<string> {
@@ -2233,7 +2256,7 @@ Extract specific financial data from documents including historical financials, 
         content: `Generate exit strategy:\n\n${this.extractRelevantContext(context, ['exit', 'strategy', 'acquisition', 'IPO', 'sale', 'buyout', 'liquidity'], 40000)}`
       }]
     });
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   private async generateAppendices(data: ComprehensiveMemoData): Promise<string> {
@@ -2300,7 +2323,7 @@ ${fullContext.substring(0, 45000)}`
       }]
     });
     
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
@@ -2564,7 +2587,7 @@ ${allExtractions.join('\n\n')}
       }]
     });
     
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   /**
@@ -2592,7 +2615,7 @@ ${allExtractions.join('\n\n')}
       }]
     });
     
-    return response.content[0].text || '';
+    return extractTextFromResponse(response) || '';
   }
 
   /**
@@ -2685,7 +2708,7 @@ Generate only the content for this specific section based on your custom enhance
         }]
       });
 
-      const regeneratedContent = response.content[0].text || `Enhanced ${sectionKey} content not available`;
+      const regeneratedContent = extractTextFromResponse(response) || `Enhanced ${sectionKey} content not available`;
       
       // Update the memo in database
       const existingMemo = await storage.getMemoByDealId(dealId);
