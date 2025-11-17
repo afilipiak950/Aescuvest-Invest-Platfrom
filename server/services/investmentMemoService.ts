@@ -6,8 +6,39 @@ import { safeGetDocumentContent } from '../utils/documentUtils';
 import { claudeQuotaManager } from './claudeQuotaManager';
 import { getMemoFallback } from './memoFallbackContent';
 import { websocketManager } from './websocketManager';
+import { EmbeddingService } from './embeddingService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// RAG-based section-specific search queries for intelligent AI summary retrieval
+const SECTION_QUERIES: Record<string, string> = {
+  executiveSummary: 'executive summary investment opportunity business overview company mission vision strategic objectives key highlights',
+  investmentHighlights: 'key strengths competitive advantages unique value proposition differentiators investment opportunity highlights',
+  swotAnalysis: 'strengths weaknesses opportunities threats risks challenges competitive position market risks',
+  marketAnalysis: 'market size total addressable market TAM SAM SOM industry growth trends market dynamics customer segments',
+  tamSamSomAnalysis: 'total addressable market serviceable available obtainable market size opportunity revenue potential',
+  competitiveAnalysis: 'competitors competition market share positioning competitive landscape industry players market position',
+  technologyAssessment: 'technology innovation technical architecture system design product development technological advantages',
+  productAnalysis: 'product features device functionality specifications technical capabilities product roadmap development stage',
+  businessModel: 'business model revenue streams pricing strategy monetization customer acquisition commercial model',
+  commercialStrategy: 'go-to-market strategy sales marketing distribution channels customer acquisition commercial execution',
+  teamAssessment: 'management team founders CEO executives leadership key personnel organizational structure',
+  managementAnalysis: 'founder backgrounds experience qualifications track record management expertise leadership credentials',
+  financialAnalysis: 'financial statements revenue costs EBITDA profit margins cash flow burn rate financial performance',
+  financialProjections: 'financial projections forecast revenue growth operating margins profitability projections financial model',
+  valuationAnalysis: 'valuation pre-money post-money cap table equity ownership funding rounds investment structure',
+  legalAssessment: 'legal contracts agreements compliance corporate structure IP patents legal obligations',
+  regulatoryAnalysis: 'regulatory approval FDA CE mark regulations compliance pathway regulatory strategy submissions',
+  clinicalAssessment: 'clinical trials studies patient data efficacy safety endpoints clinical development regulatory pathway',
+  ipAnalysis: 'intellectual property patents patent portfolio IP protection trademark copyright proprietary technology',
+  researchInsights: 'research scientific data studies validation proof of concept technical validation research findings',
+  riskAssessment: 'risks challenges threats barriers obstacles technical risks market risks regulatory risks',
+  mitigationStrategies: 'risk mitigation contingency plans solutions approaches risk management mitigation strategies',
+  investmentTerms: 'investment terms funding amount securities equity preferred stock convertible notes liquidation preference',
+  exitStrategy: 'exit strategy acquisition IPO merger buyout liquidity event strategic buyers potential acquirers',
+  recommendation: 'investment recommendation decision rationale key milestones strategic value investment thesis',
+  appendices: 'supporting documents financial data technical specifications detailed analysis supplementary information'
+};
 
 /**
  * Safely extracts text content from Anthropic API response
@@ -2326,7 +2357,149 @@ ${fullContext.substring(0, 45000)}`
     return extractTextFromResponse(response) || '';
   }
 
-  // Enhanced context extraction method to find relevant content across ALL 12.3M OCR characters
+  /**
+   * RAG-BASED INTELLIGENT CONTEXT BUILDER
+   * Uses vector similarity search to find the most relevant AI summaries for each section
+   * Ensures complete deal isolation (only searches current deal's documents)
+   */
+  private async buildRAGEnhancedContext(
+    sectionKey: string, 
+    dealId: number, 
+    memoData: ComprehensiveMemoData
+  ): Promise<string> {
+    console.log(`🔍 RAG: Building context for section "${sectionKey}" (Deal ${dealId})`);
+    
+    const startTime = Date.now();
+    
+    // Get section-specific search query
+    const searchQuery = SECTION_QUERIES[sectionKey] || SECTION_QUERIES.executiveSummary;
+    console.log(`🔍 RAG Query: "${searchQuery.substring(0, 80)}..."`);
+    
+    // Search for relevant AI summary chunks using vector similarity (WITH DEAL ISOLATION)
+    const topK = 50; // Retrieve top 50 most relevant chunks
+    const relevantChunks = await EmbeddingService.searchSimilarChunks(searchQuery, dealId, topK);
+    
+    const searchTime = Date.now() - startTime;
+    console.log(`✅ RAG Search completed in ${searchTime}ms`);
+    console.log(`📊 Retrieved ${relevantChunks.length} chunks from deal ${dealId} ONLY`);
+    
+    if (relevantChunks.length > 0) {
+      const topScores = relevantChunks.slice(0, 5).map(c => c.similarity?.toFixed(3) || 'N/A').join(', ');
+      const topDocs = relevantChunks.slice(0, 5).map(c => c.documentName || 'Unknown').join(', ');
+      console.log(`📊 Top similarity scores: ${topScores}`);
+      console.log(`📄 Top documents: ${topDocs}`);
+    } else {
+      console.warn(`⚠️ No RAG results for section "${sectionKey}" - falling back to agent analyses only`);
+    }
+    
+    // Build comprehensive context string
+    let context = `
+SECTION: ${sectionKey.toUpperCase()}
+COMPANY: ${memoData.companyName}
+DEAL ID: ${dealId} (DEAL ISOLATION VERIFIED)
+=========================================================
+
+=== RAG-RETRIEVED AI SUMMARIES (${relevantChunks.length} chunks) ===
+`;
+
+    // Add top AI summary chunks with similarity scores
+    relevantChunks.forEach((chunk, index) => {
+      context += `
+--- DOCUMENT ${index + 1}: ${chunk.documentName || 'Unknown'} (Similarity: ${chunk.similarity?.toFixed(3) || 'N/A'}) ---
+${chunk.chunk}
+
+`;
+    });
+    
+    // Add ALL relevant agent analyses (filtered by section type)
+    const relevantAgentTypes = this.getRelevantAgentTypesForSection(sectionKey);
+    const relevantAnalyses = memoData.agentAnalyses.filter(analysis => 
+      relevantAgentTypes.includes(analysis.agentType)
+    );
+    
+    if (relevantAnalyses.length > 0) {
+      context += `\n\n=== AGENT ANALYSES (${relevantAnalyses.length} agents) ===\n`;
+      relevantAnalyses.forEach(analysis => {
+        const analysisContent = this.extractAnalysisContent(analysis);
+        context += `\n--- ${analysis.agentType.toUpperCase()} AGENT ---\n${analysisContent}\n`;
+      });
+    }
+    
+    // Add company research data
+    if (memoData.companyResearch) {
+      context += `\n\n=== COMPANY RESEARCH ===\n`;
+      context += JSON.stringify(memoData.companyResearch, null, 2);
+    }
+    
+    const totalChars = context.length;
+    console.log(`✅ RAG Context built: ${totalChars.toLocaleString()} characters (${relevantChunks.length} summaries + ${relevantAnalyses.length} agents)`);
+    
+    return context;
+  }
+  
+  /**
+   * Get relevant agent types for a specific section
+   */
+  private getRelevantAgentTypesForSection(sectionKey: string): string[] {
+    const agentMapping: Record<string, string[]> = {
+      financialAnalysis: ['Financial', 'Commercial'],
+      financialProjections: ['Financial', 'Commercial'],
+      valuationAnalysis: ['Financial'],
+      clinicalAssessment: ['clinical', 'Clinical'],
+      regulatoryAnalysis: ['clinical', 'Clinical', 'legal', 'Legal'],
+      legalAssessment: ['legal', 'Legal'],
+      ipAnalysis: ['legal', 'Legal', 'IP'],
+      teamAssessment: ['HR'],
+      managementAnalysis: ['HR'],
+      technologyAssessment: ['Research', 'IP'],
+      productAnalysis: ['Research', 'Commercial'],
+      marketAnalysis: ['Commercial'],
+      competitiveAnalysis: ['Commercial'],
+      commercialStrategy: ['Commercial'],
+      businessModel: ['Commercial', 'Financial'],
+      riskAssessment: ['Commercial', 'legal', 'Legal', 'clinical', 'Clinical', 'Financial']
+    };
+    
+    // Return section-specific agents or all agents for general sections
+    return agentMapping[sectionKey] || ['Commercial', 'Financial', 'legal', 'Legal', 'clinical', 'Clinical', 'HR', 'Research', 'IP'];
+  }
+  
+  /**
+   * Extract analysis content from agent analysis object
+   */
+  private extractAnalysisContent(analysis: any): string {
+    let content = '';
+    
+    const extractField = (field: any, label: string) => {
+      if (!field) return;
+      try {
+        const data = typeof field === 'string' ? JSON.parse(field) : field;
+        content += `${label}:\n${JSON.stringify(data, null, 2)}\n\n`;
+      } catch {
+        if (field) content += `${label}: ${field}\n\n`;
+      }
+    };
+    
+    extractField(analysis.legalAnswers, 'LEGAL ANALYSIS');
+    extractField(analysis.clinicalAnswers, 'CLINICAL ANALYSIS');
+    extractField(analysis.commercialAnswers, 'COMMERCIAL ANALYSIS');
+    extractField(analysis.financialAnswers, 'FINANCIAL ANALYSIS');
+    extractField(analysis.hrAnswers, 'HR ANALYSIS');
+    extractField(analysis.ipAnswers, 'IP ANALYSIS');
+    extractField(analysis.researchAnswers, 'RESEARCH ANALYSIS');
+    
+    if (analysis.findings && Array.isArray(analysis.findings)) {
+      content += `FINDINGS:\n${analysis.findings.map((f: any, i: number) => `${i+1}. ${typeof f === 'string' ? f : JSON.stringify(f)}`).join('\n')}\n\n`;
+    }
+    
+    if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
+      content += `RECOMMENDATIONS:\n${analysis.recommendations.map((r: any, i: number) => `${i+1}. ${typeof r === 'string' ? r : JSON.stringify(r)}`).join('\n')}\n\n`;
+    }
+    
+    return content || 'No analysis content available';
+  }
+
+  // DEPRECATED: Legacy keyword-based extraction - replaced by RAG
   private extractRelevantContext(fullContext: string, keywords: string[], maxLength: number): string {
     const sections: string[] = [];
     const lowerContext = fullContext.toLowerCase();
