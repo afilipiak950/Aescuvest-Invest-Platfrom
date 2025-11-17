@@ -321,8 +321,8 @@ class InvestmentMemoService {
       // 1. Gather all data with COMPLETE OCR extraction
       const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
-      // 2. Generate each section using comprehensive AI analysis
-      const memo = await this.generateComprehensiveMemoSections(memoData);
+      // 2. Generate each section using comprehensive AI analysis (MUST pass dealId for RAG!)
+      const memo = await this.generateComprehensiveMemoSections(memoData, undefined, undefined, dealId, storage);
       
       // 3. Store the generated memo
       await this.storeMemo(dealId, memo);
