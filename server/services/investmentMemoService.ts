@@ -37,7 +37,8 @@ const SECTION_QUERIES: Record<string, string> = {
   investmentTerms: 'investment terms funding amount securities equity preferred stock convertible notes liquidation preference',
   exitStrategy: 'exit strategy acquisition IPO merger buyout liquidity event strategic buyers potential acquirers',
   recommendation: 'investment recommendation decision rationale key milestones strategic value investment thesis',
-  appendices: 'supporting documents financial data technical specifications detailed analysis supplementary information'
+  appendices: 'supporting documents financial data technical specifications detailed analysis supplementary information tables charts',
+  coverPage: 'company overview headquarters management executives investment highlights value proposition key metrics'
 };
 
 /**
@@ -405,35 +406,35 @@ class InvestmentMemoService {
       throw new Error('dealId is required for RAG-based memo generation');
     }
     
-    // Generate ALL sections with progress tracking (RAG-enhanced)
+    // Generate ALL sections with progress tracking (RAG-enhanced with intelligent vector search)
     const sections = await Promise.all([
-      this.generateCoverPage(data).then(async r => { await updateProgress('Cover Page'); return r; }),
+      this.generateCoverPage(dealId, data).then(async r => { await updateProgress('Cover Page'); return r; }),
       this.generateExecutiveSummary(dealId, data).then(async r => { await updateProgress('Executive Summary'); return r; }),
-      this.generateInvestmentHighlights(context, data.companyName).then(async r => { await updateProgress('Investment Highlights'); return r; }),
-      this.generateSWOTAnalysis(context, data).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
-      this.generateMarketAnalysis(context, data.companyName).then(async r => { await updateProgress('Market Analysis'); return r; }),
-      this.generateTAMSAMSOMAnalysis(context, data.companyName).then(async r => { await updateProgress('TAM/SAM/SOM'); return r; }),
-      this.generateCompetitiveAnalysis(context, data.companyName).then(async r => { await updateProgress('Competitive Analysis'); return r; }),
-      this.generateTechnologyAssessment(context, data.companyName).then(async r => { await updateProgress('Technology Assessment'); return r; }),
-      this.generateProductAnalysis(context, data.companyName).then(async r => { await updateProgress('Product Analysis'); return r; }),
-      this.generateBusinessModel(context, data.companyName).then(async r => { await updateProgress('Business Model'); return r; }),
-      this.generateCommercialStrategy(context, data.companyName).then(async r => { await updateProgress('Commercial Strategy'); return r; }),
-      this.generateTeamAssessment(context, data).then(async r => { await updateProgress('Team Assessment'); return r; }),
-      this.generateManagementAnalysis(context, data.companyName).then(async r => { await updateProgress('Management Analysis'); return r; }),
-      this.generateFinancialAnalysis(context, data).then(async r => { await updateProgress('Financial Analysis'); return r; }),
-      this.generateFinancialProjections(context, data.companyName).then(async r => { await updateProgress('Financial Projections'); return r; }),
-      this.generateValuationAnalysis(context, data.companyName).then(async r => { await updateProgress('Valuation Analysis'); return r; }),
-      this.generateLegalAssessment(context, data).then(async r => { await updateProgress('Legal Assessment'); return r; }),
-      this.generateRegulatoryAnalysis(context, data.companyName).then(async r => { await updateProgress('Regulatory Analysis'); return r; }),
-      this.generateClinicalAssessment(context, data.companyName).then(async r => { await updateProgress('Clinical Assessment'); return r; }),
-      this.generateIPAnalysis(context, data.companyName).then(async r => { await updateProgress('IP Analysis'); return r; }),
-      this.generateResearchInsights(context, data.companyName).then(async r => { await updateProgress('Research Insights'); return r; }),
-      this.generateRiskAssessment(context, data.companyName).then(async r => { await updateProgress('Risk Assessment'); return r; }),
-      this.generateMitigationStrategies(context, data.companyName).then(async r => { await updateProgress('Mitigation Strategies'); return r; }),
-      this.generateInvestmentTerms(context, data.companyName).then(async r => { await updateProgress('Investment Terms'); return r; }),
-      this.generateExitStrategy(context, data.companyName).then(async r => { await updateProgress('Exit Strategy'); return r; }),
-      this.generateRecommendation(context, data.companyName).then(async r => { await updateProgress('Recommendation'); return r; }),
-      this.generateAppendices(data).then(async r => { await updateProgress('Appendices'); return r; })
+      this.generateInvestmentHighlights(dealId, data).then(async r => { await updateProgress('Investment Highlights'); return r; }),
+      this.generateSWOTAnalysis(dealId, data).then(async r => { await updateProgress('SWOT Analysis'); return r; }),
+      this.generateMarketAnalysis(dealId, data).then(async r => { await updateProgress('Market Analysis'); return r; }),
+      this.generateTAMSAMSOMAnalysis(dealId, data).then(async r => { await updateProgress('TAM/SAM/SOM'); return r; }),
+      this.generateCompetitiveAnalysis(dealId, data).then(async r => { await updateProgress('Competitive Analysis'); return r; }),
+      this.generateTechnologyAssessment(dealId, data).then(async r => { await updateProgress('Technology Assessment'); return r; }),
+      this.generateProductAnalysis(dealId, data).then(async r => { await updateProgress('Product Analysis'); return r; }),
+      this.generateBusinessModel(dealId, data).then(async r => { await updateProgress('Business Model'); return r; }),
+      this.generateCommercialStrategy(dealId, data).then(async r => { await updateProgress('Commercial Strategy'); return r; }),
+      this.generateTeamAssessment(dealId, data).then(async r => { await updateProgress('Team Assessment'); return r; }),
+      this.generateManagementAnalysis(dealId, data).then(async r => { await updateProgress('Management Analysis'); return r; }),
+      this.generateFinancialAnalysis(dealId, data).then(async r => { await updateProgress('Financial Analysis'); return r; }),
+      this.generateFinancialProjections(dealId, data).then(async r => { await updateProgress('Financial Projections'); return r; }),
+      this.generateValuationAnalysis(dealId, data).then(async r => { await updateProgress('Valuation Analysis'); return r; }),
+      this.generateLegalAssessment(dealId, data).then(async r => { await updateProgress('Legal Assessment'); return r; }),
+      this.generateRegulatoryAnalysis(dealId, data).then(async r => { await updateProgress('Regulatory Analysis'); return r; }),
+      this.generateClinicalAssessment(dealId, data).then(async r => { await updateProgress('Clinical Assessment'); return r; }),
+      this.generateIPAnalysis(dealId, data).then(async r => { await updateProgress('IP Analysis'); return r; }),
+      this.generateResearchInsights(dealId, data).then(async r => { await updateProgress('Research Insights'); return r; }),
+      this.generateRiskAssessment(dealId, data).then(async r => { await updateProgress('Risk Assessment'); return r; }),
+      this.generateMitigationStrategies(dealId, data).then(async r => { await updateProgress('Mitigation Strategies'); return r; }),
+      this.generateInvestmentTerms(dealId, data).then(async r => { await updateProgress('Investment Terms'); return r; }),
+      this.generateExitStrategy(dealId, data).then(async r => { await updateProgress('Exit Strategy'); return r; }),
+      this.generateRecommendation(dealId, data).then(async r => { await updateProgress('Recommendation'); return r; }),
+      this.generateAppendices(dealId, data).then(async r => { await updateProgress('Appendices'); return r; })
     ]);
     
     const [
@@ -692,11 +693,11 @@ ${summaryText}
 
   // ==================== COVER PAGE WITH COMPREHENSIVE COMPANY DETAILS ====================
 
-  private async generateCoverPage(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`📋 Generating professional VC cover page`);
+  private async generateCoverPage(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📋 Generating professional VC cover page with RAG for Deal ${dealId}`);
     
-    // Extract comprehensive company information from ALL sources
-    const companyInfo = await this.extractComprehensiveCompanyInformation(data);
+    // Build RAG-enhanced context for cover page
+    const ragContext = await this.buildRAGEnhancedContext('coverPage', dealId, memoData);
     
     return await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -730,17 +731,16 @@ CRITICAL REQUIREMENTS:
 Format as professional markdown with clear headers and bullet points.`,
         messages: [{
           role: "user",
-          content: `Generate comprehensive cover page for ${data.companyName} investment memo.
+          content: `Generate comprehensive cover page for ${memoData.companyName} investment memo.
 
-Use this extracted company information:
-
-${companyInfo}`
+RAG-ENHANCED COMPANY INFORMATION:
+${ragContext.substring(0, 150000)}`
         }]
       }).then(response => extractTextFromResponse(response) || ''),
       {
-        description: 'Cover Page Generation',
+        description: 'Cover Page Generation (RAG-Enhanced)',
         priority: 'high',
-        fallbackContent: getMemoFallback('coverPage', data.companyName)
+        fallbackContent: getMemoFallback('coverPage', memoData.companyName)
       }
     );
   }
@@ -970,7 +970,12 @@ Extract and verify all data from provided context - reject any fabricated inform
     return response;
   }
 
-  private async generateInvestmentHighlights(context: string, companyName: string): Promise<string[]> {
+  private async generateInvestmentHighlights(dealId: number, memoData: ComprehensiveMemoData): Promise<string[]> {
+    console.log(`📝 Generating Investment Highlights with RAG for Deal ${dealId}`);
+    
+    // Build RAG-enhanced context
+    const ragContext = await this.buildRAGEnhancedContext('investmentHighlights', dealId, memoData);
+    
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
@@ -996,11 +1001,11 @@ Extract and verify all data from provided context - reject any fabricated inform
 Output valid JSON only with "highlights" array of detailed strings. No other text.`,
         messages: [{
           role: "user", 
-          content: `Extract authentic investment highlights for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'highlights', 'opportunity', 'value', 'proposition', 'advantage', 'strength', 'differentiator', 'competitive'], 70000)}`
+          content: `Extract authentic investment highlights for ${memoData.companyName}:\n\n${ragContext.substring(0, 150000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{"highlights": []}'),
       {
-        description: 'Investment Highlights Extraction',
+        description: 'Investment Highlights Extraction (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify({ highlights: getMemoFallback('investmentHighlights') })
       }
@@ -1010,34 +1015,9 @@ Output valid JSON only with "highlights" array of detailed strings. No other tex
     return result.highlights || [];
   }
 
-  private async generateSWOTAnalysis(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['swotAnalysis']> {
-    console.log(`🎯 Generating SWOT analysis from ${context.length.toLocaleString()} characters of context`);
-    
-    // Extract ALL agent data (all agents contribute to SWOT)
-    const allAgentData = this.extractAgentSpecificData(data, ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research']);
-    const agentDataString = JSON.stringify(allAgentData, null, 2);
-    console.log(`🎯 Extracted agent data from all agents: ${agentDataString.length} chars`);
-    
-    // Expanded keywords with synonyms for better extraction
-    const swotKeywords = [
-      // Strengths synonyms
-      'strength', 'advantage', 'competitive edge', 'differentiation', 'differentiator', 'benefit', 'unique', 'superior',
-      // Weaknesses synonyms
-      'weakness', 'limitation', 'challenge', 'gap', 'constraint', 'risk', 'issue', 'problem',
-      // Opportunities synonyms
-      'opportunity', 'potential', 'growth', 'expansion', 'market', 'trend', 'demand',
-      // Threats synonyms
-      'threat', 'competition', 'competitor', 'barrier', 'obstacle', 'regulatory', 'compliance',
-      // General SWOT
-      'SWOT', 'competitive', 'analysis', 'assessment'
-    ];
-    
-    const swotContext = this.extractRelevantContext(context, swotKeywords, 65000);
-    
-    // Build prioritized context: Agent findings/recommendations first, then keyword extraction
-    const prioritizedContext = agentDataString.length > 100 
-      ? `=== AGENT ANALYSES (PRIORITY - Findings & Recommendations) ===\n${agentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${swotContext}`
-      : swotContext;
+  private async generateSWOTAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['swotAnalysis']> {
+    console.log(`📝 Generating SWOT Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('swotAnalysis', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1074,11 +1054,11 @@ Output valid JSON only with "highlights" array of detailed strings. No other tex
 Extract specific, actionable points with authentic data. Output valid JSON only with detailed arrays. No other text.`,
         messages: [{
           role: "user",
-          content: `Generate authentic SWOT analysis for ${data.companyName}. Prioritize findings and recommendations from agent analyses:\n\n${prioritizedContext}`
+          content: `Generate authentic SWOT analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'SWOT Analysis Generation',
+        description: 'SWOT Analysis Generation (RAG-Enhanced)',
         priority: 'medium',
         fallbackContent: JSON.stringify(getMemoFallback('swotAnalysis'))
       }
@@ -1092,16 +1072,14 @@ Extract specific, actionable points with authentic data. Output valid JSON only 
       threats: result.threats || []
     };
     
-    // Comprehensive logging showing data sources used
-    const usedFallback = swotAnalysis.strengths.length === 0 && swotAnalysis.weaknesses.length === 0;
-    console.log(`🎯 SWOT Analysis - Data sources: All agents (${agentDataString.length} chars), OCR extraction (${swotContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Empty arrays: ${usedFallback}`);
     console.log(`🎯 SWOT Results: ${swotAnalysis.strengths.length} strengths, ${swotAnalysis.weaknesses.length} weaknesses, ${swotAnalysis.opportunities.length} opportunities, ${swotAnalysis.threats.length} threats`);
     
     return swotAnalysis;
   }
 
-  private async generateMarketAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['marketAnalysis']> {
-    console.log(`📊 Generating market analysis from ${context.length.toLocaleString()} characters of context`);
+  private async generateMarketAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['marketAnalysis']> {
+    console.log(`📝 Generating Market Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('marketAnalysis', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1133,11 +1111,11 @@ Extract specific, actionable points with authentic data. Output valid JSON only 
 Output valid JSON only with authentic data. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract authentic market analysis data for ${companyName}:\n\n${this.extractRelevantContext(context, ['market', 'competitive', 'industry', 'customer', 'segment', 'TAM', 'SAM', 'SOM', 'opportunity', 'growth', 'trends', 'size', 'share', 'landscape', 'positioning', 'competition', 'target'], 80000)}`
+          content: `Extract authentic market analysis data for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Market Analysis Generation',
+        description: 'Market Analysis Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('marketAnalysis'))
       }
@@ -1193,8 +1171,9 @@ Output valid JSON only with authentic data. No other text.`,
   // Additional section generators follow the same pattern...
   // (Continuing with abbreviated versions for space)
 
-  private async generateProductAnalysis(context: string, companyName: string): Promise<InvestmentMemoSections['productAnalysis']> {
-    console.log(`🔬 Generating product analysis from ${context.length.toLocaleString()} characters of context`);
+  private async generateProductAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['productAnalysis']> {
+    console.log(`📝 Generating Product Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('productAnalysis', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1225,11 +1204,11 @@ Output valid JSON only with authentic data. No other text.`,
 Output valid JSON only with detailed product information from authentic sources. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract authentic product analysis for ${companyName}:\n\n${this.extractRelevantContext(context, ['product', 'technology', 'device', 'system', 'platform', 'development', 'feature', 'specification', 'technical', 'innovation', 'design', 'architecture', 'functionality'], 80000)}`
+          content: `Extract authentic product analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Product Analysis Generation',
+        description: 'Product Analysis Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify({
           productOverview: 'Product overview information is temporarily unavailable. This section will analyze the company technology platform and clinical applications.',
@@ -1255,19 +1234,19 @@ Output valid JSON only with detailed product information from authentic sources.
       return {
         productOverview: ensureAuthenticContent(
           result.productOverview,
-          `${companyName} develops technology solutions based on advanced capabilities. Product overview will be provided based on specific technology platform, features, and applications documented in company materials and technical specifications.`
+          `${memoData.companyName} develops technology solutions based on advanced capabilities. Product overview will be provided based on specific technology platform, features, and applications documented in company materials and technical specifications.`
         ),
         technologyAdvantage: ensureAuthenticContent(
           result.technologyAdvantage,
-          `Technology advantage analysis will assess ${companyName}'s proprietary capabilities, technical differentiation, and competitive positioning based on product specifications and technical documentation from company materials.`
+          `Technology advantage analysis will assess ${memoData.companyName}'s proprietary capabilities, technical differentiation, and competitive positioning based on product specifications and technical documentation from company materials.`
         ),
         competitiveEdge: ensureAuthenticContent(
           result.competitiveEdge,
-          `${companyName} competitive edge assessment will evaluate validated capabilities, regulatory positioning, strategic partnerships, performance data, and technology platform advantages based on company documentation and market analysis.`
+          `${memoData.companyName} competitive edge assessment will evaluate validated capabilities, regulatory positioning, strategic partnerships, performance data, and technology platform advantages based on company documentation and market analysis.`
         ),
         developmentStage: ensureAuthenticContent(
           result.developmentStage,
-          `${companyName} development stage assessment will review achieved milestones, regulatory status, commercial partnerships, validation activities, and market readiness based on company progress reports and strategic documentation.`
+          `${memoData.companyName} development stage assessment will review achieved milestones, regulatory status, commercial partnerships, validation activities, and market readiness based on company progress reports and strategic documentation.`
         )
       };
     } catch (e) {
@@ -1281,15 +1260,16 @@ Output valid JSON only with detailed product information from authentic sources.
     }
   }
 
-  private async generateBusinessModel(context: string, companyName: string): Promise<InvestmentMemoSections['businessModel']> {
-    console.log(`💼 Generating business model from ${context.length.toLocaleString()} characters of context`);
+  private async generateBusinessModel(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['businessModel']> {
+    console.log(`📝 Generating Business Model with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('businessModel', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
         max_tokens: 3000,
         temperature: 0.2,
-        system: `You are analyzing comprehensive business model information for ${companyName}. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
+        system: `You are analyzing comprehensive business model information for ${memoData.companyName}. Extract AUTHENTIC business information from commercial analyses, financial documents, and partnership agreements.
 
 **CRITICAL SEARCH TARGETS:**
 Look specifically for:
@@ -1321,13 +1301,11 @@ Look specifically for:
 Output valid JSON only with detailed business model. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract business model for ${companyName} from this comprehensive analysis. Focus on COMMERCIAL ANALYSIS sections and financial documents:
-
-${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strategy', 'monetization', 'customer', 'acquisition', 'pricing', 'commercial'], 70000)}`
+          content: `Extract business model for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Business Model Generation',
+        description: 'Business Model Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('businessModel'))
       }
@@ -1347,19 +1325,19 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
       return {
         revenueModel: ensureAuthenticContent(
           result.revenueModel, 
-          `${companyName} business model analysis will identify revenue streams based on product offerings, service delivery, licensing arrangements, and partnership structures documented in company commercial strategy and financial materials.`
+          `${memoData.companyName} business model analysis will identify revenue streams based on product offerings, service delivery, licensing arrangements, and partnership structures documented in company commercial strategy and financial materials.`
         ),
         salesChannels: ensureAuthenticContent(
           result.salesChannels,
-          `Sales channels analysis will evaluate ${companyName}'s go-to-market approach including direct sales, distribution partnerships, strategic alliances, marketing channels, and customer acquisition programs based on commercial strategy documentation.`
+          `Sales channels analysis will evaluate ${memoData.companyName}'s go-to-market approach including direct sales, distribution partnerships, strategic alliances, marketing channels, and customer acquisition programs based on commercial strategy documentation.`
         ),
         pricingStrategy: ensureAuthenticContent(
           result.pricingStrategy,
-          `Pricing strategy assessment will analyze ${companyName}'s value-based pricing approach, pricing structures, payment models, and competitive positioning based on commercial agreements and pricing documentation.`
+          `Pricing strategy assessment will analyze ${memoData.companyName}'s value-based pricing approach, pricing structures, payment models, and competitive positioning based on commercial agreements and pricing documentation.`
         ),
         customerAcquisition: ensureAuthenticContent(
           result.customerAcquisition,
-          `Customer acquisition strategy will evaluate ${companyName}'s target customer segments, acquisition channels, validation approach, partnership strategies, and growth programs based on commercial and marketing documentation.`
+          `Customer acquisition strategy will evaluate ${memoData.companyName}'s target customer segments, acquisition channels, validation approach, partnership strategies, and growth programs based on commercial and marketing documentation.`
         )
       };
     } catch (e) {
@@ -1369,43 +1347,16 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
     }
   }
 
-  private async generateTeamAssessment(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['teamAssessment']> {
-    console.log(`👥 Generating team assessment from ${context.length.toLocaleString()} characters of context`);
-    
-    // Extract HR agent data first (structured Q&A from HR agent)
-    const hrAgentData = this.extractAgentSpecificData(data, ['hr']);
-    const hrAgentDataString = JSON.stringify(hrAgentData, null, 2);
-    console.log(`👥 Extracted HR agent data: ${hrAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => a.agentType.toLowerCase() === 'hr').length || 0} HR analyses`);
-    
-    // Enhanced keyword extraction for personnel data
-    const personnelKeywords = [
-      'CEO', 'CTO', 'CFO', 'CMO', 'COO', 'CIO', 'CSO',
-      'Chief Executive', 'Chief Technology', 'Chief Financial', 'Chief Medical', 'Chief Operating',
-      'President', 'Founder', 'Co-founder',
-      'Director', 'Board', 'Advisory', 'Advisor',
-      'VP', 'Vice President', 'SVP', 'Senior Vice President',
-      'management', 'executive', 'leadership', 'officer',
-      'name:', 'role:', 'title:', 'position:',
-      'experience:', 'background:', 'education:', 'degree:',
-      'previously at', 'former', 'worked at', 'led at',
-      'organizational chart', 'org chart', 'team structure',
-      'employment', 'hire', 'appointment', 'appointed',
-      'LinkedIn', 'biography', 'bio:', 'profile:'
-    ];
-    
-    const personnelContext = this.extractRelevantContext(context, personnelKeywords, 90000);
-    
-    // Build prioritized context: HR agent data first, then OCR extraction
-    const prioritizedContext = hrAgentDataString.length > 100 
-      ? `=== HR AGENT ANALYSIS (PRIORITY) ===\n${hrAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${personnelContext}`
-      : personnelContext;
+  private async generateTeamAssessment(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['teamAssessment']> {
+    console.log(`📝 Generating Team Assessment with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('teamAssessment', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
         max_tokens: 4000,
         temperature: 0.1,
-        system: `You are analyzing ${data.companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
+        system: `You are analyzing ${memoData.companyName} management team. Extract CONCRETE NAMES, TITLES, and BACKGROUNDS - never use generic descriptions.
 
 **MANDATORY EXTRACTION REQUIREMENTS:**
 
@@ -1463,14 +1414,14 @@ ${this.extractRelevantContext(context, ['business', 'model', 'revenue', 'strateg
 Output valid JSON only. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract CONCRETE team details with ACTUAL NAMES for ${data.companyName}. Search especially the HR AGENT ANALYSIS and CEO PROFILE sections:\n\n${prioritizedContext}`
+          content: `Extract CONCRETE team details with ACTUAL NAMES for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Team Assessment Generation',
+        description: 'Team Assessment Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify({
-          management: `Team information for ${data.companyName} is being compiled from available documents.`,
+          management: `Team information for ${memoData.companyName} is being compiled from available documents.`,
           keyPersonnel: [`Executive team details not yet extracted from document analysis.`],
           advisors: `Advisory board information is being compiled from available documents.`,
           boardComposition: `Board composition details are being compiled from available documents.`
@@ -1487,24 +1438,22 @@ Output valid JSON only. No other text.`,
       console.log(`📊 Key Personnel Count: ${result.keyPersonnel?.length || 0}`);
       
       const teamAssessment = {
-        management: result.management || `Executive team information for ${data.companyName} is being compiled from document analysis. Please refer to organizational charts and employment documents for detailed personnel information.`,
+        management: result.management || `Executive team information for ${memoData.companyName} is being compiled from document analysis. Please refer to organizational charts and employment documents for detailed personnel information.`,
         keyPersonnel: Array.isArray(result.keyPersonnel) && result.keyPersonnel.length > 0 
           ? result.keyPersonnel 
           : [`Executive team details are being extracted from available documents. Please review company research and HR analysis for specific personnel information.`],
-        advisors: result.advisors || `Advisory board information for ${data.companyName} is being compiled from document analysis. Please refer to advisory agreements and consulting contracts for detailed advisor information.`,
-        boardComposition: result.boardComposition || `Board of directors information for ${data.companyName} is being compiled from document analysis. Please refer to corporate governance documents for detailed board composition.`
+        advisors: result.advisors || `Advisory board information for ${memoData.companyName} is being compiled from document analysis. Please refer to advisory agreements and consulting contracts for detailed advisor information.`,
+        boardComposition: result.boardComposition || `Board of directors information for ${memoData.companyName} is being compiled from document analysis. Please refer to corporate governance documents for detailed board composition.`
       };
       
-      // Comprehensive logging showing data sources used
-      const usedFallback = !result.management || result.management.length < 100;
-      console.log(`📊 Team Assessment - Data sources: HR agent (${hrAgentData.hr?.length || 0} Q&A), OCR extraction (${personnelContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      console.log(`👥 Team Assessment Results: Management section length: ${teamAssessment.management.length}, Personnel count: ${teamAssessment.keyPersonnel.length}`);
       
       return teamAssessment;
     } catch (e) {
       console.error('❌ Error parsing team assessment JSON:', e);
       console.error('❌ Response content:', response);
       return {
-        management: `Management information extraction failed. Please review company research, organizational charts, and employment documents for ${data.companyName} executive team details.`,
+        management: `Management information extraction failed. Please review company research, organizational charts, and employment documents for ${memoData.companyName} executive team details.`,
         keyPersonnel: [`Personnel data extraction incomplete. Review available documents for executive team backgrounds and experience.`],
         advisors: `Advisory board data extraction failed. Review advisory agreements and consulting contracts for detailed information.`,
         boardComposition: `Board composition data extraction failed. Review corporate governance documents for board member details.`
@@ -1512,24 +1461,9 @@ Output valid JSON only. No other text.`,
     }
   }
 
-  private async generateFinancialAnalysis(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['financialAnalysis']> {
-    console.log(`💰 Generating financial analysis from ${context.length.toLocaleString()} characters of context`);
-    
-    // Extract financial agent data first (structured Q&A from financial agent)
-    const financialAgentData = this.extractAgentSpecificData(data, ['financial', 'commercial']);
-    const financialAgentDataString = JSON.stringify(financialAgentData, null, 2);
-    console.log(`💰 Extracted financial agent data: ${financialAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => ['financial', 'commercial'].includes(a.agentType.toLowerCase())).length || 0} analyses`);
-    
-    // Enhanced financial context extraction to find financial content across ALL 12.3M characters
-    const financialKeywords = ['financial', 'revenue', 'funding', 'investment', 'valuation', 'cost', 'margin', 'profit', 'EBITDA', 'cash flow', 'P&L', 'income', 'expense', 'budget', 'forecast', 'projection', 'Sanmina', 'distributor', 'partnership revenue', 'growth rate', 'KPI', 'ARR', 'MRR'];
-    const financialContext = this.extractRelevantContext(context, financialKeywords, 90000);
-    
-    // Build prioritized context: Financial agent data first, then OCR extraction
-    const prioritizedContext = financialAgentDataString.length > 100 
-      ? `=== FINANCIAL AGENT ANALYSIS (PRIORITY) ===\n${financialAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${financialContext}`
-      : financialContext;
-    
-    console.log(`💰 Enhanced financial context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on financial content`);
+  private async generateFinancialAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['financialAnalysis']> {
+    console.log(`📝 Generating Financial Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('financialAnalysis', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1559,11 +1493,11 @@ Extract specific numbers, dates, and financial terms from documents. Never fabri
 Output valid JSON only with detailed financial information from authentic sources. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract authentic financial analysis for ${data.companyName}. Prioritize financial agent Q&A data:\n\n${prioritizedContext}`
+          content: `Extract authentic financial analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Financial Analysis Generation',
+        description: 'Financial Analysis Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify({
           currentFinancials: getMemoFallback('financialAnalysis'),
@@ -1579,15 +1513,13 @@ Output valid JSON only with detailed financial information from authentic source
       console.log(`💰 Financial analysis generated: ${JSON.stringify(result).length} characters`);
       
       const financialAnalysis = {
-        currentFinancials: result.currentFinancials || `${data.companyName} financial analysis based on comprehensive document review (${Math.floor(context.length/1000)}K characters): Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
+        currentFinancials: result.currentFinancials || `${memoData.companyName} financial analysis based on comprehensive document review: Company demonstrates solid financial foundations with documented operational structure, strategic investments in development, and clear cost management frameworks supporting sustainable growth trajectory.`,
         projections: result.projections || `Financial projections indicate strong growth potential driven by validation success, expanding market opportunities, and scalable technology platform with revenue growth across multiple customer segments.`,
         fundingHistory: result.fundingHistory || 'Funding history demonstrates progressive investment rounds supporting technology development, validation phases, and market preparation with strategic capital allocation for sustainable growth.',
-        useOfFunds: result.useOfFunds || `Proposed fund allocation focuses on validation completion, regulatory approval processes, operational scale-up, and market expansion to capture growth opportunities in ${data.companyName}'s target sector.`
+        useOfFunds: result.useOfFunds || `Proposed fund allocation focuses on validation completion, regulatory approval processes, operational scale-up, and market expansion to capture growth opportunities in ${memoData.companyName}'s target sector.`
       };
       
-      // Comprehensive logging showing data sources used
-      const usedFallback = !result.currentFinancials || result.currentFinancials.length < 100;
-      console.log(`💰 Financial Analysis - Data sources: Financial agent (${financialAgentData.financial?.length || 0} Q&A), Commercial agent (${financialAgentData.commercial?.length || 0} Q&A), OCR extraction (${financialContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      console.log(`💰 Financial Analysis Results: Current financials length: ${financialAnalysis.currentFinancials.length}`);
       
       return financialAnalysis;
     } catch (e) {
@@ -1601,24 +1533,9 @@ Output valid JSON only with detailed financial information from authentic source
     }
   }
 
-  private async generateLegalAssessment(context: string, data: ComprehensiveMemoData): Promise<InvestmentMemoSections['legalAssessment']> {
-    console.log(`⚖️ Generating legal assessment from ${context.length.toLocaleString()} characters of context`);
-    
-    // Extract legal agent data first (structured Q&A from legal agent)
-    const legalAgentData = this.extractAgentSpecificData(data, ['legal', 'ip']);
-    const legalAgentDataString = JSON.stringify(legalAgentData, null, 2);
-    console.log(`⚖️ Extracted legal agent data: ${legalAgentDataString.length} chars from ${data.agentAnalyses?.filter(a => ['legal', 'ip'].includes(a.agentType.toLowerCase())).length || 0} analyses`);
-    
-    // Enhanced legal context extraction to find legal content across ALL 12.3M characters
-    const legalKeywords = ['legal', 'contract', 'agreement', 'IP', 'patent', 'license', 'regulatory', 'compliance', 'litigation', 'intellectual property', 'corporation', 'board', 'shareholder', 'employment', 'AOA', 'articles', 'incorporation', 'trademark', 'copyright', 'FDA', 'CE marking', 'regulatory approval'];
-    const legalContext = this.extractRelevantContext(context, legalKeywords, 80000);
-    
-    // Build prioritized context: Legal agent data first, then OCR extraction
-    const prioritizedContext = legalAgentDataString.length > 100 
-      ? `=== LEGAL AGENT ANALYSIS (PRIORITY) ===\n${legalAgentDataString}\n\n=== ADDITIONAL CONTEXT FROM DOCUMENTS ===\n${legalContext}`
-      : legalContext;
-    
-    console.log(`⚖️ Enhanced legal context extraction: ${prioritizedContext.length.toLocaleString()} characters focused on legal content`);
+  private async generateLegalAssessment(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['legalAssessment']> {
+    console.log(`📝 Generating Legal Assessment with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('legalAssessment', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1649,13 +1566,13 @@ Output valid JSON only with detailed financial information from authentic source
 Output valid JSON only with detailed legal information from authentic sources. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract authentic legal assessment for ${data.companyName}. Prioritize legal agent Q&A data:\n\n${prioritizedContext}`
+          content: `Extract authentic legal assessment for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Legal Assessment Generation',
+        description: 'Legal Assessment Generation (RAG-Enhanced)',
         priority: 'high',
-        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', data.companyName))
+        fallbackContent: JSON.stringify(getMemoFallback('legalAssessment', memoData.companyName))
       }
     );
 
@@ -1670,14 +1587,12 @@ Output valid JSON only with detailed legal information from authentic sources. N
         contractualObligations: result.contractualObligations || 'No contractual obligations information available in provided documents'
       };
       
-      // Comprehensive logging showing data sources used
-      const usedFallback = !result.corporateStructure || result.corporateStructure.includes('No') || result.corporateStructure.includes('not available');
-      console.log(`⚖️ Legal Assessment - Data sources: Legal agent (${legalAgentData.legal?.length || 0} Q&A), IP agent (${legalAgentData.ip?.length || 0} Q&A), OCR extraction (${legalContext.length} chars), Prioritized context: ${prioritizedContext.length} chars, Fallback used: ${usedFallback}`);
+      console.log(`⚖️ Legal Assessment Results: Structure length: ${legalAssessment.corporateStructure.length}`);
       
       return legalAssessment;
     } catch (e) {
       console.error('❌ Error parsing legal assessment JSON:', e);
-      const fallback = getMemoFallback('legalAssessment', data.companyName);
+      const fallback = getMemoFallback('legalAssessment', memoData.companyName);
       return {
         corporateStructure: fallback.corporateStructure,
         ipProtection: fallback.ipProtection,
@@ -1687,8 +1602,9 @@ Output valid JSON only with detailed legal information from authentic sources. N
     }
   }
 
-  private async generateRiskAssessment(context: string, companyName: string): Promise<InvestmentMemoSections['riskAssessment']> {
-    console.log(`⚠️ Generating risk assessment from ${context.length.toLocaleString()} characters of context`);
+  private async generateRiskAssessment(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['riskAssessment']> {
+    console.log(`📝 Generating Risk Assessment with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('riskAssessment', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1736,11 +1652,11 @@ Output valid JSON only with detailed legal information from authentic sources. N
 Output valid JSON only with detailed risk arrays from authentic sources. No other text.`,
         messages: [{
           role: "user",
-          content: `Extract authentic risk assessment for ${companyName}:\n\n${this.extractRelevantContext(context, ['risk', 'challenge', 'threat', 'regulatory', 'technical', 'market', 'competitive', 'financial', 'commercial', 'barrier', 'obstacle'], 70000)}`
+          content: `Extract authentic risk assessment for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
     {
-      description: 'Risk Assessment Generation',
+      description: 'Risk Assessment Generation (RAG-Enhanced)',
       priority: 'high',
       fallbackContent: JSON.stringify({
         technicalRisks: ['Technical risk assessment is temporarily unavailable'],
@@ -1834,8 +1750,9 @@ Output valid JSON only with detailed risk arrays from authentic sources. No othe
   }
   }
 
-  private async generateInvestmentTerms(context: string, companyName: string): Promise<InvestmentMemoSections['investmentTerms']> {
-    console.log(`💰 Generating investment terms from ${context.length.toLocaleString()} characters of context`);
+  private async generateInvestmentTerms(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['investmentTerms']> {
+    console.log(`📝 Generating Investment Terms with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('investmentTerms', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1868,11 +1785,11 @@ Output valid JSON only with detailed risk arrays from authentic sources. No othe
 Format as JSON with detailed investment terms from authentic sources only.`,
         messages: [{
           role: "user",
-          content: `Extract authentic investment terms for ${companyName}:\n\n${this.extractRelevantContext(context, ['investment', 'valuation', 'terms', 'equity', 'funding', 'round', 'Series', 'share', 'price', 'rights', 'liquidation', 'anti-dilution'], 60000)}`
+          content: `Extract authentic investment terms for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Investment Terms Generation',
+        description: 'Investment Terms Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('investmentTerms'))
       }
@@ -1893,7 +1810,7 @@ Format as JSON with detailed investment terms from authentic sources only.`,
       return {
         valuation: ensureAuthenticContent(
           result.valuation,
-          `${companyName} is seeking funding with pre-money valuation reflecting the company's technology development stage, validation progress, and market positioning. Valuation considerations include intellectual property portfolio, regulatory pathway advancement, and strategic partnership potential.`
+          `${memoData.companyName} is seeking funding with pre-money valuation reflecting the company's technology development stage, validation progress, and market positioning. Valuation considerations include intellectual property portfolio, regulatory pathway advancement, and strategic partnership potential.`
         ),
         fundingAmount: ensureAuthenticContent(
           result.fundingAmount,
@@ -1919,8 +1836,9 @@ Format as JSON with detailed investment terms from authentic sources only.`,
     }
   }
 
-  private async generateRecommendation(context: string, companyName: string): Promise<InvestmentMemoSections['recommendation']> {
-    console.log(`📋 Generating investment recommendation from ${context.length.toLocaleString()} characters of context`);
+  private async generateRecommendation(dealId: number, memoData: ComprehensiveMemoData): Promise<InvestmentMemoSections['recommendation']> {
+    console.log(`📝 Generating Recommendation with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('recommendation', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -1953,11 +1871,11 @@ Format as JSON with detailed investment terms from authentic sources only.`,
 Output valid JSON only with detailed investment recommendation. No other text.`,
         messages: [{
           role: "user",
-          content: `Generate authentic investment recommendation for ${companyName}:\n\n${this.extractRelevantContext(context, ['recommendation', 'investment', 'decision', 'conclusion', 'evaluation', 'assessment', 'rating', 'thesis'], 65000)}`
+          content: `Generate authentic investment recommendation for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || '{}'),
       {
-        description: 'Investment Recommendation Generation',
+        description: 'Investment Recommendation Generation (RAG-Enhanced)',
         priority: 'high',
         fallbackContent: JSON.stringify(getMemoFallback('recommendation'))
       }
@@ -2004,8 +1922,9 @@ Output valid JSON only with detailed investment recommendation. No other text.`,
   }
 
   // String-based section generators for remaining sections
-  private async generateTAMSAMSOMAnalysis(context: string, companyName: string): Promise<string> {
-    console.log(`📊 Generating TAM/SAM/SOM analysis from ${context.length.toLocaleString()} characters of context`);
+  private async generateTAMSAMSOMAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating TAM/SAM/SOM Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('tamSamSomAnalysis', dealId, memoData);
     
     const response = await claudeQuotaManager.makeRequest(
       () => anthropic.messages.create({
@@ -2027,11 +1946,11 @@ Output valid JSON only with detailed investment recommendation. No other text.`,
 Extract specific market data from the analysis including market values, growth rates, customer numbers, pricing data, and competitive positioning. Use tables and structured presentation.`,
         messages: [{
           role: "user",
-          content: `Generate comprehensive TAM/SAM/SOM analysis:\n\n${this.extractRelevantContext(context, ['TAM', 'SAM', 'SOM', 'market', 'size', 'addressable', 'obtainable', 'serviceable', 'total'], 60000)}`
+          content: `Generate comprehensive TAM/SAM/SOM analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
         }]
       }).then(response => extractTextFromResponse(response) || ''),
     {
-      description: 'TAM/SAM/SOM Analysis Generation',
+      description: 'TAM/SAM/SOM Analysis Generation (RAG-Enhanced)',
       priority: 'high',
       fallbackContent: 'TAM/SAM/SOM analysis is temporarily unavailable. This section will provide comprehensive market sizing and opportunity assessment.'
     }
@@ -2049,7 +1968,7 @@ Extract specific market data from the analysis including market values, growth r
     response,
     `# TAM/SAM/SOM Analysis
 
-Market sizing analysis will be provided based on ${companyName}'s specific industry sector and available market research data from company documents and external sources.
+Market sizing analysis will be provided based on ${memoData.companyName}'s specific industry sector and available market research data from company documents and external sources.
 
 ## Total Addressable Market (TAM)
 TAM analysis will identify the total global market opportunity based on the company's specific industry sector and product/service offerings.
@@ -2065,7 +1984,10 @@ Market sizing methodology will be derived from available market research, indust
   );
   }
 
-  private async generateCompetitiveAnalysis(context: string, companyName: string): Promise<string> {
+  private async generateCompetitiveAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Competitive Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('competitiveAnalysis', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 3500,
@@ -2086,7 +2008,7 @@ Market sizing methodology will be derived from available market research, indust
 Extract specific competitor information including company names, funding rounds, market positions, technology features, pricing models, and strategic partnerships. Present in structured format with competitive comparison tables.`,
       messages: [{
         role: "user",
-        content: `Generate comprehensive competitive analysis:\n\n${this.extractRelevantContext(context, ['competitive', 'competitor', 'competition', 'landscape', 'positioning', 'advantage', 'differentiation'], 60000)}`
+        content: `Generate comprehensive competitive analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     
@@ -2104,23 +2026,26 @@ Extract specific competitor information including company names, funding rounds,
       content,
       `# Competitive Analysis
 
-Competitive analysis will be based on ${companyName}'s specific market positioning and identified competitors from company research and market analysis.
+Competitive analysis will be based on ${memoData.companyName}'s specific market positioning and identified competitors from company research and market analysis.
 
 ## Direct Competitors
 Competitor analysis will identify direct competitors based on market research, industry reports, and company competitive intelligence.
 
 ## Competitive Positioning
-Competitive positioning assessment will evaluate ${companyName}'s differentiation through technology, market approach, partnerships, and value proposition.
+Competitive positioning assessment will evaluate ${memoData.companyName}'s differentiation through technology, market approach, partnerships, and value proposition.
 
 ## Technology Advantage
 Technology advantage analysis will assess proprietary capabilities, technical differentiation, and performance advantages compared to competitive solutions.
 
 ## Market Position
-Market position evaluation will analyze ${companyName}'s competitive standing, growth opportunities, and potential for market leadership based on strategic positioning and execution capabilities.`
+Market position evaluation will analyze ${memoData.companyName}'s competitive standing, growth opportunities, and potential for market leadership based on strategic positioning and execution capabilities.`
     );
   }
 
-  private async generateTechnologyAssessment(context: string, companyName: string): Promise<string> {
+  private async generateTechnologyAssessment(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Technology Assessment with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('technologyAssessment', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2128,13 +2053,16 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
       system: `Assess technology stack, innovation, IP protection, technical risks, and development roadmap.`,
       messages: [{
         role: "user",
-        content: `Generate technology assessment:\n\n${this.extractRelevantContext(context, ['technology', 'technical', 'innovation', 'platform', 'system', 'architecture', 'algorithm'], 50000)}`
+        content: `Generate technology assessment for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateCommercialStrategy(context: string, companyName: string): Promise<string> {
+  private async generateCommercialStrategy(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Commercial Strategy with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('commercialStrategy', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2142,13 +2070,16 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
       system: `Analyze go-to-market strategy, sales approach, customer acquisition, and partnerships.`,
       messages: [{
         role: "user",
-        content: `Generate commercial strategy:\n\n${this.extractRelevantContext(context, ['commercial', 'strategy', 'sales', 'marketing', 'distribution', 'channel', 'partnership'], 55000)}`
+        content: `Generate commercial strategy for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateManagementAnalysis(context: string, companyName: string): Promise<string> {
+  private async generateManagementAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Management Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('managementAnalysis', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 3000,
@@ -2169,13 +2100,16 @@ Market position evaluation will analyze ${companyName}'s competitive standing, g
 Extract specific details including executive names, previous companies, educational backgrounds, years of experience, notable achievements, and board composition from the comprehensive analysis.`,
       messages: [{
         role: "user",
-        content: `Generate comprehensive management analysis:\n\n${this.extractRelevantContext(context, ['management', 'executive', 'leadership', 'CEO', 'founder', 'team', 'governance'], 65000)}`
+        content: `Generate comprehensive management analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateFinancialProjections(context: string, companyName: string): Promise<string> {
+  private async generateFinancialProjections(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Financial Projections with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('financialProjections', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 3500,
@@ -2196,13 +2130,16 @@ Extract specific details including executive names, previous companies, educatio
 Extract specific financial data from documents including historical financials, revenue run rates, cost structures, funding history, and growth metrics. Present in table format with detailed assumptions.`,
       messages: [{
         role: "user",
-        content: `Generate comprehensive financial projections:\n\n${this.extractRelevantContext(context, ['financial', 'projection', 'forecast', 'revenue', 'growth', 'expense', 'budget', 'cash'], 70000)}`
+        content: `Generate comprehensive financial projections for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateValuationAnalysis(context: string, companyName: string): Promise<string> {
+  private async generateValuationAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Valuation Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('valuationAnalysis', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2210,13 +2147,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Analyze valuation using multiple methodologies including DCF, comparable companies, and precedent transactions.`,
       messages: [{
         role: "user",
-        content: `Generate valuation analysis:\n\n${this.extractRelevantContext(context, ['valuation', 'value', 'price', 'multiple', 'DCF', 'comparable', 'worth'], 50000)}`
+        content: `Generate valuation analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateRegulatoryAnalysis(context: string, companyName: string): Promise<string> {
+  private async generateRegulatoryAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Regulatory Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('regulatoryAnalysis', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2224,13 +2164,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Analyze regulatory environment, compliance requirements, and pathway to market approval.`,
       messages: [{
         role: "user",
-        content: `Generate regulatory analysis:\n\n${this.extractRelevantContext(context, ['regulatory', 'regulation', 'FDA', 'CE', 'approval', 'compliance', 'pathway'], 50000)}`
+        content: `Generate regulatory analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateClinicalAssessment(context: string, companyName: string): Promise<string> {
+  private async generateClinicalAssessment(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Clinical Assessment with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('clinicalAssessment', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 3000,
@@ -2238,13 +2181,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Generate comprehensive clinical assessment (3-4 pages) analyzing clinical development plan, trial design, regulatory pathway, clinical risks, and timeline to market. Include specific clinical data, endpoints, patient populations, and regulatory milestones with detailed analysis.`,
       messages: [{
         role: "user",
-        content: `Generate comprehensive clinical assessment:\n\n${this.extractRelevantContext(context, ['clinical', 'trial', 'study', 'medical', 'patient', 'efficacy', 'safety', 'outcome'], 65000)}`
+        content: `Generate comprehensive clinical assessment for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateIPAnalysis(context: string, companyName: string): Promise<string> {
+  private async generateIPAnalysis(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating IP Analysis with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('ipAnalysis', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2252,13 +2198,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Analyze intellectual property portfolio, patent landscape, and IP protection strategy.`,
       messages: [{
         role: "user",
-        content: `Generate IP analysis:\n\n${this.extractRelevantContext(context, ['patent', 'IP', 'intellectual', 'property', 'trademark', 'copyright', 'protection'], 45000)}`
+        content: `Generate IP analysis for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateResearchInsights(context: string, companyName: string): Promise<string> {
+  private async generateResearchInsights(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Research Insights with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('researchInsights', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2266,13 +2215,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Provide research insights including scientific foundation, technical innovation, and research differentiation.`,
       messages: [{
         role: "user",
-        content: `Generate research insights:\n\n${this.extractRelevantContext(context, ['research', 'insight', 'analysis', 'finding', 'data', 'study', 'intelligence'], 55000)}`
+        content: `Generate research insights for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateMitigationStrategies(context: string, companyName: string): Promise<string> {
+  private async generateMitigationStrategies(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Mitigation Strategies with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('mitigationStrategies', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2280,13 +2232,16 @@ Extract specific financial data from documents including historical financials, 
       system: `Develop comprehensive risk mitigation strategies with specific action plans and contingencies.`,
       messages: [{
         role: "user",
-        content: `Generate risk mitigation strategies:\n\n${this.extractRelevantContext(context, ['mitigation', 'strategy', 'solution', 'plan', 'approach', 'counter', 'address'], 45000)}`
+        content: `Generate risk mitigation strategies for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateExitStrategy(context: string, companyName: string): Promise<string> {
+  private async generateExitStrategy(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📝 Generating Exit Strategy with RAG for Deal ${dealId}`);
+    const ragContext = await this.buildRAGEnhancedContext('exitStrategy', dealId, memoData);
+    
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -2294,17 +2249,18 @@ Extract specific financial data from documents including historical financials, 
       system: `Analyze potential exit strategies including IPO readiness, strategic acquisition targets, and exit timing.`,
       messages: [{
         role: "user",
-        content: `Generate exit strategy:\n\n${this.extractRelevantContext(context, ['exit', 'strategy', 'acquisition', 'IPO', 'sale', 'buyout', 'liquidity'], 40000)}`
+        content: `Generate exit strategy for ${memoData.companyName}:\n\n${ragContext.substring(0, 180000)}`
       }]
     });
     return extractTextFromResponse(response) || '';
   }
 
-  private async generateAppendices(data: ComprehensiveMemoData): Promise<string> {
-    console.log(`📋 Generating comprehensive appendices from ${data.documents.length} documents and ${data.agentAnalyses.length} analyses`);
+  private async generateAppendices(dealId: number, memoData: ComprehensiveMemoData): Promise<string> {
+    console.log(`📋 Generating comprehensive appendices with RAG for Deal ${dealId}`);
+    console.log(`📄 ${memoData.documents.length} documents and ${memoData.agentAnalyses.length} analyses`);
     
     // Extract actual document data for appendices
-    const documentIndex = data.documents.map(doc => ({
+    const documentIndex = memoData.documents.map(doc => ({
       name: doc.name,
       type: doc.type || 'Unknown',
       size: doc.size || 0,
@@ -2313,8 +2269,8 @@ Extract specific financial data from documents including historical financials, 
       ocrLength: (doc.ocrText || doc.ocr_text || '').length
     }));
 
-    // Prepare comprehensive context including ALL available data
-    const fullContext = await this.prepareIntelligentOCRExtractionContext(data);
+    // Build RAG-enhanced context for appendices
+    const ragContext = await this.buildRAGEnhancedContext('appendices', dealId, memoData);
     
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
@@ -2323,7 +2279,7 @@ Extract specific financial data from documents including historical financials, 
       system: `Generate comprehensive high-quality appendices with AUTHENTIC extracted data from documents. Include:
 
 **APPENDIX A: DOCUMENT INDEX AND SUMMARY**
-- Complete listing of all ${data.documents.length} documents with names, types, dates, and relevance
+- Complete listing of all ${memoData.documents.length} documents with names, types, dates, and relevance
 - Document categorization (financial, legal, technical, clinical, regulatory)
 - Key document summary with extracted insights
 
@@ -2354,19 +2310,49 @@ Extract specific financial data from documents including historical financials, 
 **EXTRACT ONLY AUTHENTIC DATA - Never fabricate. Use specific names, numbers, dates, and details found in the documents. If no data found, state "Not available in provided documents".**`,
       messages: [{
         role: "user",
-        content: `Generate comprehensive appendices using authentic data extracted from ${data.companyName} documents:
+        content: `Generate comprehensive appendices using authentic data extracted from ${memoData.companyName} documents:
 
 DOCUMENT INDEX:
 ${documentIndex.map(doc => `- ${doc.name} (${doc.type}, ${(doc.size/1024).toFixed(1)}KB, OCR: ${doc.ocrLength} chars)`).join('\n')}
 
-COMPREHENSIVE ANALYSIS CONTEXT:
-${fullContext.substring(0, 45000)}`
+RAG-ENHANCED ANALYSIS CONTEXT:
+${ragContext.substring(0, 150000)}`
       }]
     });
     
     return extractTextFromResponse(response) || '';
   }
 
+  /**
+   * ADAPTIVE CONTEXT BUILDER
+   * Determines the best context building strategy based on section requirements and data availability
+   */
+  private async buildContextForSection(
+    sectionKey: string,
+    dealId: number | undefined,
+    memoData: ComprehensiveMemoData,
+    legacyContext?: string
+  ): Promise<string> {
+    // Use RAG if dealId is available and embeddings exist
+    if (dealId !== undefined) {
+      try {
+        return await this.buildRAGEnhancedContext(sectionKey, dealId, memoData);
+      } catch (error) {
+        console.warn(`⚠️ RAG context building failed for ${sectionKey}, falling back to legacy:`, error);
+      }
+    }
+    
+    // Fall back to legacy context if provided
+    if (legacyContext) {
+      console.log(`📊 Using legacy context for ${sectionKey} (${legacyContext.length.toLocaleString()} chars)`);
+      return legacyContext;
+    }
+    
+    // Last resort: build minimal context from memoData
+    console.warn(`⚠️ No context available for ${sectionKey}, building minimal context`);
+    return `COMPANY: ${memoData.companyName}\nDOCUMENTS: ${memoData.documents.length}\nAGENT ANALYSES: ${memoData.agentAnalyses.length}`;
+  }
+  
   /**
    * RAG-BASED INTELLIGENT CONTEXT BUILDER
    * Uses vector similarity search to find the most relevant AI summaries for each section
@@ -2386,7 +2372,7 @@ ${fullContext.substring(0, 45000)}`
     console.log(`🔍 RAG Query: "${searchQuery.substring(0, 80)}..."`);
     
     // Search for relevant AI summary chunks using vector similarity (WITH DEAL ISOLATION)
-    const topK = 50; // Retrieve top 50 most relevant chunks
+    const topK = 50; // Retrieve top 50 most relevant chunks per section (CRITICAL for comprehensive coverage)
     const relevantChunks = await EmbeddingService.searchSimilarChunks(searchQuery, dealId, topK);
     
     const searchTime = Date.now() - startTime;
