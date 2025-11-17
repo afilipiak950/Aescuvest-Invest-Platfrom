@@ -2478,19 +2478,31 @@ ${ragContext.substring(0, 150000)}`
     console.log(`✅ RAG Search completed in ${searchTime}ms`);
     console.log(`📊 Retrieved ${relevantChunks.length} chunks from deal ${dealId} ONLY`);
     
+    // 🚨 RAG HEALTH GATE: Fail fast if embeddings are broken
     if (relevantChunks.length > 0) {
       const topScores = relevantChunks.slice(0, 5).map(c => c.similarity?.toFixed(3) || 'N/A').join(', ');
       const topDocs = relevantChunks.slice(0, 5).map(c => c.documentName || 'Unknown').join(', ');
       console.log(`📊 Top similarity scores: ${topScores}`);
       console.log(`📄 Top documents: ${topDocs}`);
       
-      // RAG HEALTH CHECK: Log similarity score histogram
+      // RAG HEALTH CHECK: Calculate average similarity and check minimum threshold
       const avgSimilarity = relevantChunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / relevantChunks.length;
-      console.log(`📊 Average similarity score: ${avgSimilarity.toFixed(3)} (healthy > 0.5, warning < 0.3)`);
+      const highQualityChunks = relevantChunks.filter(c => (c.similarity || 0) > 0.55).length;
+      const qualityRatio = highQualityChunks / relevantChunks.length;
       
-      if (avgSimilarity < 0.3) {
-        console.warn(`⚠️ LOW SIMILARITY SCORES detected! This may indicate embedding model mismatch.`);
-        console.warn(`⚠️ Expected: Query and document embeddings from same model (${EMBEDDING_MODEL})`);
+      console.log(`📊 Average similarity: ${avgSimilarity.toFixed(3)} (healthy > 0.5)`);
+      console.log(`📊 High-quality chunks (>0.55): ${highQualityChunks}/${relevantChunks.length} (${(qualityRatio * 100).toFixed(1)}%)`);
+      
+      // CRITICAL: Abort if RAG quality is too low (likely embedding model mismatch)
+      if (avgSimilarity < 0.3 && highQualityChunks < 5) {
+        const errorMsg = `RAG retrieval failure: Average similarity ${avgSimilarity.toFixed(3)} is critically low. This indicates embedding model mismatch between queries (${EMBEDDING_MODEL}) and stored document embeddings. Only ${highQualityChunks} high-quality chunks found. Aborting memo generation to prevent placeholder-filled output.`;
+        console.error(`🚨 ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+      
+      if (avgSimilarity < 0.5) {
+        console.warn(`⚠️ MODERATE SIMILARITY WARNING: Average score ${avgSimilarity.toFixed(3)} is below healthy threshold (0.5)`);
+        console.warn(`⚠️ This may indicate partial embedding model mismatch or low-quality document content`);
       }
     } else {
       console.warn(`⚠️ No RAG results for section "${sectionKey}" - falling back to agent analyses only`);
