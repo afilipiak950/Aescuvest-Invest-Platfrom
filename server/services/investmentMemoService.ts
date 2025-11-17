@@ -334,15 +334,17 @@ class InvestmentMemoService {
         currentStep: 'Finalizing and storing comprehensive investment memo'
       }, dealId);
       
-      // PROGRESSIVE UPDATE: Update memo with partial content
+      // 🔍 CRITICAL: Do NOT save memo here - quality gate must run first in storeMemo()!
+      // Only update progress message, not the actual memo content
       if (existingMemo) {
         await storage.updateMemo(existingMemo.id, {
-          executiveSummary: memo.executiveSummary || 'Investment memo sections generated successfully.',
-          memo: memo, // Store full memo sections
+          executiveSummary: 'Running quality check on generated memo...',
           status: 'DRAFT'
+          // NOTE: memo content NOT saved here - quality gate in storeMemo() must pass first!
         });
       }
       
+      // QUALITY GATE: This is the ONLY place where memo is saved (after quality check)
       await this.storeMemo(dealId, memo);
       
       // Mark as completed (100%)
@@ -393,6 +395,28 @@ class InvestmentMemoService {
     console.log(`🔍 Starting comprehensive investment memo generation for deal ${dealId}`);
     
     try {
+      // 🔍 CRITICAL PRE-CHECK: Verify embeddings exist before memo generation
+      console.log(`📊 Checking embedding statistics for deal ${dealId}...`);
+      const embeddingStats = await EmbeddingService.getEmbeddingStats(dealId);
+      console.log(`📊 Embedding stats:`, embeddingStats);
+      
+      if (embeddingStats.totalChunks === 0) {
+        console.warn(`⚠️ NO EMBEDDINGS FOUND for deal ${dealId}! Triggering automatic embedding generation...`);
+        
+        // Auto-trigger embedding generation for all documents
+        await EmbeddingService.embedMissingDocuments(dealId);
+        
+        // Verify embeddings were created
+        const newStats = await EmbeddingService.getEmbeddingStats(dealId);
+        console.log(`✅ Embeddings generated:`, newStats);
+        
+        if (newStats.totalChunks === 0) {
+          throw new Error(`Failed to generate embeddings for deal ${dealId} - no documents available or all failed`);
+        }
+      } else {
+        console.log(`✅ Found ${embeddingStats.totalChunks} existing embeddings from ${embeddingStats.uniqueDocuments} documents`);
+      }
+      
       // 1. Gather all data with COMPLETE OCR extraction
       const memoData = await this.gatherComprehensiveDataWithFullOCR(dealId);
       
