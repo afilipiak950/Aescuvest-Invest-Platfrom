@@ -22,7 +22,7 @@ The backend is developed with Node.js and Express.js, leveraging TypeScript. Pos
 -   **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, and investment criteria.
 -   **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
 -   **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) with live background progress tracking and reload persistence.
--   **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with real-time WebSocket progress tracking (auto-reconnect, exponential backoff), polling fallback, and seamless state management eliminating progress bar flicker.
+-   **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with real-time WebSocket progress tracking (auto-reconnect, exponential backoff), polling fallback, and seamless state management eliminating progress bar flicker. **Quality Gate System**: Automatic embedding pre-check generates missing embeddings before memo generation, and comprehensive placeholder detection (10 patterns) blocks memos with >30% placeholder content, ensuring high-quality output with authentic document context.
 -   **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting for exports.
 -   **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass strategy.
 -   **Large File Upload System**: A hybrid upload infrastructure supporting files up to 5GB, intelligently routing uploads to bypass Cloud Run limits. Files ≤30MB use direct server upload, while larger files are routed to GCS signed URLs, with background ZIP extraction jobs and WebSocket progress notifications.
