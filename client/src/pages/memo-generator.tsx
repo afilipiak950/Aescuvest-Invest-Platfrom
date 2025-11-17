@@ -122,9 +122,16 @@ export default function MemoGenerator() {
   // Local generating state - prevents flicker during mutation->WebSocket transition
   const [isLocalGenerating, setIsLocalGenerating] = useState(false);
   
-  // CRITICAL: Stable ref to prevent flicker during polling refetches
-  // This ref tracks if generation is actively running and persists across re-renders
-  const isGenerationActiveRef = useRef(false);
+  // CRITICAL: Sticky state to prevent flicker during polling refetches
+  // This STATE (not ref!) triggers re-renders and persists progress bar visibility
+  // Scoped per deal - automatically resets when deal changes
+  const [isGenerationSticky, setIsGenerationSticky] = useState(false);
+
+  // Reset sticky state when deal changes to prevent stale progress indicators
+  useEffect(() => {
+    setIsGenerationSticky(false);
+    console.log('🔄 Deal changed - reset sticky generation state');
+  }, [selectedDeal]);
 
   // 🔥 AUTO-SELECT DEAL FROM URL PARAMETER (when clicking Edit from memos page)
   useEffect(() => {
@@ -381,10 +388,10 @@ export default function MemoGenerator() {
         jobId: progress.jobId
       });
       
-      // Clear BOTH local state and stable ref after brief delay
+      // Clear BOTH local state and sticky state after brief delay
       setTimeout(() => {
         setIsLocalGenerating(false);
-        isGenerationActiveRef.current = false;
+        setIsGenerationSticky(false);
         console.log('🔓 UNLOCKED: Generation completed - progress bar can hide');
       }, 100);
       
@@ -405,7 +412,7 @@ export default function MemoGenerator() {
     onError: (error) => {
       console.error('❌ WebSocket: Job failed', error);
       setIsLocalGenerating(false);
-      isGenerationActiveRef.current = false;
+      setIsGenerationSticky(false);
       setWsProgress(null);
       console.log('🔓 UNLOCKED: Job failed - progress bar cleared');
       toast({
@@ -438,14 +445,14 @@ export default function MemoGenerator() {
     };
   }, [wsProgress, jobProgressData]);
 
-  // DEFENSIVE: Clear isLocalGenerating if job completes but WebSocket didn't fire onComplete
+  // DEFENSIVE: Clear all generation states if job completes but WebSocket didn't fire onComplete
   // This prevents stuck progress bar in edge cases where WebSocket fails
   useEffect(() => {
     if (memoProgress && (memoProgress.status === 'completed' || memoProgress.status === 'failed')) {
-      console.log('🛡️ Defensive: Job completed/failed, clearing isLocalGenerating as fallback');
+      console.log('🛡️ Defensive: Job completed/failed, clearing all generation states as fallback');
       setTimeout(() => {
         setIsLocalGenerating(false);
-        isGenerationActiveRef.current = false;
+        setIsGenerationSticky(false);
         console.log('🔓 UNLOCKED: Defensive timeout cleared generation state');
       }, 200); // Small delay to let WebSocket handle it first if it's going to
     }
@@ -502,9 +509,9 @@ export default function MemoGenerator() {
     mutationFn: async (dealId: string) => {
       console.log(`🔄 Generating comprehensive investment memo for deal ${dealId}`);
       
-      // Set BOTH local generating state AND stable ref to prevent flicker
+      // Set BOTH local generating state AND sticky state to prevent flicker
       setIsLocalGenerating(true);
-      isGenerationActiveRef.current = true;
+      setIsGenerationSticky(true);
       console.log('🔒 LOCKED: Generation started - progress bar will stay visible');
       
       const response = await apiRequest(`/api/deals/${dealId}/generate-memo`, {
@@ -544,9 +551,9 @@ export default function MemoGenerator() {
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
       
-      // Clear local generating state AND stable ref
+      // Clear local generating state AND sticky state
       setIsLocalGenerating(false);
-      isGenerationActiveRef.current = false;
+      setIsGenerationSticky(false);
       setWsProgress(null);
       console.log('🔓 UNLOCKED: Mutation error - progress bar cleared');
       
@@ -603,10 +610,11 @@ export default function MemoGenerator() {
   const hasActiveJob = memoProgress && memoProgress.isRunning;
   const hasMemoRecord = !!existingMemo; // Memo record exists even if memo field is NULL
   
-  // ROCK-SOLID DISPLAY LOGIC: Uses stable ref to prevent flicker during polling refetches
-  // Once generation starts (ref=true), progress bar stays visible until definitive completion
+  // ROCK-SOLID DISPLAY LOGIC: Uses sticky state to prevent flicker during polling refetches
+  // Once generation starts (sticky=true), progress bar stays visible until definitive completion
   // This prevents flickering when jobProgressData temporarily becomes empty during refetch
-  const showGenerating = isGenerating || hasActiveJob || isLocalGenerating || isGenerationActiveRef.current;
+  // STATE (not ref) ensures React re-renders and maintains UI continuity
+  const showGenerating = isGenerating || hasActiveJob || isLocalGenerating || isGenerationSticky;
   const showReadyToGenerate = !currentMemo && !showGenerating;
   const showMemoContent = !!currentMemo && !showGenerating;
   
