@@ -203,6 +203,45 @@ class InvestmentMemoService {
     console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId}, Numeric ID: ${numericJobId})`);
     
     try {
+      // 🔍 CRITICAL PRE-CHECK: Verify embeddings exist before memo generation
+      console.log(`📊 Checking embedding statistics for deal ${dealId}...`);
+      const embeddingStats = await EmbeddingService.getEmbeddingStats(dealId);
+      console.log(`📊 Embedding stats:`, embeddingStats);
+      
+      if (embeddingStats.totalChunks === 0) {
+        console.warn(`⚠️ NO EMBEDDINGS FOUND for deal ${dealId}! Triggering automatic embedding generation...`);
+        
+        // Update progress: Embedding generation phase (5%)
+        await storage.updateBackgroundJob(jobId, {
+          status: 'processing',
+          progress: 5,
+          currentStep: 'Generating embeddings for documents (required for quality memo)',
+          updatedAt: new Date()
+        });
+        
+        // Broadcast WebSocket progress update
+        websocketManager.broadcastJobProgress({
+          jobId: numericJobId,
+          jobType: 'investment_memo_generation',
+          status: 'processing',
+          progress: 5,
+          currentStep: 'Generating embeddings for documents (required for quality memo)'
+        }, dealId);
+        
+        // Auto-trigger embedding generation for all documents
+        await EmbeddingService.embedMissingDocuments(dealId);
+        
+        // Verify embeddings were created
+        const newStats = await EmbeddingService.getEmbeddingStats(dealId);
+        console.log(`✅ Embeddings generated:`, newStats);
+        
+        if (newStats.totalChunks === 0) {
+          throw new Error(`Failed to generate embeddings for deal ${dealId} - no documents available or all failed`);
+        }
+      } else {
+        console.log(`✅ Found ${embeddingStats.totalChunks} existing embeddings from ${embeddingStats.uniqueDocuments} documents`);
+      }
+      
       // Update progress: Data gathering phase (10%)
       await storage.updateBackgroundJob(jobId, {
         status: 'processing',
