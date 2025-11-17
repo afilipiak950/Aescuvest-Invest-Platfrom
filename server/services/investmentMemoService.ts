@@ -2495,7 +2495,7 @@ ${ragContext.substring(0, 150000)}`
       
       // CRITICAL: Abort if RAG quality is too low (likely embedding model mismatch)
       if (avgSimilarity < 0.3 && highQualityChunks < 5) {
-        const errorMsg = `RAG retrieval failure: Average similarity ${avgSimilarity.toFixed(3)} is critically low. This indicates embedding model mismatch between queries (${EMBEDDING_MODEL}) and stored document embeddings. Only ${highQualityChunks} high-quality chunks found. Aborting memo generation to prevent placeholder-filled output.`;
+        const errorMsg = `RAG retrieval failure: Average similarity ${avgSimilarity.toFixed(3)} is critically low. This indicates embedding model mismatch between queries and stored document embeddings. Only ${highQualityChunks} high-quality chunks found. Aborting memo generation to prevent placeholder-filled output.`;
         console.error(`🚨 ${errorMsg}`);
         throw new Error(errorMsg);
       }
