@@ -1557,6 +1557,13 @@ app.use((req, res, next) => {
         console.error('❌ Failed to initialize persistent legal analysis:', err);
       });
       
+      // Initialize Legal Question Queue Service
+      import('./services/legalQuestionQueue').then(({ legalQuestionQueue }) => {
+        legalQuestionQueue.initialize().catch(err => {
+          console.error('❌ Failed to initialize legal question queue:', err);
+        });
+      });
+      
       // Initialize Persistent Research Analysis Service
       console.log('🔬 Initializing Persistent Research Analysis Service...');
       persistentResearchAnalysisService.initialize().catch(err => {
