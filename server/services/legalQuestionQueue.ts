@@ -115,8 +115,10 @@ export class LegalQuestionQueueService {
           questionKey: question.id,
           questionText: question.question,
           prompt: question.analysisPrompt,
-          status: 'pending',
+          status: 'pending' as const,
           priority: 0, // Normal priority
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
 
         queuedCount++;
@@ -181,7 +183,7 @@ export class LegalQuestionQueueService {
         await db
           .update(agentQuestionQueue)
           .set({ 
-            status: 'running',
+            status: 'running' as const,
             updatedAt: new Date()
           })
           .where(eq(agentQuestionQueue.id, question.id));
@@ -197,7 +199,7 @@ export class LegalQuestionQueueService {
           await db
             .update(agentQuestionQueue)
             .set({
-              status: 'completed',
+              status: 'completed' as const,
               result,
               processedAt: new Date(),
               updatedAt: new Date()
@@ -213,7 +215,7 @@ export class LegalQuestionQueueService {
           await db
             .update(agentQuestionQueue)
             .set({
-              status: 'failed',
+              status: 'failed' as const,
               errorMessage: error.message || 'Unknown error',
               updatedAt: new Date()
             })
@@ -453,7 +455,7 @@ Format your response as JSON:
     await db
       .update(agentQuestionQueue)
       .set({ 
-        status: 'cancelled',
+        status: 'cancelled' as const,
         updatedAt: new Date()
       })
       .where(
@@ -462,6 +464,91 @@ Format your response as JSON:
           eq(agentQuestionQueue.agentType, 'legal')
         )
       );
+  }
+
+  /**
+   * Rerun a single legal question with HIGH PRIORITY
+   * Integrates into the existing queue system for consistency
+   */
+  async rerunSingleQuestion(dealId: number, questionId: string, customInstructions?: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`🔄 Rerunning legal question "${questionId}" for deal ${dealId}`);
+
+      // Find the question definition
+      const questionDef = COMPREHENSIVE_LEGAL_QUESTIONS.find(q => q.id === questionId);
+      if (!questionDef) {
+        throw new Error(`Question ${questionId} not found in question definitions`);
+      }
+
+      // Check if this question is already in the queue
+      const existingQueueItem = await db
+        .select()
+        .from(agentQuestionQueue)
+        .where(
+          and(
+            eq(agentQuestionQueue.dealId, dealId),
+            eq(agentQuestionQueue.agentType, 'legal'),
+            eq(agentQuestionQueue.questionKey, questionId)
+          )
+        )
+        .limit(1);
+
+      // If already running/pending, reject
+      if (existingQueueItem.length > 0) {
+        const status = existingQueueItem[0].status;
+        if (status === 'running' || status === 'pending') {
+          throw new Error(`Question ${questionId} is already ${status}. Please wait for it to complete.`);
+        }
+
+        // Delete old completed/failed item
+        await db
+          .delete(agentQuestionQueue)
+          .where(eq(agentQuestionQueue.id, existingQueueItem[0].id));
+      }
+
+      // Build prompt with custom instructions if provided
+      let fullPrompt = questionDef.analysisPrompt;
+      if (customInstructions) {
+        fullPrompt = `${questionDef.analysisPrompt}\n\nAdditional Instructions:\n${customInstructions}`;
+      }
+
+      // Insert into queue with HIGH PRIORITY (priority=10, normal is 0)
+      await db.insert(agentQuestionQueue).values({
+        dealId,
+        agentType: 'legal',
+        questionKey: questionId,
+        questionText: questionDef.question,
+        prompt: fullPrompt,
+        status: 'pending' as const,
+        priority: 10, // HIGH PRIORITY - will be processed before normal questions
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      console.log(`✅ Question "${questionId}" added to queue with HIGH PRIORITY`);
+
+      // Start queue processor if not already running
+      if (!this.processingQueues.get(dealId)) {
+        console.log(`🚀 Starting queue processor for deal ${dealId}`);
+        this.processQueue(dealId).catch(err => 
+          console.error(`❌ Error processing queue:`, err)
+        );
+      } else {
+        console.log(`⏭️ Queue processor already running for deal ${dealId}, question will be picked up automatically`);
+      }
+
+      // Broadcast initial progress
+      await this.broadcastQueueProgress(dealId);
+
+      return {
+        success: true,
+        message: `Question "${questionId}" queued with high priority`
+      };
+
+    } catch (error) {
+      console.error(`❌ Error rerunning question ${questionId}:`, error);
+      throw error;
+    }
   }
 }
 

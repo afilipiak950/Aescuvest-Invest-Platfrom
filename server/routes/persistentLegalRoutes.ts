@@ -237,7 +237,8 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/question/:questionI
 });
 
 /**
- * Re-run a single legal question
+ * Re-run a single legal question using the QUEUE SYSTEM
+ * Now integrated with queue-based processing for consistency
  */
 persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:questionId/rerun', async (req, res) => {
   try {
@@ -259,41 +260,19 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
       });
     }
 
-    console.log(`🔄 Re-running legal question ${questionId} for deal ${dealId} (BACKGROUND MODE)`);
+    console.log(`🔄 Re-running legal question ${questionId} for deal ${dealId} (QUEUE MODE)`);
     
-    // Import the comprehensive service
-    const { comprehensiveLegalAnalysisService } = await import('../comprehensiveLegalAnalysisService');
+    // Use the queue-based rerun method for consistency
+    const result = await legalQuestionQueue.rerunSingleQuestion(
+      dealId, 
+      questionId, 
+      customInstructions
+    );
     
-    // ATOMIC REGISTRATION: Check and register the job in one step to prevent race conditions
-    if (await comprehensiveLegalAnalysisService.isQuestionRunning(dealId, questionId)) {
-      console.log(`⚠️ Question ${questionId} for deal ${dealId} is already being rerun`);
-      return res.status(409).json({ 
-        success: false, 
-        error: `Question ${questionId} is already being rerun. Please wait for it to complete.` 
-      });
-    }
-    
-    // Immediately initialize progress to 0 (atomically registers the job)
-    // This prevents concurrent requests from bypassing the duplicate check
-    await comprehensiveLegalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 0);
-    
-    // Schedule background job execution on next event loop tick
-    // HTTP response will be sent BEFORE the heavy database/AI work begins
-    setImmediate(() => {
-      comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
-        .then(() => {
-          console.log(`✅ Background rerun completed for question ${questionId} on deal ${dealId}`);
-        })
-        .catch(async error => {
-          console.error(`❌ Background rerun failed for question ${questionId} on deal ${dealId}:`, error);
-          // Error is logged but doesn't affect the HTTP response (already sent)
-        });
-    });
-    
-    // Return immediately - client will poll for progress
+    // Return immediately - client will receive WebSocket updates
     res.json({
-      success: true,
-      message: 'Question rerun started in background',
+      success: result.success,
+      message: result.message,
       questionId,
       dealId
     });
@@ -302,7 +281,7 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     console.error('Error re-running legal question:', error);
     
     // Check if it's a duplicate rerun error
-    if (error.message && error.message.includes('already being rerun')) {
+    if (error.message && error.message.includes('already')) {
       return res.status(409).json({ 
         success: false, 
         error: error.message 

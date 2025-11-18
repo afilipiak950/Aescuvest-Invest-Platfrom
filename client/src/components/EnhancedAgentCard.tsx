@@ -1862,6 +1862,78 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
     refetchComprehensive();
   }, [refetchComprehensive]);
 
+  // ========================================
+  // WEBSOCKET QUEUE PROGRESS INTEGRATION
+  // ========================================
+  // Listen for real-time queue updates via WebSocket
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('🔌 [Legal Queue] WebSocket connected');
+      // Subscribe to deal-specific updates
+      ws.send(JSON.stringify({
+        type: 'subscribe',
+        dealId: dealId
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        // Handle queue progress updates
+        if (message.type === 'legal_queue_progress') {
+          const queueStatus = message.data;
+          console.log('📊 [Legal Queue] Progress update:', queueStatus);
+          
+          // Update progress based on queue status
+          setQuestionProgress(prev => {
+            const newProgress: Record<string, number> = {};
+            
+            // If there's a currently running question, show it
+            if (queueStatus.currentQuestion && queueStatus.running > 0) {
+              // Find the question ID from the current question text
+              // This is a simple approach - we could also track question IDs in the status
+              const runningProgress = Math.round((queueStatus.completed / queueStatus.total) * 100);
+              // We don't have the exact question ID here, so we keep existing running questions
+              for (const [qId, prog] of Object.entries(prev)) {
+                if (prog < 100) {
+                  newProgress[qId] = runningProgress;
+                }
+              }
+            }
+            
+            return newProgress;
+          });
+          
+          // If a question was just completed, refetch comprehensive results
+          if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
+            console.log('✅ [Legal Queue] All questions completed - refreshing results');
+            refetchComprehensive();
+            setQuestionProgress({}); // Clear all progress
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('🔌 [Legal Queue] WebSocket disconnected');
+    };
+
+    ws.onerror = (error) => {
+      console.error('🔌 [Legal Queue] WebSocket error:', error);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [dealId, refetchComprehensive]);
+
   // Load existing running jobs from database on mount to restore progress bars after refresh
   useEffect(() => {
     const loadExistingJobs = async () => {
