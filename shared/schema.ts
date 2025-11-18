@@ -93,7 +93,7 @@ export const documentEmbeddings = pgTable("document_embeddings", {
   dealId: integer("deal_id").notNull(),
   chunkIndex: integer("chunk_index").notNull(),
   chunkText: text("chunk_text").notNull(),
-  embedding: vector("embedding", { dimensions: 1536 }).notNull(), // OpenAI text-embedding-3-small is 1536 dimensions
+  embedding: json("embedding").notNull(), // Store as JSON array for now
   tokenCount: integer("token_count").notNull(),
   metadata: json("metadata"), // Store document name, type, etc.
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -109,7 +109,7 @@ export const queryCache = pgTable("query_cache", {
   id: serial("id").primaryKey(),
   dealId: integer("deal_id").notNull(),
   queryText: text("query_text").notNull(),
-  queryEmbedding: vector("query_embedding", { dimensions: 1536 }).notNull(), // OpenAI text-embedding-3-small is 1536 dimensions
+  queryEmbedding: json("query_embedding").notNull(),
   response: text("response").notNull(),
   similarity: real("similarity"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

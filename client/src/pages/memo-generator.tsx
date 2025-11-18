@@ -17,7 +17,6 @@ import { FormattedContent, SectionHeader, InfoGrid } from '@/components/Formatte
 import { ProfessionalFormattedContent, ProfessionalInfoGrid } from '@/components/ProfessionalFormattedContent';
 import { SectionInfoBadge } from '@/components/memo-generator/SectionInfoBadge';
 import { SectionEditor } from '@/components/memo-generator/SectionEditor';
-import { useWebSocketProgress } from '@/hooks/useWebSocketProgress';
 
 interface ComprehensiveMemo {
   coverPage: string;                        // Professional cover page
@@ -109,29 +108,6 @@ export default function MemoGenerator() {
   
   // Track which jobs we've already shown success toasts for (prevents duplicate toasts)
   const shownSuccessJobsRef = useRef<Set<string>>(new Set());
-  
-  // WebSocket progress state - tracks real-time memo generation progress
-  const [wsProgress, setWsProgress] = useState<{
-    isRunning: boolean;
-    progress: number;
-    currentStep: string;
-    status: string;
-    jobId?: string | number;
-  } | null>(null);
-  
-  // Local generating state - prevents flicker during mutation->WebSocket transition
-  const [isLocalGenerating, setIsLocalGenerating] = useState(false);
-  
-  // CRITICAL: Sticky state to prevent flicker during polling refetches
-  // This STATE (not ref!) triggers re-renders and persists progress bar visibility
-  // Scoped per deal - automatically resets when deal changes
-  const [isGenerationSticky, setIsGenerationSticky] = useState(false);
-
-  // Reset sticky state when deal changes to prevent stale progress indicators
-  useEffect(() => {
-    setIsGenerationSticky(false);
-    console.log('🔄 Deal changed - reset sticky generation state');
-  }, [selectedDeal]);
 
   // 🔥 AUTO-SELECT DEAL FROM URL PARAMETER (when clicking Edit from memos page)
   useEffect(() => {
@@ -344,98 +320,11 @@ export default function MemoGenerator() {
     }
   });
 
-  // WebSocket connection for real-time progress updates
-  // CRITICAL FIX: Enable WebSocket if ANY job is running (not just locally started)
-  const hasPollingJob = useMemo(() => {
-    const jobs = jobProgressData?.jobs || [];
-    return jobs.some((job: any) => {
-      if (!job || !job.jobType) return false;
-      const jobType = job.jobType.toLowerCase();
-      const isMemoJob = jobType === 'investment_memo_generation' || 
-                       jobType.includes('memo') || 
-                       jobType.includes('investment_memo');
-      return isMemoJob && job.status === 'processing';
-    });
-  }, [jobProgressData]);
-  
-  const shouldEnableWebSocket = isLocalGenerating || !!wsProgress || hasPollingJob;
-  
-  const { isConnected: wsConnected } = useWebSocketProgress({
-    dealId: selectedDeal,
-    enabled: shouldEnableWebSocket && !!selectedDeal,
-    onProgress: (progress) => {
-      console.log('📡 WebSocket progress update:', progress);
-      if (progress.jobType === 'investment_memo_generation') {
-        setWsProgress({
-          isRunning: progress.status === 'processing',
-          progress: progress.progress,
-          currentStep: progress.currentStep,
-          status: progress.status,
-          jobId: progress.jobId
-        });
-      }
-    },
-    onComplete: (progress) => {
-      console.log('✅ WebSocket: Job completed');
-      
-      // Update wsProgress to completion state BEFORE clearing isLocalGenerating
-      // This prevents gap where both states are false
-      setWsProgress({
-        isRunning: false,
-        progress: 100,
-        currentStep: 'Completed',
-        status: 'completed',
-        jobId: progress.jobId
-      });
-      
-      // Clear BOTH local state and sticky state after brief delay
-      setTimeout(() => {
-        setIsLocalGenerating(false);
-        setIsGenerationSticky(false);
-        console.log('🔓 UNLOCKED: Generation completed - progress bar can hide');
-      }, 100);
-      
-      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      }, 500);
-      
-      const jobId = progress.jobId?.toString();
-      if (jobId && !shownSuccessJobsRef.current.has(jobId)) {
-        shownSuccessJobsRef.current.add(jobId);
-        toast({
-          title: "Memo Generated Successfully",
-          description: "Your investment memo is ready to view.",
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('❌ WebSocket: Job failed', error);
-      setIsLocalGenerating(false);
-      setIsGenerationSticky(false);
-      setWsProgress(null);
-      console.log('🔓 UNLOCKED: Job failed - progress bar cleared');
-      toast({
-        title: "Memo Generation Failed",
-        description: error || "There was an error generating the memo. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Create progress state - PRIORITIZE WebSocket over polling
+  // Create progress state from job data
   const memoProgress = useMemo(() => {
-    // 1. Use WebSocket data if available (real-time)
-    if (wsProgress) {
-      console.log('📡 Using WebSocket progress data');
-      return wsProgress;
-    }
-    
-    // 2. Fallback to polling data (legacy support)
     const memoJob = findMemoJob(jobProgressData?.jobs || []);
     if (!memoJob) return null;
     
-    console.log('📊 Using polling progress data (WebSocket not available)');
     return {
       isRunning: memoJob.status === 'processing',
       progress: memoJob.progress || 0,
@@ -443,20 +332,7 @@ export default function MemoGenerator() {
       status: memoJob.status || 'processing',
       jobId: memoJob.id
     };
-  }, [wsProgress, jobProgressData]);
-
-  // DEFENSIVE: Clear all generation states if job completes but WebSocket didn't fire onComplete
-  // This prevents stuck progress bar in edge cases where WebSocket fails
-  useEffect(() => {
-    if (memoProgress && (memoProgress.status === 'completed' || memoProgress.status === 'failed')) {
-      console.log('🛡️ Defensive: Job completed/failed, clearing all generation states as fallback');
-      setTimeout(() => {
-        setIsLocalGenerating(false);
-        setIsGenerationSticky(false);
-        console.log('🔓 UNLOCKED: Defensive timeout cleared generation state');
-      }, 200); // Small delay to let WebSocket handle it first if it's going to
-    }
-  }, [memoProgress?.status]);
+  }, [jobProgressData]);
 
   // Auto-refresh memo when job completes
   useEffect(() => {
@@ -509,53 +385,46 @@ export default function MemoGenerator() {
     mutationFn: async (dealId: string) => {
       console.log(`🔄 Generating comprehensive investment memo for deal ${dealId}`);
       
-      // Set BOTH local generating state AND sticky state to prevent flicker
-      setIsLocalGenerating(true);
-      setIsGenerationSticky(true);
-      console.log('🔒 LOCKED: Generation started - progress bar will stay visible');
-      
       const response = await apiRequest(`/api/deals/${dealId}/generate-memo`, {
         method: 'POST',
       });
       
-      console.log('📝 Generate memo response:', { 
-        success: response.success, 
-        jobId: response.jobId,
-        error: response.error 
-      });
+      console.log('📝 Generate memo response:', { success: response.success, hasMemo: !!response.memo, error: response.error });
       
       if (!response.success) {
-        setIsLocalGenerating(false);
         throw new Error(response.error || 'Failed to generate memo');
       }
       
-      return response; // Returns { success, message, jobId, dealId }
+      return response.memo;
     },
-    onSuccess: (response: any) => {
-      console.log('✅ Investment memo generation job started', { 
-        jobId: response.jobId,
-        dealId: response.dealId 
-      });
-      
-      // API ALWAYS creates background job - no synchronous completion
-      // Keep isLocalGenerating TRUE until WebSocket reports completion
-      // Defensive useEffect will clear it as fallback if WebSocket fails
-      
-      console.log('📡 Background job created - enabling WebSocket tracking');
+    onSuccess: (memo: ComprehensiveMemo) => {
+      console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
+      setGeneratedMemo(memo);
+      // Immediately refetch background jobs to start progress tracking
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
-      toast({
-        title: "Generating Investment Memo",
-        description: "Real-time progress tracking enabled. This may take several minutes.",
-      });
+      
+      // CRITICAL FIX: Only show success toast if memo data actually exists
+      // Otherwise the job is still running and we should show progress
+      if (memo && Object.keys(memo).length > 0) {
+        toast({
+          title: "Investment Memo Generated",
+          description: "Comprehensive memo created successfully. The memo content is now available.",
+        });
+        // Force immediate cache invalidation and refetch of the database memo
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        setTimeout(() => {
+          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        }, 1000); // Small delay to ensure database persistence
+      } else {
+        // Job started in background - show info toast instead
+        toast({
+          title: "Generating Investment Memo",
+          description: "Memo generation started in background. You'll see live progress updates as sections are generated.",
+        });
+      }
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
-      
-      // Clear local generating state AND sticky state
-      setIsLocalGenerating(false);
-      setIsGenerationSticky(false);
-      setWsProgress(null);
-      console.log('🔓 UNLOCKED: Mutation error - progress bar cleared');
       
       // Check if memo was actually generated but API timed out
       setTimeout(() => {
@@ -605,18 +474,10 @@ export default function MemoGenerator() {
   const currentMemo = existingMemo?.memo || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
-  // CRITICAL: Unified progress tracking - prevents ALL flicker
-  // Use isLocalGenerating to bridge mutation->WebSocket transition gap
+  // CRITICAL: Check if job is actually running (fixes the "instant success" bug)
+  // The memo field can be NULL during generation (until 90%), so we must check job status first
   const hasActiveJob = memoProgress && memoProgress.isRunning;
   const hasMemoRecord = !!existingMemo; // Memo record exists even if memo field is NULL
-  
-  // ROCK-SOLID DISPLAY LOGIC: Uses sticky state to prevent flicker during polling refetches
-  // Once generation starts (sticky=true), progress bar stays visible until definitive completion
-  // This prevents flickering when jobProgressData temporarily becomes empty during refetch
-  // STATE (not ref) ensures React re-renders and maintains UI continuity
-  const showGenerating = isGenerating || hasActiveJob || isLocalGenerating || isGenerationSticky;
-  const showReadyToGenerate = !currentMemo && !showGenerating;
-  const showMemoContent = !!currentMemo && !showGenerating;
   
   // Debug logging
   console.log('🔍 Display Debug:', {
@@ -627,15 +488,12 @@ export default function MemoGenerator() {
     currentMemoKeys: currentMemo ? Object.keys(currentMemo) : [],
     isGenerating,
     hasActiveJob,
-    isLocalGenerating,
-    wsConnected,
-    wsProgress: !!wsProgress,
     hasMemoRecord,
     memoProgress,
     selectedDeal,
-    showReadyToGenerate,
-    showGenerating,
-    showMemoContent
+    showReadyToGenerate: !currentMemo && !isGenerating && !hasActiveJob,
+    showGenerating: isGenerating || hasActiveJob,
+    showMemoContent: !!currentMemo && !isGenerating && !hasActiveJob
   });
   
   return (
@@ -707,7 +565,7 @@ export default function MemoGenerator() {
                     <h3 className="text-lg font-medium text-gray-300 mb-2">Select a Deal</h3>
                     <p className="text-gray-500">Choose a deal from the dropdown to generate a comprehensive investment memo.</p>
                   </div>
-                ) : showReadyToGenerate ? (
+                ) : !currentMemo && !isGenerating && !hasActiveJob ? (
                   <div className="text-center py-12">
                     <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-white mb-2">Ready to Generate</h3>
@@ -726,7 +584,7 @@ export default function MemoGenerator() {
                       Generate Investment Memo
                     </Button>
                   </div>
-                ) : showGenerating ? (
+                ) : isGenerating || hasActiveJob ? (
                   <div className="py-8">
                     <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                       <CardContent className="pt-6">
@@ -1833,10 +1691,10 @@ export default function MemoGenerator() {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleGenerateMemo}
-                    disabled={!selectedDeal || showGenerating}
+                    disabled={!selectedDeal || isGenerating}
                     className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {showGenerating ? (
+                    {isGenerating ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Generating...
