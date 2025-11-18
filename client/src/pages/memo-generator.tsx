@@ -103,6 +103,7 @@ export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
+  const [isGenerationActive, setIsGenerationActive] = useState(false); // 🔥 FIX: Track if generation is actively running
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -346,6 +347,9 @@ export default function MemoGenerator() {
       }
       
       console.log('✅ Memo generation job completed, refreshing memo data...');
+      // 🔥 FIX: Stop generation mode when job completes
+      setIsGenerationActive(false);
+      
       // Invalidate and refetch memo
       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
       setTimeout(() => {
@@ -372,6 +376,9 @@ export default function MemoGenerator() {
       }, 1500); // Wait for memo refetch to complete
     } else if (memoProgress && memoProgress.status === 'failed') {
       console.log('❌ Memo generation job failed');
+      // 🔥 FIX: Stop generation mode on failure
+      setIsGenerationActive(false);
+      
       toast({
         title: "Memo Generation Failed",
         description: "There was an error generating the memo. Please try again.",
@@ -400,12 +407,17 @@ export default function MemoGenerator() {
     onSuccess: (memo: ComprehensiveMemo) => {
       console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
       setGeneratedMemo(memo);
+      // 🔥 FIX: Start generation mode - this keeps progress bar visible
+      setIsGenerationActive(true);
+      
       // Immediately refetch background jobs to start progress tracking
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
       // CRITICAL FIX: Only show success toast if memo data actually exists
       // Otherwise the job is still running and we should show progress
       if (memo && Object.keys(memo).length > 0) {
+        // Memo generated synchronously (fast path) - stop generation mode
+        setIsGenerationActive(false);
         toast({
           title: "Investment Memo Generated",
           description: "Comprehensive memo created successfully. The memo content is now available.",
@@ -425,6 +437,11 @@ export default function MemoGenerator() {
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
+      // 🔥 FIX: Don't stop generation mode on timeout - job might still be running
+      // Only stop on real errors (not timeout)
+      if (!error?.message?.includes('timeout') && !error?.message?.includes('took too long')) {
+        setIsGenerationActive(false);
+      }
       
       // Check if memo was actually generated but API timed out
       setTimeout(() => {
@@ -479,6 +496,9 @@ export default function MemoGenerator() {
   const hasActiveJob = memoProgress && memoProgress.isRunning;
   const hasMemoRecord = !!existingMemo; // Memo record exists even if memo field is NULL
   
+  // 🔥 FIX: Progress bar stays visible throughout entire generation process
+  const showProgressBar = isGenerating || hasActiveJob || isGenerationActive;
+  
   // Debug logging
   console.log('🔍 Display Debug:', {
     existingMemo: !!existingMemo,
@@ -488,12 +508,14 @@ export default function MemoGenerator() {
     currentMemoKeys: currentMemo ? Object.keys(currentMemo) : [],
     isGenerating,
     hasActiveJob,
+    isGenerationActive,
+    showProgressBar,
     hasMemoRecord,
     memoProgress,
     selectedDeal,
-    showReadyToGenerate: !currentMemo && !isGenerating && !hasActiveJob,
-    showGenerating: isGenerating || hasActiveJob,
-    showMemoContent: !!currentMemo && !isGenerating && !hasActiveJob
+    showReadyToGenerate: !currentMemo && !showProgressBar,
+    showGenerating: showProgressBar,
+    showMemoContent: !!currentMemo && !showProgressBar
   });
   
   return (
@@ -579,12 +601,12 @@ export default function MemoGenerator() {
                         </p>
                       </div>
                     )}
-                    <Button onClick={handleGenerateMemo} className="bg-primary hover:bg-primary/90">
+                    <Button onClick={handleGenerateMemo} className="bg-primary hover:bg-primary/90" data-testid="button-generate-memo">
                       <Brain className="h-4 w-4 mr-2" />
                       Generate Investment Memo
                     </Button>
                   </div>
-                ) : isGenerating || hasActiveJob ? (
+                ) : showProgressBar ? (
                   <div className="py-8">
                     <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                       <CardContent className="pt-6">
