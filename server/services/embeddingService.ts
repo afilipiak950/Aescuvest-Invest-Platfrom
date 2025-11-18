@@ -8,8 +8,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Chunk size for splitting documents
 const CHUNK_SIZE = 500; // tokens
 const CHUNK_OVERLAP = 50; // tokens
-const EMBEDDING_MODEL = 'text-embedding-3-small'; // CRITICAL: Using newest model for fresh embeddings
-const TOP_K_RESULTS = 50; // Number of relevant chunks to retrieve (CRITICAL: Must be 50 for comprehensive memo coverage)
+const EMBEDDING_MODEL = 'text-embedding-3-small';
+const TOP_K_RESULTS = 10; // Number of relevant chunks to retrieve
 
 interface ChunkMetadata {
   documentId: number;
@@ -141,7 +141,7 @@ export class EmbeddingService {
       const embeddingString = `[${embedding.join(',')}]`;
       const tokenCount = chunk.split(/\s+/).length;
       
-      // Use raw SQL for embedding insertion (stored as vector per schema)
+      // Use raw SQL for embedding insertion (stored as JSON per schema)
       await db.execute(sql`
         INSERT INTO document_embeddings (
           document_id, 
@@ -156,7 +156,7 @@ export class EmbeddingService {
           ${dealId},
           ${i},
           ${chunk},
-          ${embeddingString}::vector,
+          ${embeddingString}::json,
           ${tokenCount},
           ${JSON.stringify(metadata)}::jsonb
         )
@@ -312,12 +312,7 @@ export class EmbeddingService {
   }
 
   // New method for auto-embedding missing documents for specific deal
-  static async embedMissingDocuments(
-    dealId: number, 
-    jobId?: string, 
-    numericJobId?: number, 
-    storage?: any
-  ): Promise<void> {
+  static async embedMissingDocuments(dealId: number): Promise<void> {
     try {
       console.log(`🚀 Auto-embedding missing documents for deal ${dealId}...`);
       
@@ -333,16 +328,14 @@ export class EmbeddingService {
         ORDER BY d.id
       `);
       
-      const totalDocs = documentsToEmbed.rows.length;
-      console.log(`📊 Found ${totalDocs} documents to embed for deal ${dealId}`);
+      console.log(`Found ${documentsToEmbed.rows.length} documents to embed for deal ${dealId}`);
       
-      if (totalDocs === 0) {
+      if (documentsToEmbed.rows.length === 0) {
         console.log(`✅ All documents already embedded for deal ${dealId}`);
         return;
       }
 
-      // Process documents with progress tracking (5% → 25% range)
-      let processed = 0;
+      // Process documents in batches to avoid rate limits
       for (const doc of documentsToEmbed.rows) {
         try {
           await this.embedDocument(
@@ -353,37 +346,6 @@ export class EmbeddingService {
             doc.agent_type as string
           );
           
-          processed++;
-          
-          // Update progress every 10 documents or on last document
-          if (processed % 10 === 0 || processed === totalDocs) {
-            const embeddingProgress = 5 + Math.floor((processed / totalDocs) * 20); // 5% → 25%
-            const statusMsg = `Embedded ${processed}/${totalDocs} documents (${Math.round((processed/totalDocs)*100)}% complete)`;
-            
-            console.log(`📊 ${statusMsg}`);
-            
-            // Update job progress if tracking enabled
-            if (jobId && storage) {
-              await storage.updateBackgroundJob(jobId, {
-                progress: embeddingProgress,
-                currentStep: statusMsg,
-                updatedAt: new Date()
-              });
-              
-              // Broadcast WebSocket update if available
-              if (numericJobId) {
-                const { websocketManager } = await import('./websocketManager');
-                websocketManager.broadcastJobProgress({
-                  jobId: numericJobId,
-                  jobType: 'investment_memo_generation',
-                  status: 'processing',
-                  progress: embeddingProgress,
-                  currentStep: statusMsg
-                }, dealId);
-              }
-            }
-          }
-          
           // Small delay to respect rate limits
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
@@ -391,7 +353,7 @@ export class EmbeddingService {
         }
       }
       
-      console.log(`✅ Completed auto-embedding ${processed}/${totalDocs} documents for deal ${dealId}`);
+      console.log(`✅ Completed auto-embedding for deal ${dealId}`);
     } catch (error) {
       console.error(`❌ Auto-embedding failed for deal ${dealId}:`, error);
       throw error;
