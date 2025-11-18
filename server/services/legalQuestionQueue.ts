@@ -260,12 +260,32 @@ export class LegalQuestionQueueService {
         };
       }
 
-      // Build the analysis prompt
-      const documentContext = dealDocuments.map((doc, idx) => {
-        const summary = doc.aiSummary || doc.summary || 'No summary available';
-        const text = doc.ocrText || doc.text || '';
-        return `Document ${idx + 1}: ${doc.name}\nSummary: ${summary}\n${text ? `Content: ${text.substring(0, 2000)}...` : ''}`;
-      }).join('\n\n---\n\n');
+      // Build the analysis prompt with intelligent token limiting
+      // GPT-4o max context: 128k tokens (~96k words or ~384k characters)
+      // Reserve ~30k tokens for question, system prompt, and response
+      // Use ~90k tokens (~360k chars) for documents
+      const MAX_CONTEXT_CHARS = 360000;
+      const MAX_CHARS_PER_DOC = 800; // Reduced from 2000 to fit more docs
+      
+      let contextChars = 0;
+      const documentContext = dealDocuments
+        .map((doc, idx) => {
+          const summary = (doc.aiSummary || doc.summary || 'No summary').substring(0, 500);
+          const text = (doc.ocrText || doc.text || '').substring(0, MAX_CHARS_PER_DOC);
+          const docContent = `Document ${idx + 1}: ${doc.name}\nSummary: ${summary}\n${text ? `Content: ${text}...` : ''}`;
+          
+          // Check if adding this doc would exceed limit
+          if (contextChars + docContent.length > MAX_CONTEXT_CHARS) {
+            return null; // Skip this document
+          }
+          
+          contextChars += docContent.length;
+          return docContent;
+        })
+        .filter(Boolean)
+        .join('\n\n---\n\n');
+      
+      console.log(`📊 Using ${contextChars.toLocaleString()} characters from ${dealDocuments.length} documents (est. ${Math.round(contextChars / 4)} tokens)`);
 
       const fullPrompt = `You are a legal analyst conducting due diligence. Analyze the following documents and answer this specific question:
 
