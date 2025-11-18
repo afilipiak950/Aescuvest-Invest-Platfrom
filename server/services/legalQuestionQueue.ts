@@ -357,17 +357,21 @@ Format your response as JSON:
       };
 
       if (existingAnalysis) {
-        await storage.updateAgentAnalysis(dealId, 'legal', {
+        console.log(`💾 Saving legal answer for question "${question.questionKey}" to analysis ID ${existingAnalysis.id}`);
+        await storage.updateAgentAnalysisByDealAndType(dealId, 'legal', {
           legalAnswers,
           updatedAt: new Date()
         });
+        console.log(`✅ Successfully saved legal answer for question "${question.questionKey}"`);
       } else {
+        console.log(`💾 Creating new legal analysis for deal ${dealId} with first answer`);
         await storage.createAgentAnalysis({
           dealId,
           agentType: 'legal',
           status: 'In Progress',
           legalAnswers
         });
+        console.log(`✅ Created new legal analysis for deal ${dealId}`);
       }
 
       return analysisResult;
