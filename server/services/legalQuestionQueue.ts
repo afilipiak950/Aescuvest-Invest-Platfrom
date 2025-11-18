@@ -9,8 +9,11 @@ import { agentQuestionQueue, agentAnalyses } from '../../shared/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { storage } from '../storage';
 import { COMPREHENSIVE_LEGAL_QUESTIONS } from '../comprehensiveLegalAnalysisService';
-import { resilientOpenAI } from '../utils/resilientOpenAI';
+import OpenAI from 'openai';
 import { websocketManager } from './websocketManager';
+
+// Initialize OpenAI client
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface QueueItem {
   id: number;
@@ -290,7 +293,7 @@ Format your response as JSON:
   "risks": ["Risk 1 if any"]
 }`;
 
-      const response = await resilientOpenAI.chat.completions.create({
+      const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
@@ -395,10 +398,7 @@ Format your response as JSON:
     try {
       const status = await this.getQueueStatus(dealId);
       
-      websocketManager.broadcastToDeal(dealId, {
-        type: 'legal_queue_progress',
-        data: status
-      });
+      websocketManager.broadcast('legal_queue_progress', status, dealId);
     } catch (error) {
       console.error('Error broadcasting queue progress:', error);
     }
