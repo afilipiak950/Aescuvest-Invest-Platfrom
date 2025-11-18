@@ -351,6 +351,29 @@ export const insertAgentAnalysisSchema = createInsertSchema(agentAnalyses, {
   updatedAt: true,
 });
 
+// Agent Question Queue - Sequential processing of agent questions
+export const agentQuestionQueue = pgTable("agent_question_queue", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: text("agent_type").notNull(), // 'legal', 'clinical', etc.
+  questionKey: text("question_key").notNull(), // e.g., 'corporateStructure', 'patentPortfolio'
+  questionText: text("question_text").notNull(), // The actual question text
+  prompt: text("prompt").notNull(), // The ultra-specific prompt used for this question
+  status: text("status").notNull().default("pending"), // 'pending', 'running', 'completed', 'failed', 'cancelled'
+  priority: integer("priority").notNull().default(0), // Higher priority = processed first (for reruns)
+  result: json("result"), // The answer/result after processing
+  errorMessage: text("error_message"), // Error details if failed
+  processedAt: timestamp("processed_at"), // When processing completed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAgentQuestionQueueSchema = createInsertSchema(agentQuestionQueue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Investment Memos
 export const investmentMemos = pgTable("investment_memos", {
   id: serial("id").primaryKey(),
@@ -469,6 +492,9 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 
 export type AgentAnalysis = typeof agentAnalyses.$inferSelect;
 export type InsertAgentAnalysis = z.infer<typeof insertAgentAnalysisSchema>;
+
+export type AgentQuestionQueue = typeof agentQuestionQueue.$inferSelect;
+export type InsertAgentQuestionQueue = z.infer<typeof insertAgentQuestionQueueSchema>;
 
 export type InvestmentMemo = typeof investmentMemos.$inferSelect;
 export type InsertInvestmentMemo = z.infer<typeof insertInvestmentMemoSchema>;
