@@ -270,8 +270,19 @@ export class LegalQuestionQueueService {
       let contextChars = 0;
       const documentContext = dealDocuments
         .map((doc, idx) => {
-          const summary = (doc.aiSummary || doc.summary || 'No summary').substring(0, 500);
-          const text = (doc.ocrText || doc.text || '').substring(0, MAX_CHARS_PER_DOC);
+          // Handle aiSummary/summary that might be objects or strings
+          let summaryText = 'No summary';
+          if (doc.aiSummary) {
+            summaryText = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary);
+          } else if (doc.summary) {
+            summaryText = typeof doc.summary === 'string' ? doc.summary : JSON.stringify(doc.summary);
+          }
+          const summary = summaryText.substring(0, 500);
+          
+          // Handle text/ocrText
+          const textContent = doc.ocrText || doc.text || '';
+          const text = (typeof textContent === 'string' ? textContent : String(textContent)).substring(0, MAX_CHARS_PER_DOC);
+          
           const docContent = `Document ${idx + 1}: ${doc.name}\nSummary: ${summary}\n${text ? `Content: ${text}...` : ''}`;
           
           // Check if adding this doc would exceed limit
