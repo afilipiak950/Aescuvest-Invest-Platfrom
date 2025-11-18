@@ -1,10 +1,11 @@
 /**
  * Persistent Legal Analysis Routes
- * API endpoints for managing persistent legal analysis jobs
+ * API endpoints for managing persistent legal analysis jobs and question queues
  */
 
 import { Router } from 'express';
 import { persistentLegalAnalysisService } from '../services/persistentLegalAnalysis';
+import { legalQuestionQueue } from '../services/legalQuestionQueue';
 
 export const persistentLegalRoutes = Router();
 
@@ -311,6 +312,107 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/question/:question
     res.status(500).json({ 
       success: false, 
       error: error.message || 'Failed to re-run question analysis' 
+    });
+  }
+});
+/**
+ * ===================================================================
+ * QUESTION QUEUE ENDPOINTS - Sequential processing of legal questions
+ * ===================================================================
+ */
+
+/**
+ * Start processing all legal questions in a queue (one by one, FIFO)
+ */
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/run-all-questions', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🚀 Starting legal question queue for deal ${dealId}`);
+    
+    const result = await legalQuestionQueue.startAllQuestions(dealId);
+    
+    res.json({
+      success: true,
+      message: `Queued ${result.queuedCount} legal questions for sequential processing`,
+      queuedCount: result.queuedCount,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error starting legal question queue:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to start question queue' 
+    });
+  }
+});
+
+/**
+ * Get queue status for a deal
+ */
+persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/queue-status', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const status = await legalQuestionQueue.getQueueStatus(dealId);
+    
+    res.json({
+      success: true,
+      status
+    });
+    
+  } catch (error) {
+    console.error('Error getting queue status:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get queue status' 
+    });
+  }
+});
+
+/**
+ * Cancel queue processing for a deal
+ */
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/cancel-queue', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🛑 Cancelling legal question queue for deal ${dealId}`);
+    
+    await legalQuestionQueue.cancelQueue(dealId);
+    
+    res.json({
+      success: true,
+      message: 'Queue cancelled successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error cancelling queue:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to cancel queue' 
     });
   }
 });
