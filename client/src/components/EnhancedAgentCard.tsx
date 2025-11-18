@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
+import { RunLegalQueueButton } from './RunLegalQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -2164,10 +2165,20 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <PersistentLegalButton 
-          dealId={dealId}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        />
+        <div className="flex items-center gap-2">
+          <PersistentLegalButton 
+            dealId={dealId}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          />
+          <RunLegalQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+            onQueueComplete={() => {
+              // Refresh data when queue completes
+              queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'agents'] });
+            }}
+          />
+        </div>
       </div>
 
       {/* Progress is now shown in main progress bar at top of page - removed duplicate here */}
