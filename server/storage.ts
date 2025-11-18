@@ -1240,12 +1240,24 @@ export class DatabaseStorage implements IStorage {
     return newAnalysis;
   }
 
-  async updateAgentAnalysis(id: number, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+  async updateAgentAnalysis(dealId: number, agentType: string, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+    // Find the existing analysis by dealId and agentType
+    const existingAnalysis = await this.getAgentAnalysis(dealId, agentType);
+    
+    if (!existingAnalysis) {
+      console.warn(`⚠️ No analysis found for deal ${dealId} and agent ${agentType}`);
+      return undefined;
+    }
+    
     const [updatedAnalysis] = await db
       .update(agentAnalyses)
       .set(data)
-      .where(eq(agentAnalyses.id, id))
+      .where(eq(agentAnalyses.id, existingAnalysis.id))
       .returning();
+    
+    // Invalidate cache
+    analysesCache.delete(dealId);
+    
     return updatedAnalysis || undefined;
   }
 
