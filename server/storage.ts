@@ -1240,7 +1240,8 @@ export class DatabaseStorage implements IStorage {
     return newAnalysis;
   }
 
-  async updateAgentAnalysis(dealId: number, agentType: string, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+  // New method: Update by dealId and agentType
+  async updateAgentAnalysisByDealAndType(dealId: number, agentType: string, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
     // Find the existing analysis by dealId and agentType
     const existingAnalysis = await this.getAgentAnalysis(dealId, agentType);
     
@@ -1248,6 +1249,8 @@ export class DatabaseStorage implements IStorage {
       console.warn(`⚠️ No analysis found for deal ${dealId} and agent ${agentType}`);
       return undefined;
     }
+    
+    console.log(`💾 Updating analysis ID ${existingAnalysis.id} for deal ${dealId}, agent ${agentType}`);
     
     const [updatedAnalysis] = await db
       .update(agentAnalyses)
@@ -1257,6 +1260,23 @@ export class DatabaseStorage implements IStorage {
     
     // Invalidate cache
     analysesCache.delete(dealId);
+    console.log(`💨 Invalidated analyses cache for deal ${dealId}`);
+    
+    return updatedAnalysis || undefined;
+  }
+  
+  // Original method: Update by ID (for backward compatibility)
+  async updateAgentAnalysis(id: number, data: Partial<AgentAnalysis>): Promise<AgentAnalysis | undefined> {
+    const [updatedAnalysis] = await db
+      .update(agentAnalyses)
+      .set(data)
+      .where(eq(agentAnalyses.id, id))
+      .returning();
+    
+    // Invalidate cache if dealId exists in the data or analysis
+    if (updatedAnalysis?.dealId) {
+      analysesCache.delete(updatedAnalysis.dealId);
+    }
     
     return updatedAnalysis || undefined;
   }
