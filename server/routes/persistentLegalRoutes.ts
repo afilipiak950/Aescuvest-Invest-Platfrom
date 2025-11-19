@@ -335,6 +335,41 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/run-all-questions'
 });
 
 /**
+ * Force rerun ALL legal questions (including already answered ones)
+ * This will re-analyze ALL questions through AI, without skipping any
+ */
+persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', async (req, res) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🔥 FORCE RERUN: Starting ALL legal questions for deal ${dealId}`);
+    
+    const result = await legalQuestionQueue.forceRerunAllQuestions(dealId);
+    
+    res.json({
+      success: true,
+      message: `Force rerun: Queued ALL ${result.queuedCount} legal questions (no skipping)`,
+      queuedCount: result.queuedCount,
+      dealId
+    });
+    
+  } catch (error) {
+    console.error('Error force rerunning all legal questions:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to force rerun all questions' 
+    });
+  }
+});
+
+/**
  * Get queue status for a deal
  */
 persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/queue-status', async (req, res) => {
