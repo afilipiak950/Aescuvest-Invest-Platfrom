@@ -1867,81 +1867,115 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
   // ========================================
   // Listen for real-time queue updates via WebSocket
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isComponentMounted = true;
 
-    ws.onopen = () => {
-      console.log('🔌 [Legal Queue] WebSocket connected');
-      // Subscribe to deal-specific updates - MUST send numeric dealId
-      ws.send(JSON.stringify({
-        type: 'subscribe',
-        dealId: Number(dealId)
-      }));
-    };
-
-    ws.onmessage = (event) => {
+    const connectWebSocket = () => {
       try {
-        const message = JSON.parse(event.data);
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log(`🔌 [Legal Queue] Connecting to WebSocket: ${wsUrl}`);
         
-        // Handle queue progress updates
-        if (message.type === 'legal_queue_progress') {
-          const queueStatus = message.data;
-          console.log('📊 [Legal Queue] Progress update:', queueStatus);
-          
-          // Update progress based on queue status
-          setQuestionProgress(prev => {
-            const newProgress: Record<string, number> = {};
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('✅ [Legal Queue] WebSocket connected successfully');
+          // Subscribe to deal-specific updates - MUST send numeric dealId
+          const subscribeMessage = {
+            type: 'subscribe',
+            dealId: Number(dealId)
+          };
+          console.log('📤 [Legal Queue] Sending subscription:', subscribeMessage);
+          ws!.send(JSON.stringify(subscribeMessage));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('📨 [Legal Queue] Received WebSocket message:', message);
             
-            // If there's a currently running question, show it with specific ID
-            if (queueStatus.currentQuestionId && queueStatus.running > 0) {
-              // Show progress for the currently running question
-              const runningProgress = queueStatus.total > 0 
-                ? Math.round((queueStatus.completed / queueStatus.total) * 100)
-                : 50; // Default to 50% if we can't calculate
+            // Handle queue progress updates
+            if (message.type === 'legal_queue_progress') {
+              const queueStatus = message.data;
+              console.log('📊 [Legal Queue] Progress update:', queueStatus);
               
-              newProgress[queueStatus.currentQuestionId] = runningProgress;
-              console.log(`🎯 [Legal Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
-            }
-            
-            // Keep pending questions visible with 0% progress
-            if (queueStatus.pending > 0) {
-              // We don't have the IDs of pending questions, so just keep existing ones
-              for (const [qId, prog] of Object.entries(prev)) {
-                if (!newProgress[qId]) {
-                  newProgress[qId] = 0;
+              // Update progress based on queue status
+              setQuestionProgress(prev => {
+                const newProgress: Record<string, number> = {};
+                
+                // If there's a currently running question, show it with specific ID
+                if (queueStatus.currentQuestionId && queueStatus.running > 0) {
+                  // Show progress for the currently running question
+                  const runningProgress = queueStatus.total > 0 
+                    ? Math.round((queueStatus.completed / queueStatus.total) * 100)
+                    : 50; // Default to 50% if we can't calculate
+                  
+                  newProgress[queueStatus.currentQuestionId] = runningProgress;
+                  console.log(`🎯 [Legal Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
                 }
+                
+                // Keep pending questions visible with 0% progress
+                if (queueStatus.pending > 0) {
+                  // We don't have the IDs of pending questions, so just keep existing ones
+                  for (const [qId, prog] of Object.entries(prev)) {
+                    if (!newProgress[qId]) {
+                      newProgress[qId] = 0;
+                    }
+                  }
+                }
+                
+                return newProgress;
+              });
+              
+              // If a question was just completed, refetch comprehensive results
+              if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
+                console.log('✅ [Legal Queue] All questions completed - refreshing results');
+                queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
+                refetchComprehensive();
+                setQuestionProgress({}); // Clear all progress
               }
             }
-            
-            return newProgress;
-          });
-          
-          // If a question was just completed, refetch comprehensive results
-          if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
-            console.log('✅ [Legal Queue] All questions completed - refreshing results');
-            queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
-            refetchComprehensive();
-            setQuestionProgress({}); // Clear all progress
+          } catch (error) {
+            console.error('❌ [Legal Queue] Error parsing WebSocket message:', error);
           }
-        }
+        };
+
+        ws.onclose = (event) => {
+          console.log('🔌 [Legal Queue] WebSocket disconnected:', event.code, event.reason);
+          // Attempt reconnection if component is still mounted
+          if (isComponentMounted) {
+            console.log('🔄 [Legal Queue] Reconnecting in 3 seconds...');
+            reconnectTimeout = setTimeout(() => {
+              if (isComponentMounted) {
+                connectWebSocket();
+              }
+            }, 3000);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('❌ [Legal Queue] WebSocket error:', error);
+        };
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('❌ [Legal Queue] Failed to create WebSocket:', error);
       }
     };
 
-    ws.onclose = () => {
-      console.log('🔌 [Legal Queue] WebSocket disconnected');
-    };
+    // Initial connection
+    connectWebSocket();
 
-    ws.onerror = (error) => {
-      console.error('🔌 [Legal Queue] WebSocket error:', error);
-    };
-
+    // Cleanup function
     return () => {
-      ws.close();
+      isComponentMounted = false;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws) {
+        ws.close();
+      }
     };
-  }, [dealId, refetchComprehensive]);
+  }, [dealId, refetchComprehensive, comprehensiveResultsKey, queryClient]);
 
   // Load existing running jobs from database on mount to restore progress bars after refresh
   useEffect(() => {
