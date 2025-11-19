@@ -1893,15 +1893,23 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
           setQuestionProgress(prev => {
             const newProgress: Record<string, number> = {};
             
-            // If there's a currently running question, show it
-            if (queueStatus.currentQuestion && queueStatus.running > 0) {
-              // Find the question ID from the current question text
-              // This is a simple approach - we could also track question IDs in the status
-              const runningProgress = Math.round((queueStatus.completed / queueStatus.total) * 100);
-              // We don't have the exact question ID here, so we keep existing running questions
+            // If there's a currently running question, show it with specific ID
+            if (queueStatus.currentQuestionId && queueStatus.running > 0) {
+              // Show progress for the currently running question
+              const runningProgress = queueStatus.total > 0 
+                ? Math.round((queueStatus.completed / queueStatus.total) * 100)
+                : 50; // Default to 50% if we can't calculate
+              
+              newProgress[queueStatus.currentQuestionId] = runningProgress;
+              console.log(`🎯 [Legal Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
+            }
+            
+            // Keep pending questions visible with 0% progress
+            if (queueStatus.pending > 0) {
+              // We don't have the IDs of pending questions, so just keep existing ones
               for (const [qId, prog] of Object.entries(prev)) {
-                if (prog < 100) {
-                  newProgress[qId] = runningProgress;
+                if (!newProgress[qId]) {
+                  newProgress[qId] = 0;
                 }
               }
             }
@@ -1912,6 +1920,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
           // If a question was just completed, refetch comprehensive results
           if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
             console.log('✅ [Legal Queue] All questions completed - refreshing results');
+            queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
             refetchComprehensive();
             setQuestionProgress({}); // Clear all progress
           }

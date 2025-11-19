@@ -6,7 +6,7 @@
 
 import { db } from '../db';
 import { agentQuestionQueue, agentAnalyses } from '../../shared/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { storage } from '../storage';
 import { COMPREHENSIVE_LEGAL_QUESTIONS } from '../comprehensiveLegalAnalysisService';
 import OpenAI from 'openai';
@@ -115,7 +115,7 @@ export class LegalQuestionQueueService {
           questionKey: question.id,
           questionText: question.question,
           prompt: question.analysisPrompt,
-          status: 'pending' as const,
+          status: 'pending',
           priority: 0, // Normal priority
           createdAt: new Date(),
           updatedAt: new Date()
@@ -183,7 +183,7 @@ export class LegalQuestionQueueService {
         await db
           .update(agentQuestionQueue)
           .set({ 
-            status: 'running' as const,
+            status: 'running',
             updatedAt: new Date()
           })
           .where(eq(agentQuestionQueue.id, question.id));
@@ -199,7 +199,7 @@ export class LegalQuestionQueueService {
           await db
             .update(agentQuestionQueue)
             .set({
-              status: 'completed' as const,
+              status: 'completed',
               result,
               processedAt: new Date(),
               updatedAt: new Date()
@@ -215,7 +215,7 @@ export class LegalQuestionQueueService {
           await db
             .update(agentQuestionQueue)
             .set({
-              status: 'failed' as const,
+              status: 'failed',
               errorMessage: error.message || 'Unknown error',
               updatedAt: new Date()
             })
@@ -393,17 +393,22 @@ Format your response as JSON:
     running: number;
     completed: number;
     failed: number;
+    cancelled: number;
     progress: number;
     currentQuestion: string | null;
+    currentQuestionId: string | null;
     isProcessing: boolean;
   }> {
+    // Only get ACTIVE questions (exclude cancelled)
     const questions = await db
       .select()
       .from(agentQuestionQueue)
       .where(
         and(
           eq(agentQuestionQueue.dealId, dealId),
-          eq(agentQuestionQueue.agentType, 'legal')
+          eq(agentQuestionQueue.agentType, 'legal'),
+          // Exclude cancelled questions from active queue
+          sql`${agentQuestionQueue.status} != 'cancelled'`
         )
       );
 
@@ -412,8 +417,24 @@ Format your response as JSON:
     const running = questions.filter(q => q.status === 'running').length;
     const completed = questions.filter(q => q.status === 'completed').length;
     const failed = questions.filter(q => q.status === 'failed').length;
+    
+    // Get cancelled count separately
+    const cancelledResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(agentQuestionQueue)
+      .where(
+        and(
+          eq(agentQuestionQueue.dealId, dealId),
+          eq(agentQuestionQueue.agentType, 'legal'),
+          eq(agentQuestionQueue.status, 'cancelled')
+        )
+      );
+    const cancelled = Number(cancelledResult[0]?.count || 0);
+
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const currentQuestion = questions.find(q => q.status === 'running')?.questionText || null;
+    const runningQuestion = questions.find(q => q.status === 'running');
+    const currentQuestion = runningQuestion?.questionText || null;
+    const currentQuestionId = runningQuestion?.questionKey || null;
     const isProcessing = this.processingQueues.get(dealId) || false;
 
     return {
@@ -422,8 +443,10 @@ Format your response as JSON:
       running,
       completed,
       failed,
+      cancelled,
       progress,
       currentQuestion,
+      currentQuestionId,
       isProcessing
     };
   }
@@ -455,7 +478,7 @@ Format your response as JSON:
     await db
       .update(agentQuestionQueue)
       .set({ 
-        status: 'cancelled' as const,
+        status: 'cancelled',
         updatedAt: new Date()
       })
       .where(
@@ -500,7 +523,8 @@ Format your response as JSON:
           throw new Error(`Question ${questionId} is already ${status}. Please wait for it to complete.`);
         }
 
-        // Delete old completed/failed item
+        // Delete old completed/failed/cancelled item to start fresh
+        console.log(`🧹 Deleting old queue item for ${questionId} with status: ${status}`);
         await db
           .delete(agentQuestionQueue)
           .where(eq(agentQuestionQueue.id, existingQueueItem[0].id));
@@ -519,7 +543,7 @@ Format your response as JSON:
         questionKey: questionId,
         questionText: questionDef.question,
         prompt: fullPrompt,
-        status: 'pending' as const,
+        status: 'pending',
         priority: 10, // HIGH PRIORITY - will be processed before normal questions
         createdAt: new Date(),
         updatedAt: new Date()
