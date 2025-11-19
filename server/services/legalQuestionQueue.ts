@@ -137,6 +137,54 @@ export class LegalQuestionQueueService {
   }
 
   /**
+   * Force rerun ALL legal questions for a deal (no skipping of answered questions)
+   * This will re-analyze ALL questions through AI, even if they were previously answered
+   */
+  async forceRerunAllQuestions(dealId: number): Promise<{ success: boolean; queuedCount: number }> {
+    try {
+      console.log(`🔥 FORCE RERUN: Starting ALL legal questions for deal ${dealId} (no skipping)`);
+
+      // Clear any existing pending/failed/completed questions for this deal
+      await db
+        .delete(agentQuestionQueue)
+        .where(
+          and(
+            eq(agentQuestionQueue.dealId, dealId),
+            eq(agentQuestionQueue.agentType, 'legal')
+          )
+        );
+
+      // Queue ALL legal questions WITHOUT skipping any
+      let queuedCount = 0;
+      for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
+        await db.insert(agentQuestionQueue).values({
+          dealId,
+          agentType: 'legal',
+          questionKey: question.id,
+          questionText: question.question,
+          prompt: question.analysisPrompt,
+          status: 'pending',
+          priority: 0, // Normal priority
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        queuedCount++;
+      }
+
+      console.log(`✅ FORCE RERUN: Queued ALL ${queuedCount} legal questions for deal ${dealId}`);
+
+      // Start processing the queue
+      this.processQueue(dealId);
+
+      return { success: true, queuedCount };
+    } catch (error) {
+      console.error(`❌ Error force rerunning legal questions for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Process queue for a specific deal (FIFO with priority)
    */
   private async processQueue(dealId: number): Promise<void> {
