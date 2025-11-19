@@ -1873,10 +1873,10 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
 
     ws.onopen = () => {
       console.log('🔌 [Legal Queue] WebSocket connected');
-      // Subscribe to deal-specific updates
+      // Subscribe to deal-specific updates - MUST send numeric dealId
       ws.send(JSON.stringify({
         type: 'subscribe',
-        dealId: dealId
+        dealId: Number(dealId)
       }));
     };
 
