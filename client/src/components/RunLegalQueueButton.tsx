@@ -6,11 +6,17 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Play, Square, Loader2 } from 'lucide-react';
+import { Play, Square, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface QueueStatus {
   total: number;
@@ -83,7 +89,7 @@ export function RunLegalQueueButton({
         
         toast({
           title: "Legal Analysis Queue Started",
-          description: `Processing ${response.queuedCount} questions sequentially`,
+          description: `Processing ${response.queuedCount} new questions`,
         });
       } else {
         throw new Error(response.error || 'Failed to start queue');
@@ -94,6 +100,39 @@ export function RunLegalQueueButton({
       toast({
         title: "Error",
         description: "Failed to start legal analysis queue",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForceRerunAll = async () => {
+    setIsLoading(true);
+    try {
+      console.log(`🔥 FORCE RERUN: Starting ALL legal questions for deal ${dealId}`);
+      
+      const response = await apiRequest(`/api/deals/${dealId}/legal-analysis/force-rerun-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.success) {
+        onQueueStart?.();
+        
+        toast({
+          title: "Force Rerun Started",
+          description: `Re-analyzing ALL ${response.queuedCount} questions through AI`,
+        });
+      } else {
+        throw new Error(response.error || 'Failed to force rerun');
+      }
+    } catch (error) {
+      console.error('Error force rerunning questions:', error);
+      
+      toast({
+        title: "Error",
+        description: "Failed to force rerun all questions",
         variant: "destructive"
       });
     } finally {
@@ -196,25 +235,53 @@ export function RunLegalQueueButton({
     );
   }
 
-  // Show start button when queue is not active
+  // Show dropdown menu when queue is not active
   return (
-    <Button
-      onClick={handleStartQueue}
-      disabled={isLoading}
-      className={className}
-      data-testid="button-run-legal-queue"
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Starting...
-        </>
-      ) : (
-        <>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          disabled={isLoading}
+          className={className}
+          data-testid="button-run-legal-queue"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Starting...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 mr-2" />
+              Run Legal Questions
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem
+          onClick={handleStartQueue}
+          disabled={isLoading}
+          data-testid="menu-run-new-questions"
+        >
           <Play className="h-4 w-4 mr-2" />
-          Run All Legal Questions
-        </>
-      )}
-    </Button>
+          <div className="flex flex-col">
+            <span className="font-medium">Run New Questions Only</span>
+            <span className="text-xs text-gray-400">Skip already answered questions</span>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={handleForceRerunAll}
+          disabled={isLoading}
+          data-testid="menu-force-rerun-all"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          <div className="flex flex-col">
+            <span className="font-medium">Force Rerun All Questions</span>
+            <span className="text-xs text-gray-400">Re-analyze ALL questions through AI</span>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
