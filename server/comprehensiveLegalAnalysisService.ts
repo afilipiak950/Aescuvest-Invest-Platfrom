@@ -497,20 +497,17 @@ class ComprehensiveLegalAnalysisService {
     } catch (error) {
       console.error(`❌ Error re-running question ${questionId}:`, error);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-      
-      await db
-        .update(backgroundJobs)
-        .set({
+      // Mark job as failed using storage service
+      try {
+        await storage.updateBackgroundJob(jobId, {
           status: 'failed',
           progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-      
-      console.log(`❌ Marked job ${jobId} as failed`);
+          currentStep: `Failed: ${error.message}`
+        });
+        console.log(`❌ Marked job ${jobId} as failed`);
+      } catch (updateError) {
+        console.error(`Failed to update job status:`, updateError);
+      }
       
       throw error;
     } finally {
