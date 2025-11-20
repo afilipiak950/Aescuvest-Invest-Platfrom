@@ -121,8 +121,8 @@ export function RunLegalQueueButton({
         onQueueStart?.();
         
         toast({
-          title: "Comprehensive Analysis Started",
-          description: `Started deep analysis of ${response.startedCount} questions - this will take ${response.estimatedTime}. Each question extracts evidence from ALL documents.`,
+          title: "Sequential Analysis Started",
+          description: `Running ${response.startedCount} questions one-by-one (${response.estimatedTime}). Each question extracts evidence from ALL documents. Next question starts when current one finishes.`,
           duration: 10000,
         });
       } else {
