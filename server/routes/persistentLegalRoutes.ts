@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { persistentLegalAnalysisService } from '../services/persistentLegalAnalysis';
 import { legalQuestionQueue } from '../services/legalQuestionQueue';
+import { db } from '../db';
 
 export const persistentLegalRoutes = Router();
 
@@ -354,6 +355,21 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
     
     // Import comprehensive service and questions
     const { comprehensiveLegalAnalysisService, COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
+    
+    // CRITICAL: Cancel all existing legal question rerun jobs before starting fresh
+    console.log(`🧹 Cleaning up any existing legal question rerun jobs for deal ${dealId}`);
+    const { backgroundJobs } = await import('../shared/schema');
+    const { eq, and, like } = await import('drizzle-orm');
+    
+    await db
+      .delete(backgroundJobs)
+      .where(
+        and(
+          eq(backgroundJobs.dealId, dealId),
+          like(backgroundJobs.jobId, 'legal-question-rerun-%')
+        )
+      );
+    console.log(`✅ Cleaned up existing legal question rerun jobs`);
     
     // Respond immediately to user, then process questions sequentially in background
     res.json({
