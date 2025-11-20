@@ -461,7 +461,10 @@ export default function EnhancedAgentCard({
 
     // Look for both comprehensive legal analysis and regular legal agent jobs
     const legalJobs = (jobProgress && typeof jobProgress === 'object' && 'jobs' in jobProgress && Array.isArray(jobProgress.jobs) ? jobProgress.jobs : []).filter((job: any) => 
-      (job.jobType === 'comprehensive_legal_analysis' || job.jobId.includes('legal_')) && 
+      (job.jobType === 'comprehensive_legal_analysis' || 
+       job.jobType === 'legal_question_rerun' ||
+       job.jobId.includes('legal_') || 
+       job.jobId.includes('legal-')) && 
       job.status === 'processing' &&
       job.progress > 0 // Only show jobs with actual progress
     );
