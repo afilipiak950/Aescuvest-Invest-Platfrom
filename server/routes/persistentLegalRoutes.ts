@@ -350,56 +350,48 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Starting COMPREHENSIVE analysis for ALL legal questions on deal ${dealId}`);
+    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL legal questions on deal ${dealId}`);
     
     // Import comprehensive service and questions
     const { comprehensiveLegalAnalysisService, COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
     
-    // Trigger COMPREHENSIVE individual rerun for each question
-    // This uses extractEvidenceFromAllDocuments + compileComprehensiveAnswer
-    let startedCount = 0;
-    const errors: string[] = [];
-    
-    for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
-      try {
-        console.log(`🎯 Force rerun: Starting COMPREHENSIVE analysis for question ${question.id}`);
-        
-        // This triggers the REAL comprehensive analysis with:
-        // 1. extractEvidenceFromAllDocuments (processes each doc separately with AI)
-        // 2. compileComprehensiveAnswer (synthesizes all evidence)
-        // IMPORTANT: This runs in background - don't await
-        comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, question.id)
-          .then(() => {
-            console.log(`✅ Completed comprehensive analysis for ${question.id}`);
-          })
-          .catch((err) => {
-            console.error(`❌ Failed comprehensive analysis for ${question.id}:`, err);
-          });
-        
-        startedCount++;
-        
-        // Small delay to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-      } catch (error) {
-        console.error(`❌ Error starting comprehensive analysis for question ${question.id}:`, error);
-        errors.push(`${question.id}: ${error.message}`);
-        // Continue with other questions even if one fails
-      }
-    }
-    
-    console.log(`✅ Force rerun: Started ${startedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} COMPREHENSIVE analyses`);
-    console.log(`📊 Each question will extract evidence from ALL documents (takes 5-15 minutes per question)`);
-    
+    // Respond immediately to user, then process questions sequentially in background
     res.json({
       success: true,
-      message: `Force rerun: Started ${startedCount} comprehensive analyses - this will take several hours`,
-      startedCount,
+      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
+      startedCount: COMPREHENSIVE_LEGAL_QUESTIONS.length,
       totalQuestions: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-      errors: errors.length > 0 ? errors : undefined,
       dealId,
-      estimatedTime: `${Math.round(startedCount * 10 / 60)} hours (10 min average per question)`
+      estimatedTime: `${Math.round(COMPREHENSIVE_LEGAL_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
     });
+    
+    // Run questions SEQUENTIALLY in background (one finishes before next starts)
+    (async () => {
+      let completedCount = 0;
+      const errors: string[] = [];
+      
+      for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
+        try {
+          console.log(`🎯 [${completedCount + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Starting COMPREHENSIVE analysis for question ${question.id}`);
+          
+          // AWAIT each question - next one won't start until this finishes
+          await comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, question.id);
+          
+          completedCount++;
+          console.log(`✅ [${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Completed comprehensive analysis for ${question.id}`);
+          
+        } catch (error) {
+          console.error(`❌ Error in comprehensive analysis for question ${question.id}:`, error);
+          errors.push(`${question.id}: ${error.message}`);
+          // Continue with next question even if one fails
+        }
+      }
+      
+      console.log(`🎉 Force rerun COMPLETE: ${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} questions analyzed successfully`);
+      if (errors.length > 0) {
+        console.log(`⚠️ ${errors.length} questions failed:`, errors);
+      }
+    })();
     
   } catch (error) {
     console.error('Error force rerunning all legal questions:', error);
