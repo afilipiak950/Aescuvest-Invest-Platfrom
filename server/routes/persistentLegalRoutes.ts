@@ -336,8 +336,8 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/run-all-questions'
 
 /**
  * Force rerun ALL legal questions (including already answered ones)
- * Triggers individual reruns with "BE ULTRA SPECIFIC" custom instructions
- * This queues each question separately for maximum detail
+ * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
+ * This is the REAL analysis that takes hours - same as manual run
  */
 persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -350,43 +350,55 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Triggering individual reruns for ALL legal questions on deal ${dealId}`);
+    console.log(`🔥 FORCE RERUN: Starting COMPREHENSIVE analysis for ALL legal questions on deal ${dealId}`);
     
-    // Import COMPREHENSIVE_LEGAL_QUESTIONS to get all question IDs
-    const { COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
+    // Import comprehensive service and questions
+    const { comprehensiveLegalAnalysisService, COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
     
-    // Trigger individual rerun for each question with "BE ULTRA SPECIFIC" instruction
-    const customInstructions = 'BE ULTRA SPECIFIC';
-    let queuedCount = 0;
+    // Trigger COMPREHENSIVE individual rerun for each question
+    // This uses extractEvidenceFromAllDocuments + compileComprehensiveAnswer
+    let startedCount = 0;
     const errors: string[] = [];
     
     for (const question of COMPREHENSIVE_LEGAL_QUESTIONS) {
       try {
-        console.log(`🎯 Force rerun: Queueing individual rerun for question ${question.id} with custom instructions`);
+        console.log(`🎯 Force rerun: Starting COMPREHENSIVE analysis for question ${question.id}`);
         
-        await legalQuestionQueue.rerunSingleQuestion(
-          dealId, 
-          question.id, 
-          customInstructions
-        );
+        // This triggers the REAL comprehensive analysis with:
+        // 1. extractEvidenceFromAllDocuments (processes each doc separately with AI)
+        // 2. compileComprehensiveAnswer (synthesizes all evidence)
+        // IMPORTANT: This runs in background - don't await
+        comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, question.id)
+          .then(() => {
+            console.log(`✅ Completed comprehensive analysis for ${question.id}`);
+          })
+          .catch((err) => {
+            console.error(`❌ Failed comprehensive analysis for ${question.id}:`, err);
+          });
         
-        queuedCount++;
+        startedCount++;
+        
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
       } catch (error) {
-        console.error(`❌ Error queueing rerun for question ${question.id}:`, error);
+        console.error(`❌ Error starting comprehensive analysis for question ${question.id}:`, error);
         errors.push(`${question.id}: ${error.message}`);
         // Continue with other questions even if one fails
       }
     }
     
-    console.log(`✅ Force rerun: Queued ${queuedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} individual reruns with "BE ULTRA SPECIFIC"`);
+    console.log(`✅ Force rerun: Started ${startedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} COMPREHENSIVE analyses`);
+    console.log(`📊 Each question will extract evidence from ALL documents (takes 5-15 minutes per question)`);
     
     res.json({
       success: true,
-      message: `Force rerun: Queued ${queuedCount} individual reruns with enhanced instructions`,
-      queuedCount,
+      message: `Force rerun: Started ${startedCount} comprehensive analyses - this will take several hours`,
+      startedCount,
       totalQuestions: COMPREHENSIVE_LEGAL_QUESTIONS.length,
       errors: errors.length > 0 ? errors : undefined,
-      dealId
+      dealId,
+      estimatedTime: `${Math.round(startedCount * 10 / 60)} hours (10 min average per question)`
     });
     
   } catch (error) {
