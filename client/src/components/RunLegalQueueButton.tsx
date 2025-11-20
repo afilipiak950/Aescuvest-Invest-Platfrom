@@ -121,8 +121,9 @@ export function RunLegalQueueButton({
         onQueueStart?.();
         
         toast({
-          title: "Force Rerun Started",
-          description: `Re-analyzing ALL ${response.queuedCount} questions through AI`,
+          title: "Comprehensive Analysis Started",
+          description: `Started deep analysis of ${response.startedCount} questions - this will take ${response.estimatedTime}. Each question extracts evidence from ALL documents.`,
+          duration: 10000,
         });
       } else {
         throw new Error(response.error || 'Failed to force rerun');
