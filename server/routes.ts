@@ -5666,24 +5666,24 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Import the ENHANCED legal analysis service
-      const { startEnhancedLegalAnalysis } = await import('./enhancedLegalAnalysisService');
+      // Import the CORRECT comprehensive legal analysis service
+      const { comprehensiveLegalAnalysisService } = await import('./comprehensiveLegalAnalysisService');
       
-      // Run ENHANCED legal analysis in background with deep evidence-based processing
+      // Run comprehensive legal analysis in background with evidence extraction
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED legal analysis background process for deal ${dealId}`);
-          await startEnhancedLegalAnalysis(dealId);
-          console.log(`✅ Enhanced legal analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive legal analysis background process for deal ${dealId}`);
+          await comprehensiveLegalAnalysisService.runFullAnalysis(dealId);
+          console.log(`✅ Comprehensive legal analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced legal analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive legal analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'ENHANCED legal analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
+        message: 'Comprehensive legal analysis started - analyzing all 13 legal questions with evidence extraction from ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive legal analysis for deal ${req.params.dealId}:`, error);
@@ -5779,24 +5779,24 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Import the CORRECT comprehensive clinical analysis service
+      const { comprehensiveClinicalAnalysisService } = await import('./comprehensiveClinicalAnalysisService');
       
-      // Run ENHANCED comprehensive clinical analysis in background with deep evidence-based processing
+      // Run comprehensive clinical analysis in background with evidence extraction
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED clinical analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Clinical');
-          console.log(`✅ Enhanced clinical analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive clinical analysis background process for deal ${dealId}`);
+          await comprehensiveClinicalAnalysisService.runFullAnalysis(dealId);
+          console.log(`✅ Comprehensive clinical analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced clinical analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive clinical analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive clinical analysis started - processing 11 clinical questions across all assigned documents'
+        message: 'Comprehensive clinical analysis started - analyzing all clinical questions with evidence extraction from ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive clinical analysis for deal ${req.params.dealId}:`, error);
@@ -6814,24 +6814,24 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         });
       }
       
-      // Import the ENHANCED research analysis service
-      const { startEnhancedResearchAnalysis } = await import('./enhancedResearchAnalysisService');
+      // Import the CORRECT comprehensive research analysis service
+      const { comprehensiveResearchAnalysisService } = await import('./comprehensiveResearchAnalysisService');
       
-      // Run ENHANCED research analysis in background with deep evidence-based processing
+      // Run comprehensive research analysis in background with evidence extraction
       (async () => {
         try {
-          console.log(`🔬 Starting ENHANCED research analysis background process for deal ${dealId}`);
-          await startEnhancedResearchAnalysis(dealId);
-          console.log(`✅ Enhanced research analysis completed for deal ${dealId}`);
+          console.log(`🔬 Starting comprehensive research analysis background process for deal ${dealId}`);
+          await comprehensiveResearchAnalysisService.runFullAnalysis(dealId);
+          console.log(`✅ Comprehensive research analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced research analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive research analysis for deal ${dealId}:`, error);
           console.error(`❌ Error stack:`, error.stack);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'ENHANCED research analysis started - deep evidence-based processing with comprehensive source attribution across ALL assigned documents'
+        message: 'Comprehensive research analysis started - analyzing all research questions with evidence extraction from ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive research analysis for deal ${req.params.dealId}:`, error);
@@ -6974,23 +6974,23 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         console.log(`⚠️ No existing financial background job to clear (this is normal)`);
       }
       
-      // Import the ENHANCED comprehensive analysis service
-      const { startEnhancedComprehensiveAnalysis } = await import('./enhancedComprehensiveAnalysisService');
+      // Import the CORRECT comprehensive financial analysis service
+      const { comprehensiveFinancialAnalysisService } = await import('./comprehensiveFinancialAnalysisService');
       
-      // Run ENHANCED comprehensive financial analysis in background with deep evidence-based processing
+      // Run comprehensive financial analysis in background with evidence extraction
       (async () => {
         try {
-          console.log(`💰 Starting ENHANCED financial analysis background process for deal ${dealId}`);
-          await startEnhancedComprehensiveAnalysis(dealId, 'Financial');
-          console.log(`✅ Enhanced financial analysis completed for deal ${dealId}`);
+          console.log(`💰 Starting comprehensive financial analysis background process for deal ${dealId}`);
+          await comprehensiveFinancialAnalysisService.runFullAnalysis(dealId);
+          console.log(`✅ Comprehensive financial analysis completed for deal ${dealId}`);
         } catch (error) {
-          console.error(`❌ Error in enhanced financial analysis for deal ${dealId}:`, error);
+          console.error(`❌ Error in comprehensive financial analysis for deal ${dealId}:`, error);
         }
       })();
       
       res.json({ 
         success: true, 
-        message: 'Comprehensive financial analysis started - processing 12 financial questions across all assigned documents'
+        message: 'Comprehensive financial analysis started - analyzing all financial questions with evidence extraction from ALL assigned documents'
       });
     } catch (error) {
       console.error(`❌ Error starting comprehensive financial analysis for deal ${req.params.dealId}:`, error);
