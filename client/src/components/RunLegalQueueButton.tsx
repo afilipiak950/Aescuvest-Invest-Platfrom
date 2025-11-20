@@ -271,7 +271,12 @@ export function RunLegalQueueButton({
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={handleForceRerunAll}
+          onClick={(e) => {
+            console.log('🎯 Force Rerun All menu item clicked!', { dealId, isLoading });
+            e.preventDefault();
+            e.stopPropagation();
+            handleForceRerunAll();
+          }}
           disabled={isLoading}
           data-testid="menu-force-rerun-all"
         >
