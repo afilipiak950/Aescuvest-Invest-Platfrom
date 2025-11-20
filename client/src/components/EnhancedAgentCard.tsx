@@ -1748,79 +1748,79 @@ const LEGAL_QUESTIONS: LegalQuestion[] = [
     id: 'contracts_1',
     category: 'Contracts & Agreements',
     question: 'Are key commercial contracts clearly defined?',
-    subQuestions: ['Contract terms', 'Payment terms', 'Deliverables']
+    subQuestions: ['Commercial contracts', 'Revenue agreements', 'Partnership deals']
   },
   {
     id: 'contracts_2',
     category: 'Contracts & Agreements',
     question: 'What are the key contractual obligations and terms?',
-    subQuestions: ['Obligations', 'Terms and conditions', 'Performance requirements']
+    subQuestions: ['Obligations', 'Payment terms', 'Performance requirements']
   },
   {
     id: 'contracts_3',
     category: 'Contracts & Agreements',
     question: 'Are there any concerning contract provisions or risks?',
-    subQuestions: ['Risk provisions', 'Liability clauses', 'Termination conditions']
-  },
-  {
-    id: 'governance_1',
-    category: 'Corporate Governance',
-    question: 'What is the corporate governance structure?',
-    subQuestions: ['Board composition', 'Governance policies', 'Decision-making processes']
-  },
-  {
-    id: 'governance_2',
-    category: 'Corporate Governance',
-    question: 'Are there adequate governance controls and oversight?',
-    subQuestions: ['Internal controls', 'Oversight mechanisms', 'Compliance frameworks']
-  },
-  {
-    id: 'governance_3',
-    category: 'Corporate Governance',
-    question: 'What are the key governance risks and mitigation strategies?',
-    subQuestions: ['Governance risks', 'Risk mitigation', 'Control weaknesses']
+    subQuestions: ['Liability issues', 'Indemnification clauses', 'Contractual risks']
   },
   {
     id: 'ip_1',
     category: 'Intellectual Property',
-    question: 'What is the intellectual property portfolio?',
-    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'Copyrights']
+    question: 'What is the intellectual property portfolio status?',
+    subQuestions: ['Patents', 'Trademarks', 'Trade secrets', 'IP ownership']
   },
   {
     id: 'ip_2',
     category: 'Intellectual Property',
-    question: 'Are there any IP ownership or infringement issues?',
-    subQuestions: ['IP ownership', 'Infringement risks', 'Freedom to operate']
+    question: 'Are there any IP licensing agreements or restrictions?',
+    subQuestions: ['IP licensing', 'Royalty payments', 'Licensing obligations']
   },
   {
     id: 'ip_3',
     category: 'Intellectual Property',
-    question: 'What IP protection and enforcement strategies are in place?',
-    subQuestions: ['IP protection', 'Enforcement mechanisms', 'IP strategy']
+    question: 'Are there IP disputes or infringement risks?',
+    subQuestions: ['IP disputes', 'Infringement claims', 'Freedom to operate']
   },
   {
-    id: 'litigation_1',
-    category: 'Litigation & Legal Risks',
-    question: 'Are there any pending or threatened litigations?',
-    subQuestions: ['Active litigation', 'Threatened litigation', 'Legal disputes']
+    id: 'governance_1',
+    category: 'Corporate Governance',
+    question: 'Is corporate structure and governance clearly defined?',
+    subQuestions: ['Corporate structure', 'Board composition', 'Governance policies']
   },
   {
-    id: 'litigation_2',
-    category: 'Litigation & Legal Risks',
-    question: 'What are the key legal risks and potential exposures?',
-    subQuestions: ['Legal risks', 'Financial exposure', 'Contingent liabilities']
+    id: 'governance_2',
+    category: 'Corporate Governance',
+    question: 'Are there any governance compliance issues?',
+    subQuestions: ['Compliance issues', 'Regulatory requirements', 'Corporate law violations']
+  },
+  {
+    id: 'governance_3',
+    category: 'Corporate Governance',
+    question: 'What are the key shareholder agreements and rights?',
+    subQuestions: ['Shareholder agreements', 'Voting rights', 'Liquidation preferences']
   },
   {
     id: 'regulatory_1',
     category: 'Regulatory Compliance',
-    question: 'What regulatory requirements apply to the business?',
-    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry regulations']
+    question: 'What regulatory frameworks apply to the business?',
+    subQuestions: ['Regulatory frameworks', 'Industry regulations', 'Compliance requirements']
   },
   {
     id: 'regulatory_2',
     category: 'Regulatory Compliance',
-    question: 'Are there any regulatory compliance issues or violations?',
-    subQuestions: ['Compliance violations', 'Regulatory actions', 'Enforcement proceedings']
+    question: 'Are there any regulatory violations or compliance issues?',
+    subQuestions: ['Violations', 'Compliance failures', 'Enforcement actions']
+  },
+  {
+    id: 'litigation_1',
+    category: 'Litigation & Legal Risks',
+    question: 'Are there any ongoing or potential litigation matters?',
+    subQuestions: ['Ongoing litigation', 'Potential disputes', 'Legal claims']
+  },
+  {
+    id: 'litigation_2',
+    category: 'Litigation & Legal Risks',
+    question: 'What are the key legal risk factors?',
+    subQuestions: ['Legal risks', 'Liability exposure', 'Legal uncertainties']
   }
 ];
 
