@@ -902,9 +902,15 @@ Respond in JSON:
     // Step 2: Synthesize all partial answers into final comprehensive answer
     console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
     
-    const synthesisPrompt = `You are a senior legal analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+    const synthesisPrompt = `You are a senior legal analyst. Synthesize these partial analyses into ONE comprehensive answer.
 
-Partial Analyses:
+QUESTION YOU ARE ANSWERING (DO NOT REPEAT THIS IN YOUR ANSWER):
+"${question.question}"
+
+QUESTION ID: ${question.id}
+CATEGORY: ${question.category}
+
+Partial Analyses to Synthesize:
 ${partialAnswers.map((pa, i) => `
 BATCH ${i + 1}:
 ${pa.answer}
@@ -912,20 +918,28 @@ KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
 CRITICAL SYNTHESIS RULES:
-1. Extract ALL specific details (amounts, dates, terms) from all batches
-2. Lists ALL contracts/agreements with complete details
-3. Provides exhaustive breakdown of obligations, rights, and terms
-4. Cites specific document sections and dates
+1. Extract ALL specific details (amounts, dates, terms) from all batches above
+2. List ALL contracts/agreements with complete details
+3. Provide exhaustive breakdown of obligations, rights, and terms
+4. Cite specific document sections and dates
 5. DO NOT add "Insufficient information" or "Additional documentation required" disclaimers in the answer field
 6. Focus on what IS documented - save gaps for separate "gaps" field
 7. Write professional analysis like Financial/Clinical agents (no vague disclaimers)
 
+CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
+❌ WRONG: "Is corporate structure clearly defined?: The analysis reveals..."
+❌ WRONG: "Are key commercial contracts clearly defined?: The analysis reveals..."
+✅ CORRECT: "The analysis reveals..."
+
+Your answer should START IMMEDIATELY with the analysis. Do NOT include the question as a prefix or header.
+
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, amounts, dates, and party names
 - Structure with clear sections if multiple topics
-- NO disclaimers or "insufficient information" statements in answer
-- Example format:
+- NO question prefix, NO disclaimers, NO "insufficient information" statements
+- Example CORRECT format:
   "The analysis reveals the following:
   
   • **Contract ABC**: Payment of **$50,000** due **Q4 2024** to **Party Name Inc.**
@@ -935,7 +949,7 @@ FORMAT REQUIREMENTS FOR "answer" FIELD:
 
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold (NO disclaimers)",
+  "answer": "START IMMEDIATELY WITH ANALYSIS - NO QUESTION PREFIX (Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold)",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information ONLY - separate from answer"],
