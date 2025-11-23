@@ -374,6 +374,13 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
       });
     }
     
+    // Clean up old master job if it exists (from previous completed/failed runs)
+    if (existingMasterJob) {
+      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
+      await storage.deleteBackgroundJob(masterJobId);
+      console.log(`✅ Deleted old force-rerun master job`);
+    }
+    
     console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL legal questions on deal ${dealId}`);
     
     // Create master job to act as mutex lock
