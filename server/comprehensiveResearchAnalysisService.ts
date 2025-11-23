@@ -323,27 +323,40 @@ Extract ALL specific research data (metrics, findings, insights). Respond in JSO
       // Step 2: Synthesize into final answer
       console.log(`🔄 Synthesizing ${partialAnswers.length} research partial answers`);
       
-      const synthesisPrompt = `You are a research analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+      const synthesisPrompt = `You are a research analyst. Synthesize these partial analyses into ONE comprehensive answer.
 
-Partial Analyses:
+QUESTION YOU ARE ANSWERING (DO NOT REPEAT THIS IN YOUR ANSWER):
+"${question.question}"
+
+QUESTION ID: ${question.id}
+
+Partial Analyses to Synthesize:
 ${partialAnswers.map((pa, i) => `
 BATCH ${i + 1}:
 ${pa.answer}
 KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
-CRITICAL: Create ONE comprehensive answer that:
-1. Extracts ALL specific details (metrics, insights, data points) from all batches
-2. Provides exhaustive research findings and analysis
-3. Cites specific documents and data points
+CRITICAL SYNTHESIS RULES:
+1. Extract ALL specific details (metrics, insights, data points) from all batches above
+2. Provide exhaustive research findings and analysis
+3. Cite specific documents and data points
+
+CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
+❌ WRONG: "${question.question}: The analysis reveals..."
+✅ CORRECT: "The analysis reveals..."
+
+Your answer should START IMMEDIATELY with the analysis. Do NOT include the question as a prefix or header.
 
 FORMAT REQUIREMENTS:
+- Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, metrics, and important data points
 - Structure with clear sections if multiple topics
+- NO question prefix, NO disclaimers
 - Example: "• **Market Size**: **$2.5B TAM** growing at **15% CAGR**, with **key competitor XYZ** holding **25% market share**"
 
-Respond with a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics.`;
+Respond with a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics. START IMMEDIATELY with the analysis, NOT with the question.`;
 
       try {
         const response = await resilientOpenAI.createChatCompletion({

@@ -1252,30 +1252,44 @@ CRITICAL: Extract ALL specific details from the AI SUMMARY CONTENT above (trial 
     // Step 2: Synthesize all partial answers into final comprehensive answer
     console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
     
-    const synthesisPrompt = `You are a senior clinical analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+    const synthesisPrompt = `You are a senior clinical analyst. Synthesize these partial analyses into ONE comprehensive answer.
 
-Partial Analyses:
+QUESTION YOU ARE ANSWERING (DO NOT REPEAT THIS IN YOUR ANSWER):
+"${question.question}"
+
+QUESTION ID: ${question.id}
+CATEGORY: ${question.category}
+
+Partial Analyses to Synthesize:
 ${partialAnswers.map((pa, i) => `
 BATCH ${i + 1}:
 ${pa.answer}
 KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
-CRITICAL: Create ONE comprehensive answer that:
-1. Extracts ALL specific details (trial phases, patient numbers, efficacy/safety metrics) from all batches
-2. Lists ALL trials/studies with complete data
-3. Provides exhaustive breakdown of clinical outcomes, regulatory status, and safety profile
-4. Cites specific document sections and clinical data points
+CRITICAL SYNTHESIS RULES:
+1. Extract ALL specific details (trial phases, patient numbers, efficacy/safety metrics) from all batches above
+2. List ALL trials/studies with complete data
+3. Provide exhaustive breakdown of clinical outcomes, regulatory status, and safety profile
+4. Cite specific document sections and clinical data points
+
+CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
+❌ WRONG: "${question.question}: The analysis reveals..."
+✅ CORRECT: "The analysis reveals..."
+
+Your answer should START IMMEDIATELY with the analysis. Do NOT include the question as a prefix or header.
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, trial names, patient numbers, and efficacy metrics
 - Structure with clear sections if multiple topics
+- NO question prefix, NO disclaimers
 - Example: "• **Phase III Trial XYZ**: Enrolled **N=500 patients**, showed **65% efficacy** with **p<0.05**"
 
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific clinical details formatted with markdown bullets and bold for key metrics",
+  "answer": "START IMMEDIATELY WITH ANALYSIS - NO QUESTION PREFIX (Comprehensive synthesis with ALL specific clinical details formatted with markdown bullets and bold for key metrics)",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
   "gaps": ["Missing information"],

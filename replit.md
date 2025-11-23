@@ -17,7 +17,7 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 ### Feature Specifications
 - **Investment Pipeline Management**: Kanban-style deal flow with AI-driven transitions.
 - **AI-Powered Document Processing**: OCR and AI analysis for document summarization, batch processing, and WebSocket updates.
-- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) conduct due diligence, founder assessment, and strategic guidance with intelligent scoring. This includes token-based batching, hierarchical timeouts, exponential backoff retries, partial result caching, centralized rate limiting, and automatic cache cleanup.
+- **Multi-Agent AI Analysis**: Specialized AI agents (Clinical, Legal, Commercial, HR, Financial, IP, Research, Founder Success, Advisory) conduct due diligence, founder assessment, and strategic guidance with intelligent scoring. This includes token-based batching, hierarchical timeouts, exponential backoff retries, partial result caching, centralized rate limiting, automatic cache cleanup, and **strict answer isolation** to prevent cross-question contamination in GPT-4o synthesis.
 - **Company Intelligence Platform**: Automated company profiling, CEO background analysis, external data integration, financial intelligence, and competitor analysis.
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
@@ -36,6 +36,9 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Configuration**: Environment variables and a modular service architecture.
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
+
+### Recent Critical Fixes (Nov 23, 2025)
+- **Answer Contamination Bug Fix**: Fixed GPT-4o synthesis prompts across all comprehensive analysis services (Legal, Clinical, Financial, Research) to prevent question text prefixing. GPT-4o was incorrectly adding wrong question headers to answers (e.g., governance_1 answers showing contracts_1 question text). Solution: Explicit synthesis prompt instructions with question ID context, wrong/correct examples, and strict "DO NOT PREFIX" rules ensure each question generates isolated, correctly-labeled answers.
 
 ## External Dependencies
 
