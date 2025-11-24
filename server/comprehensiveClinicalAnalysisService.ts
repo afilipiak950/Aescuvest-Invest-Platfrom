@@ -1101,8 +1101,9 @@ Be thorough and extract specific numbers, percentages, and clinical metrics.`;
   /**
    * Compile comprehensive answer based on all evidence - BATCHED APPROACH
    * Processes evidence in batches to avoid token limits
+   * PUBLIC: Used by both full analysis and single-question reruns
    */
-  private async compileComprehensiveAnswer(
+  async compileComprehensiveAnswer(
     question: any, 
     evidence: any[], 
     jobId?: string, 
@@ -2020,9 +2021,10 @@ export async function rerunSingleClinicalQuestion(
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 70);
     console.log(`📊 Progress update (DB): ${questionId} = 70%`);
     
-    const analysisResult = await compileComprehensiveClinicalAnswer(question, documentEvidence);
+    // Use batched compilation method (same as Legal) to process ALL documents
+    const analysisResult = await comprehensiveClinicalAnalysisService.compileComprehensiveAnswer(question, documentEvidence);
     
-    console.log(`✅ Answer compiled successfully`);
+    console.log(`✅ Answer compiled successfully with ${analysisResult.sources?.length || 0} sources`);
     
     // Step 4: Update database with new answer (85% progress)
     await comprehensiveClinicalAnalysisService.updateQuestionRerunProgress(dealId, questionId, 85);
@@ -2049,14 +2051,17 @@ export async function rerunSingleClinicalQuestion(
       }
     }
     
-    // Update the specific question
+    // Update the specific question (map batched response to rerun format)
     clinicalAnswers[questionId] = {
       answer: analysisResult.answer || '',
       confidence: analysisResult.confidence || 0,
       sources: analysisResult.sources || [],
       keyFindings: analysisResult.keyFindings || [],
-      evidenceSummary: analysisResult.evidenceSummary || '',
-      clinicalAssessment: analysisResult.clinicalAssessment || '',
+      // Map batched response fields to expected format
+      evidenceSummary: analysisResult.dataQualityAssessment || analysisResult.evidenceStrength || '',
+      clinicalAssessment: analysisResult.clinicalSummary 
+        ? JSON.stringify(analysisResult.clinicalSummary) 
+        : '',
       recommendations: analysisResult.recommendations || [],
       detailedEvidence: analysisResult.detailedEvidence || []
     };
