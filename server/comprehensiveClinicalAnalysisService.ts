@@ -2052,16 +2052,27 @@ export async function rerunSingleClinicalQuestion(
     }
     
     // Update the specific question (map batched response to rerun format)
+    // Compute evidenceSummary and clinicalAssessment from batched response fields
+    const evidenceSummary = [
+      `Evidence from ${analysisResult.sources?.length || 0} documents.`,
+      analysisResult.dataQualityAssessment || '',
+      analysisResult.evidenceStrength ? `Evidence strength: ${analysisResult.evidenceStrength}` : ''
+    ].filter(s => s).join(' ');
+    
+    const clinicalAssessment = analysisResult.clinicalSummary 
+      ? Object.entries(analysisResult.clinicalSummary)
+          .filter(([_, v]) => v && v !== 'Unknown')
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('; ')
+      : '';
+    
     clinicalAnswers[questionId] = {
       answer: analysisResult.answer || '',
       confidence: analysisResult.confidence || 0,
       sources: analysisResult.sources || [],
       keyFindings: analysisResult.keyFindings || [],
-      // Map batched response fields to expected format
-      evidenceSummary: analysisResult.dataQualityAssessment || analysisResult.evidenceStrength || '',
-      clinicalAssessment: analysisResult.clinicalSummary 
-        ? JSON.stringify(analysisResult.clinicalSummary) 
-        : '',
+      evidenceSummary: evidenceSummary || 'No evidence summary available',
+      clinicalAssessment: clinicalAssessment || 'No clinical assessment available',
       recommendations: analysisResult.recommendations || [],
       detailedEvidence: analysisResult.detailedEvidence || []
     };
