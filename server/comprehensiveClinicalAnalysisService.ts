@@ -2058,7 +2058,7 @@ export async function rerunSingleClinicalQuestion(
       evidenceSummary: analysisResult.evidenceSummary || '',
       clinicalAssessment: analysisResult.clinicalAssessment || '',
       recommendations: analysisResult.recommendations || [],
-      detailedEvidence: []
+      detailedEvidence: analysisResult.detailedEvidence || []
     };
     
     // Step 5: Save to database (95% progress)
