@@ -2607,6 +2607,8 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
   // Track progress for multiple concurrent reruns - if a question has progress, it's running
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
+  // Track completed questions to prevent flickering when backend still returns 100%
+  const [completedQuestions, setCompletedQuestions] = useState<Set<string>>(new Set());
   const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
   const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
@@ -2680,25 +2682,32 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
           
           // Merge backend updates into existing state
           setQuestionProgress(prev => {
-            const newProgress: Record<string, number> = { ...prev };
+            const newProgress: Record<string, number> = {};
             
-            // Update with backend values
+            // Update with backend values (but skip completed questions)
             for (const questionId in backendProgress) {
               const progress = backendProgress[questionId];
+              
+              // Skip questions that have already completed (prevents flickering)
+              if (completedQuestions.has(questionId)) {
+                console.log(`🚫 Skipping completed question ${questionId} (already marked complete)`);
+                continue;
+              }
+              
               newProgress[questionId] = progress;
               
               // Auto-clear progress bar 2 seconds after reaching 100% AND refetch results
               if (progress >= 100 && prev[questionId] !== 100) {
                 console.log(`✅ Question ${questionId} completed! Refetching results...`);
+                // Mark as completed to prevent re-adding
+                setCompletedQuestions(current => new Set(current).add(questionId));
                 // Refetch comprehensive results immediately to show new answer
                 refetchComprehensive();
                 
                 setTimeout(() => {
                   setQuestionProgress(current => {
                     const updated = { ...current };
-                    if (updated[questionId] === 100) {
-                      delete updated[questionId];
-                    }
+                    delete updated[questionId];
                     return updated;
                   });
                 }, 2000); // 2 second delay so user sees completion
@@ -2710,8 +2719,10 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             for (const questionId in prev) {
               if (backendProgress[questionId] === undefined) {
                 // Backend no longer tracking this question - clear it
-                // This handles: completed (100%), failed (any %), or manually cancelled
-                delete newProgress[questionId];
+                console.log(`🧹 Backend no longer tracking ${questionId} - clearing from state`);
+              } else if (!completedQuestions.has(questionId)) {
+                // Keep questions that are still being tracked and not yet completed
+                newProgress[questionId] = backendProgress[questionId];
               }
             }
             
@@ -2743,6 +2754,13 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
       }
       
       console.log(`✅ Starting rerun for question ${questionId} - setting progress to 0%`);
+      
+      // Clear from completed questions set when starting a new run
+      setCompletedQuestions(prev => {
+        const updated = new Set(prev);
+        updated.delete(questionId);
+        return updated;
+      });
       
       // Reset progress to 0 when starting
       setQuestionProgress(prev => ({
