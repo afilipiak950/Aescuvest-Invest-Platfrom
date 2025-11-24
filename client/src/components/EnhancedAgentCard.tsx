@@ -23,6 +23,7 @@ import DocumentQuoteViewer from './DocumentQuoteViewer';
 import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
 import { RunLegalQueueButton } from './RunLegalQueueButton';
+import { RunClinicalQueueButton } from './RunClinicalQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -2933,7 +2934,17 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
             {assignedDocuments} Documents Analyzed
           </Badge>
         </div>
-        <PersistentClinicalButton dealId={dealId} />
+        <div className="flex items-center gap-2">
+          <PersistentClinicalButton dealId={dealId} />
+          <RunClinicalQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
+            onQueueComplete={() => {
+              // Refresh data when queue completes
+              queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'agents'] });
+            }}
+          />
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
