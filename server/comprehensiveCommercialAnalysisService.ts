@@ -365,8 +365,8 @@ export class ComprehensiveCommercialAnalysisService {
   ): Promise<any[]> {
     console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
     
-    // Process documents in batches to avoid overwhelming the system
-    const batchSize = 20;
+    // Process documents in batches - MATCH Legal batch size of 40
+    const batchSize = 40;
     const evidence = [];
     
     for (let i = 0; i < documents.length; i += batchSize) {
@@ -930,23 +930,19 @@ Respond in JSON:
   }
 
   /**
-   * Re-run a single commercial question with full persistence
-   * EXACT MATCH to Legal/Clinical rerun architecture
+   * Re-run a single commercial question analysis
+   * EXACT MATCH to Legal rerun architecture - bulletproof implementation
    */
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running single commercial question ${questionId} for deal ${dealId}`);
     const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
     
-    // Check if already initialized by route (atomic registration pattern)
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
+    // Check if job already initialized by route (atomic registration pattern)
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    const alreadyInitialized = existingJob != null;
     
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
-    const alreadyInitialized = existingJob !== undefined;
-    
-    // Only check for duplicates if not already initialized
+    // Only check for duplicates if not already initialized by the route
+    // This prevents double-checking while still protecting against concurrent direct calls
     if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
       throw new Error(`Question ${questionId} is already being rerun`);
     }
@@ -954,7 +950,16 @@ Respond in JSON:
     try {
       // Initialize progress only if not already set by route
       if (!alreadyInitialized) {
-        await this.updateQuestionRerunProgress(dealId, questionId, 0);
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'commercial_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ Registered new job for question ${questionId}`);
       }
       
       // Find the question
@@ -992,75 +997,83 @@ Respond in JSON:
       console.log(`✅ Answer compiled successfully`);
       await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
-      // Get existing analysis to update using storage
+      // Get existing analysis to update
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Commercial');
-      
-      if (existingAnalysis) {
-        const commercialAnswers = existingAnalysis.commercialAnswers 
-          ? (typeof existingAnalysis.commercialAnswers === 'string' 
-              ? JSON.parse(existingAnalysis.commercialAnswers) 
-              : existingAnalysis.commercialAnswers)
-          : {};
-        
-        commercialAnswers[questionId] = answer;
-        
-        await storage.updateAgentAnalysis(existingAnalysis.id, {
-          commercialAnswers
-        });
-        
-        console.log(`✅ Updated commercial analysis with new answer for question ${questionId}`);
-      } else {
-        const commercialAnswers = { [questionId]: answer };
-        await storage.createAgentAnalysis({
-          dealId,
-          agentType: 'Commercial',
-          status: 'completed',
-          commercialAnswers
-        });
-        console.log(`✅ Created new commercial analysis with answer for question ${questionId}`);
+      if (!existingAnalysis) {
+        throw new Error('No existing commercial analysis found. Run full analysis first.');
       }
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 100);
-      
-      return {
-        success: true,
-        questionId,
-        answer
+      // Update only this question's answer in the commercial analysis
+      const updatedCommercialAnswers = {
+        ...existingAnalysis.commercialAnswers,
+        [questionId]: answer
       };
       
-    } catch (error) {
-      console.error(`❌ Failed to rerun commercial question ${questionId}:`, error);
+      // Regenerate findings and recommendations with updated answers
+      const findings = this.generateComprehensiveFindings(updatedCommercialAnswers);
+      const recommendations = this.generateComprehensiveRecommendations(updatedCommercialAnswers);
+      await this.updateQuestionRerunProgress(dealId, questionId, 95);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-
-      await db
-        .update(backgroundJobs)
-        .set({
+      // Update the database with new answer
+      await this.storeComprehensiveResults(
+        dealId, 
+        updatedCommercialAnswers, 
+        findings, 
+        recommendations, 
+        assignedDocuments
+      );
+      
+      console.log(`✅ Successfully updated question ${questionId} in commercial analysis`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 100);
+      
+      return answer;
+    } catch (error) {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      // Mark job as failed using storage service
+      try {
+        await storage.updateBackgroundJob(jobId, {
           status: 'failed',
           progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-
-      console.log(`❌ Marked job ${jobId} as failed`);
+          currentStep: `Failed: ${error.message}`
+        });
+        console.log(`❌ Marked job ${jobId} as failed`);
+      } catch (updateError) {
+        console.error(`Failed to update job status:`, updateError);
+      }
+      
       throw error;
+    } finally {
+      // Schedule cleanup of completed job after 1 hour
+      // Only delete if job is still in completed/failed status (prevents deleting active reruns)
+      setTimeout(async () => {
+        try {
+          const jobToClean = await storage.getBackgroundJobById(jobId);
+          
+          // Only delete if job exists and is completed (100%) or failed
+          if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            const { backgroundJobs } = await import('../shared/schema');
+            const { eq } = await import('drizzle-orm');
+            await db.delete(backgroundJobs)
+              .where(eq(backgroundJobs.jobId, jobId));
+            console.log(`🧹 Cleaned up completed database record for question ${questionId}`);
+          } else if (jobToClean) {
+            console.log(`⏭️ Skipping cleanup for question ${questionId} - job still active (progress: ${jobToClean.progress}%)`);
+          }
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
+        }
+      }, 3600000); // 1 hour
     }
   }
 
   /**
    * Auto-cleanup stuck or failed jobs before checking if running
-   * Prevents old failed jobs from blocking new reruns
+   * EXACT MATCH to Legal implementation using storage service
    */
   private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
     const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
     
     if (!job) return; // No job to cleanup
     
@@ -1073,6 +1086,8 @@ Respond in JSON:
     
     if (isFailed || isStuck) {
       console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId} (last updated: ${job.updatedAt})`);
+      const { backgroundJobs } = await import('../shared/schema');
+      const { eq } = await import('drizzle-orm');
       await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
       console.log(`✅ Cleaned up ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
     }
@@ -1080,50 +1095,40 @@ Respond in JSON:
   
   /**
    * Check if a question is currently being rerun
+   * EXACT MATCH to Legal implementation using storage service
    */
   async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
     // First, auto-cleanup any stuck or failed jobs
     await this.cleanupStuckJob(dealId, questionId);
     
-    // Now check if job is actually running
+    // Now check if job is actually running using storage service
     const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
+    
     // Consider it running if job exists (not null or undefined) and progress is not 100
     return job != null && job.progress < 100;
   }
 
   /**
    * Update progress for a specific question rerun in database
-   * EXACT MATCH to Legal implementation with proper persistence
+   * EXACT MATCH to Legal implementation using storage service
    */
   async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
     const jobId = `commercial-question-rerun-${dealId}-${questionId}`;
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
     
-    // Check if job exists
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    // Check if job exists using storage service
+    const existingJob = await storage.getBackgroundJobById(jobId);
     
     if (existingJob) {
-      // Update existing job
-      await db.update(backgroundJobs)
-        .set({ 
-          progress,
-          status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
-          updatedAt: new Date(),
-          completedAt: progress === 100 ? new Date() : null
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
+      // Update existing job using storage service
+      await storage.updateBackgroundJob(jobId, {
+        progress,
+        status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
+        currentStep: progress === 100 ? 'Completed' : `Processing (${progress}%)`
+      });
     } else {
-      // Create new job with full database persistence
-      await db.insert(backgroundJobs).values({
+      // Create new job using storage service
+      await storage.createBackgroundJob({
         jobId,
         jobType: 'commercial_question_rerun',
         dealId,
