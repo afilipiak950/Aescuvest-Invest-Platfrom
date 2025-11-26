@@ -6118,7 +6118,8 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             dealId={dealId}
             className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
             onQueueComplete={() => {
-              queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'commercial-analysis', 'comprehensive', 'results'] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/commercial-analysis/comprehensive/results`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/commercial/results`] });
             }}
           />
         </div>
