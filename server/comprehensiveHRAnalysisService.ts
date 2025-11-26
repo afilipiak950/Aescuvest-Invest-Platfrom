@@ -1214,40 +1214,37 @@ Respond in JSON:
       console.log(`✅ Answer compiled successfully`);
       await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
-      const existingAnalysis = await db.query.agentAnalyses.findFirst({
-        where: and(
-          eq(agentAnalyses.dealId, dealId),
-          eq(agentAnalyses.agentType, 'hr')
-        )
-      });
+      // Use storage layer like Legal/Clinical - merge answers instead of overwriting
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'hr');
+      const hrAnswers = existingAnalysis?.hrAnswers || {};
       
-      const hrAnswers = existingAnalysis?.hr_answers 
-        ? (typeof existingAnalysis.hr_answers === 'string' 
-            ? JSON.parse(existingAnalysis.hr_answers) 
-            : existingAnalysis.hr_answers)
-        : {};
-      
+      // Merge new answer into existing answers
       hrAnswers[questionId] = answer;
       
       if (existingAnalysis) {
-        await db
-          .delete(agentAnalyses)
-          .where(eq(agentAnalyses.id, existingAnalysis.id));
+        // UPDATE existing record like Legal does - preserves all other answers
+        console.log(`💾 Updating HR answer for question "${questionId}" in existing analysis`);
+        await storage.updateAgentAnalysisByDealAndType(dealId, 'hr', {
+          hr_answers: hrAnswers,
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date()
+        });
+        console.log(`✅ Successfully merged HR answer for question "${questionId}"`);
+      } else {
+        // CREATE new analysis record if none exists
+        console.log(`💾 Creating new HR analysis for deal ${dealId} with first answer`);
+        await storage.createAgentAnalysis({
+          dealId,
+          agentType: 'hr',
+          status: 'completed',
+          progress: 100,
+          hr_answers: hrAnswers,
+          findings: [],
+          recommendations: []
+        });
+        console.log(`✅ Created new HR analysis for deal ${dealId}`);
       }
-      
-      const analysisData = {
-        dealId,
-        agentType: 'HR' as const,
-        status: 'completed' as const,
-        progress: 100,
-        hr_answers: hrAnswers,
-        findings: existingAnalysis?.findings || [],
-        recommendations: existingAnalysis?.recommendations || [],
-        documentSources: existingAnalysis?.documentSources || [],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await db.insert(agentAnalyses).values(analysisData);
       
       console.log(`✅ Updated HR analysis with new answer for question ${questionId}`);
       
