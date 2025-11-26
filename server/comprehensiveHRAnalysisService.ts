@@ -10,76 +10,88 @@ const HR_QUESTIONS = [
     id: 'hr_1',
     question: "What is the current team size and organizational structure?",
     category: "Team Structure",
-    keywords: ['team size', 'organizational structure', 'org chart', 'reporting structure', 'headcount', 'workforce', 'department', 'roles', 'hierarchy']
+    keywords: ['team size', 'organizational structure', 'org chart', 'reporting structure', 'headcount', 'workforce', 'department', 'roles', 'hierarchy'],
+    analysisPrompt: 'Identify team size, headcount, organizational structure, departments, reporting lines, and workforce composition.'
   },
   {
     id: 'hr_2',
     question: "Are there key person dependencies or single points of failure?",
     category: "Risk Assessment", 
-    keywords: ['key person', 'dependencies', 'single point of failure', 'critical roles', 'key employee', 'succession', 'risk', 'backup', 'redundancy']
+    keywords: ['key person', 'dependencies', 'single point of failure', 'critical roles', 'key employee', 'succession', 'risk', 'backup', 'redundancy'],
+    analysisPrompt: 'Identify key person dependencies, critical roles, succession planning, backup coverage, and single points of failure.'
   },
   {
     id: 'hr_3',
     question: "What is the leadership experience and track record?",
     category: "Leadership Assessment",
-    keywords: ['leadership', 'executive', 'management', 'experience', 'track record', 'background', 'ceo', 'founder', 'senior team', 'qualifications']
+    keywords: ['leadership', 'executive', 'management', 'experience', 'track record', 'background', 'ceo', 'founder', 'senior team', 'qualifications'],
+    analysisPrompt: 'Analyze leadership team experience, executive backgrounds, track records, qualifications, and prior company performance.'
   },
   // Leadership Gaps  
   {
     id: 'hr_4',
     question: "Are there gaps in the leadership team?",
     category: "Leadership Gaps",
-    keywords: ['leadership gaps', 'missing roles', 'hiring needs', 'expertise gaps', 'skill gaps', 'vacant positions', 'recruitment', 'team building']
+    keywords: ['leadership gaps', 'missing roles', 'hiring needs', 'expertise gaps', 'skill gaps', 'vacant positions', 'recruitment', 'team building'],
+    analysisPrompt: 'Identify missing leadership roles, expertise gaps, unfilled positions, and critical hiring needs.'
   },
   {
     id: 'hr_5',
     question: "What is the employee retention and turnover rate?",
     category: "Retention Analysis",
-    keywords: ['retention', 'turnover', 'attrition', 'churn', 'employee satisfaction', 'tenure', 'stability', 'departure', 'resignation']
+    keywords: ['retention', 'turnover', 'attrition', 'churn', 'employee satisfaction', 'tenure', 'stability', 'departure', 'resignation'],
+    analysisPrompt: 'Analyze employee retention rates, turnover metrics, attrition patterns, tenure data, and departure reasons.'
   },
   {
     id: 'hr_6',
     question: "Are compensation and equity structures competitive?",
     category: "Compensation Review",
-    keywords: ['compensation', 'salary', 'equity', 'stock options', 'benefits', 'competitive pay', 'market rate', 'incentives', 'package']
+    keywords: ['compensation', 'salary', 'equity', 'stock options', 'benefits', 'competitive pay', 'market rate', 'incentives', 'package'],
+    analysisPrompt: 'Analyze compensation levels, salary structures, equity plans, stock options, benefits packages, and market competitiveness.'
   },
   // Culture Assessment
   {
     id: 'hr_7',
     question: "What is the company culture and employee engagement?",
     category: "Culture Assessment",
-    keywords: ['culture', 'engagement', 'employee satisfaction', 'values', 'work environment', 'morale', 'team dynamics', 'workplace', 'culture fit']
+    keywords: ['culture', 'engagement', 'employee satisfaction', 'values', 'work environment', 'morale', 'team dynamics', 'workplace', 'culture fit'],
+    analysisPrompt: 'Assess company culture, employee engagement levels, workplace values, team dynamics, and morale indicators.'
   },
   {
     id: 'hr_8',
     question: "What are the talent acquisition and hiring strategies?",
     category: "Talent Strategy",
-    keywords: ['talent acquisition', 'hiring strategy', 'recruitment', 'talent pipeline', 'sourcing', 'onboarding', 'hiring process', 'talent management']
+    keywords: ['talent acquisition', 'hiring strategy', 'recruitment', 'talent pipeline', 'sourcing', 'onboarding', 'hiring process', 'talent management'],
+    analysisPrompt: 'Analyze talent acquisition strategies, hiring processes, recruitment pipelines, sourcing methods, and onboarding programs.'
   },
   {
     id: 'hr_9',
     question: "Are there documented HR policies and procedures?",
     category: "HR Operations",
-    keywords: ['hr policies', 'procedures', 'employee handbook', 'compliance', 'hr documentation', 'policies manual', 'hr processes', 'governance']
+    keywords: ['hr policies', 'procedures', 'employee handbook', 'compliance', 'hr documentation', 'policies manual', 'hr processes', 'governance'],
+    analysisPrompt: 'Identify documented HR policies, employee handbooks, compliance procedures, and HR governance frameworks.'
   },
   // Performance Management
   {
     id: 'hr_10',
     question: "What performance management systems are in place?",
     category: "Performance Management",
-    keywords: ['performance management', 'performance review', 'goal setting', 'feedback', 'performance metrics', 'evaluation', 'development', 'career growth']
+    keywords: ['performance management', 'performance review', 'goal setting', 'feedback', 'performance metrics', 'evaluation', 'development', 'career growth'],
+    analysisPrompt: 'Analyze performance management systems, review processes, goal-setting frameworks, feedback mechanisms, and career development programs.'
   },
   {
     id: 'hr_11',
     question: "Are there skills development and training programs?",
     category: "Training & Development",
-    keywords: ['training', 'development', 'skills development', 'learning', 'education', 'professional development', 'upskilling', 'career development']
+    keywords: ['training', 'development', 'skills development', 'learning', 'education', 'professional development', 'upskilling', 'career development'],
+    analysisPrompt: 'Identify training programs, skills development initiatives, learning opportunities, and professional development resources.'
   },
   {
     id: 'hr_12',
     question: "What is the workforce diversity and inclusion status?",
     category: "Diversity & Inclusion",
-    keywords: ['diversity', 'inclusion', 'dei', 'workforce diversity', 'equality', 'representation', 'inclusive culture', 'bias', 'belonging']
+    keywords: ['diversity', 'inclusion', 'dei', 'workforce diversity', 'equality', 'representation', 'inclusive culture', 'bias', 'belonging'],
+    analysisPrompt: 'Assess workforce diversity metrics, inclusion initiatives, DEI programs, representation data, and inclusive culture indicators.'
   }
 ];
 
@@ -458,14 +470,9 @@ export class ComprehensiveHRAnalysisService {
       
       if (!content || content.trim().length === 0) return null;
 
-      // Quick keyword check first (for speed)
-      const hasRelevantKeywords = question.keywords.some((keyword: string) =>
-        content.toLowerCase().includes(keyword.toLowerCase())
-      );
-
-      if (!hasRelevantKeywords) {
-        return null;
-      }
+      // CRITICAL: NO keyword filtering - process ALL documents like Legal/Clinical
+      // Keywords are ONLY used for in-document relevance ranking, NOT for skipping documents
+      // This ensures comprehensive analysis across ALL dataroom documents
 
       // Extract specific evidence using resilientOpenAI with focused prompt
       const response = await resilientOpenAI.createChatCompletion({
@@ -694,35 +701,60 @@ CRITICAL: Extract ALL specific details from the AI SUMMARY CONTENT above (employ
     // Step 2: Synthesize all partial answers into final comprehensive answer
     console.log(`🔄 Synthesizing ${partialAnswers.length} partial answers into final answer`);
     
-    const synthesisPrompt = `You are a senior HR analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.question}"
+    const synthesisPrompt = `You are a senior HR analyst. Synthesize these partial analyses into ONE comprehensive answer.
 
-Partial Analyses:
+QUESTION YOU ARE ANSWERING (DO NOT REPEAT THIS IN YOUR ANSWER):
+"${question.question}"
+
+QUESTION ID: ${question.id}
+CATEGORY: ${question.category}
+
+Partial Analyses to Synthesize:
 ${partialAnswers.map((pa, i) => `
 BATCH ${i + 1}:
 ${pa.answer}
 KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
-CRITICAL: Create ONE comprehensive answer that:
-1. Extracts ALL specific details (employee counts, compensation, turnover rates) from all batches
-2. Lists ALL HR data with complete details
-3. Provides exhaustive breakdown of organizational structure, culture, and retention
-4. Cites specific document sections and data points
+CRITICAL SYNTHESIS RULES:
+1. Extract ALL specific details (employee counts, compensation, turnover rates) from all batches above
+2. List ALL HR data with complete details
+3. Provide exhaustive breakdown of organizational structure, culture, and retention
+4. Cite specific document sections and data points
+5. DO NOT add "Insufficient information" or "Additional documentation required" disclaimers in the answer field
+6. Focus on what IS documented - save gaps for separate "gaps" field
+7. Write professional analysis like Legal/Clinical agents (no vague disclaimers)
+
+CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
+❌ WRONG: "What is the current team composition?: The analysis reveals..."
+❌ WRONG: "Are retention rates documented?: The records show..."
+✅ CORRECT: "The analysis reveals..."
+
+Your answer should START IMMEDIATELY with the analysis. Do NOT include the question as a prefix or header.
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, employee counts, compensation figures, and key personnel
 - Structure with clear sections if multiple topics
-- Example: "• **Team Size**: **45 employees** including **12 engineers**, **$120K average salary** with **15% turnover**"
+- NO question prefix, NO disclaimers, NO "insufficient information" statements
+- Example CORRECT format:
+  "The analysis reveals the following:
+  
+  • **Team Size**: **45 employees** including **12 engineers**
+  • **Compensation**: Average salary of **$120K** with **15% annual bonus**
+  • **Turnover Rate**: **12%** over the past fiscal year
+  
+  Key organizational structure includes..."
 
 Respond in JSON:
 {
-  "answer": "Comprehensive synthesis with ALL specific HR details formatted with markdown bullets and bold for key metrics",
+  "answer": "START IMMEDIATELY WITH ANALYSIS - NO QUESTION PREFIX (Comprehensive synthesis with ALL specific HR details formatted with markdown bullets and bold)",
   "confidence": 0-100,
   "keyFindings": ["All key findings combined"],
-  "gaps": ["Missing information"],
+  "gaps": ["Missing information ONLY - separate from answer"],
   "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "HRAssessment": "Overall HR assessment"
+  "hrAssessment": "Overall HR assessment"
 }`;
 
     try {
@@ -760,7 +792,7 @@ Respond in JSON:
         keyFindings: compiledAnswer.keyFindings || [],
         gaps: compiledAnswer.gaps || [],
         recommendations: compiledAnswer.recommendations || [],
-        HRAssessment: compiledAnswer.HRAssessment || '',
+        hrAssessment: compiledAnswer.hrAssessment || '',
         evidenceCount: evidence.length,
         detailedEvidence: evidence
       };
@@ -960,7 +992,7 @@ Respond in JSON:
       detailedEvidence: evidence,
       keyFindings: evidence.flatMap(e => e.keyFindings).slice(0, 3),
       evidenceSummary: `Analyzed ${evidence.length} HR documents`,
-      HRAssessment: 'HR analysis completed with available documentation',
+      hrAssessment: 'HR analysis completed with available documentation',
       recommendations: ['Consider additional HR documentation for more comprehensive analysis']
     };
   }
