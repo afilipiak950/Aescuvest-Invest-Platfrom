@@ -25,6 +25,7 @@ import { PersistentLegalButton } from './PersistentLegalButton';
 import { RunLegalQueueButton } from './RunLegalQueueButton';
 import { RunClinicalQueueButton } from './RunClinicalQueueButton';
 import { RunCommercialQueueButton } from './RunCommercialQueueButton';
+import { RunHRQueueButton } from './RunHRQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -6587,7 +6588,16 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} HR documents across 3 categories with 12 detailed questions
           </p>
         </div>
-        <ComprehensiveHrAnalysisButton dealId={dealId} />
+        <div className="flex items-center gap-3">
+          <ComprehensiveHrAnalysisButton dealId={dealId} />
+          <RunHRQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 text-white border-0"
+            onQueueComplete={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/hr/results`] });
+            }}
+          />
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
