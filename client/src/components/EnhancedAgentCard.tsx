@@ -6693,35 +6693,24 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 } />
                               </div>
 
-                              {/* Document Quotes - mimic Commercial's sources */}
-                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 ? (
+                              {/* Document Sources - show source documents only (no repeated blockquotes like Legal's quotes) */}
+                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
                                 <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
                                   <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Document Quotes ({answer.sources.length})
+                                    📖 Source Documents ({answer.sources.length})
                                   </h5>
-                                  <div className="space-y-2">
+                                  <div className="flex flex-wrap gap-2">
                                     {answer.sources.map((source: string, index: number) => (
-                                      <div key={index} className="bg-dark/70 rounded p-2 border-l-2 border-yellow-400">
-                                        <div className="flex items-start justify-between mb-1">
-                                          <button
-                                            onClick={() => handleDocumentClick(source)}
-                                            className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                            title={`View document: ${source}`}
-                                          >
-                                            📄 {source.length > 25 ? `${source.substring(0, 25)}...` : source}
-                                          </button>
-                                        </div>
-                                        <blockquote className="text-gray-300 text-xs italic leading-relaxed border-l-2 border-gray-600 pl-2 mt-1">
-                                          "{answer.answer}"
-                                        </blockquote>
-                                      </div>
+                                      <button
+                                        key={index}
+                                        onClick={() => handleDocumentClick(source)}
+                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
+                                        title={`View document: ${source}`}
+                                      >
+                                        📄 {source.length > 30 ? `${source.substring(0, 30)}...` : source}
+                                      </button>
                                     ))}
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">📖 Document Analysis</h5>
-                                  <p className="text-gray-300 text-xs">Analysis based on comprehensive review of HR documentation and organizational records.</p>
                                 </div>
                               )}
 
