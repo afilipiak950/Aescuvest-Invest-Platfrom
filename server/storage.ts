@@ -2110,6 +2110,8 @@ export class DatabaseStorage implements IStorage {
         });
         
         return {
+          id: analysisResult.id,
+          agentType: analysisResult.agentType,
           findings: analysisResult.findings || [],
           recommendations: analysisResult.recommendations || [],
           status: analysisResult.status || 'Completed',
