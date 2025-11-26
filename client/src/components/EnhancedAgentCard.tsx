@@ -24,6 +24,7 @@ import { PersistentClinicalButton } from './PersistentClinicalButton';
 import { PersistentLegalButton } from './PersistentLegalButton';
 import { RunLegalQueueButton } from './RunLegalQueueButton';
 import { RunClinicalQueueButton } from './RunClinicalQueueButton';
+import { RunCommercialQueueButton } from './RunCommercialQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -6111,7 +6112,16 @@ function CommercialQuestionsSection({ dealId, analysisData, assignedDocuments, d
             Analyze {assignedDocuments} commercial documents across 4 categories with 12 detailed questions
           </p>
         </div>
-        <ComprehensiveCommercialAnalysisButton dealId={dealId} />
+        <div className="flex items-center gap-3">
+          <ComprehensiveCommercialAnalysisButton dealId={dealId} />
+          <RunCommercialQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+            onQueueComplete={() => {
+              queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'commercial-analysis', 'comprehensive', 'results'] });
+            }}
+          />
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
