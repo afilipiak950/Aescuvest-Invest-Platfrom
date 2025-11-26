@@ -353,7 +353,7 @@ export default function EnhancedAgentCard({
 
   // Fetch comprehensive HR analysis data directly for HR agents
   const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
-    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
     enabled: agentType.toLowerCase() === 'hr',
     refetchInterval: 20000, // Reduced from 2s to 20s
   });
@@ -5051,9 +5051,6 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
         queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
       });
       queryClient.invalidateQueries({
-        queryKey: [`/api/deals/${dealId}/agents/hr/results`]
-      });
-      queryClient.invalidateQueries({
         queryKey: ['/api/analyses', dealId]
       });
       
@@ -5091,9 +5088,6 @@ function ComprehensiveHrAnalysisButton({ dealId }: { dealId: number }) {
             
             queryClient.invalidateQueries({
               queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`]
-            });
-            queryClient.invalidateQueries({
-              queryKey: [`/api/deals/${dealId}/agents/hr/results`]
             });
             queryClient.invalidateQueries({
               queryKey: ['/api/analyses', dealId]
@@ -6401,8 +6395,10 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const queryClient = useQueryClient();
 
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
-    queryKey: [`/api/deals/${dealId}/agents/hr/results`],
+    queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+    staleTime: 0, // Always treat as stale to force fresh data like Clinical
+    gcTime: 0, // Don't cache results like Clinical
   });
 
   const { data: hrProgress } = useQuery({
@@ -6522,7 +6518,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
       return { ...response, questionId };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/hr/results`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`] });
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
       refetchComprehensive();
     },
@@ -6594,7 +6590,7 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             dealId={dealId}
             className="bg-gradient-to-r from-orange-500 to-yellow-600 hover:from-orange-600 hover:to-yellow-700 text-white border-0"
             onQueueComplete={() => {
-              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/hr/results`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`] });
             }}
           />
         </div>
