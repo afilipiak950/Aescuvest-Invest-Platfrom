@@ -3,12 +3,15 @@
  * Triggers sequential processing of all HR questions for a deal
  * Shows real-time progress and queue status
  * EXACT CLONE of RunClinicalQueueButton for architectural parity
+ * 
+ * REAL-TIME ANSWER DISPLAY: Invalidates HR results cache when questions complete
+ * so answers appear instantly without page refresh
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Play, Square, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
@@ -34,6 +37,7 @@ interface RunHRQueueButtonProps {
   dealId: number;
   onQueueStart?: () => void;
   onQueueComplete?: () => void;
+  onQuestionComplete?: () => void;
   className?: string;
 }
 
@@ -41,17 +45,31 @@ export function RunHRQueueButton({
   dealId, 
   onQueueStart, 
   onQueueComplete,
+  onQuestionComplete,
   className 
 }: RunHRQueueButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
   const { toast } = useToast();
+  
+  const prevCompletedRef = useRef<number>(0);
 
   useEffect(() => {
     const checkQueueStatus = async () => {
       try {
         const response = await apiRequest(`/api/deals/${dealId}/hr-analysis/queue-status`);
         if (response.success && response.status) {
+          const newCompleted = response.status.completed;
+          const prevCompleted = prevCompletedRef.current;
+          
+          if (newCompleted > prevCompleted) {
+            console.log(`🎯 HR Question completed! ${prevCompleted} -> ${newCompleted}, invalidating cache for instant display`);
+            queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`] });
+            queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/analysis`] });
+            onQuestionComplete?.();
+          }
+          
+          prevCompletedRef.current = newCompleted;
           setQueueStatus(response.status);
 
           if (response.status.isProcessing === false && 
@@ -68,9 +86,9 @@ export function RunHRQueueButton({
 
     checkQueueStatus();
 
-    const interval = setInterval(checkQueueStatus, 3000);
+    const interval = setInterval(checkQueueStatus, 2000);
     return () => clearInterval(interval);
-  }, [dealId, onQueueComplete]);
+  }, [dealId, onQueueComplete, onQuestionComplete]);
 
   const handleForceRerunAll = async () => {
     setIsLoading(true);

@@ -351,11 +351,19 @@ export default function EnhancedAgentCard({
   }>({ quotes: [], sources: [], title: '' });
   const queryClient = useQueryClient();
 
+  const { data: hrQueueStatus } = useQuery({
+    queryKey: [`/api/deals/${dealId}/hr-analysis/queue-status`],
+    enabled: agentType.toLowerCase() === 'hr',
+    refetchInterval: 2000,
+  });
+  
+  const isHrQueueProcessing = hrQueueStatus?.success && hrQueueStatus?.status?.isProcessing;
+
   // Fetch comprehensive HR analysis data directly for HR agents
   const { data: hrAnalysisData } = useQuery<{success: boolean; analysis: AnalysisData}>({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
     enabled: agentType.toLowerCase() === 'hr',
-    refetchInterval: 20000, // Reduced from 2s to 20s
+    refetchInterval: isHrQueueProcessing ? 3000 : 20000,
   });
 
   // Fetch comprehensive IP analysis data directly for IP agents
@@ -6394,16 +6402,23 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
   const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{id: string, text: string} | null>(null);
   const queryClient = useQueryClient();
 
+  const { data: queueStatusData } = useQuery({
+    queryKey: [`/api/deals/${dealId}/hr-analysis/queue-status`],
+    refetchInterval: 2000,
+  });
+  
+  const isQueueProcessing = queueStatusData?.success && queueStatusData?.status?.isProcessing;
+
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/results`],
-    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
-    staleTime: 0, // Always treat as stale to force fresh data like Clinical
-    gcTime: 0, // Don't cache results like Clinical
+    refetchInterval: isQueueProcessing ? 3000 : 30000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: hrProgress } = useQuery({
     queryKey: [`/api/deals/${dealId}/hr-analysis/comprehensive/progress`],
-    refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+    refetchInterval: isQueueProcessing ? 3000 : 30000,
   });
 
   // Load existing running jobs from database on mount to restore progress bars after refresh
