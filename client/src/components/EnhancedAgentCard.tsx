@@ -6693,66 +6693,69 @@ function HrQuestionsSection({ dealId, analysisData, assignedDocuments, documents
                                 } />
                               </div>
 
-                              {/* Document Sources - show source documents only (no repeated blockquotes like Legal's quotes) */}
-                              {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
-                                <div className="bg-gradient-to-r from-yellow-400/10 to-orange-400/10 rounded p-3">
-                                  <h5 className="text-xs font-medium text-yellow-400 mb-2">
-                                    📖 Source Documents ({answer.sources.length})
-                                  </h5>
-                                  <div className="flex flex-wrap gap-2">
-                                    {answer.sources.map((source: string, index: number) => (
-                                      <button
-                                        key={index}
-                                        onClick={() => handleDocumentClick(source)}
-                                        className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded border border-blue-500/30 hover:bg-blue-500/30 transition-colors cursor-pointer"
-                                        title={`View document: ${source}`}
-                                      >
-                                        📄 {source.length > 30 ? `${source.substring(0, 30)}...` : source}
-                                      </button>
+                              {/* Key HR Findings - mimic Commercial's keyFindings */}
+                              {answer.keyFindings && Array.isArray(answer.keyFindings) && answer.keyFindings.length > 0 && (
+                                <div className="bg-dark/30 rounded p-3">
+                                  <h5 className="text-xs font-medium text-orange-400 mb-2">🔍 Key HR Findings</h5>
+                                  <ul className="space-y-1">
+                                    {answer.keyFindings.map((finding: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-orange-400 text-xs mt-1">•</span>
+                                        {typeof finding === 'string' ? finding : JSON.stringify(finding)}
+                                      </li>
                                     ))}
-                                  </div>
+                                  </ul>
                                 </div>
                               )}
 
-                              {/* Key HR Findings - mimic Commercial's keyFindings */}
-                              <div className="bg-dark/30 rounded p-3">
-                                <h5 className="text-xs font-medium text-orange-400 mb-2">🔍 Key HR Findings</h5>
-                                <ul className="space-y-1">
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-orange-400 text-xs mt-1">•</span>
-                                    Team composition: {answer.answer.includes('contractor') || answer.answer.includes('independent') ? 'Mixed employee-contractor model' : 
-                                                     answer.answer.includes('full-time') ? 'Full-time employee focus' : 'Organizational structure identified'}
-                                  </li>
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-orange-400 text-xs mt-1">•</span>
-                                    Analysis confidence: {answer.confidence > 0.8 ? 'High reliability' : answer.confidence > 0.6 ? 'Moderate reliability' : 'Requires verification'} ({Math.round((answer.confidence || 0) * 100)}%)
-                                  </li>
-                                </ul>
-                              </div>
-
                               {/* HR Recommendations - mimic Commercial's recommendations */}
-                              <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
-                                <h5 className="text-xs font-medium text-red-400 mb-2">💡 HR Recommendations</h5>
-                                <ul className="space-y-1">
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-red-400 text-xs mt-1">⚠</span>
-                                    {answer.confidence < 0.7 ? 'Conduct additional HR documentation review' : 'Standard HR due diligence recommended'}
-                                  </li>
-                                  <li className="text-gray-300 text-xs flex items-start gap-2">
-                                    <span className="text-red-400 text-xs mt-1">⚠</span>
-                                    Verify organizational structure and key personnel roles
-                                  </li>
-                                </ul>
-                              </div>
+                              {answer.recommendations && Array.isArray(answer.recommendations) && answer.recommendations.length > 0 && (
+                                <div className="bg-gradient-to-r from-red-400/10 to-orange-400/10 rounded p-3">
+                                  <h5 className="text-xs font-medium text-red-400 mb-2">💡 HR Recommendations</h5>
+                                  <ul className="space-y-1">
+                                    {answer.recommendations.map((rec: string, index: number) => (
+                                      <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                        <span className="text-red-400 text-xs mt-1">⚠</span>
+                                        {typeof rec === 'string' ? rec : JSON.stringify(rec)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
 
-                              {/* Metadata */}
+                              {/* Metadata with clickable sources badge - EXACTLY like Commercial */}
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className="text-orange-400 border-orange-400">
                                   Confidence: {normalizeConfidence(answer.confidence)}%
                                 </Badge>
-                                <Badge variant="outline" className="text-gray-400 border-gray-400">
-                                  HR Analysis
-                                </Badge>
+                                {answer.sources && Array.isArray(answer.sources) && answer.sources.length > 0 && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-blue-400 border-blue-400 cursor-pointer hover:bg-blue-400/10"
+                                    onClick={() => {
+                                      const sources = answer.detailedEvidence?.map((evidence: any) => {
+                                        return {
+                                          documentName: evidence.documentName,
+                                          relevantSections: evidence.relevantContent || evidence.keyFindings || [evidence.documentSummary || 'No specific section identified'],
+                                          extractedText: evidence.documentSummary || 'No specific content extracted'
+                                        };
+                                      }) || answer.sources.map((source: string) => ({
+                                        documentName: source,
+                                        relevantSections: ['Evidence from HR document analysis'],
+                                        extractedText: 'Document analyzed for HR due diligence'
+                                      }));
+                                      
+                                      setSelectedQuoteData({
+                                        quotes: [],
+                                        sources,
+                                        title: question.question
+                                      });
+                                      setQuoteViewerOpen(true);
+                                    }}
+                                  >
+                                    {answer.sources.length} source{answer.sources.length > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           ) : (
