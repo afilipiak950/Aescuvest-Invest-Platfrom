@@ -1,9 +1,10 @@
 /**
  * Persistent HR Analysis Routes
  * API endpoints for managing persistent HR analysis jobs
+ * MATCHES Clinical/Legal architecture for Force Rerun Queue support
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 
 export const persistentHRRoutes = Router();
 
@@ -130,7 +131,7 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/question/:questionId/rer
     
     // Schedule background job execution on next event loop tick
     setImmediate(() => {
-      comprehensiveHRAnalysisService.rerunSingleQuestion(dealId, questionId, customInstructions || '')
+      comprehensiveHRAnalysisService.rerunSingleQuestion(dealId, questionId)
         .then(() => {
           console.log(`✅ Background HR rerun completed for question ${questionId} on deal ${dealId}`);
         })
@@ -160,6 +161,285 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/question/:questionId/rer
     res.status(500).json({ 
       success: false, 
       error: error.message || 'Failed to re-run HR question analysis' 
+    });
+  }
+});
+
+/**
+ * Force rerun ALL HR questions (including already answered ones)
+ * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
+ * EXACT MATCH to Clinical/Legal implementation
+ */
+persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/force-rerun-all', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🔥 FORCE RERUN: Checking if sequential HR analysis is already running for deal ${dealId}`);
+    
+    const { comprehensiveHRAnalysisService, HR_QUESTIONS } = await import('../comprehensiveHRAnalysisService');
+    const { storage } = await import('../storage');
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { and, eq, like } = await import('drizzle-orm');
+    
+    const masterJobId = `force-rerun-all-hr-${dealId}`;
+    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+    
+    if (existingMasterJob && existingMasterJob.status === 'processing') {
+      console.log(`⚠️ Force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+      return res.status(409).json({
+        success: false,
+        error: 'Force rerun already in progress',
+        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
+        startedAt: existingMasterJob.createdAt,
+        jobId: masterJobId
+      });
+    }
+    
+    if (existingMasterJob) {
+      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
+      await storage.deleteBackgroundJob(masterJobId);
+      console.log(`✅ Deleted old force-rerun master job`);
+    }
+    
+    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL HR questions on deal ${dealId}`);
+    
+    await storage.createBackgroundJob({
+      jobId: masterJobId,
+      jobType: 'force_rerun_all_hr',
+      dealId,
+      status: 'processing',
+      progress: 0,
+      currentStep: 'Starting sequential force rerun of all HR questions'
+    });
+    console.log(`🔒 Created master lock job: ${masterJobId}`);
+    
+    console.log(`🧹 Cleaning up any existing HR question rerun jobs for deal ${dealId}`);
+    
+    const existingQuestionJobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'hr-question-rerun-%')
+      )
+    });
+    
+    for (const job of existingQuestionJobs) {
+      await storage.deleteBackgroundJob(job.jobId);
+    }
+    console.log(`✅ Cleaned up ${existingQuestionJobs.length} existing HR question rerun jobs`);
+    
+    res.json({
+      success: true,
+      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
+      startedCount: HR_QUESTIONS.length,
+      totalQuestions: HR_QUESTIONS.length,
+      dealId,
+      estimatedTime: `${Math.round(HR_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
+    });
+    
+    setImmediate(async () => {
+      let completedCount = 0;
+      const errors: string[] = [];
+      
+      try {
+        for (let i = 0; i < HR_QUESTIONS.length; i++) {
+          const question = HR_QUESTIONS[i];
+          const questionNumber = i + 1;
+          const startTime = Date.now();
+          
+          const overallProgress = Math.round((i / HR_QUESTIONS.length) * 100);
+          await storage.updateBackgroundJob(masterJobId, {
+            progress: overallProgress,
+            currentStep: `Processing question ${questionNumber}/${HR_QUESTIONS.length}: ${question.id}`
+          });
+          
+          try {
+            console.log(`🎯 [${questionNumber}/${HR_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
+            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
+            
+            await comprehensiveHRAnalysisService.rerunSingleQuestion(dealId, question.id);
+            const duration = Math.round((Date.now() - startTime) / 1000);
+            
+            completedCount++;
+            console.log(`✅ [${questionNumber}/${HR_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+            
+            if (i < HR_QUESTIONS.length - 1) {
+              console.log(`⏸️ 2-second delay before next question...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            
+          } catch (error: any) {
+            const duration = Math.round((Date.now() - startTime) / 1000);
+            console.error(`❌ [${questionNumber}/${HR_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+            errors.push(`${question.id}: ${error.message}`);
+            
+            if (i < HR_QUESTIONS.length - 1) {
+              console.log(`⏸️ 2-second delay before next question (after error)...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+        }
+        
+        await storage.updateBackgroundJob(masterJobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: `Completed: ${completedCount}/${HR_QUESTIONS.length} questions analyzed`,
+          completedAt: new Date()
+        });
+        
+        console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${HR_QUESTIONS.length} questions analyzed`);
+        if (errors.length > 0) {
+          console.log(`⚠️ ${errors.length} questions failed:`, errors);
+        }
+        
+      } catch (fatalError: any) {
+        console.error(`🚨 FATAL ERROR in force rerun loop:`, fatalError);
+        await storage.updateBackgroundJob(masterJobId, {
+          status: 'failed',
+          progress: Math.round((completedCount / HR_QUESTIONS.length) * 100),
+          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+        });
+      } finally {
+        setTimeout(async () => {
+          try {
+            console.log(`🧹 [1-hour cleanup] Deleting master job: ${masterJobId}`);
+            await storage.deleteBackgroundJob(masterJobId);
+            console.log(`✅ [1-hour cleanup] Deleted master job: ${masterJobId}`);
+          } catch (cleanupError) {
+            console.error(`❌ [1-hour cleanup] Failed to delete master job:`, cleanupError);
+          }
+        }, 60 * 60 * 1000);
+      }
+    });
+    
+  } catch (error: any) {
+    console.error('Error force rerunning all HR questions:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to force rerun all questions' 
+    });
+  }
+});
+
+/**
+ * Get queue status for HR analysis
+ * EXACT MATCH to Clinical implementation
+ */
+persistentHRRoutes.get('/api/deals/:dealId/hr-analysis/queue-status', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    const { storage } = await import('../storage');
+    const masterJobId = `force-rerun-all-hr-${dealId}`;
+    
+    const masterJob = await storage.getBackgroundJobById(masterJobId);
+    
+    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const questionJobs = allJobs.filter(job => job.jobType === 'hr_question_rerun');
+    
+    const pending = questionJobs.filter(j => j.status === 'pending').length;
+    const running = questionJobs.filter(j => j.status === 'processing').length;
+    const completed = questionJobs.filter(j => j.status === 'completed').length;
+    const failed = questionJobs.filter(j => j.status === 'failed').length;
+    const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
+    
+    const total = masterJob ? masterJob.totalDocuments || questionJobs.length : questionJobs.length;
+    const progress = masterJob ? masterJob.progress : 0;
+    const isProcessing = masterJob?.status === 'processing' || running > 0;
+    
+    res.json({
+      success: true,
+      status: {
+        total,
+        pending,
+        running,
+        completed,
+        failed,
+        cancelled,
+        progress,
+        currentQuestion: masterJob?.currentStep || null,
+        currentQuestionId: null,
+        isProcessing
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting HR queue status:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get queue status' 
+    });
+  }
+});
+
+/**
+ * Cancel HR queue processing
+ * EXACT MATCH to Clinical implementation
+ */
+persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/cancel-queue', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid deal ID' 
+      });
+    }
+
+    console.log(`🛑 Cancelling HR question queue for deal ${dealId}`);
+    
+    const { storage } = await import('../storage');
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { and, eq, like } = await import('drizzle-orm');
+    
+    const masterJobId = `force-rerun-all-hr-${dealId}`;
+    
+    const masterJob = await storage.getBackgroundJobById(masterJobId);
+    if (masterJob) {
+      await storage.updateBackgroundJob(masterJobId, {
+        status: 'cancelled',
+        currentStep: 'Cancelled by user'
+      });
+    }
+    
+    const questionJobs = await db.query.backgroundJobs.findMany({
+      where: and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'hr-question-rerun-%')
+      )
+    });
+    
+    for (const job of questionJobs) {
+      await storage.deleteBackgroundJob(job.jobId);
+    }
+    console.log(`✅ Deleted ${questionJobs.length} HR question rerun jobs`);
+    
+    res.json({
+      success: true,
+      message: 'HR queue cancelled successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error cancelling HR queue:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to cancel queue' 
     });
   }
 });

@@ -1035,30 +1035,12 @@ Respond in JSON:
   }
 
   /**
-   * Check if a question is currently being rerun
-   */
-  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
-    const { backgroundJobs } = await import('../shared/schema');
-    const { eq } = await import('drizzle-orm');
-    
-    await this.cleanupStuckJob(dealId, questionId);
-    
-    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
-    // Consider it running if job exists (not null or undefined) and progress is not 100
-    return job != null && job.progress < 100;
-  }
-
-  /**
-   * Auto-cleanup stuck or failed jobs
+   * Auto-cleanup stuck or failed jobs before checking if running
+   * EXACT MATCH to Legal implementation using storage service
    */
   private async cleanupStuckJob(dealId: number, questionId: string): Promise<void> {
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
-    const job = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const job = await storage.getBackgroundJobById(jobId);
     
     if (!job) return;
     
@@ -1067,30 +1049,45 @@ Respond in JSON:
     const isFailed = job.status === 'failed';
     
     if (isFailed || isStuck) {
-      console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
-      await db.delete(backgroundJobs).where(eq(backgroundJobs.jobId, jobId));
+      console.log(`🧹 Auto-cleaning ${isFailed ? 'failed' : 'stuck'} job: ${jobId} (last updated: ${job.updatedAt})`);
+      await storage.deleteBackgroundJob(jobId);
+      console.log(`✅ Cleaned up ${isFailed ? 'failed' : 'stuck'} job: ${jobId}`);
     }
   }
 
   /**
-   * Update progress for a specific question rerun
+   * Check if a question is currently being rerun
+   * EXACT MATCH to Legal implementation using storage service
+   */
+  async isQuestionRunning(dealId: number, questionId: string): Promise<boolean> {
+    await this.cleanupStuckJob(dealId, questionId);
+    
+    const jobId = `hr-question-rerun-${dealId}-${questionId}`;
+    const job = await storage.getBackgroundJobById(jobId);
+    
+    return job != null && job.progress < 100;
+  }
+
+  /**
+   * Update progress for a specific question rerun in database
+   * EXACT MATCH to Legal implementation using storage service
    */
   async updateQuestionRerunProgress(dealId: number, questionId: string, progress: number): Promise<void> {
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
     
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
+    const existingJob = await storage.getBackgroundJobById(jobId);
     
     if (existingJob) {
-      // Use storage service to update - matches commercial service pattern
-      await storage.updateBackgroundJob(jobId, {
+      const updateData: any = {
         progress,
         status: progress === 100 ? 'completed' : (progress === 0 ? 'pending' : 'processing'),
-        completedAt: progress === 100 ? new Date() : undefined
-      });
+        currentStep: progress === 100 ? 'Completed' : `Processing (${progress}%)`
+      };
+      if (progress === 100) {
+        updateData.completedAt = new Date();
+      }
+      await storage.updateBackgroundJob(jobId, updateData);
     } else {
-      // Use storage service to create - matches commercial service pattern  
       await storage.createBackgroundJob({
         jobId,
         jobType: 'hr_question_rerun',
@@ -1102,7 +1099,7 @@ Respond in JSON:
       });
     }
     
-    console.log(`📊 HR Progress update: ${questionId} = ${progress}%`);
+    console.log(`📊 HR Progress update (DB): ${questionId} = ${progress}%`);
   }
 
   /**
@@ -1130,15 +1127,14 @@ Respond in JSON:
 
   /**
    * Re-run a single HR question
+   * EXACT MATCH to Legal implementation with storage service and finally block cleanup
    */
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<any> {
     console.log(`🔄 Re-running HR question ${questionId} for deal ${dealId}`);
     const jobId = `hr-question-rerun-${dealId}-${questionId}`;
     
-    const existingJob = await db.query.backgroundJobs.findFirst({
-      where: eq(backgroundJobs.jobId, jobId)
-    });
-    const alreadyInitialized = existingJob !== undefined;
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    const alreadyInitialized = existingJob != null;
     
     if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
       throw new Error(`Question ${questionId} is already being rerun`);
@@ -1146,7 +1142,16 @@ Respond in JSON:
     
     try {
       if (!alreadyInitialized) {
-        await this.updateQuestionRerunProgress(dealId, questionId, 0);
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'hr_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ Registered new job for question ${questionId}`);
       }
       
       const question = HR_QUESTIONS.find(q => q.id === questionId);
@@ -1184,7 +1189,6 @@ Respond in JSON:
         )
       });
       
-      // Use delete + insert pattern like storeComprehensiveResults for reliability
       const hrAnswers = existingAnalysis?.hr_answers 
         ? (typeof existingAnalysis.hr_answers === 'string' 
             ? JSON.parse(existingAnalysis.hr_answers) 
@@ -1193,14 +1197,12 @@ Respond in JSON:
       
       hrAnswers[questionId] = answer;
       
-      // Delete existing analysis if present
       if (existingAnalysis) {
         await db
           .delete(agentAnalyses)
           .where(eq(agentAnalyses.id, existingAnalysis.id));
       }
       
-      // Insert fresh data with updated answer
       const analysisData = {
         dealId,
         agentType: 'HR' as const,
@@ -1221,24 +1223,39 @@ Respond in JSON:
       console.log(`✅ Successfully updated question ${questionId} in HR analysis`);
       
       return answer;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Error re-running question ${questionId}:`, error);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-
-      await db
-        .update(backgroundJobs)
-        .set({
+      try {
+        await storage.updateBackgroundJob(jobId, {
           status: 'failed',
           progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-
-      console.log(`❌ Marked job ${jobId} as failed`);
+          currentStep: `Failed: ${error.message}`
+        });
+        console.log(`❌ Marked job ${jobId} as failed`);
+      } catch (updateError) {
+        console.error(`Failed to update job status:`, updateError);
+      }
+      
       throw error;
+    } finally {
+      setTimeout(async () => {
+        try {
+          const jobToClean = await storage.getBackgroundJobById(jobId);
+          
+          if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            const { backgroundJobs } = await import('../shared/schema');
+            const { eq } = await import('drizzle-orm');
+            await db.delete(backgroundJobs)
+              .where(eq(backgroundJobs.jobId, jobId));
+            console.log(`🧹 Cleaned up completed database record for question ${questionId}`);
+          } else if (jobToClean) {
+            console.log(`⏭️ Skipping cleanup for question ${questionId} - job still active (progress: ${jobToClean.progress}%)`);
+          }
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
+        }
+      }, 3600000); // 1 hour
     }
   }
 }
