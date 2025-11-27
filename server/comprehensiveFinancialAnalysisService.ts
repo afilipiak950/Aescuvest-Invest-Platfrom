@@ -1049,64 +1049,131 @@ Respond in JSON:
     return this.questionRerunProgress.get(key) || 0;
   }
 
-  async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+  async rerunSingleQuestion(dealId: number, questionId: string, customInstructions?: string): Promise<any> {
+    console.log(`🔄 Re-running Financial question ${questionId} for deal ${dealId}`);
     const jobId = `financial-question-rerun-${dealId}-${questionId}`;
     
+    const existingJob = await storage.getBackgroundJobById(jobId);
+    const alreadyInitialized = existingJob != null;
+    
+    if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+      throw new Error(`Question ${questionId} is already being rerun`);
+    }
+    
     try {
-      const analysis = await storage.getAgentAnalysis(dealId, 'Financial');
-      
-      if (!analysis) throw new Error('No financial analysis found');
-      
-      const documents = await storage.getDocumentsByDealId(dealId);
-      const financialDocs = documents.filter(doc => 
-        doc.assignedAgents?.some(a => a.toLowerCase() === 'financial')
-      );
+      if (!alreadyInitialized) {
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'financial_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ Registered new job for question ${questionId}`);
+      }
       
       const question = COMPREHENSIVE_FINANCIAL_QUESTIONS.find(q => q.id === questionId);
-      if (!question) throw new Error(`Question ${questionId} not found`);
-      
+      if (!question) {
+        throw new Error(`Question ${questionId} not found`);
+      }
       await this.updateQuestionRerunProgress(dealId, questionId, 10);
       
-      // Extract evidence for this question
-      const evidence = await this.extractEvidenceFromAllDocuments(financialDocs, question);
+      const assignedDocuments = await this.getAssignedDocuments(dealId);
+      console.log(`📄 Found ${assignedDocuments.length} documents for Financial question re-run`);
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 50);
+      if (assignedDocuments.length === 0) {
+        throw new Error('No documents available for Financial analysis');
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 20);
       
-      // Compile answer
-      const answer = await this.compileComprehensiveAnswer(question, evidence);
+      console.log(`📊 Extracting evidence for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 30);
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 80);
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(assignedDocuments, question);
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 60);
       
-      // Update analysis
-      const updatedAnswers = {
-        ...(analysis.financial_answers || {}),
-        [questionId]: answer
-      };
+      console.log(`🤖 Compiling answer for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 70);
       
-      await storage.updateAgentAnalysis(analysis.id, {
-        financial_answers: updatedAnswers
-      });
+      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+      console.log(`✅ Answer compiled successfully`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 85);
+      
+      // Use storage layer like HR/Legal/Clinical - merge answers instead of overwriting
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Financial');
+      const financialAnswers = existingAnalysis?.financialAnswers || {};
+      
+      // Merge new answer into existing answers
+      financialAnswers[questionId] = answer;
+      
+      if (existingAnalysis) {
+        // UPDATE existing record like HR does - preserves all other answers
+        console.log(`💾 Updating Financial answer for question "${questionId}" in existing analysis`);
+        await storage.updateAgentAnalysisByDealAndType(dealId, 'Financial', {
+          financial_answers: financialAnswers,
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date()
+        });
+        console.log(`✅ Successfully merged Financial answer for question "${questionId}"`);
+      } else {
+        // CREATE new analysis record if none exists
+        console.log(`💾 Creating new Financial analysis for deal ${dealId} with first answer`);
+        await storage.createAgentAnalysis({
+          dealId,
+          agentType: 'Financial',
+          status: 'completed',
+          progress: 100,
+          financial_answers: financialAnswers,
+          findings: [],
+          recommendations: []
+        });
+        console.log(`✅ Created new Financial analysis for deal ${dealId}`);
+      }
+      
+      console.log(`✅ Updated Financial analysis with new answer for question ${questionId}`);
       
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
-    } catch (error) {
-      console.error('Error in financial question rerun:', error);
+      console.log(`✅ Successfully updated question ${questionId} in Financial analysis`);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-      const { db } = await import('./db');
-
-      await db
-        .update(backgroundJobs)
-        .set({
+      return answer;
+    } catch (error: any) {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      try {
+        await storage.updateBackgroundJob(jobId, {
           status: 'failed',
           progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-
-      console.log(`❌ Marked job ${jobId} as failed`);
+          currentStep: `Failed: ${error.message}`
+        });
+        console.log(`❌ Marked job ${jobId} as failed`);
+      } catch (jobUpdateError) {
+        console.error(`Failed to update job status:`, jobUpdateError);
+      }
+      
       throw error;
+    } finally {
+      // Cleanup completed/failed jobs after delay - EXACT HR pattern
+      setTimeout(async () => {
+        try {
+          const jobToClean = await storage.getBackgroundJobById(jobId);
+          
+          if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            const { backgroundJobs } = await import('../shared/schema');
+            const { eq } = await import('drizzle-orm');
+            await db.delete(backgroundJobs)
+              .where(eq(backgroundJobs.jobId, jobId));
+            console.log(`🧹 Cleaned up completed database record for question ${questionId}`);
+          } else if (jobToClean) {
+            console.log(`⏭️ Skipping cleanup for question ${questionId} - job still active (progress: ${jobToClean.progress}%)`);
+          }
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
+        }
+      }, 5000);
     }
   }
 }
