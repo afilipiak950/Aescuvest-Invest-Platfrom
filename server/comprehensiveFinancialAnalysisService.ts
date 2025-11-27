@@ -261,68 +261,53 @@ export class ComprehensiveFinancialAnalysisService {
   }
 
   private async getAssignedDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`💰 Finding ALL documents for financial analysis on deal ${dealId}`);
     
-    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
-    
-    // First try documents explicitly assigned to financial agent (AI SUMMARY ONLY like Legal/Clinical)
-    let financialDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('financial')) && 
-      doc.aiSummary
-    );
-    
-    console.log(`📄 Documents explicitly assigned to financial: ${financialDocuments.length}`);
-    
-    // If no documents are explicitly assigned to financial, identify financial-related documents
-    if (financialDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to financial agent, identifying financial-related documents...');
+    try {
+      // Get ALL documents for the deal with AI summaries - EXACT approach as HR/Legal/Clinical
+      // NO KEYWORD FILTERING - analyze ALL documents for comprehensive coverage
+      const allDocuments = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.dealId, dealId));
       
-      financialDocuments = allDocuments.filter(doc => {
+      console.log(`💰 Found ${allDocuments.length} total documents for deal ${dealId}`);
+      
+      // Filter to only include documents with AI summaries for analysis (like HR/Legal/Clinical)
+      const documentsWithAI = allDocuments.filter(doc => {
+        // Check if aiSummary exists and is valid (could be object or string)
         if (!doc.aiSummary) return false;
         
-        const docName = doc.name.toLowerCase();
-        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : 
-          (doc.aiSummary.executiveSummary ? doc.aiSummary.executiveSummary.toLowerCase() : '');
+        // Handle aiSummary as object with executiveSummary field
+        if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
+          return doc.aiSummary.executiveSummary.length > 10;
+        }
         
-        // Financial document keywords - EXACTLY matching Clinical's approach
-        const financialKeywords = [
-          'financial', 'revenue', 'profit', 'cost', 'budget', 'funding', 'investment',
-          'cash', 'flow', 'burn', 'runway', 'valuation', 'ebitda', 'income', 'expense',
-          'balance', 'sheet', 'statement', 'audit', 'accounting', 'finance', 'money',
-          'capital', 'equity', 'debt', 'loan', 'credit', 'payment', 'invoice', 
-          'contract', 'agreement', 'pricing', 'subscription', 'saas', 'arr', 'mrr',
-          'margin', 'kpi', 'metric', 'performance', 'roi', 'return', 'ltv', 'cac'
-        ];
+        // Handle aiSummary as string
+        if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
+          return true;
+        }
         
-        // Check document name and AI summary for financial keywords (NO OCR)
-        const hasFinancialKeywords = financialKeywords.some(keyword => 
-          docName.includes(keyword) || aiContent.includes(keyword)
-        );
-        
-        return hasFinancialKeywords;
+        return false;
       });
       
-      console.log(`📄 Auto-identified financial documents: ${financialDocuments.length}`);
+      console.log(`💰 Financial analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching HR/Legal/Clinical)`);
+      
+      // Return ALL documents with AI summaries for maximum coverage - NO KEYWORD FILTERING
+      return documentsWithAI;
+      
+    } catch (error) {
+      console.error(`❌ Error finding financial documents:`, error);
+      // Fallback: return all documents if there's an error
+      try {
+        const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
+        console.log(`💰 Error fallback: returning all ${allDocs.length} documents`);
+        return allDocs.filter(doc => doc.aiSummary);
+      } catch (fallbackError) {
+        console.error(`❌ Fallback error:`, fallbackError);
+        return [];
+      }
     }
-    
-    // If still no financial documents found, use all documents with AI summaries (EXACTLY like Legal/Clinical)
-    if (financialDocuments.length === 0) {
-      console.log('📄 No financial-related documents found, using all documents with AI summaries...');
-      financialDocuments = allDocuments.filter(doc => doc.aiSummary);
-      console.log(`📄 Documents with AI summaries available: ${financialDocuments.length}`);
-    }
-    
-    console.log(`📄 Found ${financialDocuments.length} documents for financial analysis`);
-    
-    if (financialDocuments.length === 0) {
-      console.log('⚠️ No documents found for financial analysis');
-      return [];
-    }
-    
-    return financialDocuments;
   }
 
   private async getTotalDocumentCount(dealId: number): Promise<number> {
