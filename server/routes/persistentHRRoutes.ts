@@ -330,7 +330,7 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/force-rerun-all', async 
 
 /**
  * Get queue status for HR analysis
- * EXACT MATCH to Clinical implementation
+ * EXACT MATCH to Financial implementation with proper total calculation
  */
 persistentHRRoutes.get('/api/deals/:dealId/hr-analysis/queue-status', async (req: Request, res: Response) => {
   try {
@@ -344,6 +344,7 @@ persistentHRRoutes.get('/api/deals/:dealId/hr-analysis/queue-status', async (req
     }
 
     const { storage } = await import('../storage');
+    const { HR_QUESTIONS } = await import('../comprehensiveHRAnalysisService');
     const masterJobId = `force-rerun-all-hr-${dealId}`;
     
     const masterJob = await storage.getBackgroundJobById(masterJobId);
@@ -357,9 +358,17 @@ persistentHRRoutes.get('/api/deals/:dealId/hr-analysis/queue-status', async (req
     const failed = questionJobs.filter(j => j.status === 'failed').length;
     const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
     
-    const total = masterJob ? masterJob.totalDocuments || questionJobs.length : questionJobs.length;
+    // Use constants length for total when master job exists (individual jobs get cleaned up)
+    const total = masterJob ? HR_QUESTIONS.length : questionJobs.length;
     const progress = masterJob ? masterJob.progress : 0;
     const isProcessing = masterJob?.status === 'processing' || running > 0;
+    
+    // Calculate completed from progress when master job exists (individual jobs get cleaned up)
+    const effectiveCompleted = masterJob && masterJob.status === 'processing' 
+      ? Math.floor((masterJob.progress / 100) * HR_QUESTIONS.length)
+      : completed;
+    
+    console.log(`📊 HR queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, total=${total}`);
     
     res.json({
       success: true,
@@ -367,7 +376,7 @@ persistentHRRoutes.get('/api/deals/:dealId/hr-analysis/queue-status', async (req
         total,
         pending,
         running,
-        completed,
+        completed: effectiveCompleted,
         failed,
         cancelled,
         progress,

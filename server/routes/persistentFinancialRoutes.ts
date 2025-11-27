@@ -425,7 +425,8 @@ router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req,
         await storage.updateBackgroundJob(masterJobId, {
           status: 'completed',
           progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`
+          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`,
+          completedAt: new Date()
         });
         
         console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`);
@@ -440,6 +441,17 @@ router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req,
           progress: Math.round((completedCount / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100),
           currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
         });
+      } finally {
+        // Cleanup master job after 1 hour - EXACT HR PATTERN
+        setTimeout(async () => {
+          try {
+            console.log(`🧹 [1-hour cleanup] Deleting master job: ${masterJobId}`);
+            await storage.deleteBackgroundJob(masterJobId);
+            console.log(`✅ [1-hour cleanup] Deleted master job: ${masterJobId}`);
+          } catch (cleanupError) {
+            console.error(`❌ [1-hour cleanup] Failed to delete master job:`, cleanupError);
+          }
+        }, 60 * 60 * 1000);
       }
     });
     
@@ -454,7 +466,7 @@ router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req,
 
 /**
  * Get queue status for Financial analysis
- * EXACT MATCH to HR/Clinical implementation
+ * EXACT MATCH to HR/Clinical implementation with proper total calculation
  */
 router.get('/api/deals/:dealId/financial-analysis/queue-status', async (req, res) => {
   try {
@@ -468,6 +480,7 @@ router.get('/api/deals/:dealId/financial-analysis/queue-status', async (req, res
     }
 
     const { storage } = await import('../storage');
+    const { COMPREHENSIVE_FINANCIAL_QUESTIONS } = await import('../comprehensiveFinancialAnalysisService');
     const masterJobId = `force-rerun-all-financial-${dealId}`;
     
     const masterJob = await storage.getBackgroundJobById(masterJobId);
@@ -481,9 +494,17 @@ router.get('/api/deals/:dealId/financial-analysis/queue-status', async (req, res
     const failed = questionJobs.filter(j => j.status === 'failed').length;
     const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
     
-    const total = masterJob ? masterJob.totalDocuments || questionJobs.length : questionJobs.length;
+    // Use constants length for total when master job exists (individual jobs get cleaned up)
+    const total = masterJob ? COMPREHENSIVE_FINANCIAL_QUESTIONS.length : questionJobs.length;
     const progress = masterJob ? masterJob.progress : 0;
     const isProcessing = masterJob?.status === 'processing' || running > 0;
+    
+    // Calculate completed from progress when master job exists (individual jobs get cleaned up)
+    const effectiveCompleted = masterJob && masterJob.status === 'processing' 
+      ? Math.floor((masterJob.progress / 100) * COMPREHENSIVE_FINANCIAL_QUESTIONS.length)
+      : completed;
+    
+    console.log(`📊 Financial queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, total=${total}`);
     
     res.json({
       success: true,
@@ -491,7 +512,7 @@ router.get('/api/deals/:dealId/financial-analysis/queue-status', async (req, res
         total,
         pending,
         running,
-        completed,
+        completed: effectiveCompleted,
         failed,
         cancelled,
         progress,
