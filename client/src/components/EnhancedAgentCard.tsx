@@ -26,6 +26,7 @@ import { RunLegalQueueButton } from './RunLegalQueueButton';
 import { RunClinicalQueueButton } from './RunClinicalQueueButton';
 import { RunCommercialQueueButton } from './RunCommercialQueueButton';
 import { RunHRQueueButton } from './RunHRQueueButton';
+import { RunFinancialQueueButton } from './RunFinancialQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -5391,7 +5392,16 @@ function FinancialQuestionsSection({ dealId, analysisData, assignedDocuments, do
             Analyze {assignedDocuments} financial documents across 4 categories with 12 detailed questions
           </p>
         </div>
-        <PersistentFinancialButton dealId={dealId} />
+        <div className="flex items-center gap-3">
+          <PersistentFinancialButton dealId={dealId} />
+          <RunFinancialQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+            onQueueComplete={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/financial-analysis/comprehensive/results`] });
+            }}
+          />
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
