@@ -1065,6 +1065,7 @@ Respond in JSON:
         agentType: 'IP', 
         status: 'processing', 
         progress, 
+        runId: questionId,  // CRITICAL FIX: Include runId for getAllQuestionProgress to track
         currentStep: 'Starting question rerun...'
       });
     } else if (progress >= 100) {
