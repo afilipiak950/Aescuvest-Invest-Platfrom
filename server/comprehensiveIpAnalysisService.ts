@@ -1082,27 +1082,23 @@ Respond in JSON:
     
     const result: Record<string, number> = {};
     
-    // CRITICAL FIX: Check Force Rerun All master job FIRST
-    // This is the missing piece - during Force Rerun All, the current question
-    // is tracked in the master job's currentStep, not individual jobs
+    // CRITICAL FIX: Check Force Rerun All master job to get CURRENT question ID
     const masterJobId = `force-rerun-all-ip-${dealId}`;
     const masterJob = await storage.getBackgroundJobById(masterJobId);
     
-    if (masterJob && masterJob.status === 'processing' && masterJob.progress < 100) {
+    let currentQuestionFromMaster: string | null = null;
+    
+    if (masterJob && masterJob.status === 'processing' && masterJob.progress !== null && masterJob.progress < 100) {
       // Extract current question ID from currentStep: "Processing question X/Y: question_id"
       if (masterJob.currentStep) {
         const match = masterJob.currentStep.match(/:\s*([\w_]+)$/);
         if (match) {
-          const currentQuestionId = match[1];
-          // Calculate per-question progress based on overall master job progress
-          // During Force Rerun All, show 50% as the question is being worked on
-          result[currentQuestionId] = Math.max(10, Math.min(90, masterJob.progress || 50));
-          console.log(`📊 [IP Progress] Force Rerun All active: ${currentQuestionId} at ${result[currentQuestionId]}%`);
+          currentQuestionFromMaster = match[1];
         }
       }
     }
     
-    // Also check individual question rerun jobs (for single question reruns)
+    // Check individual question rerun jobs
     const jobs = await db.query.backgroundJobs.findMany({
       where: and(
         eq(backgroundJobs.dealId, dealId),
@@ -1112,9 +1108,26 @@ Respond in JSON:
     
     for (const job of jobs) {
       // Only include jobs that are actively processing (not failed or completed)
-      // Failed jobs should return undefined so frontend can clear the progress bar
-      if (job.runId && job.status === 'processing' && job.progress < 100) {
-        result[job.runId] = job.progress;
+      if (job.runId && job.status === 'processing' && job.progress !== null && job.progress < 100) {
+        result[job.runId] = Math.max(10, job.progress); // Minimum 10% to show activity
+        console.log(`📊 [IP Progress] Individual job ${job.runId} at ${job.progress}%`);
+      }
+    }
+    
+    // CRITICAL: If Force Rerun All is active but no individual job found for current question,
+    // add it with a minimum progress to show activity
+    if (currentQuestionFromMaster && !result[currentQuestionFromMaster]) {
+      // Check if individual job exists but with pending status
+      const questionJobId = `ip-question-rerun-${dealId}-${currentQuestionFromMaster}`;
+      const questionJob = await storage.getBackgroundJobById(questionJobId);
+      
+      if (questionJob && questionJob.progress !== null) {
+        result[currentQuestionFromMaster] = Math.max(10, questionJob.progress);
+        console.log(`📊 [IP Progress] Force Rerun All active: ${currentQuestionFromMaster} at ${result[currentQuestionFromMaster]}% (from individual job)`);
+      } else {
+        // No individual job yet, show minimum progress
+        result[currentQuestionFromMaster] = 10;
+        console.log(`📊 [IP Progress] Force Rerun All active: ${currentQuestionFromMaster} at 10% (starting)`);
       }
     }
     
