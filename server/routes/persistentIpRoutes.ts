@@ -703,9 +703,14 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
           const questionNumber = i + 1;
           const startTime = Date.now();
           
-          const overallProgress = Math.round((i / COMPREHENSIVE_IP_QUESTIONS.length) * 100);
+          // CRITICAL FIX: Calculate per-question progress tracking
+          // Start each question at base progress, increment as it processes
+          const baseProgress = Math.round((i / COMPREHENSIVE_IP_QUESTIONS.length) * 100);
+          const questionProgressIncrement = Math.round(100 / COMPREHENSIVE_IP_QUESTIONS.length);
+          let currentQuestionProgress = 10; // Start at 10% to show activity
+          
           await storage.updateBackgroundJob(masterJobId, {
-            progress: overallProgress,
+            progress: baseProgress,
             currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
           });
           
@@ -716,7 +721,42 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
             console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
             console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
             
+            // CRITICAL FIX: Start progress tracking interval during question processing
+            // This propagates rerunSingleQuestion progress to the master job
+            let progressInterval: ReturnType<typeof setInterval> | null = null;
+            let questionCompleted = false;
+            
+            progressInterval = setInterval(async () => {
+              if (questionCompleted) {
+                if (progressInterval) clearInterval(progressInterval);
+                return;
+              }
+              try {
+                // Check the individual question job progress
+                const questionJobId = `ip-question-rerun-${dealId}-${question.id}`;
+                const questionJob = await storage.getBackgroundJobById(questionJobId);
+                
+                if (questionJob && questionJob.progress !== null && questionJob.progress > currentQuestionProgress) {
+                  currentQuestionProgress = questionJob.progress;
+                  // Update master job with per-question progress context
+                  const combinedProgress = baseProgress + Math.round((currentQuestionProgress / 100) * questionProgressIncrement);
+                  await storage.updateBackgroundJob(masterJobId, {
+                    progress: Math.min(99, combinedProgress),
+                    currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
+                  });
+                  console.log(`📊 [IP] Question ${question.id} progress: ${currentQuestionProgress}%, overall: ${combinedProgress}%`);
+                }
+              } catch (err) {
+                // Ignore errors in progress tracking
+              }
+            }, 2000); // Poll every 2 seconds
+            
             await comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, question.id);
+            
+            // Stop progress tracking
+            questionCompleted = true;
+            if (progressInterval) clearInterval(progressInterval);
+            
             const duration = Math.round((Date.now() - startTime) / 1000);
             
             completedCount++;
