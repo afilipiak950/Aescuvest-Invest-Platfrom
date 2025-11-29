@@ -1157,31 +1157,46 @@ Respond in JSON:
       console.log(`✅ Answer compiled successfully`);
       await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
-      // Get existing analysis to update
+      // Use storage layer like HR - merge answers instead of overwriting
       const existingAnalysis = await storage.getAgentAnalysis(dealId, 'IP');
-      if (!existingAnalysis) {
-        throw new Error('No existing IP analysis found. Run full analysis first.');
-      }
+      const ipAnswers = existingAnalysis?.ip_answers || {};
       
-      // Update only this question's answer in the IP analysis
-      const updatedIpAnswers = {
-        ...existingAnalysis.ip_answers,
-        [questionId]: answer
-      };
+      // Merge new answer into existing answers
+      ipAnswers[questionId] = answer;
       
       // Regenerate findings and recommendations with updated answers
-      const findings = this.generateComprehensiveIpFindings(updatedIpAnswers);
-      const recommendations = this.generateComprehensiveIpRecommendations(updatedIpAnswers);
+      const findings = this.generateComprehensiveIpFindings(ipAnswers);
+      const recommendations = this.generateComprehensiveIpRecommendations(ipAnswers);
       await this.updateQuestionRerunProgress(dealId, questionId, 95);
       
-      // Update the database with new answer
-      await this.storeComprehensiveIpResults(
-        dealId, 
-        updatedIpAnswers, 
-        findings, 
-        recommendations, 
-        assignedDocuments
-      );
+      if (existingAnalysis) {
+        // UPDATE existing record like HR does - preserves all other answers
+        console.log(`💾 Updating IP answer for question "${questionId}" in existing analysis`);
+        await storage.updateAgentAnalysisByDealAndType(dealId, 'IP', {
+          ip_answers: ipAnswers,
+          findings: findings,
+          recommendations: recommendations,
+          documentSources: assignedDocuments.map((d: any) => d.name),
+          status: 'completed',
+          progress: 100,
+          updatedAt: new Date()
+        });
+        console.log(`✅ Successfully merged IP answer for question "${questionId}"`);
+      } else {
+        // CREATE new analysis record if none exists - like HR does
+        console.log(`💾 Creating new IP analysis for deal ${dealId} with first answer`);
+        await storage.createAgentAnalysis({
+          dealId,
+          agentType: 'IP',
+          status: 'completed',
+          progress: 100,
+          ip_answers: ipAnswers,
+          findings: findings,
+          recommendations: recommendations,
+          documentSources: assignedDocuments.map((d: any) => d.name)
+        });
+        console.log(`✅ Created new IP analysis for deal ${dealId}`);
+      }
       
       console.log(`✅ Successfully updated question ${questionId} in IP analysis`);
       await this.updateQuestionRerunProgress(dealId, questionId, 100);

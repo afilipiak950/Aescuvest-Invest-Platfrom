@@ -176,11 +176,24 @@ class JobProcessor {
     try {
       // 🚀 CRITICAL: Load pending jobs from database into memory queue for parallel processing
       // ⚡ PRIORITY SYSTEM: Order by priority DESC (highest first), then created_at ASC (oldest first)
-      const pendingJobs = await db.select()
+      const allPendingJobs = await db.select()
         .from(backgroundJobs)
         .where(eq(backgroundJobs.status, 'pending'))
         .orderBy(desc(backgroundJobs.priority), asc(backgroundJobs.createdAt))
         .limit(50); // Load up to 50 pending jobs at a time
+      
+      // 🚨 CRITICAL: Exclude agent-specific job types that are handled by their own services
+      // These jobs are processed inline by comprehensiveXXXAnalysisService.ts, NOT by JobProcessor
+      const EXCLUDED_JOB_TYPES = [
+        // Individual question reruns (handled by service directly)
+        'ip_question_rerun', 'hr_question_rerun', 'legal_question_rerun',
+        'clinical_question_rerun', 'financial_question_rerun', 'commercial_question_rerun',
+        // Force-rerun-all master jobs (handled by routes + service)
+        'force_rerun_all_ip', 'force_rerun_all_hr', 'force_rerun_all_legal',
+        'force_rerun_all_clinical', 'force_rerun_all_financial', 'force_rerun_all_commercial'
+      ];
+      
+      const pendingJobs = allPendingJobs.filter(job => !EXCLUDED_JOB_TYPES.includes(job.jobType));
       
       if (pendingJobs.length > 0) {
         console.log(`🚀 LOADING ${pendingJobs.length} pending jobs from database into memory queue for parallel processing!`);
