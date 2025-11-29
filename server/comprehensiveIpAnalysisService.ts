@@ -826,6 +826,92 @@ Respond in JSON:
     }
   }
 
+  /**
+   * Generate comprehensive findings from all IP answers
+   * Used by rerunSingleQuestion for consistent findings regeneration
+   */
+  private generateComprehensiveIpFindings(ipAnswers: { [key: string]: IpAnswer }): any[] {
+    return Object.values(ipAnswers).flatMap(answer => 
+      answer.keyFindings.map((finding, index) => ({
+        id: Object.keys(ipAnswers).indexOf(Object.keys(ipAnswers).find(key => ipAnswers[key] === answer)!) * 100 + index,
+        content: finding,
+        type: 'IP Finding'
+      }))
+    );
+  }
+
+  /**
+   * Generate comprehensive recommendations from all IP answers
+   * Used by rerunSingleQuestion for consistent recommendations regeneration
+   */
+  private generateComprehensiveIpRecommendations(ipAnswers: { [key: string]: IpAnswer }): any[] {
+    return Object.values(ipAnswers).flatMap(answer =>
+      answer.recommendations.map((rec, index) => ({
+        title: `IP Recommendation ${index + 1}`,
+        description: rec,
+        priority: 'Medium',
+        category: 'IP',
+        impact: 'Medium'
+      }))
+    );
+  }
+
+  /**
+   * Store comprehensive IP results (UPDATE existing analysis)
+   * Used by rerunSingleQuestion to update just the answers while preserving the analysis record
+   */
+  private async storeComprehensiveIpResults(
+    dealId: number, 
+    ipAnswers: { [key: string]: IpAnswer }, 
+    findings: any[], 
+    recommendations: any[], 
+    assignedDocuments: any[]
+  ): Promise<void> {
+    try {
+      // Update existing analysis instead of creating new one
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'IP');
+      
+      if (existingAnalysis) {
+        // Update existing record
+        await db.update(agentAnalyses)
+          .set({
+            findings: findings,
+            recommendations: recommendations,
+            ip_answers: ipAnswers,
+            documentSources: assignedDocuments.map((d: any) => d.name),
+            status: 'completed',
+            updatedAt: new Date()
+          })
+          .where(
+            and(
+              eq(agentAnalyses.dealId, dealId),
+              eq(agentAnalyses.agentType, 'IP')
+            )
+          );
+        console.log(`📊 Updated comprehensive IP analysis for deal ${dealId} with ${Object.keys(ipAnswers).length} questions answered`);
+      } else {
+        // Create new if doesn't exist (shouldn't happen during rerun)
+        const analysisData = {
+          dealId,
+          agentType: 'IP' as const,
+          status: 'completed' as const,
+          progress: 100,
+          findings: findings,
+          recommendations: recommendations,
+          ip_answers: ipAnswers,
+          documentSources: assignedDocuments.map((d: any) => d.name),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        await db.insert(agentAnalyses).values([analysisData]);
+        console.log(`📊 Created new comprehensive IP analysis for deal ${dealId}`);
+      }
+    } catch (error) {
+      console.error('Error storing comprehensive IP results:', error);
+      throw error;
+    }
+  }
+
   getProgress(): IpAnalysisProgress {
     return {
       isRunning: this.isRunning,
@@ -1006,64 +1092,137 @@ Respond in JSON:
     return this.questionRerunProgress.get(key) || 0;
   }
 
-  async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
+  async rerunSingleQuestion(dealId: number, questionId: string, customInstructions?: string): Promise<void> {
     const jobId = `ip-question-rerun-${dealId}-${questionId}`;
     
     try {
-      const analysis = await storage.getAgentAnalysis(dealId, 'IP');
+      console.log(`🔄 Re-running IP question ${questionId} for deal ${dealId}`);
       
-      if (!analysis) throw new Error('No IP analysis found');
+      // Check if job already initialized by route (atomic registration pattern)
+      const existingJob = await storage.getBackgroundJobById(jobId);
+      const alreadyInitialized = existingJob != null;
       
-      const documents = await storage.getDocumentsByDealId(dealId);
-      const ipDocs = documents.filter(doc => 
-        doc.assignedAgents?.some(a => a.toLowerCase() === 'ip')
-      );
+      // Only check for duplicates if not already initialized by the route
+      if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
       
+      // Initialize progress only if not already set by route
+      if (!alreadyInitialized) {
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'ip_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ Registered new job for question ${questionId}`);
+      }
+      
+      // Find the question
       const question = COMPREHENSIVE_IP_QUESTIONS.find(q => q.id === questionId);
-      if (!question) throw new Error(`Question ${questionId} not found`);
-      
+      if (!question) {
+        throw new Error(`Question ${questionId} not found`);
+      }
       await this.updateQuestionRerunProgress(dealId, questionId, 10);
       
-      // Extract evidence for this question
-      const evidence = await this.extractEvidenceFromAllDocuments(ipDocs, question);
+      // Get ALL documents with AI summaries - SAME AS LEGAL/HR (no filtering)
+      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
+      const assignedDocuments = allDocuments.filter(doc => doc.aiSummary);
+      console.log(`📄 Using COMPREHENSIVE approach: ALL ${assignedDocuments.length} documents with AI summaries`);
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 50);
+      if (assignedDocuments.length === 0) {
+        throw new Error('No documents available for IP analysis');
+      }
+      await this.updateQuestionRerunProgress(dealId, questionId, 20);
+      
+      // Extract evidence for this specific question
+      console.log(`📊 Extracting evidence for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 30);
+      
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(
+        assignedDocuments, 
+        question
+      );
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 60);
       
       // Compile answer
-      const answer = await this.compileComprehensiveAnswer(question, evidence);
+      console.log(`🤖 Compiling answer for: ${question.question}`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 70);
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 80);
+      const answer = await this.compileComprehensiveAnswer(question, documentEvidence);
+      console.log(`✅ Answer compiled successfully`);
+      await this.updateQuestionRerunProgress(dealId, questionId, 85);
       
-      // Update analysis
-      const updatedAnswers = {
-        ...(analysis.ip_answers || {}),
+      // Get existing analysis to update
+      const existingAnalysis = await storage.getAgentAnalysis(dealId, 'IP');
+      if (!existingAnalysis) {
+        throw new Error('No existing IP analysis found. Run full analysis first.');
+      }
+      
+      // Update only this question's answer in the IP analysis
+      const updatedIpAnswers = {
+        ...existingAnalysis.ip_answers,
         [questionId]: answer
       };
       
-      await storage.updateAnalysis(analysis.id, {
-        ip_answers: updatedAnswers
-      });
+      // Regenerate findings and recommendations with updated answers
+      const findings = this.generateComprehensiveIpFindings(updatedIpAnswers);
+      const recommendations = this.generateComprehensiveIpRecommendations(updatedIpAnswers);
+      await this.updateQuestionRerunProgress(dealId, questionId, 95);
       
+      // Update the database with new answer
+      await this.storeComprehensiveIpResults(
+        dealId, 
+        updatedIpAnswers, 
+        findings, 
+        recommendations, 
+        assignedDocuments
+      );
+      
+      console.log(`✅ Successfully updated question ${questionId} in IP analysis`);
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
-    } catch (error) {
-      console.error('Error in IP question rerun:', error);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-      const { db } = await import('./db');
-
-      await db
-        .update(backgroundJobs)
-        .set({
+    } catch (error) {
+      console.error(`❌ Error re-running question ${questionId}:`, error);
+      
+      // Mark job as failed using storage service
+      try {
+        await storage.updateBackgroundJob(jobId, {
           status: 'failed',
           progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-
-      console.log(`❌ Marked job ${jobId} as failed`);
+          currentStep: `Failed: ${(error as Error).message}`
+        });
+        console.log(`❌ Marked job ${jobId} as failed`);
+      } catch (updateError) {
+        console.error(`Failed to update job status:`, updateError);
+      }
+      
       throw error;
+    } finally {
+      // Schedule cleanup of completed job after 5 seconds (individual question cleanup)
+      // Only delete if job is still in completed/failed status (prevents deleting active reruns)
+      setTimeout(async () => {
+        try {
+          const jobToClean = await storage.getBackgroundJobById(jobId);
+          
+          // Only delete if job exists and is completed (100%) or failed
+          if (jobToClean && (jobToClean.progress === 100 || jobToClean.status === 'failed')) {
+            const { backgroundJobs: bgJobs } = await import('../shared/schema');
+            const { eq: drizzleEq } = await import('drizzle-orm');
+            await db.delete(bgJobs)
+              .where(drizzleEq(bgJobs.jobId, jobId));
+            console.log(`🧹 [5s cleanup] Cleaned up completed database record for question ${questionId}`);
+          } else if (jobToClean) {
+            console.log(`⏭️ Skipping cleanup for question ${questionId} - job still active (progress: ${jobToClean.progress}%)`);
+          }
+        } catch (cleanupError) {
+          console.error(`Failed to cleanup job ${jobId}:`, cleanupError);
+        }
+      }, 5000); // 5-second cleanup (matches HR/Financial/Legal)
     }
   }
 }

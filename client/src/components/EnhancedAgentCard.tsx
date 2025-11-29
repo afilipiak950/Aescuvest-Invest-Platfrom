@@ -27,6 +27,7 @@ import { RunClinicalQueueButton } from './RunClinicalQueueButton';
 import { RunCommercialQueueButton } from './RunCommercialQueueButton';
 import { RunHRQueueButton } from './RunHRQueueButton';
 import { RunFinancialQueueButton } from './RunFinancialQueueButton';
+import { RunIPQueueButton } from './RunIPQueueButton';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -7118,7 +7119,20 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
             Analyze {assignedDocuments} IP documents across 4 categories with 16 detailed questions
           </p>
         </div>
-        <ComprehensiveIPAnalysisButton dealId={dealId} />
+        <div className="flex items-center gap-3">
+          <ComprehensiveIPAnalysisButton dealId={dealId} />
+          <RunIPQueueButton 
+            dealId={dealId}
+            className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white border-0"
+            onQueueComplete={() => {
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/analysis`] });
+              queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+            }}
+          />
+        </div>
       </div>
 
       {Object.entries(categorizedQuestions).map(([category, questions]) => (
