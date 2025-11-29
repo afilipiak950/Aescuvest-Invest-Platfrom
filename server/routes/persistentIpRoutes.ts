@@ -11,6 +11,31 @@ import { eq, and, desc } from 'drizzle-orm';
 import { comprehensiveIpAnalysisService, COMPREHENSIVE_IP_QUESTIONS } from '../comprehensiveIpAnalysisService';
 import { persistentIpAnalysisService } from '../services/persistentIpAnalysis';
 import { storage } from '../storage';
+import { websocketManager } from '../services/websocketManager';
+
+// Helper function to broadcast IP queue progress via WebSocket (MATCH Legal pattern)
+async function broadcastIpQueueProgress(dealId: number, currentQuestionId: string | null, completed: number, total: number, isProcessing: boolean) {
+  try {
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const status = {
+      total,
+      pending: Math.max(0, total - completed - (isProcessing ? 1 : 0)),
+      running: isProcessing ? 1 : 0,
+      completed,
+      failed: 0,
+      cancelled: 0,
+      progress,
+      currentQuestion: currentQuestionId ? `Processing question ${completed + 1}/${total}: ${currentQuestionId}` : null,
+      currentQuestionId,
+      isProcessing
+    };
+    
+    websocketManager.broadcast('ip_queue_progress', status, dealId);
+    console.log(`📡 [IP Queue] Broadcast progress: question=${currentQuestionId}, completed=${completed}/${total}, progress=${progress}%`);
+  } catch (error) {
+    console.error('Error broadcasting IP queue progress:', error);
+  }
+}
 
 const router = Router();
 
@@ -683,6 +708,9 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
             currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
           });
           
+          // CRITICAL: Broadcast progress via WebSocket for per-question progress bar (MATCH Legal pattern)
+          await broadcastIpQueueProgress(dealId, question.id, completedCount, COMPREHENSIVE_IP_QUESTIONS.length, true);
+          
           try {
             console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
             console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
@@ -692,6 +720,9 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
             
             completedCount++;
             console.log(`✅ [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+            
+            // CRITICAL: Broadcast completion via WebSocket (MATCH Legal pattern)
+            await broadcastIpQueueProgress(dealId, null, completedCount, COMPREHENSIVE_IP_QUESTIONS.length, i < COMPREHENSIVE_IP_QUESTIONS.length - 1);
             
             if (i < COMPREHENSIVE_IP_QUESTIONS.length - 1) {
               console.log(`⏸️ 2-second delay before next question...`);
@@ -789,19 +820,29 @@ router.get('/api/deals/:dealId/ip-analysis/queue-status', async (req, res) => {
       ? Math.floor((masterJob.progress / 100) * COMPREHENSIVE_IP_QUESTIONS.length)
       : completed;
     
-    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, total=${total}`);
+    // Extract currentQuestionId from currentStep - format is "Processing question X/Y: question_id"
+    let currentQuestionId: string | null = null;
+    if (masterJob?.currentStep && isProcessing) {
+      const match = masterJob.currentStep.match(/:\s*(\w+)$/);
+      if (match) {
+        currentQuestionId = match[1];
+      }
+    }
+    
+    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, total=${total}, currentQuestionId=${currentQuestionId}`);
     
     res.json({
       success: true,
       status: {
         total,
         pending,
-        running,
+        running: isProcessing ? 1 : 0,  // If processing, at least 1 question is running
         completed: effectiveCompleted,
         failed,
         cancelled,
         progress,
         currentQuestion: masterJob?.currentStep || null,
+        currentQuestionId,  // CRITICAL: Add this field to match Legal's contract
         isProcessing
       }
     });

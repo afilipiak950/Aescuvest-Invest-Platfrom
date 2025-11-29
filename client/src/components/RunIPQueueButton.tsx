@@ -30,6 +30,7 @@ interface QueueStatus {
   failed: number;
   progress: number;
   currentQuestion: string | null;
+  currentQuestionId: string | null;  // CRITICAL: Match Legal's contract for per-question progress
   isProcessing: boolean;
 }
 

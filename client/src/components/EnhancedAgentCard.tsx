@@ -6872,6 +6872,113 @@ function IpQuestionsSection({ dealId, analysisData, assignedDocuments, documents
     loadExistingJobs();
   }, [dealId]);
 
+  // Listen for real-time IP queue updates via WebSocket (MATCH Legal pattern EXACTLY)
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isComponentMounted = true;
+
+    const connectWebSocket = () => {
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log(`🔌 [IP Queue] Connecting to WebSocket: ${wsUrl}`);
+        
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('✅ [IP Queue] WebSocket connected successfully');
+          const subscribeMessage = {
+            type: 'subscribe',
+            dealId: Number(dealId)
+          };
+          console.log('📤 [IP Queue] Sending subscription:', subscribeMessage);
+          ws!.send(JSON.stringify(subscribeMessage));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('📨 [IP Queue] Received WebSocket message:', message);
+            
+            // Handle IP queue progress updates (MATCH Legal pattern)
+            if (message.type === 'ip_queue_progress') {
+              const queueStatus = message.data;
+              console.log('📊 [IP Queue] Progress update:', queueStatus);
+              
+              // Update progress based on queue status (EXACT Legal pattern)
+              setQuestionProgress(prev => {
+                const newProgress: Record<string, number> = {};
+                
+                // If there's a currently running question, show it with specific ID
+                if (queueStatus.currentQuestionId && queueStatus.running > 0) {
+                  // Show progress for the currently running question
+                  const runningProgress = queueStatus.total > 0 
+                    ? Math.round((queueStatus.completed / queueStatus.total) * 100)
+                    : 50; // Default to 50% if we can't calculate
+                  
+                  newProgress[queueStatus.currentQuestionId] = runningProgress;
+                  console.log(`🎯 [IP Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
+                }
+                
+                // Keep pending questions visible with 0% progress
+                if (queueStatus.pending > 0) {
+                  // We don't have the IDs of pending questions, so just keep existing ones
+                  for (const [qId, prog] of Object.entries(prev)) {
+                    if (!newProgress[qId]) {
+                      newProgress[qId] = 0;
+                    }
+                  }
+                }
+                
+                return newProgress;
+              });
+              
+              // If a question was just completed, refetch comprehensive results (EXACT Legal pattern)
+              if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
+                console.log('✅ [IP Queue] All questions completed - refreshing results');
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/ip-analysis/comprehensive/results`] });
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/agents/ip/results`] });
+                refetchComprehensive();
+                setQuestionProgress({}); // Clear all progress
+              }
+            }
+          } catch (parseError) {
+            console.error('Error parsing WebSocket message:', parseError);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('🔴 [IP Queue] WebSocket closed');
+          if (isComponentMounted) {
+            reconnectTimeout = setTimeout(connectWebSocket, 3000);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('❌ [IP Queue] WebSocket error:', error);
+        };
+      } catch (error) {
+        console.error('Failed to connect WebSocket:', error);
+        if (isComponentMounted) {
+          reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        }
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isComponentMounted = false;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, [dealId, queryClient, refetchComprehensive]);
+
   // Poll for progress for all running questions
   useEffect(() => {
     const runningQuestions = Object.keys(questionProgress);
