@@ -482,7 +482,8 @@ router.get('/api/deals/:dealId/ip-analysis/questions/progress', async (req, res)
 
     const { comprehensiveIpAnalysisService } = await import('../comprehensiveIpAnalysisService');
     
-    const allProgress = comprehensiveIpAnalysisService.getAllQuestionProgress(dealId);
+    // CRITICAL FIX: getAllQuestionProgress is async - MUST await it
+    const allProgress = await comprehensiveIpAnalysisService.getAllQuestionProgress(dealId);
     
     res.json({
       success: true,
@@ -821,29 +822,34 @@ router.get('/api/deals/:dealId/ip-analysis/queue-status', async (req, res) => {
       : completed;
     
     // Extract currentQuestionId from currentStep - format is "Processing question X/Y: question_id"
+    // CRITICAL FIX: Extract regardless of isProcessing flag - master job has the data even if status slightly lags
     let currentQuestionId: string | null = null;
-    if (masterJob?.currentStep && isProcessing) {
-      const match = masterJob.currentStep.match(/:\s*(\w+)$/);
+    if (masterJob?.currentStep) {
+      // Match question ID like "patents_1", "trademarks_2", etc. at the end of the string
+      const match = masterJob.currentStep.match(/:\s*([\w_]+)$/);
       if (match) {
         currentQuestionId = match[1];
       }
     }
     
-    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, total=${total}, currentQuestionId=${currentQuestionId}`);
+    // CRITICAL: If master job exists and has valid currentStep, it's processing even if status lags
+    const effectiveIsProcessing = isProcessing || (masterJob && currentQuestionId && masterJob.progress < 100);
+    
+    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, total=${total}, currentQuestionId=${currentQuestionId}`);
     
     res.json({
       success: true,
       status: {
         total,
         pending,
-        running: isProcessing ? 1 : 0,  // If processing, at least 1 question is running
+        running: effectiveIsProcessing ? 1 : 0,  // If processing, at least 1 question is running
         completed: effectiveCompleted,
         failed,
         cancelled,
         progress,
         currentQuestion: masterJob?.currentStep || null,
         currentQuestionId,  // CRITICAL: Add this field to match Legal's contract
-        isProcessing
+        isProcessing: effectiveIsProcessing  // Use effective processing status
       }
     });
     
