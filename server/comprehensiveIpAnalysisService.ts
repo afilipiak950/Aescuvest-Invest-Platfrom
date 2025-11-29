@@ -1078,8 +1078,31 @@ Respond in JSON:
 
   async getAllQuestionProgress(dealId: number): Promise<Record<string, number>> {
     const { backgroundJobs } = await import('../shared/schema');
-    const { and, eq } = await import('drizzle-orm');
+    const { and, eq, or } = await import('drizzle-orm');
     
+    const result: Record<string, number> = {};
+    
+    // CRITICAL FIX: Check Force Rerun All master job FIRST
+    // This is the missing piece - during Force Rerun All, the current question
+    // is tracked in the master job's currentStep, not individual jobs
+    const masterJobId = `force-rerun-all-ip-${dealId}`;
+    const masterJob = await storage.getBackgroundJobById(masterJobId);
+    
+    if (masterJob && masterJob.status === 'processing' && masterJob.progress < 100) {
+      // Extract current question ID from currentStep: "Processing question X/Y: question_id"
+      if (masterJob.currentStep) {
+        const match = masterJob.currentStep.match(/:\s*([\w_]+)$/);
+        if (match) {
+          const currentQuestionId = match[1];
+          // Calculate per-question progress based on overall master job progress
+          // During Force Rerun All, show 50% as the question is being worked on
+          result[currentQuestionId] = Math.max(10, Math.min(90, masterJob.progress || 50));
+          console.log(`📊 [IP Progress] Force Rerun All active: ${currentQuestionId} at ${result[currentQuestionId]}%`);
+        }
+      }
+    }
+    
+    // Also check individual question rerun jobs (for single question reruns)
     const jobs = await db.query.backgroundJobs.findMany({
       where: and(
         eq(backgroundJobs.dealId, dealId),
@@ -1087,7 +1110,6 @@ Respond in JSON:
       )
     });
     
-    const result: Record<string, number> = {};
     for (const job of jobs) {
       // Only include jobs that are actively processing (not failed or completed)
       // Failed jobs should return undefined so frontend can clear the progress bar
