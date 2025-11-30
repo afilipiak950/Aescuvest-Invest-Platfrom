@@ -412,9 +412,9 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/question/:qu
     // Immediately initialize progress to 0 (atomically registers the job)
     await service.updateQuestionRerunProgress(dealId, questionId, 0);
     
-    // Schedule background job execution
+    // Schedule background job execution - LEGAL PATTERN (2 args only)
     setImmediate(() => {
-      service.rerunSingleQuestion(dealId, questionId, customInstructions || '')
+      service.rerunSingleQuestion(dealId, questionId)
         .then(() => {
           console.log(`✅ Background research rerun completed for question ${questionId} on deal ${dealId}`);
         })

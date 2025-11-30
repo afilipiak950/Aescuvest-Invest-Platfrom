@@ -854,28 +854,60 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
 
   async rerunSingleQuestion(dealId: number, questionId: string): Promise<void> {
     const jobId = `research-question-rerun-${dealId}-${questionId}`;
+    console.log(`🔄 [Research Rerun] Starting question ${questionId} for deal ${dealId}`);
     
     try {
-      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'research');
+      // Check if job already initialized by route (atomic registration pattern) - LEGAL PATTERN
+      const existingJob = await storage.getBackgroundJobById(jobId);
+      const alreadyInitialized = existingJob != null;
       
+      // Only check for duplicates if not already initialized by the route
+      if (!alreadyInitialized && await this.isQuestionRunning(dealId, questionId)) {
+        throw new Error(`Question ${questionId} is already being rerun`);
+      }
+      
+      // Initialize progress only if not already set by route - LEGAL PATTERN
+      if (!alreadyInitialized) {
+        await storage.createBackgroundJob({
+          jobId,
+          jobType: 'research_question_rerun',
+          dealId,
+          status: 'pending',
+          progress: 0,
+          runId: questionId,
+          currentStep: `Initializing question rerun: ${questionId}`
+        });
+        console.log(`✅ [Research Rerun] Registered new job for question ${questionId}`);
+      }
+      
+      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'research');
       if (!analysis) throw new Error('No research analysis found');
       
       const documents = await storage.getDocumentsByDealId(dealId);
       const researchDocs = documents.filter(doc => 
         doc.assignedAgents?.some(a => a.toLowerCase() === 'research')
       );
+      console.log(`📄 [Research Rerun] Found ${researchDocs.length} documents for question ${questionId}`);
       
       const question = RESEARCH_QUESTIONS.find(q => q.id === questionId);
       if (!question) throw new Error(`Question ${questionId} not found`);
       
       await this.updateQuestionRerunProgress(dealId, questionId, 10);
       
-      // Re-analyze question
-      const answer = await this.analyzeQuestion(question, researchDocs);
+      // 🔥 CRITICAL FIX: Pass all parameters to analyzeQuestion for per-batch progress tracking - LEGAL PATTERN
+      const questionIndex = RESEARCH_QUESTIONS.findIndex(q => q.id === questionId);
+      const answer = await this.analyzeQuestion(
+        question, 
+        researchDocs,
+        jobId,           // Pass jobId for progress tracking
+        storage,         // Pass storage service for job updates
+        questionIndex,   // Current question index
+        RESEARCH_QUESTIONS.length  // Total questions count
+      );
       
-      await this.updateQuestionRerunProgress(dealId, questionId, 80);
+      await this.updateQuestionRerunProgress(dealId, questionId, 90);
       
-      // Update analysis
+      // Update analysis with structured answer
       const updatedAnswers = {
         ...(analysis.research_answers || {}),
         [questionId]: answer
@@ -886,24 +918,27 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       });
       
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
-    } catch (error) {
-      console.error('Error in research question rerun:', error);
       
-      // Mark job as failed in database
-      const { backgroundJobs } = await import('../shared/schema');
-      const { eq } = await import('drizzle-orm');
-      const { db } = await import('./db');
+      // Mark job as completed - LEGAL PATTERN
+      await storage.updateBackgroundJob(jobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: `Completed: ${question.question}`
+      });
+      
+      console.log(`✅ [Research Rerun] Completed question ${questionId} for deal ${dealId}`);
+      
+    } catch (error: any) {
+      console.error(`❌ [Research Rerun] Error for question ${questionId}:`, error);
+      
+      // Mark job as failed in database - LEGAL PATTERN
+      await storage.updateBackgroundJob(jobId, {
+        status: 'failed',
+        progress: 0,
+        currentStep: `Failed: ${error.message}`
+      });
 
-      await db
-        .update(backgroundJobs)
-        .set({
-          status: 'failed',
-          progress: 0,
-          updatedAt: new Date()
-        })
-        .where(eq(backgroundJobs.jobId, jobId));
-
-      console.log(`❌ Marked job ${jobId} as failed`);
+      console.log(`❌ [Research Rerun] Marked job ${jobId} as failed`);
       throw error;
     }
   }
