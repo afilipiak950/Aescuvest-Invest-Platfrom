@@ -609,6 +609,16 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-
           completedAt: new Date()
         });
         
+        // 🔥 CRITICAL: Update the Research analysis record to show 100% progress - LEGAL PATTERN
+        const analysis = await storage.getAgentAnalysis(dealId, 'Research');
+        if (analysis) {
+          await storage.updateAgentAnalysis(analysis.id, {
+            status: 'completed',
+            progress: 100
+          });
+          console.log(`✅ [Force Rerun] Updated Research analysis progress to 100%`);
+        }
+        
         console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${RESEARCH_QUESTIONS.length} questions analyzed`);
         if (errors.length > 0) {
           console.log(`⚠️ ${errors.length} questions failed:`, errors);
