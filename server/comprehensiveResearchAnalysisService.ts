@@ -880,14 +880,20 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         console.log(`✅ [Research Rerun] Registered new job for question ${questionId}`);
       }
       
-      const analysis = await storage.getAnalysisByDealAndAgent(dealId, 'research');
+      // 🔥 CRITICAL FIX: Use getAgentAnalysis which has proper case normalization - LEGAL PATTERN
+      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
       if (!analysis) throw new Error('No research analysis found');
+      console.log(`📊 [Research Rerun] Found existing analysis ID ${analysis.id} for deal ${dealId}`);
       
       const documents = await storage.getDocumentsByDealId(dealId);
       const researchDocs = documents.filter(doc => 
         doc.assignedAgents?.some(a => a.toLowerCase() === 'research')
       );
       console.log(`📄 [Research Rerun] Found ${researchDocs.length} documents for question ${questionId}`);
+      
+      if (researchDocs.length === 0) {
+        throw new Error('No documents available for research analysis');
+      }
       
       const question = RESEARCH_QUESTIONS.find(q => q.id === questionId);
       if (!question) throw new Error(`Question ${questionId} not found`);
@@ -907,14 +913,21 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       
       await this.updateQuestionRerunProgress(dealId, questionId, 90);
       
-      // Update analysis with structured answer
+      // 🔥 CRITICAL FIX: Update analysis with structured answer using proper field name - LEGAL PATTERN
+      // Get existing research_answers and merge with new answer
+      const existingAnswers = analysis.research_answers || analysis.researchAnswers || {};
       const updatedAnswers = {
-        ...(analysis.research_answers || {}),
+        ...existingAnswers,
         [questionId]: answer
       };
       
+      console.log(`💾 [Research Rerun] Saving answer for ${questionId}, total answers: ${Object.keys(updatedAnswers).length}`);
+      
+      // Update using both possible field names for compatibility
       await storage.updateAgentAnalysis(analysis.id, {
-        research_answers: updatedAnswers
+        research_answers: updatedAnswers,
+        status: 'completed',
+        progress: 100
       });
       
       await this.updateQuestionRerunProgress(dealId, questionId, 100);
@@ -926,7 +939,9 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         currentStep: `Completed: ${question.question}`
       });
       
-      console.log(`✅ [Research Rerun] Completed question ${questionId} for deal ${dealId}`);
+      console.log(`✅ [Research Rerun] Completed question ${questionId} for deal ${dealId}. Answer saved to database.`);
+      
+      return answer;
       
     } catch (error: any) {
       console.error(`❌ [Research Rerun] Error for question ${questionId}:`, error);
