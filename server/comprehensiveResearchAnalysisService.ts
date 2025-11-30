@@ -125,8 +125,8 @@ export class ComprehensiveResearchAnalysisService {
       
       await this.updateJobProgress(20, 'Processing documents');
       
-      // Process each research question
-      const researchAnswers: Record<string, string> = {};
+      // Process each research question - LEGAL PATTERN: Structured answers
+      const researchAnswers: Record<string, any> = {};
       const findings: string[] = [];
       const recommendations: string[] = [];
       
@@ -137,17 +137,30 @@ export class ComprehensiveResearchAnalysisService {
         await this.updateJobProgress(progress, `Analyzing: ${question.question}`);
         
         try {
-          const answer = await this.analyzeQuestion(question, docs);
-          if (answer && answer.trim()) {
-            researchAnswers[question.id] = answer;
-            console.log(`✅ Research question ${question.id} answered successfully`);
-          }
-        } catch (error) {
-          console.error(`❌ Error analyzing research question ${question.id}:`, error);
+          // LEGAL PATTERN: Pass job context for per-batch progress updates
+          const answer = await this.analyzeQuestion(question, docs, this.jobId, this.storage, i, RESEARCH_QUESTIONS.length);
+          researchAnswers[question.id] = answer;
+          console.log(`✅ Research question ${question.id} answered successfully`);
+        } catch (questionError: any) {
+          console.error(`❌ Error processing research question ${i + 1}: ${question.question}`, questionError);
+          
+          // Store partial answer for failed question - LEGAL PATTERN
+          researchAnswers[question.id] = {
+            question: question.question,
+            category: question.category,
+            answer: `Error processing this question: ${questionError.message}`,
+            confidence: 0,
+            sources: [],
+            detailedEvidence: [],
+            keyFindings: [],
+            evidenceSummary: 'Error in analysis',
+            researchAssessment: 'Analysis failed',
+            recommendations: ['Retry analysis', 'Manual review required']
+          };
         }
         
-        // Small delay to prevent API rate limits
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Rate limiting between questions - LEGAL PATTERN (1500ms, not 500ms)
+        await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
       await this.updateJobProgress(90, 'Generating findings and recommendations');
@@ -174,161 +187,311 @@ export class ComprehensiveResearchAnalysisService {
     }
   }
 
-  private async analyzeQuestion(question: any, docs: any[]) {
+  private async analyzeQuestion(
+    question: any, 
+    docs: any[],
+    jobId?: string,
+    storageService?: any,
+    questionIndex?: number,
+    totalQuestions?: number
+  ): Promise<any> {
     try {
-      console.log(`🔄 BATCHED RESEARCH: Starting for "${question.question}"`);
+      console.log(`🔄 COMPREHENSIVE RESEARCH: Starting for "${question.question}" with ${docs.length} documents`);
       
-      // Find relevant documents based on keywords (AI SUMMARY ONLY like Legal/Clinical)
-      const relevantDocs = docs.filter(doc => {
-        // Use ONLY AI summary - handle BOTH string and object formats
-        if (!doc.aiSummary) return false;
-        
-        let summaryText = '';
-        if (typeof doc.aiSummary === 'string') {
-          summaryText = doc.aiSummary.toLowerCase();
-        } else if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          summaryText = doc.aiSummary.executiveSummary.toLowerCase();
-        }
-        
-        return question.keywords.some((keyword: string) => 
-          summaryText.includes(keyword.toLowerCase())
-        );
-      });
+      // LEGAL PATTERN: Process ALL documents, not just keyword-filtered ones
+      // Step 1: Extract evidence from ALL documents (like Legal's extractEvidenceFromAllDocuments)
+      const documentEvidence = await this.extractEvidenceFromAllDocuments(docs, question);
+      console.log(`📊 Evidence extraction completed: ${documentEvidence.length} pieces of evidence from ${docs.length} documents`);
       
-      if (relevantDocs.length === 0) {
-        return `No relevant documents found for analysis of: ${question.question}`;
-      }
-      
-      // Prepare evidence from ALL relevant documents (AI SUMMARY ONLY, no top 5 limit)
-      const evidence = relevantDocs.map(doc => {
-        // Use ONLY AI summary - handle BOTH string and object formats
-        let summaryText = 'No summary available';
-        let fullContent = '';
-        
-        if (typeof doc.aiSummary === 'string') {
-          summaryText = doc.aiSummary;
-          fullContent = doc.aiSummary;
-        } else if (doc.aiSummary && typeof doc.aiSummary === 'object') {
-          summaryText = doc.aiSummary.executiveSummary || 'No summary available';
-          // Extract comprehensive content from structured AI summary
-          fullContent = [
-            doc.aiSummary.executiveSummary || '',
-            doc.aiSummary.documentType ? `Document Type: ${doc.aiSummary.documentType}` : '',
-            doc.aiSummary.criticalFindings?.length ? `Critical Findings: ${doc.aiSummary.criticalFindings.join('; ')}` : '',
-            doc.aiSummary.keyFinancialData?.length ? `Financial Data: ${doc.aiSummary.keyFinancialData.join('; ')}` : '',
-            doc.aiSummary.riskAssessment?.length ? `Risk Assessment: ${doc.aiSummary.riskAssessment.join('; ')}` : ''
-          ].filter(s => s).join('\n\n');
-        }
-        
+      if (documentEvidence.length === 0) {
+        // Return structured object for no evidence case - LEGAL PATTERN
         return {
-          documentName: doc.filename,
-          relevantContent: fullContent || summaryText,
-          keyFindings: [summaryText]
+          question: question.question,
+          category: question.category,
+          answer: `No relevant documents found for research analysis of: ${question.question}`,
+          confidence: 0,
+          sources: [],
+          keyFindings: [],
+          gaps: ['No research documentation available'],
+          recommendations: ['Obtain relevant research documents for analysis'],
+          evidenceCount: 0,
+          detailedEvidence: []
         };
-      }); // NO LIMIT - process ALL documents
-      
-      console.log(`📦 Processing ${evidence.length} documents for research question`);
-      
-      // 🚀 SMART BATCHING: Create batches based on token count
-      const MAX_BATCH_TOKENS = 6000;
-      const batches = [];
-      let currentBatch: any[] = [];
-      let currentBatchTokens = 0;
-      
-      for (const ev of evidence) {
-        const evTokens = resilientOpenAI.countBatchTokens([ev]);
-        
-        if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
-          batches.push(currentBatch);
-          currentBatch = [ev];
-          currentBatchTokens = evTokens;
-        } else {
-          currentBatch.push(ev);
-          currentBatchTokens += evTokens;
-        }
       }
       
-      if (currentBatch.length > 0) {
+      // Step 2: Compile comprehensive answer (like Legal's compileComprehensiveAnswer)
+      // Pass job context for per-batch progress updates - LEGAL PATTERN
+      const answer = await this.compileComprehensiveAnswer(
+        question, 
+        documentEvidence,
+        jobId,
+        storageService,
+        questionIndex,
+        totalQuestions
+      );
+      
+      console.log(`✅ Research analysis completed for "${question.question}"`);
+      return answer;
+      
+    } catch (error: any) {
+      console.error(`Error analyzing research question ${question.id}:`, error);
+      // Return structured error object - LEGAL PATTERN
+      return {
+        question: question.question,
+        category: question.category,
+        answer: `Error analyzing: ${question.question} - ${error.message}`,
+        confidence: 0,
+        sources: [],
+        keyFindings: [],
+        gaps: ['Analysis failed'],
+        recommendations: ['Retry analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
+      };
+    }
+  }
+
+  /**
+   * Extract evidence from ALL documents - LEGAL PATTERN
+   * Processes documents in batches with parallel OpenAI calls per document
+   */
+  private async extractEvidenceFromAllDocuments(
+    documents: any[], 
+    question: any
+  ): Promise<any[]> {
+    console.log(`📄 Starting evidence extraction from ${documents.length} documents for: ${question.question}`);
+    
+    // Process documents in batches to match Legal speed (batch size 40)
+    const batchSize = 40;
+    const evidence = [];
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      console.log(`📦 Processing document batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(documents.length / batchSize)} (${batch.length} documents)`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(async (doc) => {
+          return this.extractEvidenceFromDocument(doc, question);
+        })
+      );
+      
+      // Filter out null results and add to evidence with proper type guards
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<any> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+        .filter(docEvidence => 
+          docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
+        );
+      evidence.push(...validEvidence);
+      
+      console.log(`✅ Document batch ${Math.floor(i / batchSize) + 1} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 Extracted evidence from ${evidence.length}/${documents.length} documents`);
+    return evidence;
+  }
+
+  /**
+   * Extract specific evidence from a single document - AI SUMMARY ONLY VERSION (LEGAL PATTERN)
+   */
+  private async extractEvidenceFromDocument(document: any, question: any): Promise<any> {
+    // Use ONLY AI summary - handle BOTH string and object formats
+    const aiSummary = document.aiSummary;
+    if (!aiSummary) return null;
+    
+    let content: string;
+    
+    // Handle STRING summaries (most common in production)
+    if (typeof aiSummary === 'string') {
+      content = aiSummary;
+    } 
+    // Handle OBJECT summaries (structured format)
+    else if (typeof aiSummary === 'object') {
+      content = [
+        aiSummary.executiveSummary || '',
+        aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+        aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+        aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+        aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+        aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+        aiSummary.strategicImplications || ''
+      ].filter(s => s).join('\n\n');
+      
+      // Fallback: if all fields are empty, stringify the entire object
+      if (!content) {
+        content = JSON.stringify(aiSummary, null, 2);
+      }
+    } else {
+      // Fallback: convert to string
+      content = String(aiSummary);
+    }
+    
+    if (!content || content.trim().length === 0) return null;
+    
+    // Return document evidence with AI summary content (no per-document OpenAI call - batch it instead)
+    return {
+      documentName: document.filename || document.name,
+      relevantContent: content,
+      fullContent: content,
+      keyFindings: [],
+      confidence: 50
+    };
+  }
+
+  /**
+   * Compile comprehensive answer from all document evidence - EXACT LEGAL PATTERN
+   * Uses token-based batching → partial answers → synthesis with caching and recovery
+   */
+  private async compileComprehensiveAnswer(
+    question: any, 
+    evidence: any[],
+    jobId?: string,
+    storageService?: any,
+    questionIndex?: number,
+    totalQuestions?: number
+  ): Promise<any> {
+    console.log(`🔄 BATCHED COMPILATION: Starting for "${question.question}" with ${evidence.length} documents`);
+    
+    if (evidence.length === 0) {
+      return {
+        question: question.question,
+        category: question.category,
+        answer: 'No relevant documents found for research analysis',
+        confidence: 0,
+        sources: [],
+        keyFindings: [],
+        gaps: ['No research documentation available'],
+        recommendations: ['Obtain relevant research documents for analysis'],
+        evidenceCount: 0,
+        detailedEvidence: []
+      };
+    }
+
+    // 🚀 SMART BATCHING: Create batches based on token count, not fixed size (LEGAL PATTERN)
+    const MAX_BATCH_TOKENS = 6000;
+    const batches: any[][] = [];
+    let currentBatch: any[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
         batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
       }
+    }
+    
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch (LEGAL PATTERN)
+    const partialAnswers: any[] = [];
+    const partialResultsKey = `research-partial-${question.id}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing research batch ${i + 1}/${batches.length} (${batch.length} documents)`);
       
-      console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
-      
-      // Step 1: Get partial answers from each batch
-      const partialAnswers = [];
-      const partialResultsKey = `research-partial-${question.id}`;
-      
-      for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        console.log(`📦 Processing research batch ${i + 1}/${batches.length} (${batch.length} documents)`);
-        
-        const batchPrompt = `You are a research analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
+      const batchPrompt = `You are a senior research analyst. Analyze evidence from ${batch.length} documents to answer: "${question.question}"
 
 Evidence:
-${batch.map(ev => `
+${batch.map(ev => {
+  const content = ev.relevantContent || ev.fullContent || 'No content available';
+  return `
 DOCUMENT: ${ev.documentName}
-CONTENT: ${ev.relevantContent}
-`).join('\n')}
+AI SUMMARY CONTENT: ${content}`;
+}).join('\n')}
 
-Extract ALL specific research data (metrics, findings, insights). Respond in JSON:
+CRITICAL INSTRUCTIONS:
+1. Extract ALL specific details from the AI SUMMARY CONTENT above (metrics, data points, market sizes, growth rates, technology details, competitive info, IP data)
+2. DO NOT add "Insufficient information" disclaimers
+3. Focus on what IS documented with specific details
+4. Use gaps field ONLY for missing information
+
+Respond in JSON:
 {
-  "answer": "Detailed extraction with specific research findings and data",
+  "answer": "Detailed extraction with specific research data, metrics, and insights (NO disclaimers)",
   "confidence": 0-100,
   "keyFindings": ["Specific finding 1", "Specific finding 2"],
   "sources": ["doc1", "doc2"]
 }`;
 
-        try {
-          const response = await resilientOpenAI.createChatCompletion({
-            model: "gpt-4o",
-            messages: [{ role: "user", content: batchPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.3,
-            max_tokens: 8000
-          }, {
-            maxRetries: 4,
-            timeout: 120000, // 2 minutes per batch
-            onRetry: (attempt, error) => {
-              console.warn(`🔄 Retrying research batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
-            }
-          });
-          
-          const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
-          partialAnswers.push(batchAnswer);
-          
-          // 💾 PERSISTENCE: Save partial results
-          if (!global[partialResultsKey]) {
-            global[partialResultsKey] = [];
+      try {
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000, // 2 minutes per batch
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying research batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
           }
-          global[partialResultsKey].push(batchAnswer);
-          
-          console.log(`✅ Research Batch ${i + 1}/${batches.length} completed and saved`);
-        } catch (error: any) {
-          console.error(`❌ Error in research batch ${i + 1}:`, error);
-          const errorAnswer = {
-            answer: `Error processing batch ${i + 1}: ${error.message}`,
-            confidence: 0,
-            keyFindings: [],
-            sources: batch.map(e => e.documentName)
-          };
-          partialAnswers.push(errorAnswer);
-          
-          if (!global[partialResultsKey]) {
-            global[partialResultsKey] = [];
-          }
-          global[partialResultsKey].push(errorAnswer);
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // 💾 PERSISTENCE: Save partial results after each batch (LEGAL PATTERN)
+        if (!(global as any)[partialResultsKey]) {
+          (global as any)[partialResultsKey] = [];
         }
+        (global as any)[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Research Batch ${i + 1}/${batches.length} completed and saved`);
+        
+        // 🔄 HEARTBEAT: Update job progress after each batch - LEGAL PATTERN
+        if (jobId && storageService && questionIndex !== undefined && totalQuestions !== undefined) {
+          const questionProgress = questionIndex / totalQuestions;
+          const batchProgress = (i + 1) / batches.length / totalQuestions;
+          const totalProgress = Math.min(Math.round((questionProgress + batchProgress) * 100), 100);
+          
+          await storageService.updateBackgroundJob(jobId, {
+            progress: totalProgress,
+            currentStep: `Analyzing: ${question.category} (Batch ${i + 1}/${batches.length})`,
+            processedDocuments: questionIndex
+          });
+        }
+        
+      } catch (error: any) {
+        console.error(`❌ Error in research batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map((e: any) => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+        
+        if (!(global as any)[partialResultsKey]) {
+          (global as any)[partialResultsKey] = [];
+        }
+        (global as any)[partialResultsKey].push(errorAnswer);
       }
-      
-      // Step 2: Synthesize into final answer
-      console.log(`🔄 Synthesizing ${partialAnswers.length} research partial answers`);
-      
-      const synthesisPrompt = `You are a research analyst. Synthesize these partial analyses into ONE comprehensive answer.
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer (LEGAL PATTERN)
+    console.log(`🔄 Synthesizing ${partialAnswers.length} research partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior research analyst. Synthesize these partial analyses into ONE comprehensive answer.
 
 QUESTION YOU ARE ANSWERING (DO NOT REPEAT THIS IN YOUR ANSWER):
 "${question.question}"
 
 QUESTION ID: ${question.id}
+CATEGORY: ${question.category || 'Research'}
 
 Partial Analyses to Synthesize:
 ${partialAnswers.map((pa, i) => `
@@ -338,9 +501,13 @@ KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
 `).join('\n')}
 
 CRITICAL SYNTHESIS RULES:
-1. Extract ALL specific details (metrics, insights, data points) from all batches above
-2. Provide exhaustive research findings and analysis
-3. Cite specific documents and data points
+1. Extract ALL specific details (metrics, data points, insights) from all batches above
+2. List ALL key findings with complete details
+3. Provide exhaustive breakdown of research data
+4. Cite specific documents and data points
+5. DO NOT add "Insufficient information" disclaimers in the answer field
+6. Focus on what IS documented
+7. Write professional analysis (no vague disclaimers)
 
 CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
 ❌ WRONG: "${question.question}: The analysis reveals..."
@@ -348,73 +515,116 @@ CRITICAL: DO NOT PREFIX YOUR ANSWER WITH THE QUESTION TEXT
 
 Your answer should START IMMEDIATELY with the analysis. Do NOT include the question as a prefix or header.
 
-FORMAT REQUIREMENTS:
+FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, metrics, and important data points
 - Structure with clear sections if multiple topics
-- NO question prefix, NO disclaimers
-- Example: "• **Market Size**: **$2.5B TAM** growing at **15% CAGR**, with **key competitor XYZ** holding **25% market share**"
+- NO question prefix, NO disclaimers, NO "insufficient information" statements
+- Example CORRECT format:
+  "The analysis reveals the following:
+  
+  • **Market Size**: **$2.5B TAM** growing at **15% CAGR**
+  • **Key Technology**: **Proprietary AI platform** with **3 granted patents**
+  
+  Key strategic insights include..."
 
-Respond with a comprehensive analysis (200-400 words) with markdown bullets and bold for key metrics. START IMMEDIATELY with the analysis, NOT with the question.`;
+Respond in JSON:
+{
+  "answer": "START IMMEDIATELY WITH ANALYSIS - NO QUESTION PREFIX (Comprehensive synthesis with ALL specific details formatted with markdown bullets and bold)",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "gaps": ["Missing information ONLY - separate from answer"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "researchAssessment": "Overall research assessment"
+}`;
 
-      try {
-        const response = await resilientOpenAI.createChatCompletion({
-          model: "gpt-4o",
-          messages: [{ role: "user", content: synthesisPrompt }],
-          temperature: 0.3,
-          max_tokens: 16000
-        }, {
-          maxRetries: 5,
-          timeout: 180000, // 3 minutes for synthesis
-          onRetry: (attempt, error) => {
-            console.warn(`🔄 Retrying research synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
-          }
-        });
-
-        const finalAnswer = response.choices[0]?.message?.content || 'Analysis could not be completed';
-        
-        console.log(`✅ Research synthesis completed for "${question.question}"`);
-        
-        // 🧹 CLEANUP: Remove partial results cache
-        if (global[partialResultsKey]) {
-          delete global[partialResultsKey];
-          console.log(`🧹 Cleaned up research partial results cache for ${question.id}`);
+    try {
+      // Use resilient client for final synthesis with extended timeout - LEGAL PATTERN
+      const finalResponse = await resilientOpenAI.createChatCompletion({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: synthesisPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 180000, // 3 minutes for synthesis
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying research synthesis for "${question.question}" (attempt ${attempt}): ${error.message}`);
         }
-        
-        return finalAnswer;
-        
-      } catch (synthesisError: any) {
-        console.error(`❌ Research synthesis failed for "${question.question}":`, synthesisError);
-        
-        // 🔄 FALLBACK: Recover from partial results cache
-        const cachedPartials = global[partialResultsKey];
-        if (cachedPartials && cachedPartials.length > 0) {
-          console.log(`📦 Research synthesis failed, recovering from ${cachedPartials.length} cached results`);
-          
-          const combinedAnswer = cachedPartials
-            .map((pa: any) => pa.answer || '')
-            .filter((a: string) => a.trim().length > 0)
-            .join('\n\n');
-          
-          return combinedAnswer || 'Partial research analysis recovered from cached results';
-        }
-        
-        return `Error analyzing: ${question.question}`;
+      });
+      
+      const compiledAnswer = JSON.parse(finalResponse.choices[0].message.content || '{}');
+      
+      console.log(`✅ Research synthesis completed for "${question.question}"`);
+      
+      // 🧹 CLEANUP: Remove partial results cache after successful synthesis - LEGAL PATTERN
+      if ((global as any)[partialResultsKey]) {
+        delete (global as any)[partialResultsKey];
+        console.log(`🧹 Cleaned up research partial results cache for ${question.id}`);
       }
       
-    } catch (error) {
-      console.error(`Error analyzing research question ${question.id}:`, error);
-      return `Error analyzing: ${question.question}`;
+      // Return structured object - LEGAL PATTERN
+      return {
+        question: question.question,
+        category: question.category,
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
+        sources: evidence.map(e => e.documentName),
+        keyFindings: compiledAnswer.keyFindings || [],
+        gaps: compiledAnswer.gaps || [],
+        recommendations: compiledAnswer.recommendations || [],
+        researchAssessment: compiledAnswer.researchAssessment || '',
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
+      };
+      
+    } catch (synthesisError: any) {
+      const isTimeout = synthesisError.message?.includes('timeout');
+      console.error(`❌ Research synthesis failed for "${question.question}":`, synthesisError);
+      
+      // 💾 RECOVERY: Try to use persisted partial results first - LEGAL PATTERN
+      const persistedResults = (global as any)[partialResultsKey] || partialAnswers;
+      console.warn(`📦 Using ${persistedResults.length} persisted batch results as fallback`);
+      
+      // Fallback: Combine partial answers directly (from cache or current session)
+      const combinedAnswer = persistedResults
+        .map((pa: any, i: number) => `Batch ${i + 1}: ${pa.answer}`)
+        .join('\n\n');
+      
+      // Calculate average confidence from partial results
+      const avgConfidence = persistedResults.length > 0
+        ? Math.round(persistedResults.reduce((sum: number, pa: any) => sum + (pa.confidence || 0), 0) / persistedResults.length)
+        : 30;
+      
+      // Return structured fallback object - LEGAL PATTERN
+      return {
+        question: question.question,
+        category: question.category,
+        answer: `Synthesis ${isTimeout ? 'timeout' : 'error'} - Combined ${persistedResults.length} batch results from ${evidence.length} documents:\n\n${combinedAnswer}`,
+        confidence: avgConfidence,
+        sources: evidence.map(e => e.documentName),
+        keyFindings: persistedResults.flatMap((pa: any) => pa.keyFindings || []),
+        gaps: ['Synthesis incomplete - using partial batch results'],
+        recommendations: ['Review batch evidence provided', isTimeout ? 'Retry with longer timeout' : 'Manual review recommended'],
+        evidenceCount: evidence.length,
+        detailedEvidence: evidence
+      };
     }
   }
 
-  private async generateFindingsAndRecommendations(researchAnswers: Record<string, string>) {
+  private async generateFindingsAndRecommendations(researchAnswers: Record<string, any>) {
     try {
+      // Handle both structured objects and plain strings - LEGAL PATTERN
       const answersText = Object.entries(researchAnswers)
         .map(([questionId, answer]) => {
           const question = RESEARCH_QUESTIONS.find(q => q.id === questionId);
-          return `${question?.question}: ${answer}`;
+          // Handle structured answer objects
+          const answerText = typeof answer === 'object' && answer.answer 
+            ? answer.answer 
+            : String(answer);
+          return `${question?.question}: ${answerText}`;
         })
         .join('\n\n');
 
