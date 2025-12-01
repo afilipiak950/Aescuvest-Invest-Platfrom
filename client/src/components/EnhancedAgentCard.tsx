@@ -1682,75 +1682,87 @@ interface ResearchQuestion {
 }
 
 const RESEARCH_QUESTIONS: ResearchQuestion[] = [
-  // Market Research Reports
-  {
-    id: 'market_1',
-    category: 'Market Research Reports',
-    question: 'Are TAM/SAM/SOM defined with assumptions?',
-    subQuestions: ['Total Addressable Market', 'Serviceable Addressable Market', 'Serviceable Obtainable Market']
+  // Competitive Intelligence - SYNCED WITH BACKEND research_1-3
+  { 
+    id: 'research_1', 
+    question: 'What competitive threats exist and how significant are they?', 
+    category: 'Competitive Intelligence',
+    subQuestions: ['Competitor analysis', 'Market share', 'Competitive advantage']
   },
-  {
-    id: 'market_2',
-    category: 'Market Research Reports',
-    question: 'What competitive landscape analysis is provided?',
-    subQuestions: ['Direct competitors', 'Indirect competitors', 'Competitive advantages']
+  { 
+    id: 'research_2', 
+    question: 'What is the patent landscape and IP positioning?', 
+    category: 'Competitive Intelligence',
+    subQuestions: ['Patent portfolio', 'IP protection', 'Freedom to operate']
   },
-  {
-    id: 'market_3',
-    category: 'Market Research Reports',
-    question: 'Are market growth projections validated?',
-    subQuestions: ['Growth rates', 'Market trends', 'Validation sources']
+  { 
+    id: 'research_3', 
+    question: 'How defensible is the technology moat?', 
+    category: 'Competitive Intelligence',
+    subQuestions: ['Barriers to entry', 'Proprietary technology', 'Technical differentiation']
   },
-  // Technical Whitepapers
-  {
-    id: 'technical_1',
-    category: 'Technical Whitepapers',
-    question: 'What technical approach/architecture is described?',
-    subQuestions: ['Technical architecture', 'Implementation approach', 'Technology stack']
+  // Market Analysis - SYNCED WITH BACKEND research_4-6
+  { 
+    id: 'research_4', 
+    question: 'What is the Total Addressable Market (TAM) size and growth?', 
+    category: 'Market Analysis',
+    subQuestions: ['TAM size', 'Market growth rate', 'Market opportunity']
   },
-  {
-    id: 'technical_2',
-    category: 'Technical Whitepapers',
-    question: 'Are technical risks and mitigation strategies outlined?',
-    subQuestions: ['Technical risks', 'Mitigation strategies', 'Risk assessment']
+  { 
+    id: 'research_5', 
+    question: 'What are the key market trends and drivers?', 
+    category: 'Market Analysis',
+    subQuestions: ['Market trends', 'Growth drivers', 'Industry evolution']
   },
-  {
-    id: 'technical_3',
-    category: 'Technical Whitepapers',
-    question: 'What scalability and performance benchmarks are provided?',
-    subQuestions: ['Scalability metrics', 'Performance benchmarks', 'Load testing results']
+  { 
+    id: 'research_6', 
+    question: 'What is the regulatory environment and compliance requirements?', 
+    category: 'Market Analysis',
+    subQuestions: ['Regulatory framework', 'Compliance requirements', 'Industry standards']
   },
-  // Academic Publications
-  {
-    id: 'academic_1',
-    category: 'Academic Publications',
-    question: 'What peer-reviewed research supports the technology?',
-    subQuestions: ['Published papers', 'Research citations', 'Academic validation']
+  // Technology Assessment - SYNCED WITH BACKEND research_7-9
+  { 
+    id: 'research_7', 
+    question: 'What is the technology maturity and scalability potential?', 
+    category: 'Technology Assessment',
+    subQuestions: ['Technology readiness', 'Scale potential', 'Platform scalability']
   },
-  {
-    id: 'academic_2',
-    category: 'Academic Publications',
-    question: 'Are there collaborations with research institutions?',
-    subQuestions: ['University partnerships', 'Research collaborations', 'Academic advisors']
+  { 
+    id: 'research_8', 
+    question: 'What are the key technology dependencies and risks?', 
+    category: 'Technology Assessment',
+    subQuestions: ['Technology dependencies', 'Technical risks', 'Platform dependencies']
   },
-  {
-    id: 'academic_3',
-    category: 'Academic Publications',
-    question: 'What scientific evidence validates the approach?',
-    subQuestions: ['Scientific validation', 'Experimental results', 'Research methodology']
+  { 
+    id: 'research_9', 
+    question: 'What data quality and validation has been performed?', 
+    category: 'Technology Assessment',
+    subQuestions: ['Data quality', 'Data validation', 'Quality assurance']
   },
-  // Patent Landscape
-  {
-    id: 'patent_1',
-    category: 'Patent Landscape',
-    question: 'What patent portfolio exists and what gaps are identified?',
-    subQuestions: ['Patent portfolio', 'Patent gaps', 'IP protection strategy']
+  // Strategic Analysis - SYNCED WITH BACKEND research_10-13
+  { 
+    id: 'research_10', 
+    question: 'What are the potential exit strategies and acquirer landscape?', 
+    category: 'Strategic Analysis',
+    subQuestions: ['Exit strategies', 'Potential acquirers', 'Strategic partnerships']
   },
-  {
-    id: 'patent_2',
-    category: 'Patent Landscape',
-    question: 'Are there freedom-to-operate risks?',
-    subQuestions: ['FTO analysis', 'Patent risks', 'Infringement concerns']
+  { 
+    id: 'research_11', 
+    question: 'What international expansion opportunities exist?', 
+    category: 'Strategic Analysis',
+    subQuestions: ['International markets', 'Geographic expansion', 'Global opportunity']
+  },
+  { 
+    id: 'research_12', 
+    question: 'What are the ESG considerations and sustainability factors?', 
+    category: 'Strategic Analysis',
+    subQuestions: ['ESG factors', 'Sustainability', 'Environmental impact']
+  },
+  { 
+    id: 'research_13', 
+    question: 'What customer validation and market traction evidence exists?', 
+    category: 'Strategic Analysis',
+    subQuestions: ['Customer validation', 'Market traction', 'Product-market fit']
   }
 ];
 
@@ -3632,7 +3644,7 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
         <div>
           <h3 className="text-lg font-semibold text-white mb-1">Comprehensive Research Analysis</h3>
           <p className="text-gray-300 text-sm">
-            Analyze {assignedDocuments} research documents across 4 categories with 11 detailed questions
+            Analyze {assignedDocuments} research documents across 4 categories with 13 detailed questions
           </p>
         </div>
         <div className="flex items-center gap-3">
