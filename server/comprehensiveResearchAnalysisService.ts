@@ -121,14 +121,11 @@ export class ComprehensiveResearchAnalysisService {
       // Update job status
       await this.updateJobProgress(10, 'Fetching documents');
       
-      // Get all documents for this deal assigned to research
+      // Get ALL documents for this deal - LEGAL PATTERN: Analyze ALL documents, not just tagged ones
       const docs = await db.select().from(documents)
-        .where(and(
-          eq(documents.dealId, dealId),
-          eq(documents.agentType, 'research')
-        ));
+        .where(eq(documents.dealId, dealId));
       
-      console.log(`📊 Found ${docs.length} documents assigned to research for deal ${dealId}`);
+      console.log(`📊 Found ${docs.length} TOTAL documents for research analysis (ALL documents like Legal)`);
       
       if (docs.length === 0) {
         console.log(`⚠️ No documents assigned to research for deal ${dealId}`);
