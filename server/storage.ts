@@ -13,6 +13,7 @@ import {
   dataRoomConnections, DataRoomConnection, InsertDataRoomConnection,
   microsoftEmailConnections, MicrosoftEmailConnection, InsertMicrosoftEmailConnection,
   backgroundJobs, BackgroundJob, InsertBackgroundJob,
+  agentRunQueue, AgentRunQueue, InsertAgentRunQueue,
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
@@ -173,6 +174,17 @@ export interface IStorage {
   getResearchJobById(id: number): Promise<ResearchJob | undefined>;
   getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
   getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  
+  // Agent run queue methods - cross-agent sequential execution
+  enqueueAgentRun(dealId: number, agentType: string, totalQuestions: number): Promise<AgentRunQueue>;
+  getAgentRunQueue(dealId: number): Promise<AgentRunQueue[]>;
+  getCurrentRunningAgent(dealId: number): Promise<AgentRunQueue | undefined>;
+  getNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined>;
+  updateAgentRunStatus(id: number, status: string, updates?: Partial<AgentRunQueue>): Promise<AgentRunQueue | undefined>;
+  completeAgentRun(id: number): Promise<void>;
+  failAgentRun(id: number, error: string): Promise<void>;
+  clearAgentRunQueue(dealId: number): Promise<number>;
+  isAgentQueued(dealId: number, agentType: string): Promise<boolean>;
   
   // System settings methods
   getSystemSetting(key: string): Promise<any | undefined>;
@@ -2660,6 +2672,168 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error('Error fetching system settings:', error);
       return [];
+    }
+  }
+
+  // Agent Run Queue Methods - Cross-Agent Sequential Execution
+  async enqueueAgentRun(dealId: number, agentType: string, totalQuestions: number): Promise<AgentRunQueue> {
+    try {
+      // Get current queue to determine position
+      const queue = await this.getAgentRunQueue(dealId);
+      const maxPosition = queue.reduce((max, item) => Math.max(max, item.position), 0);
+      const newPosition = maxPosition + 1;
+      
+      // Check if this agent is already queued or running
+      const existing = queue.find(q => q.agentType === agentType && (q.status === 'queued' || q.status === 'running'));
+      if (existing) {
+        console.log(`⚠️ Agent ${agentType} already in queue for deal ${dealId} (status: ${existing.status})`);
+        return existing;
+      }
+      
+      const [result] = await db.insert(agentRunQueue).values({
+        dealId,
+        agentType,
+        status: 'queued',
+        position: newPosition,
+        totalQuestions,
+        completedQuestions: 0,
+        currentStep: 'Waiting in queue...'
+      }).returning();
+      
+      console.log(`📥 Enqueued agent ${agentType} for deal ${dealId} at position ${newPosition}`);
+      return result;
+    } catch (error) {
+      console.error(`Error enqueueing agent ${agentType} for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  async getAgentRunQueue(dealId: number): Promise<AgentRunQueue[]> {
+    try {
+      const queue = await db.select()
+        .from(agentRunQueue)
+        .where(eq(agentRunQueue.dealId, dealId))
+        .orderBy(agentRunQueue.position);
+      return queue;
+    } catch (error) {
+      console.error(`Error fetching agent run queue for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
+  async getCurrentRunningAgent(dealId: number): Promise<AgentRunQueue | undefined> {
+    try {
+      const [running] = await db.select()
+        .from(agentRunQueue)
+        .where(and(
+          eq(agentRunQueue.dealId, dealId),
+          eq(agentRunQueue.status, 'running')
+        ));
+      return running || undefined;
+    } catch (error) {
+      console.error(`Error fetching current running agent for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  async getNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined> {
+    try {
+      const queue = await db.select()
+        .from(agentRunQueue)
+        .where(and(
+          eq(agentRunQueue.dealId, dealId),
+          eq(agentRunQueue.status, 'queued')
+        ))
+        .orderBy(agentRunQueue.position)
+        .limit(1);
+      return queue[0] || undefined;
+    } catch (error) {
+      console.error(`Error fetching next queued agent for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  async updateAgentRunStatus(id: number, status: string, updates?: Partial<AgentRunQueue>): Promise<AgentRunQueue | undefined> {
+    try {
+      const updateData: any = { status, ...updates };
+      if (status === 'running') {
+        updateData.startedAt = new Date();
+      }
+      if (status === 'completed' || status === 'failed') {
+        updateData.completedAt = new Date();
+      }
+      
+      const [result] = await db.update(agentRunQueue)
+        .set(updateData)
+        .where(eq(agentRunQueue.id, id))
+        .returning();
+      
+      console.log(`📝 Updated agent run ${id} to status: ${status}`);
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error updating agent run ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  async completeAgentRun(id: number): Promise<void> {
+    try {
+      await db.update(agentRunQueue)
+        .set({ 
+          status: 'completed', 
+          completedAt: new Date(),
+          currentStep: 'Completed'
+        })
+        .where(eq(agentRunQueue.id, id));
+      console.log(`✅ Completed agent run ${id}`);
+    } catch (error) {
+      console.error(`Error completing agent run ${id}:`, error);
+    }
+  }
+
+  async failAgentRun(id: number, error: string): Promise<void> {
+    try {
+      await db.update(agentRunQueue)
+        .set({ 
+          status: 'failed', 
+          completedAt: new Date(),
+          error,
+          currentStep: `Failed: ${error}`
+        })
+        .where(eq(agentRunQueue.id, id));
+      console.log(`❌ Failed agent run ${id}: ${error}`);
+    } catch (error: any) {
+      console.error(`Error failing agent run ${id}:`, error);
+    }
+  }
+
+  async clearAgentRunQueue(dealId: number): Promise<number> {
+    try {
+      // Only clear completed/failed entries, keep running/queued
+      const result = await db.delete(agentRunQueue)
+        .where(and(
+          eq(agentRunQueue.dealId, dealId),
+          or(
+            eq(agentRunQueue.status, 'completed'),
+            eq(agentRunQueue.status, 'failed')
+          )
+        ));
+      const count = result.rowCount || 0;
+      console.log(`🧹 Cleared ${count} completed/failed agent run entries for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`Error clearing agent run queue for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async isAgentQueued(dealId: number, agentType: string): Promise<boolean> {
+    try {
+      const queue = await this.getAgentRunQueue(dealId);
+      return queue.some(q => q.agentType === agentType && (q.status === 'queued' || q.status === 'running'));
+    } catch (error) {
+      console.error(`Error checking if agent ${agentType} is queued for deal ${dealId}:`, error);
+      return false;
     }
   }
 }
