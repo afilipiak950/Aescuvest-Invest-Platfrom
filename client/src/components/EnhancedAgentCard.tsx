@@ -3399,10 +3399,24 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     if (isAnalysisStarting) {
       return null;
     }
+    
+    // 🔍 DEBUG: Log what we're receiving from the backend
+    console.log(`🔍 Research getAnswerForQuestion(${questionId}):`, {
+      hasComprehensiveResults: !!comprehensiveResults,
+      hasAnalysis: !!comprehensiveResults?.analysis,
+      hasResearchAnswers: !!comprehensiveResults?.analysis?.researchAnswers,
+      hasSnakeCaseAnswers: !!comprehensiveResults?.analysis?.research_answers,
+      researchAnswersKeys: comprehensiveResults?.analysis?.researchAnswers ? Object.keys(comprehensiveResults.analysis.researchAnswers) : [],
+      snakeCaseKeys: comprehensiveResults?.analysis?.research_answers ? Object.keys(comprehensiveResults.analysis.research_answers) : [],
+    });
 
     // 🔥 CRITICAL FIX: Try analysis.researchAnswers FIRST (correct backend response structure)
     if (comprehensiveResults?.analysis?.researchAnswers) {
       const allAnswers = comprehensiveResults.analysis.researchAnswers;
+      console.log(`🔍 Found analysis.researchAnswers, checking for ${questionId}:`, {
+        hasKey: questionId in allAnswers,
+        answer: allAnswers[questionId] ? 'exists' : 'missing'
+      });
       
       // First try by question ID (most reliable)
       const answerById = allAnswers[questionId];
