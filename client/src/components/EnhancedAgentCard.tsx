@@ -3891,8 +3891,8 @@ function ComprehensiveResearchAnalysisButton({ dealId, onAnalysisStart }: { deal
           
           console.log(`🔬 Attempt ${attempts}: Checking for comprehensive research results...`);
           
-          if (data.success && data.results && data.results.researchAnswers && Object.keys(data.results.researchAnswers).length > 0) {
-            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.results.researchAnswers).length);
+          if (data.success && data.analysis && data.analysis.researchAnswers && Object.keys(data.analysis.researchAnswers).length > 0) {
+            console.log('✅ New comprehensive research analysis completed! Questions answered:', Object.keys(data.analysis.researchAnswers).length);
             
             // Force refresh of comprehensive research results
             queryClient.invalidateQueries({
