@@ -5,8 +5,109 @@
 
 import { Router, Request, Response } from 'express';
 import { persistentClinicalAnalysisService } from '../services/persistentClinicalAnalysis';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
+import { db } from '../db';
+import { backgroundJobs } from '../../shared/schema';
+import { eq, and, like } from 'drizzle-orm';
 
 const router = Router();
+
+/**
+ * Execute Clinical force-rerun-all - called by AgentRunCoordinator when it's Clinical's turn
+ */
+async function executeClinicalForceRerunAll(dealId: number): Promise<void> {
+  const { comprehensiveClinicalAnalysisService, COMPREHENSIVE_CLINICAL_QUESTIONS } = await import('../comprehensiveClinicalAnalysisService');
+  const { storage } = await import('../storage');
+  
+  const masterJobId = `force-rerun-all-clinical-${dealId}`;
+  
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_clinical',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all clinical questions'
+  });
+  
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'clinical-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < COMPREHENSIVE_CLINICAL_QUESTIONS.length; i++) {
+      const question = COMPREHENSIVE_CLINICAL_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.id}`
+      });
+      
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'clinical', 
+        completedCount,
+        `Question ${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`🧬 [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] SEQUENTIAL: Starting clinical question ${question.id}`);
+        await comprehensiveClinicalAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < COMPREHENSIVE_CLINICAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < COMPREHENSIVE_CLINICAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 CLINICAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length} questions`);
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in clinical force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register Clinical callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('clinical', executeClinicalForceRerunAll);
 
 /**
  * Start or resume clinical analysis for a deal
@@ -227,8 +328,7 @@ router.get('/api/deals/:dealId/clinical-analysis/questions/progress', async (req
 
 /**
  * Force rerun ALL clinical questions (including already answered ones)
- * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
- * This is the REAL analysis that takes hours - same as manual run
+ * Uses AgentRunCoordinator for cross-agent sequential execution
  */
 router.post('/api/deals/:dealId/clinical-analysis/force-rerun-all', async (req: Request, res: Response) => {
   try {
@@ -241,143 +341,35 @@ router.post('/api/deals/:dealId/clinical-analysis/force-rerun-all', async (req: 
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Checking if sequential analysis is already running for deal ${dealId}`);
+    const { COMPREHENSIVE_CLINICAL_QUESTIONS } = await import('../comprehensiveClinicalAnalysisService');
     
-    // Import comprehensive service and questions
-    const { comprehensiveClinicalAnalysisService, COMPREHENSIVE_CLINICAL_QUESTIONS } = await import('../comprehensiveClinicalAnalysisService');
-    const { storage } = await import('../storage');
-    const { db } = await import('../db');
-    const { backgroundJobs } = await import('../../shared/schema');
-    const { and, eq, like } = await import('drizzle-orm');
+    console.log(`🔥 FORCE RERUN: Enqueueing Clinical analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    // CRITICAL MUTUAL EXCLUSION: Check if force-rerun-all is already in progress
-    const masterJobId = `force-rerun-all-clinical-${dealId}`;
-    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'clinical',
+      COMPREHENSIVE_CLINICAL_QUESTIONS.length
+    );
     
-    if (existingMasterJob && existingMasterJob.status === 'processing') {
-      console.log(`⚠️ Force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+    if (!result.success && result.queuePosition > 0) {
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
-        startedAt: existingMasterJob.createdAt,
-        jobId: masterJobId
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    // Clean up old master job if it exists (from previous completed/failed runs)
-    if (existingMasterJob) {
-      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
-      await storage.deleteBackgroundJob(masterJobId);
-      console.log(`✅ Deleted old force-rerun master job`);
-    }
-    
-    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL clinical questions on deal ${dealId}`);
-    
-    // Create master job to act as mutex lock
-    await storage.createBackgroundJob({
-      jobId: masterJobId,
-      jobType: 'force_rerun_all_clinical',
-      dealId,
-      status: 'processing',
-      progress: 0,
-      currentStep: 'Starting sequential force rerun of all clinical questions'
-    });
-    console.log(`🔒 Created master lock job: ${masterJobId}`);
-    
-    // CRITICAL: Cancel all existing clinical question rerun jobs before starting fresh
-    console.log(`🧹 Cleaning up any existing clinical question rerun jobs for deal ${dealId}`);
-    
-    await db
-      .delete(backgroundJobs)
-      .where(
-        and(
-          eq(backgroundJobs.dealId, dealId),
-          like(backgroundJobs.jobId, 'clinical-question-rerun-%')
-        )
-      );
-    console.log(`✅ Cleaned up existing clinical question rerun jobs`);
-    
-    // Respond immediately to user, then process questions sequentially in background
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
-      startedCount: COMPREHENSIVE_CLINICAL_QUESTIONS.length,
+      message: result.isRunning 
+        ? `Clinical analysis started immediately`
+        : `Clinical analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: COMPREHENSIVE_CLINICAL_QUESTIONS.length,
-      dealId,
-      estimatedTime: `${Math.round(COMPREHENSIVE_CLINICAL_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
+      dealId
     });
-    
-    // Run questions SEQUENTIALLY in background (one finishes before next starts)
-    (async () => {
-      let completedCount = 0;
-      const errors: string[] = [];
-      
-      try {
-        for (let i = 0; i < COMPREHENSIVE_CLINICAL_QUESTIONS.length; i++) {
-          const question = COMPREHENSIVE_CLINICAL_QUESTIONS[i];
-          const questionNumber = i + 1;
-          const startTime = Date.now();
-          
-          // Update master job progress
-          const overallProgress = Math.round((i / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(masterJobId, {
-            progress: overallProgress,
-            currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.id}`
-          });
-          
-          try {
-            console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
-            
-            // AWAIT each question - ensures it fully completes or times out before next starts
-            await comprehensiveClinicalAnalysisService.rerunSingleQuestion(dealId, question.id);
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            
-            completedCount++;
-            console.log(`✅ [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
-            
-            // Add 2-second delay between questions to ensure sequential execution
-            if (i < COMPREHENSIVE_CLINICAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            
-          } catch (error) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            console.error(`❌ [${questionNumber}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
-            errors.push(`${question.id}: ${error.message}`);
-            
-            // Even on error, add delay to prevent rapid parallel execution
-            if (i < COMPREHENSIVE_CLINICAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question (after error)...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-        
-        // Mark master job as completed
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'completed',
-          progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length} questions analyzed`
-        });
-        
-        console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length} questions analyzed`);
-        if (errors.length > 0) {
-          console.log(`⚠️ ${errors.length} questions failed:`, errors);
-        }
-        
-      } catch (fatalError) {
-        // Mark master job as failed
-        console.error(`🚨 FATAL ERROR in force rerun loop:`, fatalError);
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'failed',
-          progress: Math.round((completedCount / COMPREHENSIVE_CLINICAL_QUESTIONS.length) * 100),
-          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
-        });
-      }
-    })();
     
   } catch (error) {
     console.error('Error force rerunning all clinical questions:', error);

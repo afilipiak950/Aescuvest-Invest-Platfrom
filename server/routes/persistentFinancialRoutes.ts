@@ -5,8 +5,109 @@
 
 import { Router } from 'express';
 import { persistentFinancialAnalysisService } from '../services/persistentFinancialAnalysis';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
+import { db } from '../db';
+import { backgroundJobs } from '../../shared/schema';
+import { eq, and, like } from 'drizzle-orm';
 
 const router = Router();
+
+/**
+ * Execute Financial force-rerun-all - called by AgentRunCoordinator when it's Financial's turn
+ */
+async function executeFinancialForceRerunAll(dealId: number): Promise<void> {
+  const { comprehensiveFinancialAnalysisService, COMPREHENSIVE_FINANCIAL_QUESTIONS } = await import('../comprehensiveFinancialAnalysisService');
+  const { storage } = await import('../storage');
+  
+  const masterJobId = `force-rerun-all-financial-${dealId}`;
+  
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_financial',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all financial questions'
+  });
+  
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'financial-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length; i++) {
+      const question = COMPREHENSIVE_FINANCIAL_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}: ${question.id}`
+      });
+      
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'financial', 
+        completedCount,
+        `Question ${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`💰 [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] SEQUENTIAL: Starting financial question ${question.id}`);
+        await comprehensiveFinancialAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 FINANCIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions`);
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in financial force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register Financial callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('financial', executeFinancialForceRerunAll);
 
 // Start persistent financial analysis - EXACTLY like Clinical
 router.post('/api/deals/:dealId/financial-analysis/persistent/start', async (req, res) => {
@@ -302,8 +403,7 @@ router.post('/api/deals/:dealId/financial-analysis/question/:questionId/rerun', 
 
 /**
  * Force rerun ALL financial questions (including already answered ones)
- * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
- * EXACT COPY of HR/Clinical force-rerun-all architecture
+ * Uses AgentRunCoordinator for cross-agent sequential execution
  */
 router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -316,143 +416,34 @@ router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req,
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Checking if sequential Financial analysis is already running for deal ${dealId}`);
+    const { COMPREHENSIVE_FINANCIAL_QUESTIONS } = await import('../comprehensiveFinancialAnalysisService');
     
-    const { comprehensiveFinancialAnalysisService, COMPREHENSIVE_FINANCIAL_QUESTIONS } = await import('../comprehensiveFinancialAnalysisService');
-    const { storage } = await import('../storage');
-    const { db } = await import('../db');
-    const { backgroundJobs } = await import('../../shared/schema');
-    const { and, eq, like } = await import('drizzle-orm');
+    console.log(`🔥 FORCE RERUN: Enqueueing Financial analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    const masterJobId = `force-rerun-all-financial-${dealId}`;
-    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'financial',
+      COMPREHENSIVE_FINANCIAL_QUESTIONS.length
+    );
     
-    if (existingMasterJob && existingMasterJob.status === 'processing') {
-      console.log(`⚠️ Force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+    if (!result.success && result.queuePosition > 0) {
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
-        startedAt: existingMasterJob.createdAt,
-        jobId: masterJobId
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    if (existingMasterJob) {
-      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
-      await storage.deleteBackgroundJob(masterJobId);
-      console.log(`✅ Deleted old force-rerun master job`);
-    }
-    
-    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL Financial questions on deal ${dealId}`);
-    
-    await storage.createBackgroundJob({
-      jobId: masterJobId,
-      jobType: 'force_rerun_all_financial',
-      dealId,
-      status: 'processing',
-      progress: 0,
-      currentStep: 'Starting sequential force rerun of all Financial questions'
-    });
-    console.log(`🔒 Created master lock job: ${masterJobId}`);
-    
-    console.log(`🧹 Cleaning up any existing Financial question rerun jobs for deal ${dealId}`);
-    
-    const existingQuestionJobs = await db.query.backgroundJobs.findMany({
-      where: and(
-        eq(backgroundJobs.dealId, dealId),
-        like(backgroundJobs.jobId, 'financial-question-rerun-%')
-      )
-    });
-    
-    for (const job of existingQuestionJobs) {
-      await storage.deleteBackgroundJob(job.jobId);
-    }
-    console.log(`✅ Cleaned up ${existingQuestionJobs.length} existing Financial question rerun jobs`);
-    
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
-      startedCount: COMPREHENSIVE_FINANCIAL_QUESTIONS.length,
+      message: result.isRunning 
+        ? `Financial analysis started immediately`
+        : `Financial analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: COMPREHENSIVE_FINANCIAL_QUESTIONS.length,
-      dealId,
-      estimatedTime: `${Math.round(COMPREHENSIVE_FINANCIAL_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
-    });
-    
-    setImmediate(async () => {
-      let completedCount = 0;
-      const errors: string[] = [];
-      
-      try {
-        for (let i = 0; i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length; i++) {
-          const question = COMPREHENSIVE_FINANCIAL_QUESTIONS[i];
-          const questionNumber = i + 1;
-          const startTime = Date.now();
-          
-          const overallProgress = Math.round((i / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(masterJobId, {
-            progress: overallProgress,
-            currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}: ${question.id}`
-          });
-          
-          try {
-            console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
-            
-            await comprehensiveFinancialAnalysisService.rerunSingleQuestion(dealId, question.id);
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            
-            completedCount++;
-            console.log(`✅ [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
-            
-            if (i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            
-          } catch (error: any) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            console.error(`❌ [${questionNumber}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
-            errors.push(`${question.id}: ${error.message}`);
-            
-            if (i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question (after error)...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-        
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'completed',
-          progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`,
-          completedAt: new Date()
-        });
-        
-        console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_FINANCIAL_QUESTIONS.length} questions analyzed`);
-        if (errors.length > 0) {
-          console.log(`⚠️ ${errors.length} questions failed:`, errors);
-        }
-        
-      } catch (fatalError: any) {
-        console.error(`🚨 FATAL ERROR in force rerun loop:`, fatalError);
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'failed',
-          progress: Math.round((completedCount / COMPREHENSIVE_FINANCIAL_QUESTIONS.length) * 100),
-          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
-        });
-      } finally {
-        // Cleanup master job after 1 hour - EXACT HR PATTERN
-        setTimeout(async () => {
-          try {
-            console.log(`🧹 [1-hour cleanup] Deleting master job: ${masterJobId}`);
-            await storage.deleteBackgroundJob(masterJobId);
-            console.log(`✅ [1-hour cleanup] Deleted master job: ${masterJobId}`);
-          } catch (cleanupError) {
-            console.error(`❌ [1-hour cleanup] Failed to delete master job:`, cleanupError);
-          }
-        }, 60 * 60 * 1000);
-      }
+      dealId
     });
     
   } catch (error: any) {

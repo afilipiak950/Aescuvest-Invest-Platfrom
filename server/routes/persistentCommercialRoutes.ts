@@ -7,8 +7,106 @@ import { Router } from 'express';
 import { db } from '../db';
 import { backgroundJobs } from '../../shared/schema';
 import { eq, and, like } from 'drizzle-orm';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
 
 export const persistentCommercialRoutes = Router();
+
+/**
+ * Execute Commercial force-rerun-all - called by AgentRunCoordinator when it's Commercial's turn
+ */
+async function executeCommercialForceRerunAll(dealId: number): Promise<void> {
+  const { comprehensiveCommercialAnalysisService, COMMERCIAL_QUESTIONS } = await import('../comprehensiveCommercialAnalysisService');
+  const { storage } = await import('../storage');
+  
+  const masterJobId = `force-rerun-all-commercial-${dealId}`;
+  
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_commercial',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all commercial questions'
+  });
+  
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'commercial-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+      const question = COMMERCIAL_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / COMMERCIAL_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${COMMERCIAL_QUESTIONS.length}: ${question.id}`
+      });
+      
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'commercial', 
+        completedCount,
+        `Question ${questionNumber}/${COMMERCIAL_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`📊 [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] SEQUENTIAL: Starting commercial question ${question.id}`);
+        await comprehensiveCommercialAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < COMMERCIAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < COMMERCIAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${COMMERCIAL_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 COMMERCIAL FORCE RERUN COMPLETE: ${completedCount}/${COMMERCIAL_QUESTIONS.length} questions`);
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in commercial force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / COMMERCIAL_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register Commercial callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('commercial', executeCommercialForceRerunAll);
 
 /**
  * Get comprehensive commercial analysis results
@@ -214,8 +312,7 @@ persistentCommercialRoutes.post('/api/deals/:dealId/commercial-analysis/question
 
 /**
  * Force rerun ALL commercial questions (including already answered ones)
- * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
- * This is the REAL analysis that takes hours - same as manual run
+ * Uses AgentRunCoordinator for cross-agent sequential execution
  */
 persistentCommercialRoutes.post('/api/deals/:dealId/commercial-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -228,140 +325,35 @@ persistentCommercialRoutes.post('/api/deals/:dealId/commercial-analysis/force-re
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Checking if sequential commercial analysis is already running for deal ${dealId}`);
+    const { COMMERCIAL_QUESTIONS } = await import('../comprehensiveCommercialAnalysisService');
     
-    // Import comprehensive service and questions
-    const { comprehensiveCommercialAnalysisService, COMMERCIAL_QUESTIONS } = await import('../comprehensiveCommercialAnalysisService');
-    const { storage } = await import('../storage');
+    console.log(`🔥 FORCE RERUN: Enqueueing Commercial analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    // CRITICAL MUTUAL EXCLUSION: Check if force-rerun-all is already in progress
-    const masterJobId = `force-rerun-all-commercial-${dealId}`;
-    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'commercial',
+      COMMERCIAL_QUESTIONS.length
+    );
     
-    if (existingMasterJob && existingMasterJob.status === 'processing') {
-      console.log(`⚠️ Commercial force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+    if (!result.success && result.queuePosition > 0) {
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
-        startedAt: existingMasterJob.createdAt,
-        jobId: masterJobId
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    // Clean up old master job if it exists (from previous completed/failed runs)
-    if (existingMasterJob) {
-      console.log(`🧹 Cleaning up previous commercial force-rerun job with status: ${existingMasterJob.status}`);
-      await storage.deleteBackgroundJob(masterJobId);
-      console.log(`✅ Deleted old commercial force-rerun master job`);
-    }
-    
-    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL commercial questions on deal ${dealId}`);
-    
-    // Create master job to act as mutex lock
-    await storage.createBackgroundJob({
-      jobId: masterJobId,
-      jobType: 'force_rerun_all_commercial',
-      dealId,
-      status: 'processing',
-      progress: 0,
-      currentStep: 'Starting sequential force rerun of all commercial questions'
-    });
-    console.log(`🔒 Created master lock job: ${masterJobId}`);
-    
-    // CRITICAL: Cancel all existing commercial question rerun jobs before starting fresh
-    console.log(`🧹 Cleaning up any existing commercial question rerun jobs for deal ${dealId}`);
-    
-    await db
-      .delete(backgroundJobs)
-      .where(
-        and(
-          eq(backgroundJobs.dealId, dealId),
-          like(backgroundJobs.jobId, 'commercial-question-rerun-%')
-        )
-      );
-    console.log(`✅ Cleaned up existing commercial question rerun jobs`);
-    
-    // Respond immediately to user, then process questions sequentially in background
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive commercial analysis - questions will run one after another`,
-      startedCount: COMMERCIAL_QUESTIONS.length,
+      message: result.isRunning 
+        ? `Commercial analysis started immediately`
+        : `Commercial analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: COMMERCIAL_QUESTIONS.length,
-      dealId,
-      estimatedTime: `${Math.round(COMMERCIAL_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
+      dealId
     });
-    
-    // Run questions SEQUENTIALLY in background (one finishes before next starts)
-    (async () => {
-      let completedCount = 0;
-      const errors: string[] = [];
-      
-      try {
-        for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
-          const question = COMMERCIAL_QUESTIONS[i];
-          const questionNumber = i + 1;
-          const startTime = Date.now();
-          
-          // Update master job progress
-          const overallProgress = Math.round((i / COMMERCIAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(masterJobId, {
-            progress: overallProgress,
-            currentStep: `Processing question ${questionNumber}/${COMMERCIAL_QUESTIONS.length}: ${question.id}`
-          });
-          
-          try {
-            console.log(`🎯 [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] SEQUENTIAL COMMERCIAL: Starting question ${question.id}`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
-            
-            // AWAIT each question - ensures it fully completes or times out before next starts
-            await comprehensiveCommercialAnalysisService.rerunSingleQuestion(dealId, question.id);
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            
-            completedCount++;
-            console.log(`✅ [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
-            
-            // Add 2-second delay between questions to ensure sequential execution
-            if (i < COMMERCIAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next commercial question...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            
-          } catch (error) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            console.error(`❌ [${questionNumber}/${COMMERCIAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
-            errors.push(`${question.id}: ${error.message}`);
-            
-            // Even on error, add delay to prevent rapid parallel execution
-            if (i < COMMERCIAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next commercial question (after error)...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-        
-        // Mark master job as completed
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'completed',
-          progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMMERCIAL_QUESTIONS.length} commercial questions analyzed`
-        });
-        
-        console.log(`🎉 SEQUENTIAL COMMERCIAL FORCE RERUN COMPLETE: ${completedCount}/${COMMERCIAL_QUESTIONS.length} questions analyzed`);
-        if (errors.length > 0) {
-          console.log(`⚠️ ${errors.length} commercial questions failed:`, errors);
-        }
-        
-      } catch (fatalError) {
-        // Mark master job as failed
-        console.error(`🚨 FATAL ERROR in commercial force rerun loop:`, fatalError);
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'failed',
-          progress: Math.round((completedCount / COMMERCIAL_QUESTIONS.length) * 100),
-          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
-        });
-      }
-    })();
     
   } catch (error) {
     console.error('Error force rerunning all commercial questions:', error);
