@@ -258,6 +258,16 @@ export class ResearchQuestionQueueService {
           });
 
           console.log(`✅ Completed research question ${question.questionKey} (${completedCount}/${totalQuestions})`);
+          
+          // 🔥 INSTANT DISPLAY: Broadcast question completion with answer data
+          websocketManager.broadcast('research_question_completed', {
+            questionId: question.questionKey,
+            questionText: question.questionText,
+            answer: result,
+            completedCount,
+            totalQuestions,
+            progress: Math.round((completedCount / totalQuestions) * 100)
+          }, dealId);
 
         } catch (error: any) {
           console.error(`❌ Error processing research question ${question.id}:`, error);
