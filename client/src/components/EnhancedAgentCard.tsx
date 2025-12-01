@@ -1284,22 +1284,19 @@ export default function EnhancedAgentCard({
             selectedQuoteData={selectedQuoteData}
             setSelectedQuoteData={setSelectedQuoteData}
           />
-        ) : (console.log('🔍 Checking agentType for conditional:', { agentType, lowercase: agentType.toLowerCase(), isResearch: agentType.toLowerCase() === 'research' }), agentType.toLowerCase() === 'research') ? (
-          <>
-            {console.log('🎯 RENDERING ResearchQuestionsSection for agentType:', agentType)}
-            <ResearchQuestionsSection 
-              dealId={dealId}
-              analysisData={actualAnalysisData} 
-              assignedDocuments={assignedDocuments}
-              documents={documents || []}
-              handleDocumentClick={handleDocumentClick}
-              quoteViewerOpen={quoteViewerOpen}
-              setQuoteViewerOpen={setQuoteViewerOpen}
-              selectedQuoteData={selectedQuoteData}
-              setSelectedQuoteData={setSelectedQuoteData}
-              onResearchAnalysisStart={onResearchAnalysisStart}
-            />
-          </>
+        ) : agentType.toLowerCase() === 'research' ? (
+          <ResearchQuestionsSection 
+            dealId={dealId}
+            analysisData={actualAnalysisData} 
+            assignedDocuments={assignedDocuments}
+            documents={documents || []}
+            handleDocumentClick={handleDocumentClick}
+            quoteViewerOpen={quoteViewerOpen}
+            setQuoteViewerOpen={setQuoteViewerOpen}
+            selectedQuoteData={selectedQuoteData}
+            setSelectedQuoteData={setSelectedQuoteData}
+            onResearchAnalysisStart={onResearchAnalysisStart}
+          />
         ) : (
           /* Analysis Results for other agents */
           findings.length > 0 ? (
@@ -3213,12 +3210,20 @@ interface ResearchQuestionsSectionProps {
 }
 
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
+  console.log('🔬 [Research] ResearchQuestionsSection MOUNTING - dealId:', dealId);
+  
   const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
   const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{ id: string; text: string } | null>(null);
   const queryClient = useQueryClient();
+  
+  // Debug log to confirm component mounted
+  useEffect(() => {
+    console.log('🔬🔬🔬 [Research] ResearchQuestionsSection MOUNTED - useEffect running, dealId:', dealId);
+    return () => console.log('🔬 [Research] ResearchQuestionsSection UNMOUNTING');
+  }, [dealId]);
 
   // Check if research analysis is available from agent endpoint
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
