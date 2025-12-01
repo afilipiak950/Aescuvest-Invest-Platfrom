@@ -702,6 +702,31 @@ export const insertBackgroundJobSchema = createInsertSchema(backgroundJobs).omit
   updatedAt: true,
 });
 
+// 🔄 Cross-Agent Run Queue - Sequential execution of agent force-rerun operations
+// Ensures agents run one at a time when multiple are triggered (e.g., Legal then Clinical)
+export const agentRunQueue = pgTable("agent_run_queue", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  agentType: varchar("agent_type", { length: 50 }).notNull(), // 'legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'
+  status: varchar("status", { length: 20 }).notNull().default("queued"), // 'queued', 'running', 'completed', 'failed'
+  position: integer("position").notNull(), // Queue position (1 = next, 2 = after that, etc.)
+  totalQuestions: integer("total_questions").default(0),
+  completedQuestions: integer("completed_questions").default(0),
+  currentStep: text("current_step"),
+  error: text("error"),
+  triggeredAt: timestamp("triggered_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertAgentRunQueueSchema = createInsertSchema(agentRunQueue).omit({
+  id: true,
+  triggeredAt: true,
+});
+
+export type AgentRunQueue = typeof agentRunQueue.$inferSelect;
+export type InsertAgentRunQueue = z.infer<typeof insertAgentRunQueueSchema>;
+
 // 🎯 CRITICAL: Persistent Upload Sessions for Complete Background Processing
 export const persistentUploadSessions = pgTable("persistent_upload_sessions", {
   id: serial("id").primaryKey(),
