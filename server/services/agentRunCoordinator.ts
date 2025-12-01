@@ -68,20 +68,48 @@ class AgentRunCoordinatorService {
         const existingEntry = queue.find(q => q.agentType === agentType);
         const isRunning = existingEntry?.status === 'running';
         
-        // FORCE RESTART: Delete existing entry and re-queue
+        // FORCE RESTART: Delete existing entry and re-queue at SAME position
         if (forceRestart && existingEntry) {
-          console.log(`🔥 FORCE RESTART: Cancelling existing ${agentType} (status: ${existingEntry.status}) for deal ${dealId}`);
+          const oldPosition = existingEntry.position;
+          const wasRunning = isRunning;
+          
+          console.log(`🔥 FORCE RESTART: Cancelling existing ${agentType} (status: ${existingEntry.status}, position: ${oldPosition}) for deal ${dealId}`);
           
           // Delete the existing queue entry
           await storage.deleteAgentRunEntry(existingEntry.id);
           
           // Release the processing lock if this agent was running
-          if (isRunning) {
+          if (wasRunning) {
             this.processingDeals.delete(dealId);
           }
           
-          console.log(`✅ Deleted existing ${agentType} queue entry, will re-enqueue fresh`);
-          // Fall through to enqueue logic below
+          console.log(`✅ Deleted existing ${agentType} queue entry, will re-enqueue at position ${wasRunning ? 1 : oldPosition}`);
+          
+          // Re-enqueue at the SAME position (or position 1 if was running)
+          const targetPosition = wasRunning ? 1 : oldPosition;
+          const newEntry = await storage.enqueueAgentRunAtPosition(dealId, agentType, totalQuestions, targetPosition);
+          
+          this.broadcastQueueUpdate(dealId);
+          
+          // If was running, start processing immediately
+          if (wasRunning) {
+            console.log(`🚀 Force restarting ${agentType} immediately (was running)`);
+            await this.startNextAgent(dealId);
+            return {
+              success: true,
+              queuePosition: 1,
+              isRunning: true,
+              message: `Force restarted ${agentType} analysis`
+            };
+          } else {
+            // Was queued, return the new queue position
+            return {
+              success: true,
+              queuePosition: targetPosition,
+              isRunning: false,
+              message: `Force restarted ${agentType}, queued at position ${targetPosition}`
+            };
+          }
         } else {
           // Not forcing restart - return existing status
           console.log(`ℹ️ ${agentType} already ${isRunning ? 'running' : 'queued'} for deal ${dealId} (position ${existingEntry?.position})`);
