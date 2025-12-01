@@ -3276,6 +3276,31 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           try {
             const message = JSON.parse(event.data);
             
+            // 🔥 INSTANT ANSWER DISPLAY: Handle individual question completion
+            if (message.type === 'research_question_completed') {
+              const { questionId, answer, completedCount, totalQuestions, progress } = message.data;
+              console.log(`🎯 [Research Queue] Question COMPLETED: ${questionId} (${completedCount}/${totalQuestions})`);
+              
+              // Immediately refetch to show the new answer
+              refetchComprehensive();
+              queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
+              
+              // Mark this question's progress as 100% then clear after delay
+              setQuestionProgress(prev => ({
+                ...prev,
+                [questionId]: 100
+              }));
+              
+              // Clear the completed question's progress bar after brief display
+              setTimeout(() => {
+                setQuestionProgress(prev => {
+                  const updated = { ...prev };
+                  delete updated[questionId];
+                  return updated;
+                });
+              }, 1500);
+            }
+            
             // Handle queue progress updates specifically for Research
             if (message.type === 'research_queue_progress') {
               const queueStatus = message.data;
@@ -3283,25 +3308,13 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
               
               // Update progress based on queue status - shows per-question progress bars during Force Rerun All
               setQuestionProgress(prev => {
-                const newProgress: Record<string, number> = {};
+                const newProgress: Record<string, number> = { ...prev };
                 
                 // If there's a currently running question, show progress bar for that specific question
                 if (queueStatus.currentQuestionId && queueStatus.running > 0) {
-                  const runningProgress = queueStatus.total > 0 
-                    ? Math.round((queueStatus.completed / queueStatus.total) * 100)
-                    : 50;
-                  
-                  newProgress[queueStatus.currentQuestionId] = runningProgress;
-                  console.log(`🎯 [Research Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
-                }
-                
-                // Keep pending questions visible with 0% progress
-                if (queueStatus.pending > 0) {
-                  for (const [qId, prog] of Object.entries(prev)) {
-                    if (!newProgress[qId]) {
-                      newProgress[qId] = 0;
-                    }
-                  }
+                  // Show 50% progress for currently running question (will be updated to 100% on completion)
+                  newProgress[queueStatus.currentQuestionId] = 50;
+                  console.log(`🎯 [Research Queue] Question ${queueStatus.currentQuestionId} is running`);
                 }
                 
                 return newProgress;
