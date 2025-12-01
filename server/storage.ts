@@ -177,6 +177,7 @@ export interface IStorage {
   
   // Agent run queue methods - cross-agent sequential execution
   enqueueAgentRun(dealId: number, agentType: string, totalQuestions: number): Promise<AgentRunQueue>;
+  enqueueAgentRunAtPosition(dealId: number, agentType: string, totalQuestions: number, position: number): Promise<AgentRunQueue>;
   getAgentRunQueue(dealId: number): Promise<AgentRunQueue[]>;
   getCurrentRunningAgent(dealId: number): Promise<AgentRunQueue | undefined>;
   getNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined>;
@@ -2749,6 +2750,30 @@ export class DatabaseStorage implements IStorage {
         }
       }
       console.error(`Error enqueueing agent ${agentType} for deal ${dealId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enqueue agent at a SPECIFIC position (for force restart to preserve queue order)
+   */
+  async enqueueAgentRunAtPosition(dealId: number, agentType: string, totalQuestions: number, position: number): Promise<AgentRunQueue> {
+    try {
+      // Insert directly at the specified position
+      const [result] = await db.insert(agentRunQueue).values({
+        dealId,
+        agentType,
+        status: 'queued',
+        position: position,
+        totalQuestions,
+        completedQuestions: 0,
+        currentStep: 'Waiting in queue...'
+      }).returning();
+      
+      console.log(`📥 Enqueued agent ${agentType} for deal ${dealId} at SPECIFIC position ${position}`);
+      return result;
+    } catch (error: any) {
+      console.error(`Error enqueueing agent ${agentType} at position ${position} for deal ${dealId}:`, error);
       throw error;
     }
   }
