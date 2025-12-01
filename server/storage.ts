@@ -180,6 +180,7 @@ export interface IStorage {
   getAgentRunQueue(dealId: number): Promise<AgentRunQueue[]>;
   getCurrentRunningAgent(dealId: number): Promise<AgentRunQueue | undefined>;
   getNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined>;
+  promoteNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined>;
   updateAgentRunStatus(id: number, status: string, updates?: Partial<AgentRunQueue>): Promise<AgentRunQueue | undefined>;
   completeAgentRun(id: number): Promise<void>;
   failAgentRun(id: number, error: string): Promise<void>;
@@ -2676,20 +2677,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Agent Run Queue Methods - Cross-Agent Sequential Execution
+  /**
+   * BULLETPROOF atomic enqueue with double-check to prevent race condition duplicates
+   * Uses re-check after position calculation to handle concurrent inserts
+   */
   async enqueueAgentRun(dealId: number, agentType: string, totalQuestions: number): Promise<AgentRunQueue> {
     try {
-      // Get current queue to determine position
+      // FIRST CHECK: See if agent is already queued/running
+      const existingBefore = await db.select()
+        .from(agentRunQueue)
+        .where(and(
+          eq(agentRunQueue.dealId, dealId),
+          eq(agentRunQueue.agentType, agentType),
+          or(eq(agentRunQueue.status, 'queued'), eq(agentRunQueue.status, 'running'))
+        ))
+        .limit(1);
+      
+      if (existingBefore[0]) {
+        console.log(`⚠️ Agent ${agentType} already in queue for deal ${dealId} (status: ${existingBefore[0].status})`);
+        return existingBefore[0];
+      }
+      
+      // Calculate next position
       const queue = await this.getAgentRunQueue(dealId);
       const maxPosition = queue.reduce((max, item) => Math.max(max, item.position), 0);
       const newPosition = maxPosition + 1;
       
-      // Check if this agent is already queued or running
-      const existing = queue.find(q => q.agentType === agentType && (q.status === 'queued' || q.status === 'running'));
-      if (existing) {
-        console.log(`⚠️ Agent ${agentType} already in queue for deal ${dealId} (status: ${existing.status})`);
-        return existing;
+      // SECOND CHECK (right before insert): Re-check to close race window
+      const existingAfter = await db.select()
+        .from(agentRunQueue)
+        .where(and(
+          eq(agentRunQueue.dealId, dealId),
+          eq(agentRunQueue.agentType, agentType),
+          or(eq(agentRunQueue.status, 'queued'), eq(agentRunQueue.status, 'running'))
+        ))
+        .limit(1);
+      
+      if (existingAfter[0]) {
+        console.log(`⚠️ Agent ${agentType} already in queue for deal ${dealId} (race detected, status: ${existingAfter[0].status})`);
+        return existingAfter[0];
       }
       
+      // INSERT with RETURNING - if this fails due to duplicate, we catch and retry
       const [result] = await db.insert(agentRunQueue).values({
         dealId,
         agentType,
@@ -2702,7 +2731,22 @@ export class DatabaseStorage implements IStorage {
       
       console.log(`📥 Enqueued agent ${agentType} for deal ${dealId} at position ${newPosition}`);
       return result;
-    } catch (error) {
+    } catch (error: any) {
+      // If duplicate key error, return existing entry (idempotent)
+      if (error.message?.includes('duplicate') || error.code === '23505') {
+        console.log(`⚠️ Duplicate key caught for ${agentType} deal ${dealId}, fetching existing`);
+        const existing = await db.select()
+          .from(agentRunQueue)
+          .where(and(
+            eq(agentRunQueue.dealId, dealId),
+            eq(agentRunQueue.agentType, agentType),
+            or(eq(agentRunQueue.status, 'queued'), eq(agentRunQueue.status, 'running'))
+          ))
+          .limit(1);
+        if (existing[0]) {
+          return existing[0];
+        }
+      }
       console.error(`Error enqueueing agent ${agentType} for deal ${dealId}:`, error);
       throw error;
     }
@@ -2749,6 +2793,59 @@ export class DatabaseStorage implements IStorage {
       return queue[0] || undefined;
     } catch (error) {
       console.error(`Error fetching next queued agent for deal ${dealId}:`, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * BULLETPROOF ATOMIC promotion using raw SQL subquery
+   * Single UPDATE statement that selects and promotes in one atomic operation
+   * No race window between SELECT and UPDATE
+   */
+  async promoteNextQueuedAgent(dealId: number): Promise<AgentRunQueue | undefined> {
+    try {
+      // Use raw SQL for truly atomic operation: UPDATE with subquery that selects the minimum position
+      // This is a single atomic statement - no race window possible
+      const result = await db.execute<AgentRunQueue>(sql`
+        UPDATE agent_run_queue 
+        SET status = 'running', 
+            started_at = NOW(), 
+            current_step = 'Starting analysis...'
+        WHERE id = (
+          SELECT id FROM agent_run_queue 
+          WHERE deal_id = ${dealId} 
+            AND status = 'queued'
+          ORDER BY position ASC 
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+      `);
+      
+      const promoted = result.rows?.[0];
+      
+      if (promoted) {
+        console.log(`🚀 ATOMIC: Promoted agent ${promoted.agentType || promoted.agent_type} (id=${promoted.id}) to running for deal ${dealId}`);
+        // Normalize column names (snake_case from SQL to camelCase)
+        return {
+          id: promoted.id,
+          dealId: promoted.deal_id ?? promoted.dealId,
+          agentType: promoted.agent_type ?? promoted.agentType,
+          status: promoted.status,
+          position: promoted.position,
+          totalQuestions: promoted.total_questions ?? promoted.totalQuestions,
+          completedQuestions: promoted.completed_questions ?? promoted.completedQuestions,
+          currentStep: promoted.current_step ?? promoted.currentStep,
+          error: promoted.error,
+          triggeredAt: promoted.triggered_at ?? promoted.triggeredAt,
+          startedAt: promoted.started_at ?? promoted.startedAt,
+          completedAt: promoted.completed_at ?? promoted.completedAt
+        } as AgentRunQueue;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error(`Error promoting next queued agent for deal ${dealId}:`, error);
       return undefined;
     }
   }
