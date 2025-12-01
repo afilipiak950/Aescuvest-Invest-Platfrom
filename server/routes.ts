@@ -10053,6 +10053,83 @@ export async function registerAllRoutes(app: Express) {
 
   console.log('✅ Global AI Assistant endpoints registered');
 
+  // ========================================================================
+  // AGENT RUN QUEUE ENDPOINTS - Cross-Agent Sequential Execution
+  // ========================================================================
+  
+  const { agentRunCoordinator } = await import('./services/agentRunCoordinator');
+
+  // Get agent run queue status for a deal
+  app.get('/api/deals/:dealId/agent-run-queue/status', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      const status = await agentRunCoordinator.getQueueStatus(dealId);
+      
+      res.json({
+        success: true,
+        ...status
+      });
+    } catch (error) {
+      console.error('Error getting agent run queue status:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to get queue status' 
+      });
+    }
+  });
+
+  // Cancel a queued agent
+  app.post('/api/deals/:dealId/agent-run-queue/:agentType/cancel', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      const agentType = req.params.agentType as any;
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      const cancelled = await agentRunCoordinator.cancelQueuedAgent(dealId, agentType);
+      
+      if (cancelled) {
+        res.json({ success: true, message: `Cancelled ${agentType} from queue` });
+      } else {
+        res.status(400).json({ 
+          success: false, 
+          error: `${agentType} is not in queue or already running` 
+        });
+      }
+    } catch (error) {
+      console.error('Error cancelling queued agent:', error);
+      res.status(500).json({ success: false, error: 'Failed to cancel agent' });
+    }
+  });
+
+  // Clear completed/failed entries from queue
+  app.post('/api/deals/:dealId/agent-run-queue/clear', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      const cleared = await storage.clearAgentRunQueue(dealId);
+      
+      res.json({ 
+        success: true, 
+        message: `Cleared ${cleared} completed/failed entries` 
+      });
+    } catch (error) {
+      console.error('Error clearing agent run queue:', error);
+      res.status(500).json({ success: false, error: 'Failed to clear queue' });
+    }
+  });
+
+  console.log('✅ Agent Run Queue endpoints registered');
+
   // Note: clearPaginatedDocumentCache function is defined at top of file (line 65)
   
   // Debug endpoint to manually clear document cache
