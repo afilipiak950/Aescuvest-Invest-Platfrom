@@ -1564,6 +1564,13 @@ app.use((req, res, next) => {
         });
       });
       
+      // Initialize Research Question Queue Service (BULLETPROOF - mirrors Legal)
+      import('./services/researchQuestionQueue').then(({ researchQuestionQueue }) => {
+        researchQuestionQueue.initialize().catch(err => {
+          console.error('❌ Failed to initialize research question queue:', err);
+        });
+      });
+      
       // Initialize Persistent Research Analysis Service
       console.log('🔬 Initializing Persistent Research Analysis Service...');
       persistentResearchAnalysisService.initialize().catch(err => {
