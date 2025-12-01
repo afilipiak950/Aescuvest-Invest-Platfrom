@@ -188,9 +188,11 @@ class JobProcessor {
         // Individual question reruns (handled by service directly)
         'ip_question_rerun', 'hr_question_rerun', 'legal_question_rerun',
         'clinical_question_rerun', 'financial_question_rerun', 'commercial_question_rerun',
+        'research_question_rerun', // Added for Research agent
         // Force-rerun-all master jobs (handled by routes + service)
         'force_rerun_all_ip', 'force_rerun_all_hr', 'force_rerun_all_legal',
-        'force_rerun_all_clinical', 'force_rerun_all_financial', 'force_rerun_all_commercial'
+        'force_rerun_all_clinical', 'force_rerun_all_financial', 'force_rerun_all_commercial',
+        'force_rerun_all_research' // Added for Research agent
       ];
       
       const pendingJobs = allPendingJobs.filter(job => !EXCLUDED_JOB_TYPES.includes(job.jobType));
