@@ -2,7 +2,7 @@
  * Run IP Queue Button Component
  * Triggers sequential processing of all IP questions for a deal
  * Shows real-time progress and queue status
- * EXACT CLONE of RunHRQueueButton for architectural parity
+ * STANDARDIZED: Simple Force Rerun All button (no dropdown)
  * 
  * REAL-TIME ANSWER DISPLAY: Invalidates IP results cache when questions complete
  * so answers appear instantly without page refresh
@@ -10,17 +10,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { Play, Square, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
+import { Square, Loader2, RefreshCw } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 interface QueueStatus {
   total: number;
