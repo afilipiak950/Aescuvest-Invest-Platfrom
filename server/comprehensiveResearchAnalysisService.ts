@@ -10,18 +10,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_1', 
     question: 'What competitive threats exist and how significant are they?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Identify all competitors mentioned in documents, analyze their market position, strengths, weaknesses, and competitive advantages. Assess the severity of competitive threats and how the company differentiates itself.',
     keywords: ['competitive threat', 'competitor', 'competition', 'competitive landscape', 'market share', 'competitive advantage', 'threat assessment', 'competitive risk']
   },
   { 
     id: 'research_2', 
     question: 'What is the patent landscape and IP positioning?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Analyze patent filings, intellectual property assets, trade secrets, and proprietary technology. Identify freedom-to-operate concerns, patent expiration dates, and IP protection strategies.',
     keywords: ['patent landscape', 'ip position', 'intellectual property', 'patent portfolio', 'patent protection', 'ip strategy', 'patent analysis', 'freedom to operate']
   },
   { 
     id: 'research_3', 
     question: 'How defensible is the technology moat?', 
     category: 'Competitive Intelligence',
+    analysisPrompt: 'Evaluate the defensibility of core technology, barriers to entry for competitors, switching costs, network effects, and proprietary advantages that create sustainable competitive moats.',
     keywords: ['technology moat', 'defensibility', 'competitive moat', 'barrier to entry', 'technological advantage', 'proprietary technology', 'technical differentiation']
   },
   // Market Analysis
@@ -29,18 +32,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_4', 
     question: 'What is the Total Addressable Market (TAM) size and growth?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Identify TAM, SAM, and SOM figures from documents. Analyze market sizing methodology, growth projections, market segmentation, and sources of market data.',
     keywords: ['total addressable market', 'tam', 'market size', 'market growth', 'market opportunity', 'addressable market', 'market potential', 'market expansion']
   },
   { 
     id: 'research_5', 
     question: 'What are the key market trends and drivers?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Identify macro and micro market trends, growth drivers, technology shifts, demographic changes, and industry dynamics that affect market opportunity.',
     keywords: ['market trends', 'market drivers', 'industry trends', 'growth drivers', 'market dynamics', 'trend analysis', 'market forces', 'industry evolution']
   },
   { 
     id: 'research_6', 
     question: 'What is the regulatory environment and compliance requirements?', 
     category: 'Market Analysis',
+    analysisPrompt: 'Analyze regulatory frameworks, compliance requirements, pending regulations, approval pathways, and regulatory risks that could impact the business.',
     keywords: ['regulatory environment', 'compliance requirements', 'regulation', 'regulatory risk', 'compliance', 'regulatory framework', 'industry standards']
   },
   // Technology Assessment
@@ -48,18 +54,21 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_7', 
     question: 'What is the technology maturity and scalability potential?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Evaluate technology readiness level, development stage, technical scalability, infrastructure requirements, and ability to handle growth without major re-architecture.',
     keywords: ['technology maturity', 'scalability', 'technological readiness', 'scale potential', 'technical scalability', 'platform scalability', 'technology risk']
   },
   { 
     id: 'research_8', 
     question: 'What are the key technology dependencies and risks?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Identify critical technology dependencies, third-party integrations, single points of failure, technical debt, and technology obsolescence risks.',
     keywords: ['technology dependencies', 'technology risk', 'technical dependencies', 'platform dependencies', 'technology stack', 'technical risk assessment']
   },
   { 
     id: 'research_9', 
     question: 'What data quality and validation has been performed?', 
     category: 'Technology Assessment',
+    analysisPrompt: 'Assess data quality metrics, validation processes, data governance practices, data accuracy, and reliability of data-driven claims and projections.',
     keywords: ['data quality', 'data validation', 'data integrity', 'data accuracy', 'data governance', 'data verification', 'quality assurance', 'data standards']
   },
   // Strategic Analysis
@@ -67,24 +76,28 @@ export const RESEARCH_QUESTIONS = [
     id: 'research_10', 
     question: 'What are the potential exit strategies and acquirer landscape?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Identify potential acquirers, strategic buyers, IPO readiness, M&A activity in the space, comparable exits, and likely exit timelines and valuations.',
     keywords: ['exit strategy', 'acquirer', 'acquisition', 'strategic buyer', 'exit opportunity', 'merger', 'acquisition target', 'strategic partnership']
   },
   { 
     id: 'research_11', 
     question: 'What international expansion opportunities exist?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Analyze international market opportunities, geographic expansion plans, localization requirements, and regulatory considerations for global growth.',
     keywords: ['international expansion', 'global expansion', 'international market', 'geographic expansion', 'global opportunity', 'international strategy', 'market expansion']
   },
   { 
     id: 'research_12', 
     question: 'What are the ESG considerations and sustainability factors?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Evaluate environmental impact, social responsibility initiatives, governance practices, sustainability metrics, and ESG compliance relevant to investors.',
     keywords: ['esg', 'sustainability', 'environmental impact', 'social responsibility', 'governance', 'sustainable business', 'environmental considerations', 'social impact']
   },
   { 
     id: 'research_13', 
     question: 'What customer validation and market traction evidence exists?', 
     category: 'Strategic Analysis',
+    analysisPrompt: 'Identify customer testimonials, case studies, revenue data, user metrics, retention rates, NPS scores, and other evidence of product-market fit and market traction.',
     keywords: ['customer validation', 'market traction', 'product market fit', 'customer feedback', 'market adoption', 'user engagement', 'customer retention', 'revenue traction', 'growth metrics']
   }
 ];
