@@ -92,7 +92,7 @@ export class ResearchQuestionQueueService {
           agentType: 'research',
           questionKey: question.id,
           questionText: question.question,
-          prompt: question.keywords.join(', '),
+          prompt: question.analysisPrompt,
           priority: 0
         });
 
@@ -303,7 +303,7 @@ export class ResearchQuestionQueueService {
 
 QUESTION: ${question.questionText}
 
-ANALYSIS FOCUS KEYWORDS: ${question.prompt}
+ANALYSIS FOCUS: ${question.prompt}
 
 DOCUMENTS:
 ${documentContext}
@@ -313,20 +313,16 @@ Provide a detailed, evidence-based answer with:
 2. Key findings from the documents
 3. Specific evidence and document references
 4. Confidence level (0-100%)
-5. Strategic recommendations
-
-CRITICAL INSTRUCTION: Your response must ONLY answer the question above: "${question.questionText}"
-DO NOT include any other question text in your response.
-DO NOT prefix your answer with any question text.
+5. Any risks or concerns identified
 
 Format your response as JSON:
 {
-  "answer": "Your detailed answer here - DO NOT prefix with question text",
+  "answer": "Your detailed answer here",
   "confidence": 85,
   "keyFindings": ["Finding 1", "Finding 2"],
-  "quotes": ["Direct quote from Document 1", "Direct quote from Document 2"],
+  "evidence": ["Evidence from Document 1", "Evidence from Document 2"],
   "sources": ["Document name 1", "Document name 2"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"]
+  "risks": ["Risk 1 if any"]
 }`;
 
       const response = await openai.chat.completions.create({
@@ -334,7 +330,7 @@ Format your response as JSON:
         messages: [
           {
             role: 'system',
-            content: 'You are an expert research analyst specializing in investment due diligence. Provide thorough, evidence-based analysis. NEVER prefix your answer with question text.'
+            content: 'You are an expert research analyst specializing in investment due diligence. Provide thorough, evidence-based analysis.'
           },
           {
             role: 'user',
@@ -353,8 +349,8 @@ Format your response as JSON:
         confidence: analysisResult.confidence || 50,
         sources: analysisResult.sources || [],
         keyFindings: analysisResult.keyFindings || [],
-        quotes: analysisResult.quotes || [],
-        recommendations: analysisResult.recommendations || []
+        evidence: analysisResult.evidence || [],
+        risks: analysisResult.risks || []
       };
 
       await this.saveAnswer(dealId, question.questionKey, question.questionText, answerData);
