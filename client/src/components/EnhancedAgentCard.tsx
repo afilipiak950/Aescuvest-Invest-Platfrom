@@ -20,8 +20,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import DocumentQuoteViewer from './DocumentQuoteViewer';
-import { PersistentClinicalButton } from './PersistentClinicalButton';
-import { PersistentLegalButton } from './PersistentLegalButton';
 import { RunLegalQueueButton } from './RunLegalQueueButton';
 import { RunClinicalQueueButton } from './RunClinicalQueueButton';
 import { RunCommercialQueueButton } from './RunCommercialQueueButton';
@@ -2307,10 +2305,6 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <PersistentLegalButton 
-            dealId={dealId}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          />
           <RunLegalQueueButton 
             dealId={dealId}
             className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
@@ -2975,7 +2969,6 @@ function ClinicalQuestionsSection({ dealId, analysisData, findings, assignedDocu
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <PersistentClinicalButton dealId={dealId} />
           <RunClinicalQueueButton 
             dealId={dealId}
             className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white"
