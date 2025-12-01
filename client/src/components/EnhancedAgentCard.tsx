@@ -405,8 +405,8 @@ export default function EnhancedAgentCard({
     if (agentType.toLowerCase() === 'ip' && ipAnalysisData && typeof ipAnalysisData === 'object' && 'analysis' in ipAnalysisData) {
       return ipAnalysisData.analysis;
     }
-    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'results' in researchAnalysisData) {
-      return researchAnalysisData.results;
+    if (agentType.toLowerCase() === 'research' && researchAnalysisData && typeof researchAnalysisData === 'object' && 'analysis' in researchAnalysisData) {
+      return researchAnalysisData.analysis;
     }
     if (agentType.toLowerCase() === 'clinical' && clinicalAnalysisData && typeof clinicalAnalysisData === 'object' && 'analysis' in clinicalAnalysisData) {
       return clinicalAnalysisData.analysis;
@@ -3398,14 +3398,14 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
       return null;
     }
 
-    // Try comprehensive results first - check correct API structure (results.researchAnswers)
-    if (comprehensiveResults?.results?.researchAnswers) {
-      const allAnswers = comprehensiveResults.results.researchAnswers;
+    // 🔥 CRITICAL FIX: Try analysis.researchAnswers FIRST (correct backend response structure)
+    if (comprehensiveResults?.analysis?.researchAnswers) {
+      const allAnswers = comprehensiveResults.analysis.researchAnswers;
       
-      // First try by question ID (most reliable) - answers are objects, not strings
+      // First try by question ID (most reliable)
       const answerById = allAnswers[questionId];
       if (answerById && typeof answerById === 'object' && answerById.answer && !answerById.answer.includes('No relevant documents found')) {
-        return answerById; // Return the full object which already has answer, sources, quotes, etc.
+        return answerById;
       }
       
       // Fallback to question text (exact match)
@@ -3425,8 +3425,49 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           recommendations: []
         };
       }
+    }
+    
+    // Also check analysis.research_answers (snake_case variant)
+    if (comprehensiveResults?.analysis?.research_answers) {
+      const allAnswers = comprehensiveResults.analysis.research_answers;
+      const answerById = allAnswers[questionId];
+      if (answerById && typeof answerById === 'object' && answerById.answer) {
+        return answerById;
+      }
+      const answer = allAnswers[questionText];
+      if (answer && typeof answer === 'object' && answer.answer) {
+        return answer;
+      }
+      if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
+        return { answer: answerById, confidence: 75, sources: [], quotes: [], keyFindings: [], recommendations: [] };
+      }
+    }
+
+    // Legacy fallback: check results.researchAnswers for backward compatibility
+    if (comprehensiveResults?.results?.researchAnswers) {
+      const allAnswers = comprehensiveResults.results.researchAnswers;
       
-      // Try to find by partial matching of question text in the answer's question field
+      const answerById = allAnswers[questionId];
+      if (answerById && typeof answerById === 'object' && answerById.answer && !answerById.answer.includes('No relevant documents found')) {
+        return answerById;
+      }
+      
+      const answer = allAnswers[questionText];
+      if (answer && typeof answer === 'object' && answer.answer) {
+        return answer;
+      }
+      
+      if (answerById && typeof answerById === 'string' && !answerById.includes('No relevant documents found')) {
+        return {
+          answer: answerById,
+          confidence: 75,
+          sources: [],
+          quotes: [],
+          keyFindings: [],
+          recommendations: []
+        };
+      }
+      
       for (const [key, answerData] of Object.entries(allAnswers)) {
         if (answerData && typeof answerData === 'object' && 'question' in answerData) {
           if (answerData.question === questionText) {
@@ -3434,21 +3475,6 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
           }
         }
       }
-    }
-    
-    // Legacy fallback paths for backward compatibility  
-    if (comprehensiveResults?.analysis?.research_answers) {
-      const answer = comprehensiveResults.analysis.research_answers[questionText];
-      if (answer) return answer;
-      const answerById = comprehensiveResults.analysis.research_answers[questionId];
-      if (answerById) return answerById;
-    }
-    
-    if (comprehensiveResults?.analysis?.researchAnswers) {
-      const answer = comprehensiveResults.analysis.researchAnswers[questionText];
-      if (answer) return answer;
-      const answerById = comprehensiveResults.analysis.researchAnswers[questionId];
-      if (answerById) return answerById;
     }
     
     // Fallback to regular analysis results if comprehensive is empty
