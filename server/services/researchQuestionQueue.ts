@@ -101,6 +101,32 @@ export class ResearchQuestionQueueService {
 
       console.log(`✅ FORCE RERUN: Queued ALL ${queuedCount} research questions for deal ${dealId}`);
 
+      // Create master job to track overall progress (like IP does)
+      const masterJobId = `force-rerun-all-research-${dealId}`;
+      const existingMaster = await storage.getBackgroundJobById(masterJobId);
+      if (existingMaster) {
+        await storage.updateBackgroundJob(masterJobId, {
+          status: 'processing',
+          progress: 0,
+          currentStep: `Starting research queue: 0/${RESEARCH_QUESTIONS.length} questions`
+        });
+      } else {
+        await storage.createBackgroundJob({
+          jobId: masterJobId,
+          dealId,
+          jobType: 'research_force_rerun_master',
+          status: 'processing',
+          progress: 0,
+          currentStep: `Starting research queue: 0/${RESEARCH_QUESTIONS.length} questions`,
+          metadata: {
+            agentType: 'research',
+            totalQuestions: RESEARCH_QUESTIONS.length,
+            startTime: new Date().toISOString()
+          }
+        });
+      }
+      console.log(`✅ Created master job ${masterJobId} for research queue`);
+
       this.processQueue(dealId);
 
       return { success: true, queuedCount };
@@ -119,6 +145,10 @@ export class ResearchQuestionQueueService {
     this.processingQueues.set(dealId, true);
     const abortController = new AbortController();
     this.activeProcessors.set(dealId, abortController);
+    
+    const masterJobId = `force-rerun-all-research-${dealId}`;
+    let completedCount = 0;
+    const totalQuestions = RESEARCH_QUESTIONS.length;
 
     try {
       console.log(`▶️ Starting research queue processor for deal ${dealId}`);
@@ -208,7 +238,17 @@ export class ResearchQuestionQueueService {
             })
             .where(eq(agentQuestionQueue.id, question.id));
 
-          console.log(`✅ Completed research question ${question.questionKey}`);
+          completedCount++;
+          
+          // Update master job progress (keeps isProcessing=true between questions)
+          const masterProgress = Math.round((completedCount / totalQuestions) * 100);
+          await storage.updateBackgroundJob(masterJobId, {
+            status: 'processing',
+            progress: masterProgress,
+            currentStep: `Processing question ${completedCount + 1}/${totalQuestions}: ${question.questionKey}`
+          });
+
+          console.log(`✅ Completed research question ${question.questionKey} (${completedCount}/${totalQuestions})`);
 
         } catch (error: any) {
           console.error(`❌ Error processing research question ${question.id}:`, error);
@@ -235,9 +275,23 @@ export class ResearchQuestionQueueService {
       }
 
       console.log(`🏁 Research queue processing completed for deal ${dealId}`);
+      
+      // Mark master job as completed
+      await storage.updateBackgroundJob(masterJobId, {
+        status: 'completed',
+        progress: 100,
+        currentStep: `Completed all ${totalQuestions} research questions`
+      });
+      console.log(`✅ Master job ${masterJobId} marked as completed`);
 
     } catch (error) {
       console.error(`❌ Research queue processor error for deal ${dealId}:`, error);
+      
+      // Mark master job as failed on error
+      await storage.updateBackgroundJob(masterJobId, {
+        status: 'failed',
+        currentStep: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     } finally {
       this.processingQueues.delete(dealId);
       this.activeProcessors.delete(dealId);
