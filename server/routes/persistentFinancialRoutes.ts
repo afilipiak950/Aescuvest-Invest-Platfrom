@@ -423,7 +423,8 @@ router.post('/api/deals/:dealId/financial-analysis/force-rerun-all', async (req,
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'financial',
-      COMPREHENSIVE_FINANCIAL_QUESTIONS.length
+      COMPREHENSIVE_FINANCIAL_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

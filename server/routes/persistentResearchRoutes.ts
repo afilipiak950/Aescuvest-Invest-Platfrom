@@ -545,7 +545,8 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'research',
-      RESEARCH_QUESTIONS.length
+      RESEARCH_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

@@ -348,7 +348,8 @@ router.post('/api/deals/:dealId/clinical-analysis/force-rerun-all', async (req: 
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'clinical',
-      COMPREHENSIVE_CLINICAL_QUESTIONS.length
+      COMPREHENSIVE_CLINICAL_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

@@ -288,7 +288,8 @@ persistentHRRoutes.post('/api/deals/:dealId/hr-analysis/force-rerun-all', async 
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'hr',
-      HR_QUESTIONS.length
+      HR_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

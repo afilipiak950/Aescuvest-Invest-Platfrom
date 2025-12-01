@@ -729,7 +729,8 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'ip',
-      COMPREHENSIVE_IP_QUESTIONS.length
+      COMPREHENSIVE_IP_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

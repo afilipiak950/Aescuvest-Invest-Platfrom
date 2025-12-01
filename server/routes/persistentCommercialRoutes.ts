@@ -332,7 +332,8 @@ persistentCommercialRoutes.post('/api/deals/:dealId/commercial-analysis/force-re
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'commercial',
-      COMMERCIAL_QUESTIONS.length
+      COMMERCIAL_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {
