@@ -3228,6 +3228,114 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     gcTime: 0, // Don't cache results like other agents
   });
 
+  // ========================================
+  // WEBSOCKET QUEUE PROGRESS INTEGRATION (CRITICAL FOR FORCE RERUN ALL)
+  // ========================================
+  // Listen for real-time queue updates via WebSocket for per-question progress bars
+  useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let isComponentMounted = true;
+
+    const connectWebSocket = () => {
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log(`🔌 [Research Queue] Connecting to WebSocket: ${wsUrl}`);
+        
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('✅ [Research Queue] WebSocket connected successfully');
+          const subscribeMessage = {
+            type: 'subscribe',
+            dealId: Number(dealId)
+          };
+          console.log('📤 [Research Queue] Sending subscription:', subscribeMessage);
+          ws!.send(JSON.stringify(subscribeMessage));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            
+            // Handle queue progress updates specifically for Research
+            if (message.type === 'research_queue_progress') {
+              const queueStatus = message.data;
+              console.log(`📊 [Research Queue] Progress update:`, queueStatus);
+              
+              // Update progress based on queue status - shows per-question progress bars during Force Rerun All
+              setQuestionProgress(prev => {
+                const newProgress: Record<string, number> = {};
+                
+                // If there's a currently running question, show progress bar for that specific question
+                if (queueStatus.currentQuestionId && queueStatus.running > 0) {
+                  const runningProgress = queueStatus.total > 0 
+                    ? Math.round((queueStatus.completed / queueStatus.total) * 100)
+                    : 50;
+                  
+                  newProgress[queueStatus.currentQuestionId] = runningProgress;
+                  console.log(`🎯 [Research Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
+                }
+                
+                // Keep pending questions visible with 0% progress
+                if (queueStatus.pending > 0) {
+                  for (const [qId, prog] of Object.entries(prev)) {
+                    if (!newProgress[qId]) {
+                      newProgress[qId] = 0;
+                    }
+                  }
+                }
+                
+                return newProgress;
+              });
+              
+              // If all questions completed, refetch comprehensive results and clear progress
+              if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
+                console.log(`✅ [Research Queue] All questions completed - refreshing results`);
+                queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`] });
+                refetchComprehensive();
+                setQuestionProgress({});
+              }
+            }
+          } catch (error) {
+            console.error('❌ [Research Queue] Error parsing WebSocket message:', error);
+          }
+        };
+
+        ws.onclose = (event) => {
+          console.log('🔌 [Research Queue] WebSocket disconnected:', event.code, event.reason);
+          if (isComponentMounted) {
+            console.log('🔄 [Research Queue] Reconnecting in 3 seconds...');
+            reconnectTimeout = setTimeout(() => {
+              if (isComponentMounted) {
+                connectWebSocket();
+              }
+            }, 3000);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('❌ [Research Queue] WebSocket error:', error);
+        };
+      } catch (error) {
+        console.error('❌ [Research Queue] Failed to create WebSocket:', error);
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isComponentMounted = false;
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws) {
+        ws.close();
+      }
+    };
+  }, [dealId, refetchComprehensive, queryClient]);
+
   // Load existing running jobs from database on mount to restore progress bars after refresh
   useEffect(() => {
     const loadExistingJobs = async () => {
