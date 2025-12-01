@@ -7,11 +7,106 @@
 import { Router } from 'express';
 import { db } from '../db';
 import { agentAnalyses, backgroundJobs, deals } from '../../shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, like } from 'drizzle-orm';
 import { comprehensiveIpAnalysisService, COMPREHENSIVE_IP_QUESTIONS } from '../comprehensiveIpAnalysisService';
 import { persistentIpAnalysisService } from '../services/persistentIpAnalysis';
 import { storage } from '../storage';
 import { websocketManager } from '../services/websocketManager';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
+
+/**
+ * Execute IP force-rerun-all - called by AgentRunCoordinator when it's IP's turn
+ */
+async function executeIpForceRerunAll(dealId: number): Promise<void> {
+  const masterJobId = `force-rerun-all-ip-${dealId}`;
+  
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_ip',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all IP questions'
+  });
+  
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'ip-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < COMPREHENSIVE_IP_QUESTIONS.length; i++) {
+      const question = COMPREHENSIVE_IP_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / COMPREHENSIVE_IP_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
+      });
+      
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'ip', 
+        completedCount,
+        `Question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`🔬 [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] SEQUENTIAL: Starting IP question ${question.id}`);
+        await comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < COMPREHENSIVE_IP_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < COMPREHENSIVE_IP_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_IP_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 IP FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_IP_QUESTIONS.length} questions`);
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in IP force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / COMPREHENSIVE_IP_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register IP callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('ip', executeIpForceRerunAll);
 
 // Helper function to broadcast IP queue progress via WebSocket (MATCH Legal pattern)
 async function broadcastIpQueueProgress(dealId: number, currentQuestionId: string | null, completed: number, total: number, isProcessing: boolean) {
@@ -616,8 +711,7 @@ router.post('/api/deals/:dealId/ip-analysis/question/:questionId/rerun', async (
 
 /**
  * Force rerun ALL IP questions (including already answered ones)
- * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
- * EXACT MATCH to Legal/Clinical/HR/Financial implementation
+ * Uses AgentRunCoordinator for cross-agent sequential execution
  */
 router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -630,188 +724,32 @@ router.post('/api/deals/:dealId/ip-analysis/force-rerun-all', async (req, res) =
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Checking if sequential IP analysis is already running for deal ${dealId}`);
+    console.log(`🔥 FORCE RERUN: Enqueueing IP analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    const { comprehensiveIpAnalysisService, COMPREHENSIVE_IP_QUESTIONS } = await import('../comprehensiveIpAnalysisService');
-    const { storage } = await import('../storage');
-    const { db } = await import('../db');
-    const { backgroundJobs } = await import('../../shared/schema');
-    const { and: drizzleAnd, eq: drizzleEq, like: drizzleLike } = await import('drizzle-orm');
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'ip',
+      COMPREHENSIVE_IP_QUESTIONS.length
+    );
     
-    const masterJobId = `force-rerun-all-ip-${dealId}`;
-    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
-    
-    if (existingMasterJob && existingMasterJob.status === 'processing') {
-      console.log(`⚠️ Force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+    if (!result.success && result.queuePosition > 0) {
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
-        startedAt: existingMasterJob.createdAt,
-        jobId: masterJobId
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    if (existingMasterJob) {
-      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
-      await storage.deleteBackgroundJob(masterJobId);
-      console.log(`✅ Deleted old force-rerun master job`);
-    }
-    
-    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL IP questions on deal ${dealId}`);
-    
-    await storage.createBackgroundJob({
-      jobId: masterJobId,
-      jobType: 'force_rerun_all_ip',
-      dealId,
-      status: 'processing',
-      progress: 0,
-      currentStep: 'Starting sequential force rerun of all IP questions'
-    });
-    console.log(`🔒 Created master lock job: ${masterJobId}`);
-    
-    console.log(`🧹 Cleaning up any existing IP question rerun jobs for deal ${dealId}`);
-    
-    const existingQuestionJobs = await db.query.backgroundJobs.findMany({
-      where: drizzleAnd(
-        drizzleEq(backgroundJobs.dealId, dealId),
-        drizzleLike(backgroundJobs.jobId, 'ip-question-rerun-%')
-      )
-    });
-    
-    for (const job of existingQuestionJobs) {
-      await storage.deleteBackgroundJob(job.jobId);
-    }
-    console.log(`✅ Cleaned up ${existingQuestionJobs.length} existing IP question rerun jobs`);
-    
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
-      startedCount: COMPREHENSIVE_IP_QUESTIONS.length,
+      message: result.isRunning 
+        ? `IP analysis started immediately`
+        : `IP analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: COMPREHENSIVE_IP_QUESTIONS.length,
-      dealId,
-      estimatedTime: `${Math.round(COMPREHENSIVE_IP_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
-    });
-    
-    setImmediate(async () => {
-      let completedCount = 0;
-      const errors: string[] = [];
-      
-      try {
-        for (let i = 0; i < COMPREHENSIVE_IP_QUESTIONS.length; i++) {
-          const question = COMPREHENSIVE_IP_QUESTIONS[i];
-          const questionNumber = i + 1;
-          const startTime = Date.now();
-          
-          // CRITICAL FIX: Calculate per-question progress tracking
-          // Start each question at base progress, increment as it processes
-          const baseProgress = Math.round((i / COMPREHENSIVE_IP_QUESTIONS.length) * 100);
-          const questionProgressIncrement = Math.round(100 / COMPREHENSIVE_IP_QUESTIONS.length);
-          let currentQuestionProgress = 10; // Start at 10% to show activity
-          
-          await storage.updateBackgroundJob(masterJobId, {
-            progress: baseProgress,
-            currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
-          });
-          
-          // CRITICAL: Broadcast progress via WebSocket for per-question progress bar (MATCH Legal pattern)
-          await broadcastIpQueueProgress(dealId, question.id, completedCount, COMPREHENSIVE_IP_QUESTIONS.length, true);
-          
-          try {
-            console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
-            
-            // CRITICAL FIX: Start progress tracking interval during question processing
-            // This propagates rerunSingleQuestion progress to the master job
-            let progressInterval: ReturnType<typeof setInterval> | null = null;
-            let questionCompleted = false;
-            
-            progressInterval = setInterval(async () => {
-              if (questionCompleted) {
-                if (progressInterval) clearInterval(progressInterval);
-                return;
-              }
-              try {
-                // Check the individual question job progress
-                const questionJobId = `ip-question-rerun-${dealId}-${question.id}`;
-                const questionJob = await storage.getBackgroundJobById(questionJobId);
-                
-                if (questionJob && questionJob.progress !== null && questionJob.progress > currentQuestionProgress) {
-                  currentQuestionProgress = questionJob.progress;
-                  // Update master job with per-question progress context
-                  const combinedProgress = baseProgress + Math.round((currentQuestionProgress / 100) * questionProgressIncrement);
-                  await storage.updateBackgroundJob(masterJobId, {
-                    progress: Math.min(99, combinedProgress),
-                    currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}: ${question.id}`
-                  });
-                  console.log(`📊 [IP] Question ${question.id} progress: ${currentQuestionProgress}%, overall: ${combinedProgress}%`);
-                }
-              } catch (err) {
-                // Ignore errors in progress tracking
-              }
-            }, 2000); // Poll every 2 seconds
-            
-            await comprehensiveIpAnalysisService.rerunSingleQuestion(dealId, question.id);
-            
-            // Stop progress tracking
-            questionCompleted = true;
-            if (progressInterval) clearInterval(progressInterval);
-            
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            
-            completedCount++;
-            console.log(`✅ [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
-            
-            // CRITICAL: Broadcast completion via WebSocket (MATCH Legal pattern)
-            await broadcastIpQueueProgress(dealId, null, completedCount, COMPREHENSIVE_IP_QUESTIONS.length, i < COMPREHENSIVE_IP_QUESTIONS.length - 1);
-            
-            if (i < COMPREHENSIVE_IP_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            
-          } catch (error: any) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            console.error(`❌ [${questionNumber}/${COMPREHENSIVE_IP_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
-            errors.push(`${question.id}: ${error.message}`);
-            
-            if (i < COMPREHENSIVE_IP_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question (after error)...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-        
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'completed',
-          progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_IP_QUESTIONS.length} questions analyzed`,
-          completedAt: new Date()
-        });
-        
-        console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_IP_QUESTIONS.length} questions analyzed`);
-        if (errors.length > 0) {
-          console.log(`⚠️ ${errors.length} questions failed:`, errors);
-        }
-        
-      } catch (fatalError: any) {
-        console.error(`🚨 FATAL ERROR in force rerun loop:`, fatalError);
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'failed',
-          progress: Math.round((completedCount / COMPREHENSIVE_IP_QUESTIONS.length) * 100),
-          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
-        });
-      } finally {
-        setTimeout(async () => {
-          try {
-            console.log(`🧹 [1-hour cleanup] Deleting master job: ${masterJobId}`);
-            await storage.deleteBackgroundJob(masterJobId);
-            console.log(`✅ [1-hour cleanup] Deleted master job: ${masterJobId}`);
-          } catch (cleanupError) {
-            console.error(`❌ [1-hour cleanup] Failed to delete master job:`, cleanupError);
-          }
-        }, 60 * 60 * 1000);
-      }
+      dealId
     });
     
   } catch (error: any) {

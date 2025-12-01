@@ -6,11 +6,116 @@
 import { Router } from 'express';
 import { persistentLegalAnalysisService } from '../services/persistentLegalAnalysis';
 import { legalQuestionQueue } from '../services/legalQuestionQueue';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
 import { db } from '../db';
 import { backgroundJobs } from '../../shared/schema';
 import { eq, and, like } from 'drizzle-orm';
 
 export const persistentLegalRoutes = Router();
+
+/**
+ * Execute Legal force-rerun-all - called by AgentRunCoordinator when it's Legal's turn
+ */
+async function executeLegalForceRerunAll(dealId: number): Promise<void> {
+  const { comprehensiveLegalAnalysisService, COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
+  const { storage } = await import('../storage');
+  
+  const masterJobId = `force-rerun-all-legal-${dealId}`;
+  
+  // Clean up old master job if it exists
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  // Create master job for progress tracking
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_legal',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all legal questions'
+  });
+  
+  // Clean up existing legal question rerun jobs
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'legal-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
+      const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.id}`
+      });
+      
+      // Update coordinator progress
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'legal', 
+        completedCount,
+        `Question ${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] SEQUENTIAL: Starting legal question ${question.id}`);
+        await comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < COMPREHENSIVE_LEGAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < COMPREHENSIVE_LEGAL_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 LEGAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} questions`);
+    if (errors.length > 0) {
+      console.log(`⚠️ ${errors.length} questions failed:`, errors);
+    }
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in legal force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register Legal callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('legal', executeLegalForceRerunAll);
 
 /**
  * Start legal analysis for a deal
@@ -339,8 +444,8 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/run-all-questions'
 
 /**
  * Force rerun ALL legal questions (including already answered ones)
- * Uses COMPREHENSIVE ANALYSIS with evidence extraction from ALL documents
- * This is the REAL analysis that takes hours - same as manual run
+ * Uses AgentRunCoordinator for cross-agent sequential execution
+ * This ensures Legal waits if another agent is running, and other agents wait for Legal
  */
 persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -353,140 +458,37 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Checking if sequential analysis is already running for deal ${dealId}`);
+    const { COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
     
-    // Import comprehensive service and questions
-    const { comprehensiveLegalAnalysisService, COMPREHENSIVE_LEGAL_QUESTIONS } = await import('../comprehensiveLegalAnalysisService');
-    const { storage } = await import('../storage');
+    console.log(`🔥 FORCE RERUN: Enqueueing Legal analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    // CRITICAL MUTUAL EXCLUSION: Check if force-rerun-all is already in progress
-    const masterJobId = `force-rerun-all-${dealId}`;
-    const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+    // Enqueue via coordinator - it handles the sequencing
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'legal',
+      COMPREHENSIVE_LEGAL_QUESTIONS.length
+    );
     
-    if (existingMasterJob && existingMasterJob.status === 'processing') {
-      console.log(`⚠️ Force rerun already in progress for deal ${dealId} (started ${existingMasterJob.createdAt})`);
+    if (!result.success && result.queuePosition > 0) {
+      // Already queued or running
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.',
-        startedAt: existingMasterJob.createdAt,
-        jobId: masterJobId
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    // Clean up old master job if it exists (from previous completed/failed runs)
-    if (existingMasterJob) {
-      console.log(`🧹 Cleaning up previous force-rerun job with status: ${existingMasterJob.status}`);
-      await storage.deleteBackgroundJob(masterJobId);
-      console.log(`✅ Deleted old force-rerun master job`);
-    }
-    
-    console.log(`🔥 FORCE RERUN: Starting SEQUENTIAL COMPREHENSIVE analysis for ALL legal questions on deal ${dealId}`);
-    
-    // Create master job to act as mutex lock
-    await storage.createBackgroundJob({
-      jobId: masterJobId,
-      jobType: 'force_rerun_all_legal',
-      dealId,
-      status: 'processing',
-      progress: 0,
-      currentStep: 'Starting sequential force rerun of all legal questions'
-    });
-    console.log(`🔒 Created master lock job: ${masterJobId}`);
-    
-    // CRITICAL: Cancel all existing legal question rerun jobs before starting fresh
-    console.log(`🧹 Cleaning up any existing legal question rerun jobs for deal ${dealId}`);
-    
-    await db
-      .delete(backgroundJobs)
-      .where(
-        and(
-          eq(backgroundJobs.dealId, dealId),
-          like(backgroundJobs.jobId, 'legal-question-rerun-%')
-        )
-      );
-    console.log(`✅ Cleaned up existing legal question rerun jobs`);
-    
-    // Respond immediately to user, then process questions sequentially in background
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive analysis - questions will run one after another`,
-      startedCount: COMPREHENSIVE_LEGAL_QUESTIONS.length,
+      message: result.isRunning 
+        ? `Legal analysis started immediately (no other agents running)`
+        : `Legal analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: COMPREHENSIVE_LEGAL_QUESTIONS.length,
-      dealId,
-      estimatedTime: `${Math.round(COMPREHENSIVE_LEGAL_QUESTIONS.length * 10 / 60)} hours (10 min average per question)`
+      dealId
     });
-    
-    // Run questions SEQUENTIALLY in background (one finishes before next starts)
-    (async () => {
-      let completedCount = 0;
-      const errors: string[] = [];
-      
-      try {
-        for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
-          const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
-          const questionNumber = i + 1;
-          const startTime = Date.now();
-          
-          // Update master job progress
-          const overallProgress = Math.round((i / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100);
-          await storage.updateBackgroundJob(masterJobId, {
-            progress: overallProgress,
-            currentStep: `Processing question ${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.id}`
-          });
-          
-          try {
-            console.log(`🎯 [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] SEQUENTIAL: Starting question ${question.id}`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()} - Ensuring previous question completed before starting this one`);
-            
-            // AWAIT each question - ensures it fully completes or times out before next starts
-            await comprehensiveLegalAnalysisService.rerunSingleQuestion(dealId, question.id);
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            
-            completedCount++;
-            console.log(`✅ [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
-            
-            // Add 2-second delay between questions to ensure sequential execution
-            if (i < COMPREHENSIVE_LEGAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-            
-          } catch (error) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            console.error(`❌ [${questionNumber}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
-            errors.push(`${question.id}: ${error.message}`);
-            
-            // Even on error, add delay to prevent rapid parallel execution
-            if (i < COMPREHENSIVE_LEGAL_QUESTIONS.length - 1) {
-              console.log(`⏸️ 2-second delay before next question (after error)...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-        
-        // Mark master job as completed
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'completed',
-          progress: 100,
-          currentStep: `Completed: ${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} questions analyzed`
-        });
-        
-        console.log(`🎉 SEQUENTIAL FORCE RERUN COMPLETE: ${completedCount}/${COMPREHENSIVE_LEGAL_QUESTIONS.length} questions analyzed`);
-        if (errors.length > 0) {
-          console.log(`⚠️ ${errors.length} questions failed:`, errors);
-        }
-        
-      } catch (fatalError) {
-        // Mark master job as failed
-        console.error(`🚨 FATAL ERROR in force rerun loop:`, fatalError);
-        await storage.updateBackgroundJob(masterJobId, {
-          status: 'failed',
-          progress: Math.round((completedCount / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
-          currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
-        });
-      }
-    })();
     
   } catch (error) {
     console.error('Error force rerunning all legal questions:', error);

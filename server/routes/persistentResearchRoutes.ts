@@ -11,8 +11,105 @@ import { db } from '../db';
 import { backgroundJobs } from '../../shared/schema';
 import { and, eq, like } from 'drizzle-orm';
 import { researchQuestionQueue } from '../services/researchQuestionQueue';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
 
 export const persistentResearchRoutes = Router();
+
+/**
+ * Execute Research force-rerun-all - called by AgentRunCoordinator when it's Research's turn
+ */
+async function executeResearchForceRerunAll(dealId: number): Promise<void> {
+  const { comprehensiveResearchAnalysisService, RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
+  
+  const masterJobId = `force-rerun-all-research-${dealId}`;
+  
+  const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
+  if (existingMasterJob) {
+    await storage.deleteBackgroundJob(masterJobId);
+  }
+  
+  await storage.createBackgroundJob({
+    jobId: masterJobId,
+    jobType: 'force_rerun_all_research',
+    dealId,
+    status: 'processing',
+    progress: 0,
+    currentStep: 'Starting sequential force rerun of all research questions'
+  });
+  
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        like(backgroundJobs.jobId, 'research-question-rerun-%')
+      )
+    );
+  
+  let completedCount = 0;
+  const errors: string[] = [];
+  
+  try {
+    for (let i = 0; i < RESEARCH_QUESTIONS.length; i++) {
+      const question = RESEARCH_QUESTIONS[i];
+      const questionNumber = i + 1;
+      const startTime = Date.now();
+      
+      const overallProgress = Math.round((i / RESEARCH_QUESTIONS.length) * 100);
+      await storage.updateBackgroundJob(masterJobId, {
+        progress: overallProgress,
+        currentStep: `Processing question ${questionNumber}/${RESEARCH_QUESTIONS.length}: ${question.id}`
+      });
+      
+      await agentRunCoordinator.updateProgress(
+        dealId, 
+        'research', 
+        completedCount,
+        `Question ${questionNumber}/${RESEARCH_QUESTIONS.length}: ${question.id}`
+      );
+      
+      try {
+        console.log(`🔬 [${questionNumber}/${RESEARCH_QUESTIONS.length}] SEQUENTIAL: Starting research question ${question.id}`);
+        await comprehensiveResearchAnalysisService.rerunSingleQuestion(dealId, question.id);
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        completedCount++;
+        console.log(`✅ [${questionNumber}/${RESEARCH_QUESTIONS.length}] Completed ${question.id} in ${duration}s`);
+        
+        if (i < RESEARCH_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error: any) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        console.error(`❌ [${questionNumber}/${RESEARCH_QUESTIONS.length}] Failed ${question.id} after ${duration}s:`, error);
+        errors.push(`${question.id}: ${error.message}`);
+        
+        if (i < RESEARCH_QUESTIONS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'completed',
+      progress: 100,
+      currentStep: `Completed: ${completedCount}/${RESEARCH_QUESTIONS.length} questions analyzed`
+    });
+    
+    console.log(`🎉 RESEARCH FORCE RERUN COMPLETE: ${completedCount}/${RESEARCH_QUESTIONS.length} questions`);
+    
+  } catch (fatalError: any) {
+    console.error(`🚨 FATAL ERROR in research force rerun:`, fatalError);
+    await storage.updateBackgroundJob(masterJobId, {
+      status: 'failed',
+      progress: Math.round((completedCount / RESEARCH_QUESTIONS.length) * 100),
+      currentStep: `Failed after ${completedCount} questions: ${fatalError.message}`
+    });
+    throw fatalError;
+  }
+}
+
+// Register Research callback with AgentRunCoordinator
+agentRunCoordinator.registerAgentCallback('research', executeResearchForceRerunAll);
 
 /**
  * Start Research Analysis - EXACT Legal approach
@@ -428,8 +525,7 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/question/:qu
 
 /**
  * Force rerun ALL research questions (including already answered ones)
- * BULLETPROOF: Uses ResearchQuestionQueueService - identical to Legal architecture
- * Persists to agentQuestionQueue, survives restarts, proper WebSocket status
+ * Uses AgentRunCoordinator for cross-agent sequential execution
  */
 persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-all', async (req, res) => {
   try {
@@ -442,25 +538,32 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-
       });
     }
 
-    console.log(`🔥 FORCE RERUN: Using ResearchQuestionQueueService for deal ${dealId}`);
+    const { RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
     
-    if (researchQuestionQueue.isProcessing(dealId)) {
-      console.log(`⚠️ Force rerun already in progress for deal ${dealId}`);
+    console.log(`🔥 FORCE RERUN: Enqueueing Research analysis via AgentRunCoordinator for deal ${dealId}`);
+    
+    const result = await agentRunCoordinator.enqueueAndStart(
+      dealId,
+      'research',
+      RESEARCH_QUESTIONS.length
+    );
+    
+    if (!result.success && result.queuePosition > 0) {
       return res.status(409).json({
         success: false,
-        error: 'Force rerun already in progress',
-        message: 'A sequential force rerun is already running for this deal. Please wait for it to complete.'
+        error: result.message,
+        queuePosition: result.queuePosition,
+        isRunning: result.isRunning
       });
     }
     
-    const { RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
-    
-    const result = await researchQuestionQueue.forceRerunAllQuestions(dealId);
-    
     res.json({
       success: true,
-      message: `Force rerun: Started sequential comprehensive analysis via queue service`,
-      startedCount: result.queuedCount,
+      message: result.isRunning 
+        ? `Research analysis started immediately`
+        : `Research analysis queued at position ${result.queuePosition}`,
+      queuePosition: result.queuePosition,
+      isRunning: result.isRunning,
       totalQuestions: RESEARCH_QUESTIONS.length,
       dealId
     });
