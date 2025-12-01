@@ -553,7 +553,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
 
 /**
  * Cancel queue processing for Research analysis
- * BULLETPROOF: Uses ResearchQuestionQueueService - identical to Legal architecture
+ * DATABASE-BACKED: Deletes background jobs like IP does - actually stops the queue
  */
 persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/cancel-queue', async (req, res) => {
   try {
@@ -568,11 +568,30 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/cancel-queue
 
     console.log(`🛑 Cancelling research question queue for deal ${dealId}`);
     
+    const { db } = await import('../db');
+    const { backgroundJobs } = await import('../../shared/schema');
+    const { and: drizzleAnd, eq: drizzleEq, or: drizzleOr } = await import('drizzle-orm');
+    
+    // Clear in-memory state first
     await researchQuestionQueue.cancelQueue(dealId);
+    
+    // Delete all research question background jobs for this deal
+    const existingJobs = await db.query.backgroundJobs.findMany({
+      where: drizzleAnd(
+        drizzleEq(backgroundJobs.dealId, dealId),
+        drizzleEq(backgroundJobs.jobType, 'research_question_rerun')
+      )
+    });
+    
+    for (const job of existingJobs) {
+      await storage.deleteBackgroundJob(job.jobId);
+    }
+    console.log(`✅ Deleted ${existingJobs.length} research question background jobs`);
     
     res.json({
       success: true,
-      message: 'Research queue cancelled successfully'
+      message: 'Research queue cancelled successfully',
+      deletedJobs: existingJobs.length
     });
     
   } catch (error) {
