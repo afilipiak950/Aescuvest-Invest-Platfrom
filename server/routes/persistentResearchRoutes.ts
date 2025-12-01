@@ -476,7 +476,7 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-
 
 /**
  * Get queue status for Research analysis
- * BULLETPROOF: Uses ResearchQuestionQueueService - identical to Legal architecture
+ * DATABASE-BACKED: Uses background jobs table like IP - survives server restarts
  */
 persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status', async (req, res) => {
   try {
@@ -489,11 +489,57 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
       });
     }
 
-    const status = await researchQuestionQueue.getQueueStatus(dealId);
+    const { RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
+    
+    // Get all background jobs for this deal - same pattern as IP
+    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
+    const questionJobs = allJobs.filter(job => job.jobType === 'research_question_rerun');
+    
+    const pending = questionJobs.filter(j => j.status === 'pending').length;
+    const running = questionJobs.filter(j => j.status === 'processing').length;
+    const completed = questionJobs.filter(j => j.status === 'completed').length;
+    const failed = questionJobs.filter(j => j.status === 'failed').length;
+    const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
+    
+    const total = RESEARCH_QUESTIONS.length;
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    // Find the currently running question
+    const runningJob = questionJobs.find(j => j.status === 'processing');
+    let currentQuestionId: string | null = null;
+    let currentQuestion: string | null = null;
+    
+    if (runningJob?.currentStep) {
+      // Extract question ID from currentStep format: "Analyzing: question text..."
+      const match = runningJob.currentStep.match(/research_\d+/);
+      if (match) {
+        currentQuestionId = match[0];
+      }
+      currentQuestion = runningJob.currentStep;
+    }
+    
+    // Also check the in-memory queue for real-time status
+    const inMemoryProcessing = researchQuestionQueue.isProcessing(dealId);
+    
+    // isProcessing is true if either database shows running jobs OR in-memory queue is active
+    const isProcessing = running > 0 || inMemoryProcessing || pending > 0;
+    
+    console.log(`📊 Research queue-status for deal ${dealId}: running=${running}, pending=${pending}, completed=${completed}, isProcessing=${isProcessing}, currentQuestionId=${currentQuestionId}`);
     
     res.json({
       success: true,
-      status
+      status: {
+        total,
+        pending,
+        running: isProcessing ? Math.max(1, running) : 0,  // If processing, at least 1 question is running
+        completed,
+        failed,
+        cancelled,
+        progress,
+        currentQuestion,
+        currentQuestionId,
+        isProcessing
+      }
     });
     
   } catch (error) {
