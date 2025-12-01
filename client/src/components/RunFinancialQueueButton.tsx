@@ -1,7 +1,7 @@
 /**
  * Run Financial Queue Button Component
  * Triggers sequential processing of all Financial questions for a deal
- * Shows real-time progress and queue status
+ * Shows real-time progress, queue status, and cross-agent queue position
  * STANDARDIZED: Simple Force Rerun All button (no dropdown)
  * 
  * REAL-TIME ANSWER DISPLAY: Invalidates Financial results cache when questions complete
@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
-import { Square, Loader2, RefreshCw } from 'lucide-react';
+import { Square, Loader2, RefreshCw, Clock } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
@@ -25,6 +25,15 @@ interface QueueStatus {
   progress: number;
   currentQuestion: string | null;
   isProcessing: boolean;
+}
+
+interface AgentRunQueueEntry {
+  agentType: string;
+  status: string;
+  position: number;
+  totalQuestions: number;
+  completedQuestions: number;
+  currentStep: string | null;
 }
 
 interface RunFinancialQueueButtonProps {
@@ -44,6 +53,7 @@ export function RunFinancialQueueButton({
 }: RunFinancialQueueButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
+  const [agentQueuePosition, setAgentQueuePosition] = useState<AgentRunQueueEntry | null>(null);
   const { toast } = useToast();
   
   const prevCompletedRef = useRef<number>(0);
@@ -51,9 +61,13 @@ export function RunFinancialQueueButton({
   useEffect(() => {
     const checkQueueStatus = async () => {
       try {
-        const response = await apiRequest(`/api/deals/${dealId}/financial-analysis/queue-status`);
-        if (response.success && response.status) {
-          const newCompleted = response.status.completed;
+        const [statusResponse, agentQueueResponse] = await Promise.all([
+          apiRequest(`/api/deals/${dealId}/financial-analysis/queue-status`),
+          apiRequest(`/api/deals/${dealId}/agent-run-queue/status`)
+        ]);
+        
+        if (statusResponse.success && statusResponse.status) {
+          const newCompleted = statusResponse.status.completed;
           const prevCompleted = prevCompletedRef.current;
           
           if (newCompleted > prevCompleted) {
@@ -65,14 +79,24 @@ export function RunFinancialQueueButton({
           }
           
           prevCompletedRef.current = newCompleted;
-          setQueueStatus(response.status);
+          setQueueStatus(statusResponse.status);
 
-          if (response.status.isProcessing === false && 
-              response.status.completed > 0 && 
-              response.status.pending === 0 &&
-              response.status.running === 0) {
+          if (statusResponse.status.isProcessing === false && 
+              statusResponse.status.completed > 0 && 
+              statusResponse.status.pending === 0 &&
+              statusResponse.status.running === 0) {
             onQueueComplete?.();
           }
+        }
+        
+        // Check agent run queue for this agent's position
+        if (agentQueueResponse.success && agentQueueResponse.queue) {
+          const financialEntry = agentQueueResponse.queue.find(
+            (entry: AgentRunQueueEntry) => entry.agentType === 'financial'
+          );
+          setAgentQueuePosition(financialEntry || null);
+        } else {
+          setAgentQueuePosition(null);
         }
       } catch (error) {
         console.error('Error checking Financial queue status:', error);
@@ -98,9 +122,13 @@ export function RunFinancialQueueButton({
       if (response.success) {
         onQueueStart?.();
         
+        const message = response.isRunning 
+          ? `Started ${response.totalQuestions} questions one-by-one. Each question extracts evidence from ALL documents.`
+          : `Queued at position ${response.queuePosition}. Waiting for other agents to complete.`;
+        
         toast({
-          title: "Sequential Financial Analysis Started",
-          description: `Running ${response.startedCount} questions one-by-one (${response.estimatedTime}). Each question extracts evidence from ALL documents. Next question starts when current one finishes.`,
+          title: response.isRunning ? "Analysis Started" : "Analysis Queued",
+          description: message,
           duration: 10000,
         });
       } else {
@@ -153,8 +181,56 @@ export function RunFinancialQueueButton({
   const isQueueActive = queueStatus?.isProcessing || 
                        (queueStatus?.pending ?? 0) > 0 || 
                        (queueStatus?.running ?? 0) > 0;
+  
+  // Check if this agent is waiting in cross-agent queue (queued but not running)
+  const isWaitingInQueue = agentQueuePosition?.status === 'pending';
+  const isRunningInQueue = agentQueuePosition?.status === 'running';
 
-  if (isQueueActive && queueStatus) {
+  // Show waiting state when queued behind other agents
+  if (isWaitingInQueue && agentQueuePosition) {
+    return (
+      <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+        <CardContent className="pt-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-400 animate-pulse" />
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    Waiting in Queue (Position {agentQueuePosition.position})
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Another agent is currently running
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleCancelQueue}
+                disabled={isLoading}
+                variant="outline"
+                size="sm"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <Square className="h-3 w-3 mr-2" />
+                    Cancel
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-amber-200">
+              Financial analysis will start automatically when previous agents complete.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show progress when queue is active (running)
+  if ((isQueueActive && queueStatus) || isRunningInQueue) {
     return (
       <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20">
         <CardContent className="pt-4">
@@ -165,7 +241,7 @@ export function RunFinancialQueueButton({
                   Processing Financial Questions
                 </p>
                 <p className="text-xs text-gray-400">
-                  {queueStatus.completed} of {queueStatus.total} completed
+                  {queueStatus?.completed || agentQueuePosition?.completedQuestions || 0} of {queueStatus?.total || agentQueuePosition?.totalQuestions || 0} completed
                 </p>
               </div>
               <Button
@@ -190,22 +266,22 @@ export function RunFinancialQueueButton({
             </div>
 
             <Progress 
-              value={queueStatus.progress} 
+              value={queueStatus?.progress || 0} 
               className="h-2 bg-dark-lighter"
             />
 
-            {queueStatus.currentQuestion && (
+            {(queueStatus?.currentQuestion || agentQueuePosition?.currentStep) && (
               <p className="text-xs text-gray-300">
-                {queueStatus.currentQuestion}
+                {queueStatus?.currentQuestion || agentQueuePosition?.currentStep}
               </p>
             )}
 
             <div className="flex gap-4 text-xs text-gray-400">
-              <span>⏳ Pending: {queueStatus.pending}</span>
-              <span>▶️ Running: {queueStatus.running}</span>
-              <span>✅ Done: {queueStatus.completed}</span>
-              {queueStatus.failed > 0 && (
-                <span className="text-red-400">❌ Failed: {queueStatus.failed}</span>
+              <span>⏳ Pending: {queueStatus?.pending || 0}</span>
+              <span>▶️ Running: {queueStatus?.running || 0}</span>
+              <span>✅ Done: {queueStatus?.completed || 0}</span>
+              {(queueStatus?.failed || 0) > 0 && (
+                <span className="text-red-400">❌ Failed: {queueStatus?.failed}</span>
               )}
             </div>
           </div>
