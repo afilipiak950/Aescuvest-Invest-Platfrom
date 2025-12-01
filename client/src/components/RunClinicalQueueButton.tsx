@@ -2,21 +2,16 @@
  * Run Clinical Queue Button Component
  * Triggers sequential processing of all clinical questions for a deal
  * Shows real-time progress and queue status
+ * STANDARDIZED: Simple Force Rerun All button (no dropdown)
  */
 
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Play, Square, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
+import { Square, Loader2, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 interface QueueStatus {
   total: number;

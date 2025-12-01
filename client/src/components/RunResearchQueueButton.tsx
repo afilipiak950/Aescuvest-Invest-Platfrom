@@ -2,22 +2,16 @@
  * Run Research Queue Button Component
  * Triggers sequential processing of all research questions for a deal
  * Shows real-time progress and queue status
- * EXACT MATCH to RunLegalQueueButton architecture
+ * STANDARDIZED: Simple Force Rerun All button (no dropdown)
  */
 
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Play, Square, Loader2, ChevronDown, RefreshCw } from 'lucide-react';
+import { Square, Loader2, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 interface QueueStatus {
   total: number;
@@ -201,47 +195,25 @@ export function RunResearchQueueButton({
     );
   }
 
+  // Show Force Rerun All button when queue is not active
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          disabled={isLoading}
-          className={className}
-          variant="outline"
-          data-testid="button-run-research-queue"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Starting...
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4 mr-2" />
-              Run Research Questions
-              <ChevronDown className="h-4 w-4 ml-2" />
-            </>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuItem
-          onClick={(e) => {
-            console.log('Force Rerun All Research menu item clicked!', { dealId, isLoading });
-            e.preventDefault();
-            e.stopPropagation();
-            handleForceRerunAll();
-          }}
-          disabled={isLoading}
-          data-testid="menu-force-rerun-all-research"
-        >
+    <Button
+      onClick={handleForceRerunAll}
+      disabled={isLoading}
+      className={className}
+      data-testid="button-force-rerun-research"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Starting...
+        </>
+      ) : (
+        <>
           <RefreshCw className="h-4 w-4 mr-2" />
-          <div className="flex flex-col">
-            <span className="font-medium">Force Rerun All Questions</span>
-            <span className="text-xs text-gray-400">Re-analyze ALL research questions</span>
-          </div>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          Force Rerun All Research Questions
+        </>
+      )}
+    </Button>
   );
 }
