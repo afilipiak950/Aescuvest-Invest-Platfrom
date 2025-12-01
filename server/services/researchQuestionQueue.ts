@@ -465,7 +465,12 @@ Format your response as JSON:
       abortController.abort();
       console.log(`🛑 Cancelled research queue processing for deal ${dealId}`);
     }
+    
+    // Clear processing state - EXACT Legal pattern
+    this.processingQueues.delete(dealId);
+    this.activeProcessors.delete(dealId);
 
+    // Mark ALL pending/running questions as cancelled - EXACT Legal pattern
     await db
       .update(agentQuestionQueue)
       .set({
@@ -475,10 +480,11 @@ Format your response as JSON:
       .where(
         and(
           eq(agentQuestionQueue.dealId, dealId),
-          eq(agentQuestionQueue.agentType, 'research'),
-          eq(agentQuestionQueue.status, 'pending')
+          eq(agentQuestionQueue.agentType, 'research')
         )
       );
+      
+    console.log(`✅ Research queue cancelled and processing state cleared for deal ${dealId}`);
   }
 
   isProcessing(dealId: number): boolean {
