@@ -55,6 +55,39 @@ export class ResearchQuestionQueueService {
     try {
       console.log('🔄 Initializing Research Question Queue Service...');
       
+      // 🔥 AUTO-RETRY: Reset BOTH failed AND stuck "running" questions back to pending
+      // This handles cases where jobs failed or were interrupted by server restart
+      await db
+        .update(agentQuestionQueue)
+        .set({ 
+          status: 'pending', 
+          errorMessage: null,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(agentQuestionQueue.agentType, 'research'),
+            eq(agentQuestionQueue.status, 'failed')
+          )
+        );
+      console.log(`🔄 Reset failed research questions to pending for automatic retry`);
+      
+      // Also reset "running" status questions that are orphaned from server restart
+      await db
+        .update(agentQuestionQueue)
+        .set({ 
+          status: 'pending', 
+          errorMessage: null,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(agentQuestionQueue.agentType, 'research'),
+            eq(agentQuestionQueue.status, 'running')
+          )
+        );
+      console.log(`🔄 Reset orphaned running research questions to pending for automatic retry`);
+      
       const pendingQueues = await db
         .select({ dealId: agentQuestionQueue.dealId })
         .from(agentQuestionQueue)
