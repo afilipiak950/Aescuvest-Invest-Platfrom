@@ -316,50 +316,50 @@ function DueDiligenceContent() {
 
   // REMOVED - Moving to top to fix hoisting issue
 
-  // Fetch comprehensive analysis data for each agent - NON-BLOCKING lazy load
+  // Fetch comprehensive analysis data for each agent - ENABLED when deal is selected
   const { data: clinicalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/clinical/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: hrAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/hr-analysis/comprehensive/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: ipAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/ip/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: researchAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/research-analysis/comprehensive/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: financialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/financial/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const { data: commercialAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/commercial/results`],
-    enabled: false, // Load lazily, don't block page render
+    enabled: !!selectedDeal, // Load when deal is selected
     refetchInterval: false, // No auto-refresh to improve performance
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // CRITICAL FIX: Add missing legalAnalysisData query hook
+  // Legal analysis query - enabled when deal is selected
   const { data: legalAnalysisData } = useQuery({
     queryKey: [`/api/deals/${selectedDeal}/agents/legal/results`],
     enabled: !!selectedDeal, // Load when deal is selected
