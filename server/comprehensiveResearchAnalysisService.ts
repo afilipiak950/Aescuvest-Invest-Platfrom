@@ -706,7 +706,8 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       }));
 
       // Check if analysis exists - update if yes, create if no (same pattern as commercial service)
-      const existingAnalysis = await this.storage.getAnalysisByDealAndAgent(dealId, 'research');
+      // CRITICAL: Use 'Research' (capitalized) to match Legal and other agents
+      const existingAnalysis = await this.storage.getAnalysisByDealAndAgent(dealId, 'Research');
       
       if (existingAnalysis) {
         await this.storage.updateAgentAnalysis(existingAnalysis.id, {
@@ -719,7 +720,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       } else {
         await this.storage.createAgentAnalysis({
           dealId,
-          agentType: 'research',
+          agentType: 'Research',  // CRITICAL: Capitalized to match Legal pattern
           status: 'completed',
           progress: 100,
           findings: formattedFindings,

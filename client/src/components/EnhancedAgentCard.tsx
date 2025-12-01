@@ -1910,12 +1910,12 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
         ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
-            console.log('📨 [Legal Queue] Received WebSocket message:', message);
+            console.log('📨 [Agent Queue] Received WebSocket message:', message);
             
-            // Handle queue progress updates
-            if (message.type === 'legal_queue_progress') {
+            // Handle queue progress updates for Legal, Research, and other agents
+            if (message.type === 'legal_queue_progress' || message.type === 'research_queue_progress') {
               const queueStatus = message.data;
-              console.log('📊 [Legal Queue] Progress update:', queueStatus);
+              console.log(`📊 [${message.type}] Progress update:`, queueStatus);
               
               // Update progress based on queue status
               setQuestionProgress(prev => {
@@ -1929,7 +1929,7 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
                     : 50; // Default to 50% if we can't calculate
                   
                   newProgress[queueStatus.currentQuestionId] = runningProgress;
-                  console.log(`🎯 [Legal Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
+                  console.log(`🎯 [Agent Queue] Question ${queueStatus.currentQuestionId} is running at ${runningProgress}%`);
                 }
                 
                 // Keep pending questions visible with 0% progress
@@ -1947,14 +1947,14 @@ function LegalQuestionsSection({ dealId, agent, analysisData, findings, assigned
               
               // If a question was just completed, refetch comprehensive results
               if (queueStatus.completed > 0 && queueStatus.running === 0 && queueStatus.pending === 0) {
-                console.log('✅ [Legal Queue] All questions completed - refreshing results');
+                console.log(`✅ [Agent Queue] All questions completed - refreshing results`);
                 queryClient.invalidateQueries({ queryKey: [comprehensiveResultsKey] });
                 refetchComprehensive();
                 setQuestionProgress({}); // Clear all progress
               }
             }
           } catch (error) {
-            console.error('❌ [Legal Queue] Error parsing WebSocket message:', error);
+            console.error('❌ [Agent Queue] Error parsing WebSocket message:', error);
           }
         };
 

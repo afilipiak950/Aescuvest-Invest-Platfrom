@@ -168,7 +168,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/results', asy
     console.log(`🔬 Fetching research analysis results for deal ${dealId}`);
 
     // Get the analysis from storage - EXACT Legal approach
-    const analysis = await storage.getAgentAnalysis(dealId, 'research');
+    const analysis = await storage.getAgentAnalysis(dealId, 'Research');
     
     if (!analysis) {
       return res.json({
@@ -264,7 +264,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/comprehensive
       });
     }
 
-    const analysis = await storage.getAgentAnalysis(dealId, 'research');
+    const analysis = await storage.getAgentAnalysis(dealId, 'Research');
     
     if (!analysis) {
       return res.status(404).json({
@@ -275,17 +275,20 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/comprehensive
 
     console.log(`✅ Found comprehensive research analysis - ${Object.keys(analysis.research_answers || {}).length} questions, ${analysis.findings?.length || 0} findings, ${analysis.recommendations?.length || 0} recommendations`);
 
+    // EXACT LEGAL PATTERN: Use 'analysis' wrapper like Legal does
     res.json({
       success: true,
-      results: {
+      analysis: {
         dealId,
         agentType: analysis.agentType,
         status: analysis.status,
+        progress: analysis.progress || 100,
         findings: analysis.findings || [],
         recommendations: analysis.recommendations || [],
         confidence: analysis.confidence || 0,
         completedAt: analysis.completedAt,
-        researchAnswers: analysis.research_answers || {}
+        researchAnswers: analysis.research_answers || {},
+        research_answers: analysis.research_answers || {}
       }
     });
     
