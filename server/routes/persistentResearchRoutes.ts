@@ -476,7 +476,7 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/force-rerun-
 
 /**
  * Get queue status for Research analysis
- * DATABASE-BACKED: Uses background jobs table like IP - survives server restarts
+ * DATABASE-BACKED: Uses master job like IP - stable progress bar that doesn't flicker
  */
 persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status', async (req, res) => {
   try {
@@ -491,7 +491,11 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
 
     const { RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
     
-    // Get all background jobs for this deal - same pattern as IP
+    // Check for master job first (like IP does) - this is the source of truth
+    const masterJobId = `force-rerun-all-research-${dealId}`;
+    const masterJob = await storage.getBackgroundJobById(masterJobId);
+    
+    // Get all background jobs for this deal
     const allJobs = await storage.getBackgroundJobsByDealId(dealId);
     const questionJobs = allJobs.filter(job => job.jobType === 'research_question_rerun');
     
@@ -502,43 +506,54 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
     const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
     
     const total = RESEARCH_QUESTIONS.length;
-    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const progress = masterJob ? masterJob.progress : (total > 0 ? Math.round((completed / total) * 100) : 0);
     
-    // Find the currently running question
-    const runningJob = questionJobs.find(j => j.status === 'processing');
+    // Extract currentQuestionId from master job's currentStep
     let currentQuestionId: string | null = null;
     let currentQuestion: string | null = null;
     
-    if (runningJob?.currentStep) {
-      // Extract question ID from currentStep format: "Analyzing: question text..."
-      const match = runningJob.currentStep.match(/research_\d+/);
+    if (masterJob?.currentStep) {
+      // Match question ID like "research_1", "research_2", etc. from the currentStep
+      const match = masterJob.currentStep.match(/research_\d+/);
       if (match) {
         currentQuestionId = match[0];
       }
-      currentQuestion = runningJob.currentStep;
+      currentQuestion = masterJob.currentStep;
     }
     
-    // Also check the in-memory queue for real-time status
-    const inMemoryProcessing = researchQuestionQueue.isProcessing(dealId);
+    // If no master job currentStep, check individual running jobs
+    if (!currentQuestion) {
+      const runningJob = questionJobs.find(j => j.status === 'processing');
+      if (runningJob?.currentStep) {
+        const match = runningJob.currentStep.match(/research_\d+/);
+        if (match) {
+          currentQuestionId = match[0];
+        }
+        currentQuestion = runningJob.currentStep;
+      }
+    }
     
-    // isProcessing is true if either database shows running jobs OR in-memory queue is active
-    const isProcessing = running > 0 || inMemoryProcessing || pending > 0;
+    // isProcessing is true if master job is processing (stable, no flicker between questions)
+    const isProcessing = masterJob?.status === 'processing' || running > 0;
     
-    console.log(`📊 Research queue-status for deal ${dealId}: running=${running}, pending=${pending}, completed=${completed}, isProcessing=${isProcessing}, currentQuestionId=${currentQuestionId}`);
+    // Effective processing: true if master job exists and not completed
+    const effectiveIsProcessing = isProcessing || (masterJob && masterJob.progress < 100 && masterJob.status !== 'completed');
+    
+    console.log(`📊 Research queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, currentQuestionId=${currentQuestionId}`);
     
     res.json({
       success: true,
       status: {
         total,
         pending,
-        running: isProcessing ? Math.max(1, running) : 0,  // If processing, at least 1 question is running
+        running: effectiveIsProcessing ? Math.max(1, running) : 0,  // If processing, at least 1 question is running
         completed,
         failed,
         cancelled,
         progress,
         currentQuestion,
         currentQuestionId,
-        isProcessing
+        isProcessing: effectiveIsProcessing  // Use effective to prevent flicker
       }
     });
     
@@ -574,6 +589,11 @@ persistentResearchRoutes.post('/api/deals/:dealId/research-analysis/cancel-queue
     
     // Clear in-memory state first
     await researchQuestionQueue.cancelQueue(dealId);
+    
+    // Delete master job first
+    const masterJobId = `force-rerun-all-research-${dealId}`;
+    await storage.deleteBackgroundJob(masterJobId);
+    console.log(`✅ Deleted master job: ${masterJobId}`);
     
     // Delete all research question background jobs for this deal
     const existingJobs = await db.query.backgroundJobs.findMany({
