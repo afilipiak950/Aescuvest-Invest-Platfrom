@@ -1582,6 +1582,14 @@ app.use((req, res, next) => {
       persistentFinancialAnalysisService.initialize().catch(err => {
         console.error('❌ Failed to initialize persistent financial analysis:', err);
       });
+
+      // Initialize AgentRunCoordinator (handles stuck running agents from server restarts)
+      console.log('🔄 Initializing AgentRunCoordinator...');
+      import('./services/agentRunCoordinator').then(({ agentRunCoordinator }) => {
+        agentRunCoordinator.initialize().catch(err => {
+          console.error('❌ Failed to initialize AgentRunCoordinator:', err);
+        });
+      });
       
       // Load email configuration from database
       console.log('📧 Loading email configuration from database...');

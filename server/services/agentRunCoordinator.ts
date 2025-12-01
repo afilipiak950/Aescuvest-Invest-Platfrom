@@ -117,29 +117,27 @@ class AgentRunCoordinatorService {
 
   /**
    * Start the next queued agent for a deal
+   * BULLETPROOF: Lock is held until callback fully completes, preventing all interleaving
    */
   private async startNextAgent(dealId: number): Promise<void> {
     try {
-      // Prevent concurrent processing attempts
+      // CRITICAL: Check lock SYNCHRONOUSLY before any work
       if (this.processingDeals.has(dealId)) {
         console.log(`⚠️ Already processing queue for deal ${dealId}, skipping`);
         return;
       }
+      
+      // Set the lock IMMEDIATELY - this is synchronous so no race window
+      this.processingDeals.add(dealId);
 
-      const nextAgent = await storage.getNextQueuedAgent(dealId);
+      // Use atomic promotion with SKIP LOCKED to prevent concurrent promotions
+      const nextAgent = await storage.promoteNextQueuedAgent(dealId);
       if (!nextAgent) {
         console.log(`✅ No more queued agents for deal ${dealId}`);
         this.processingDeals.delete(dealId);
         this.broadcastQueueUpdate(dealId);
         return;
       }
-
-      this.processingDeals.add(dealId);
-      
-      // Mark as running
-      await storage.updateAgentRunStatus(nextAgent.id, 'running', {
-        currentStep: `Starting ${nextAgent.agentType} analysis...`
-      });
       
       console.log(`🚀 Starting agent ${nextAgent.agentType} for deal ${dealId}`);
       this.broadcastQueueUpdate(dealId);
@@ -156,26 +154,23 @@ class AgentRunCoordinatorService {
         return;
       }
 
-      // Execute the agent (async, don't await - let it run in background)
-      callback(dealId)
-        .then(async () => {
-          console.log(`✅ Agent ${nextAgent.agentType} completed for deal ${dealId}`);
-          await storage.completeAgentRun(nextAgent.id);
-          this.processingDeals.delete(dealId);
-          this.broadcastQueueUpdate(dealId);
-          
-          // Start next agent in queue
-          await this.startNextAgent(dealId);
-        })
-        .catch(async (error: any) => {
-          console.error(`❌ Agent ${nextAgent.agentType} failed for deal ${dealId}:`, error);
-          await storage.failAgentRun(nextAgent.id, error.message || 'Unknown error');
-          this.processingDeals.delete(dealId);
-          this.broadcastQueueUpdate(dealId);
-          
-          // Start next agent in queue (don't stop because one failed)
-          await this.startNextAgent(dealId);
-        });
+      // BULLETPROOF: Execute callback and AWAIT completion before releasing lock
+      // This ensures only one agent runs at a time per deal
+      try {
+        await callback(dealId);
+        console.log(`✅ Agent ${nextAgent.agentType} completed for deal ${dealId}`);
+        await storage.completeAgentRun(nextAgent.id);
+      } catch (error: any) {
+        console.error(`❌ Agent ${nextAgent.agentType} failed for deal ${dealId}:`, error);
+        await storage.failAgentRun(nextAgent.id, error.message || 'Unknown error');
+      }
+      
+      // Only release lock AFTER callback fully completes
+      this.processingDeals.delete(dealId);
+      this.broadcastQueueUpdate(dealId);
+      
+      // Now start next agent in queue (lock is released, so this can acquire it)
+      await this.startNextAgent(dealId);
 
     } catch (error) {
       console.error(`❌ Error starting next agent for deal ${dealId}:`, error);
