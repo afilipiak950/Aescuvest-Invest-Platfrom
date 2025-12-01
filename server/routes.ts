@@ -6839,63 +6839,8 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Get comprehensive research analysis results
-  app.get('/api/deals/:dealId/research-analysis/comprehensive/results', async (req: Request, res: Response) => {
-    try {
-      const dealId = parseInt(req.params.dealId);
-      
-      console.log(`🔬 Fetching comprehensive research analysis results for deal ${dealId}`);
-      
-      // Get comprehensive research analysis from agent_analyses table
-      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
-      
-      if (!analysis) {
-        console.log(`❌ No comprehensive research analysis found for deal ${dealId}`);
-        return res.json({
-          success: false,
-          message: 'No comprehensive research analysis found',
-          results: null
-        });
-      }
-      
-      // Parse research answers if they exist (enhanced format)
-      let researchAnswers = {};
-      if (analysis.research_answers) {
-        try {
-          researchAnswers = typeof analysis.research_answers === 'string' 
-            ? JSON.parse(analysis.research_answers) 
-            : analysis.research_answers;
-        } catch (error) {
-          console.error('Error parsing research answers:', error);
-          researchAnswers = {};
-        }
-      }
-      
-      console.log(`🔬 Research Analysis Data:`, {
-        hasAnswers: !!analysis.research_answers,
-        answersType: typeof analysis.research_answers,
-        parsedAnswersKeys: Object.keys(researchAnswers)
-      });
-      
-      // Enhanced response format matching Legal analysis structure
-      res.json({
-        success: true,
-        results: {
-          status: analysis.status,
-          findings: analysis.findings || [],
-          recommendations: analysis.recommendations || [],
-          researchAnswers,
-          completedAt: analysis.completedAt,
-          // Enhanced metadata for consistency with Legal
-          totalQuestions: Object.keys(researchAnswers).length,
-          documentsAnalyzed: analysis.documentsAnalyzed || 0
-        }
-      });
-    } catch (error) {
-      console.error(`❌ Error getting comprehensive research analysis results:`, error);
-      res.status(500).json({ success: false, error: 'Failed to get analysis results' });
-    }
-  });
+  // NOTE: Comprehensive research analysis results endpoint is now handled by persistentResearchRoutes
+  // (mounted at line 485) which returns { analysis: { researchAnswers } } matching other agents
 
   // Get comprehensive research analysis progress
   app.get('/api/deals/:dealId/research-analysis/comprehensive/progress', async (req: Request, res: Response) => {

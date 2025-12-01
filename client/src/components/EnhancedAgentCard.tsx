@@ -3224,6 +3224,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   const { data: comprehensiveResults, refetch: refetchComprehensive } = useQuery({
     queryKey: [`/api/deals/${dealId}/research-analysis/comprehensive/results`],
     refetchInterval: 30000, // ⚡ PERFORMANCE: Reduced from 2s to 30s
+    staleTime: 0, // Always treat as stale to force fresh data like other agents
+    gcTime: 0, // Don't cache results like other agents
   });
 
   // Load existing running jobs from database on mount to restore progress bars after refresh
