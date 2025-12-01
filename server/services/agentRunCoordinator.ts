@@ -23,7 +23,7 @@ interface AgentRunCallback {
 class AgentRunCoordinatorService {
   private static instance: AgentRunCoordinatorService;
   private agentCallbacks: Map<AgentType, AgentRunCallback> = new Map();
-  private processingDeals: Set<number> = new Set();
+  private processingDeals: Set<number> = new Set(); // Guards startNextAgent from concurrent calls
 
   static getInstance(): AgentRunCoordinatorService {
     if (!AgentRunCoordinatorService.instance) {
@@ -44,6 +44,7 @@ class AgentRunCoordinatorService {
   /**
    * Enqueue an agent run and start processing if nothing is running
    * Returns queue status for immediate frontend feedback
+   * Idempotent: duplicate requests return existing queue entry info
    */
   async enqueueAndStart(
     dealId: number, 
@@ -58,20 +59,23 @@ class AgentRunCoordinatorService {
     try {
       console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId}`);
       
-      // Check if agent is already queued or running
+      // Check if agent is already queued or running (database check)
+      // This is idempotent - if already queued, return the existing entry info
       const isAlreadyQueued = await storage.isAgentQueued(dealId, agentType);
       if (isAlreadyQueued) {
         const queue = await storage.getAgentRunQueue(dealId);
         const existingEntry = queue.find(q => q.agentType === agentType);
+        const isRunning = existingEntry?.status === 'running';
+        console.log(`ℹ️ ${agentType} already ${isRunning ? 'running' : 'queued'} for deal ${dealId} (position ${existingEntry?.position})`);
         return {
-          success: false,
+          success: true, // Idempotent success - agent is already in queue
           queuePosition: existingEntry?.position || 0,
-          isRunning: existingEntry?.status === 'running',
-          message: `${agentType} is already ${existingEntry?.status === 'running' ? 'running' : 'queued'}`
+          isRunning: isRunning,
+          message: `${agentType} is already ${isRunning ? 'running' : 'queued at position ' + existingEntry?.position}`
         };
       }
 
-      // Enqueue the agent
+      // Enqueue the agent (storage also has duplicate protection for race conditions)
       const queueEntry = await storage.enqueueAgentRun(dealId, agentType, totalQuestions);
       
       // Broadcast queue update via WebSocket
@@ -317,11 +321,10 @@ class AgentRunCoordinatorService {
   private async broadcastQueueUpdate(dealId: number): Promise<void> {
     try {
       const status = await this.getQueueStatus(dealId);
-      websocketManager.broadcastToAll({
-        type: 'agent_queue_update',
+      websocketManager.broadcast('agent_queue_update', {
         dealId,
         ...status
-      });
+      }, dealId);
     } catch (error) {
       console.error(`Error broadcasting queue update for deal ${dealId}:`, error);
     }
