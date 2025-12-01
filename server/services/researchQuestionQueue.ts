@@ -10,10 +10,19 @@ import { agentQuestionQueue, agentAnalyses } from '../../shared/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { storage } from '../storage';
 import { RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
-import OpenAI from 'openai';
+import { resilientOpenAI } from '../utils/resilientOpenAI';
 import { websocketManager } from './websocketManager';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+interface ResearchEvidence {
+  documentName: string;
+  documentId?: number;
+  documentSummary: string;
+  relevantContent: string[];
+  keyFindings: string[];
+  confidence: number;
+  hasRelevantInfo?: boolean;
+  fullContent?: string;
+}
 
 interface QueueItem {
   id: number;
@@ -299,9 +308,14 @@ export class ResearchQuestionQueueService {
     }
   }
 
+  /**
+   * Process a single research question using MULTI-PASS ARCHITECTURE (EXACT IP pattern)
+   * Step 1: Extract evidence from each document individually
+   * Step 2: Compile comprehensive answer using token-based batching
+   */
   private async processQuestion(dealId: number, question: QueueItem): Promise<any> {
     try {
-      console.log(`🔬 Analyzing research question: ${question.questionText}`);
+      console.log(`🔬 [MULTI-PASS] Analyzing research question: ${question.questionText}`);
 
       const documentsResult = await storage.getDocumentsByDealIdPaginated(dealId, 1, 10000);
       const dealDocuments = documentsResult.documents || [];
@@ -316,104 +330,451 @@ export class ResearchQuestionQueueService {
           sources: [],
           keyFindings: [],
           evidence: [],
-          risks: []
+          risks: [],
+          detailedEvidence: []
         };
         await this.saveAnswer(dealId, question.questionKey, question.questionText, noDocsResult);
         return noDocsResult;
       }
 
-      const MAX_CONTEXT_CHARS = 360000;
-      const MAX_CHARS_PER_DOC = 800;
-      
-      let contextChars = 0;
-      const documentContext = dealDocuments
-        .map((doc: any, idx: number) => {
-          let summaryText = 'No summary';
-          if (doc.aiSummary) {
-            summaryText = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary);
-          } else if (doc.summary) {
-            summaryText = typeof doc.summary === 'string' ? doc.summary : JSON.stringify(doc.summary);
-          }
-          const summary = summaryText.substring(0, 500);
-          
-          const textContent = doc.ocrText || doc.text || '';
-          const text = (typeof textContent === 'string' ? textContent : String(textContent)).substring(0, MAX_CHARS_PER_DOC);
-          
-          const docContent = `Document ${idx + 1}: ${doc.name}\nSummary: ${summary}\n${text ? `Content: ${text}...` : ''}`;
-          
-          if (contextChars + docContent.length > MAX_CONTEXT_CHARS) {
-            return null;
-          }
-          
-          contextChars += docContent.length;
-          return docContent;
-        })
-        .filter(Boolean)
-        .join('\n\n---\n\n');
-      
-      console.log(`📊 Using ${contextChars.toLocaleString()} characters from ${dealDocuments.length} documents`);
+      // STEP 1: Extract evidence from ALL documents (EXACT IP pattern)
+      console.log(`📊 [MULTI-PASS] Step 1: Extracting evidence from ${dealDocuments.length} documents`);
+      const evidence = await this.extractEvidenceFromAllDocuments(dealDocuments, question);
+      console.log(`📋 [MULTI-PASS] Extracted evidence from ${evidence.length}/${dealDocuments.length} documents`);
 
-      const fullPrompt = `You are a research analyst conducting comprehensive due diligence. Analyze the following documents and answer this specific question:
-
-QUESTION: ${question.questionText}
-
-ANALYSIS FOCUS: ${question.prompt}
-
-DOCUMENTS:
-${documentContext}
-
-Provide a detailed, evidence-based answer with:
-1. Direct answer to the question
-2. Key findings from the documents
-3. Specific evidence and document references
-4. Confidence level (0-100%)
-5. Any risks or concerns identified
-
-Format your response as JSON:
-{
-  "answer": "Your detailed answer here",
-  "confidence": 85,
-  "keyFindings": ["Finding 1", "Finding 2"],
-  "evidence": ["Evidence from Document 1", "Evidence from Document 2"],
-  "sources": ["Document name 1", "Document name 2"],
-  "risks": ["Risk 1 if any"]
-}`;
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert research analyst specializing in investment due diligence. Provide thorough, evidence-based analysis.'
-          },
-          {
-            role: 'user',
-            content: fullPrompt
-          }
-        ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' }
-      });
-
-      const analysisResult = JSON.parse(response.choices[0].message.content || '{}');
+      // STEP 2: Compile comprehensive answer using batched synthesis (EXACT IP pattern)
+      console.log(`🔄 [MULTI-PASS] Step 2: Compiling comprehensive answer from ${evidence.length} evidence pieces`);
+      const answer = await this.compileComprehensiveAnswer(question, evidence);
 
       const answerData = {
         question: question.questionText,
-        answer: analysisResult.answer || 'No answer generated',
-        confidence: analysisResult.confidence || 50,
-        sources: analysisResult.sources || [],
-        keyFindings: analysisResult.keyFindings || [],
-        evidence: analysisResult.evidence || [],
-        risks: analysisResult.risks || []
+        answer: answer.answer || 'No answer generated',
+        confidence: answer.confidence || 50,
+        sources: answer.sources || [],
+        keyFindings: answer.keyFindings || [],
+        evidence: answer.keyFindings || [], // For backwards compatibility
+        risks: answer.recommendations || [],
+        detailedEvidence: answer.detailedEvidence || [],
+        evidenceSummary: answer.evidenceSummary || '',
+        researchAssessment: answer.researchAssessment || ''
       };
 
       await this.saveAnswer(dealId, question.questionKey, question.questionText, answerData);
+      console.log(`✅ [MULTI-PASS] Completed research question: ${question.questionKey}`);
 
-      return analysisResult;
+      return answerData;
 
     } catch (error) {
       console.error(`❌ Error processing research question:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Extract evidence from ALL documents in batches (EXACT IP pattern)
+   * Processes documents in parallel batches with individual GPT calls per document
+   */
+  private async extractEvidenceFromAllDocuments(documents: any[], question: QueueItem): Promise<ResearchEvidence[]> {
+    console.log(`📄 [MULTI-PASS] Starting evidence extraction from ${documents.length} documents`);
+    
+    const batchSize = 40; // Same as IP
+    const evidence: ResearchEvidence[] = [];
+    
+    for (let i = 0; i < documents.length; i += batchSize) {
+      const batch = documents.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(documents.length / batchSize);
+      console.log(`📦 Processing document batch ${batchNum}/${totalBatches} (${batch.length} documents)`);
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(async (doc) => this.extractEvidenceFromDocument(doc, question))
+      );
+      
+      const validEvidence = batchResults
+        .filter((result): result is PromiseFulfilledResult<ResearchEvidence> => 
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map(result => result.value)
+        .filter(docEvidence => 
+          docEvidence && docEvidence.relevantContent && docEvidence.relevantContent.length > 0
+        );
+      
+      evidence.push(...validEvidence);
+      console.log(`✅ Batch ${batchNum} completed: ${validEvidence.length}/${batch.length} documents had relevant evidence`);
+    }
+    
+    console.log(`📋 [MULTI-PASS] Total evidence extracted: ${evidence.length}/${documents.length} documents`);
+    return evidence;
+  }
+
+  /**
+   * Extract specific evidence from a single document (EXACT IP pattern)
+   * Makes individual GPT-4o call per document for thorough extraction
+   */
+  private async extractEvidenceFromDocument(doc: any, question: QueueItem): Promise<ResearchEvidence | null> {
+    try {
+      // Use ONLY AI summary - handle BOTH string and object formats
+      const aiSummary = doc.aiSummary;
+      if (!aiSummary) return null;
+      
+      let content: string;
+      
+      if (typeof aiSummary === 'string') {
+        content = aiSummary;
+      } else if (typeof aiSummary === 'object') {
+        content = [
+          aiSummary.executiveSummary || '',
+          aiSummary.documentType ? `Document Type: ${aiSummary.documentType}` : '',
+          aiSummary.criticalFindings?.length ? `Critical Findings: ${aiSummary.criticalFindings.join('; ')}` : '',
+          aiSummary.keyFinancialData?.length ? `Financial Data: ${aiSummary.keyFinancialData.join('; ')}` : '',
+          aiSummary.riskAssessment?.length ? `Risk Assessment: ${aiSummary.riskAssessment.join('; ')}` : '',
+          aiSummary.neutralFindings?.length ? `Neutral Findings: ${aiSummary.neutralFindings.join('; ')}` : '',
+          aiSummary.strategicImplications || ''
+        ].filter(s => s).join('\n\n');
+        
+        if (!content || content.trim().length === 0) {
+          content = JSON.stringify(aiSummary);
+        }
+      } else {
+        content = String(aiSummary);
+      }
+      
+      if (!content || content.trim().length === 0) {
+        return null;
+      }
+
+      const prompt = `You are an expert research analyst conducting comprehensive investment analysis. Your task is to EXHAUSTIVELY EXTRACT ALL SPECIFIC DETAILS from this document.
+
+DOCUMENT: ${doc.name}
+AI SUMMARY (COMPLETE): ${content}
+
+QUESTION: "${question.questionText}"
+ANALYSIS TASK: ${question.prompt}
+
+CRITICAL EXTRACTION REQUIREMENTS - YOU MUST EXTRACT EVERY DETAIL:
+
+1. EXTRACT MARKET & COMPETITIVE DATA:
+   - Market size figures (TAM, SAM, SOM)
+   - Growth rates and projections
+   - Competitor names and market positions
+   - Competitive advantages and differentiators
+   - Market share data
+
+2. EXTRACT TECHNOLOGY & PRODUCT DATA:
+   - Technology descriptions and capabilities
+   - Product features and specifications
+   - Technical advantages and innovations
+   - Scalability and maturity indicators
+   - Development stage and roadmap
+
+3. EXTRACT STRATEGIC INFORMATION:
+   - Business model details
+   - Revenue streams and monetization
+   - Partnership and expansion opportunities
+   - Risk factors and challenges
+   - Growth strategies
+
+4. EXTRACT VALIDATION DATA:
+   - Customer testimonials and case studies
+   - Traction metrics (users, revenue, growth)
+   - Regulatory approvals and compliance
+   - Industry certifications and standards
+
+5. DO NOT PARAPHRASE - COPY VERBATIM:
+   - If the summary says "TAM of $50B growing at 15% CAGR", copy it EXACTLY
+   - If it mentions "3 major competitors: CompanyA, CompanyB, CompanyC", copy it EXACTLY
+   - Include ALL specific details found
+
+Your relevantContent array should contain 5-20+ detailed extractions per document.
+
+Respond in JSON format:
+{
+  "relevantContent": ["DETAILED extraction 1 with specific data", "DETAILED extraction 2 with metrics", "DETAILED extraction 3...", ...],
+  "hasRelevantInfo": true/false,
+  "confidence": 0-100,
+  "keyFindings": ["Specific finding with data", "Specific finding with metrics", ...],
+  "documentSummary": "COMPREHENSIVE breakdown of ALL relevant research information from this document"
+}
+
+REMEMBER: Extract EVERYTHING research-relevant - more is better!`;
+
+      try {
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 8000
+        }, {
+          maxRetries: 3,
+          timeout: 90000,
+          onRetry: (attempt: number, error: Error) => {
+            console.warn(`🔄 Retrying evidence extraction for ${doc.name} (attempt ${attempt}): ${error.message}`);
+          }
+        });
+        
+        const analysis = JSON.parse(response.choices[0].message.content || '{}');
+        
+        return {
+          documentName: doc.name,
+          documentId: doc.id,
+          relevantContent: analysis.relevantContent || [],
+          hasRelevantInfo: analysis.hasRelevantInfo || false,
+          confidence: analysis.confidence || 0,
+          keyFindings: analysis.keyFindings || [],
+          documentSummary: analysis.documentSummary || '',
+          fullContent: content
+        };
+        
+      } catch (extractError) {
+        console.error(`Error extracting evidence from ${doc.name}:`, extractError);
+        return {
+          documentName: doc.name,
+          documentId: doc.id,
+          relevantContent: [],
+          hasRelevantInfo: false,
+          confidence: 0,
+          keyFindings: [],
+          documentSummary: 'Analysis timeout - using AI summary excerpt',
+          fullContent: content
+        };
+      }
+
+    } catch (error) {
+      console.error(`⚠️ Error extracting evidence from ${doc.name}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Compile comprehensive answer from evidence using TOKEN-BASED BATCHING (EXACT IP pattern)
+   * Step 1: Get partial answers from each batch
+   * Step 2: Synthesize all partial answers into final comprehensive answer
+   */
+  private async compileComprehensiveAnswer(question: QueueItem, evidence: ResearchEvidence[]): Promise<any> {
+    console.log(`🔄 [BATCHED COMPILATION] Starting research analysis for "${question.questionText}" with ${evidence.length} documents`);
+    
+    if (evidence.length === 0) {
+      return {
+        question: question.questionText,
+        answer: 'No relevant information found in the available documents.',
+        confidence: 0,
+        sources: [],
+        detailedEvidence: [],
+        keyFindings: [],
+        evidenceSummary: 'No evidence available',
+        researchAssessment: 'Unable to assess due to lack of relevant documentation',
+        recommendations: ['Obtain relevant documentation for comprehensive analysis']
+      };
+    }
+
+    // TOKEN-BASED BATCHING (EXACT IP pattern)
+    const MAX_BATCH_TOKENS = 6000;
+    const batches: ResearchEvidence[][] = [];
+    let currentBatch: ResearchEvidence[] = [];
+    let currentBatchTokens = 0;
+    
+    for (const ev of evidence) {
+      const evTokens = resilientOpenAI.countBatchTokens([ev]);
+      
+      if (currentBatchTokens + evTokens > MAX_BATCH_TOKENS && currentBatch.length > 0) {
+        batches.push(currentBatch);
+        currentBatch = [ev];
+        currentBatchTokens = evTokens;
+      } else {
+        currentBatch.push(ev);
+        currentBatchTokens += evTokens;
+      }
+    }
+    
+    if (currentBatch.length > 0) {
+      batches.push(currentBatch);
+    }
+    
+    console.log(`📦 Processing ${evidence.length} documents in ${batches.length} token-optimized batches`);
+    
+    // Step 1: Get partial answers from each batch
+    const partialAnswers: any[] = [];
+    const partialResultsKey = `research-partial-${question.questionKey}`;
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Processing research batch ${i + 1}/${batches.length} (${batch.length} documents)`);
+      
+      const batchPrompt = `You are a senior research analyst. Analyze evidence from ${batch.length} documents to answer: "${question.questionText}"
+
+Evidence:
+${batch.map(ev => {
+  const content = Array.isArray(ev.relevantContent) && ev.relevantContent.length > 0
+    ? ev.relevantContent.join('; ')
+    : ev.fullContent || ev.documentSummary || 'No content available';
+  
+  const findings = Array.isArray(ev.keyFindings) && ev.keyFindings.length > 0
+    ? ev.keyFindings.join('; ')
+    : 'See content above';
+  
+  return `
+DOCUMENT: ${ev.documentName}
+AI SUMMARY CONTENT: ${content}
+KEY FINDINGS: ${findings}`;
+}).join('\n')}
+
+CRITICAL: Extract ALL specific research details from the AI SUMMARY CONTENT above (market data, competitive analysis, technology details, validation metrics). Respond in JSON:
+{
+  "answer": "Detailed extraction with specific research data and details from the AI summaries",
+  "confidence": 0-100,
+  "keyFindings": ["Specific finding 1", "Specific finding 2"],
+  "sources": ["doc1", "doc2"]
+}`;
+
+      try {
+        const response = await resilientOpenAI.createChatCompletion({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: batchPrompt }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 8000
+        }, {
+          maxRetries: 4,
+          timeout: 120000,
+          onRetry: (attempt, error) => {
+            console.warn(`🔄 Retrying research batch ${i + 1}/${batches.length} (attempt ${attempt}): ${error.message}`);
+          }
+        });
+        
+        const batchAnswer = JSON.parse(response.choices[0].message.content || '{}');
+        partialAnswers.push(batchAnswer);
+        
+        // Save partial results for recovery
+        if (!(global as any)[partialResultsKey]) {
+          (global as any)[partialResultsKey] = [];
+        }
+        (global as any)[partialResultsKey].push(batchAnswer);
+        
+        console.log(`✅ Research Batch ${i + 1}/${batches.length} completed`);
+      } catch (error: any) {
+        console.error(`❌ Error in research batch ${i + 1}:`, error);
+        const errorAnswer = {
+          answer: `Error processing batch ${i + 1}: ${error.message}`,
+          confidence: 0,
+          keyFindings: [],
+          sources: batch.map(e => e.documentName)
+        };
+        partialAnswers.push(errorAnswer);
+      }
+    }
+    
+    // Step 2: Synthesize all partial answers into final comprehensive answer
+    console.log(`🔄 Synthesizing ${partialAnswers.length} research partial answers into final answer`);
+    
+    const synthesisPrompt = `You are a senior research analyst. Synthesize these partial analyses into ONE comprehensive answer for: "${question.questionText}"
+
+Partial Analyses:
+${partialAnswers.map((pa, i) => `
+BATCH ${i + 1}:
+${pa.answer}
+KEY FINDINGS: ${pa.keyFindings?.join('; ') || 'None'}
+`).join('\n')}
+
+CRITICAL: Create ONE comprehensive answer that:
+1. Extracts ALL specific details (market data, competitive analysis, technology details) from all batches
+2. Lists ALL relevant findings with complete details
+3. Provides exhaustive analysis of the research question
+4. Cites specific document sections and data points
+
+FORMAT REQUIREMENTS FOR "answer" FIELD:
+- Use markdown bullets (•) for lists of evidence/findings
+- Use **bold** for key terms, metrics, company names, and important data
+- Structure with clear sections if multiple topics
+- Example: "• **Market Size**: TAM of **$50B** with **15% CAGR** growth rate"
+
+Respond in JSON:
+{
+  "answer": "Comprehensive synthesis with ALL specific research details formatted with markdown bullets and bold for key terms",
+  "confidence": 0-100,
+  "keyFindings": ["All key findings combined"],
+  "evidenceSummary": "Summary of all evidence",
+  "researchAssessment": "Overall research assessment",
+  "recommendations": ["Recommendation 1", "Recommendation 2"]
+}`;
+
+    try {
+      const response = await resilientOpenAI.createChatCompletion({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: synthesisPrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: 16000
+      }, {
+        maxRetries: 5,
+        timeout: 300000,
+        onRetry: (attempt, error) => {
+          console.warn(`🔄 Retrying research final synthesis (attempt ${attempt}): ${error.message}`);
+        }
+      });
+
+      const compiledAnswer = JSON.parse(response.choices[0].message.content || '{}');
+      
+      console.log(`✅ Research final synthesis completed for "${question.questionText}"`);
+      
+      // Cleanup partial results cache
+      if ((global as any)[partialResultsKey]) {
+        delete (global as any)[partialResultsKey];
+      }
+      
+      return {
+        question: question.questionText,
+        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        confidence: compiledAnswer.confidence || 30,
+        sources: evidence.map(e => e.documentName),
+        detailedEvidence: evidence,
+        keyFindings: compiledAnswer.keyFindings || [],
+        evidenceSummary: compiledAnswer.evidenceSummary || 'Evidence compiled from multiple sources',
+        researchAssessment: compiledAnswer.researchAssessment || 'Assessment completed',
+        recommendations: compiledAnswer.recommendations || []
+      };
+      
+    } catch (synthesisError: any) {
+      console.error(`❌ Research synthesis failed:`, synthesisError);
+      
+      // Fallback: recover from partial results
+      const cachedPartials = (global as any)[partialResultsKey];
+      if (cachedPartials && cachedPartials.length > 0) {
+        console.log(`📦 Synthesis failed, recovering from ${cachedPartials.length} cached partial results`);
+        
+        const combinedAnswer = cachedPartials
+          .map((pa: any) => pa.answer || '')
+          .filter((a: string) => a.trim().length > 0)
+          .join('\n\n');
+        
+        const combinedFindings = cachedPartials
+          .flatMap((pa: any) => pa.keyFindings || [])
+          .filter((f: string) => f && f.trim().length > 0);
+        
+        return {
+          question: question.questionText,
+          answer: combinedAnswer || 'Partial research analysis recovered from cached results',
+          confidence: 60,
+          sources: evidence.map(e => e.documentName),
+          detailedEvidence: evidence,
+          keyFindings: combinedFindings,
+          evidenceSummary: `Recovery from ${cachedPartials.length} partial analyses`,
+          researchAssessment: 'Partial assessment from cached results',
+          recommendations: ['Complete re-analysis recommended']
+        };
+      }
+      
+      return {
+        question: question.questionText,
+        answer: 'Error occurred during research analysis synthesis',
+        confidence: 0,
+        sources: evidence.map(e => e.documentName),
+        detailedEvidence: evidence,
+        keyFindings: [],
+        evidenceSummary: 'Error in analysis compilation',
+        researchAssessment: 'Unable to complete assessment',
+        recommendations: ['Manual research review recommended']
+      };
     }
   }
 
