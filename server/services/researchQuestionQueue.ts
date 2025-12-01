@@ -261,8 +261,8 @@ export class ResearchQuestionQueueService {
           confidence: 0,
           sources: [],
           keyFindings: [],
-          quotes: [],
-          recommendations: []
+          evidence: [],
+          risks: []
         };
         await this.saveAnswer(dealId, question.questionKey, question.questionText, noDocsResult);
         return noDocsResult;
