@@ -156,10 +156,47 @@ export class ResearchQuestionQueueService {
           })
           .where(eq(agentQuestionQueue.id, question.id));
 
+        const jobId = `research-question-rerun-${dealId}-${question.questionKey}`;
+        
+        const existingJob = await storage.getBackgroundJobById(jobId);
+        if (existingJob) {
+          await storage.updateBackgroundJob(jobId, {
+            status: 'processing',
+            progress: 10,
+            currentStep: `Analyzing: ${question.questionText.substring(0, 50)}...`
+          });
+        } else {
+          await storage.createBackgroundJob({
+            jobId,
+            dealId,
+            jobType: 'research_question_rerun',
+            status: 'processing',
+            progress: 10,
+            currentStep: `Analyzing: ${question.questionText.substring(0, 50)}...`,
+            runId: question.questionKey,
+            metadata: {
+              agentType: 'research',
+              startTime: new Date().toISOString(),
+              questionId: question.questionKey
+            }
+          });
+        }
+
         await this.broadcastQueueProgress(dealId);
 
         try {
+          await storage.updateBackgroundJob(jobId, {
+            progress: 30,
+            currentStep: `Processing documents for: ${question.questionKey}`
+          });
+
           const result = await this.processQuestion(dealId, question);
+
+          await storage.updateBackgroundJob(jobId, {
+            status: 'completed',
+            progress: 100,
+            currentStep: `Completed: ${question.questionKey}`
+          });
 
           await db
             .update(agentQuestionQueue)
@@ -175,6 +212,12 @@ export class ResearchQuestionQueueService {
 
         } catch (error: any) {
           console.error(`❌ Error processing research question ${question.id}:`, error);
+
+          await storage.updateBackgroundJob(jobId, {
+            status: 'failed',
+            progress: 0,
+            currentStep: `Failed: ${error.message || 'Unknown error'}`
+          });
 
           await db
             .update(agentQuestionQueue)
