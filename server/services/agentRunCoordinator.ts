@@ -44,12 +44,14 @@ class AgentRunCoordinatorService {
   /**
    * Enqueue an agent run and start processing if nothing is running
    * Returns queue status for immediate frontend feedback
-   * Idempotent: duplicate requests return existing queue entry info
+   * 
+   * @param forceRestart - If true, cancel any existing run and restart fresh
    */
   async enqueueAndStart(
     dealId: number, 
     agentType: AgentType, 
-    totalQuestions: number
+    totalQuestions: number,
+    forceRestart: boolean = false
   ): Promise<{ 
     success: boolean; 
     queuePosition: number; 
@@ -57,22 +59,39 @@ class AgentRunCoordinatorService {
     message: string;
   }> {
     try {
-      console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId}`);
+      console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId} (forceRestart=${forceRestart})`);
       
       // Check if agent is already queued or running (database check)
-      // This is idempotent - if already queued, return the existing entry info
       const isAlreadyQueued = await storage.isAgentQueued(dealId, agentType);
       if (isAlreadyQueued) {
         const queue = await storage.getAgentRunQueue(dealId);
         const existingEntry = queue.find(q => q.agentType === agentType);
         const isRunning = existingEntry?.status === 'running';
-        console.log(`ℹ️ ${agentType} already ${isRunning ? 'running' : 'queued'} for deal ${dealId} (position ${existingEntry?.position})`);
-        return {
-          success: true, // Idempotent success - agent is already in queue
-          queuePosition: existingEntry?.position || 0,
-          isRunning: isRunning,
-          message: `${agentType} is already ${isRunning ? 'running' : 'queued at position ' + existingEntry?.position}`
-        };
+        
+        // FORCE RESTART: Delete existing entry and re-queue
+        if (forceRestart && existingEntry) {
+          console.log(`🔥 FORCE RESTART: Cancelling existing ${agentType} (status: ${existingEntry.status}) for deal ${dealId}`);
+          
+          // Delete the existing queue entry
+          await storage.deleteAgentRunEntry(existingEntry.id);
+          
+          // Release the processing lock if this agent was running
+          if (isRunning) {
+            this.processingDeals.delete(dealId);
+          }
+          
+          console.log(`✅ Deleted existing ${agentType} queue entry, will re-enqueue fresh`);
+          // Fall through to enqueue logic below
+        } else {
+          // Not forcing restart - return existing status
+          console.log(`ℹ️ ${agentType} already ${isRunning ? 'running' : 'queued'} for deal ${dealId} (position ${existingEntry?.position})`);
+          return {
+            success: true, // Idempotent success - agent is already in queue
+            queuePosition: existingEntry?.position || 0,
+            isRunning: isRunning,
+            message: `${agentType} is already ${isRunning ? 'running' : 'queued at position ' + existingEntry?.position}`
+          };
+        }
       }
 
       // Enqueue the agent (storage also has duplicate protection for race conditions)

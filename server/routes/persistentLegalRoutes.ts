@@ -462,11 +462,12 @@ persistentLegalRoutes.post('/api/deals/:dealId/legal-analysis/force-rerun-all', 
     
     console.log(`🔥 FORCE RERUN: Enqueueing Legal analysis via AgentRunCoordinator for deal ${dealId}`);
     
-    // Enqueue via coordinator - it handles the sequencing
+    // Enqueue via coordinator with forceRestart=true to cancel any existing run
     const result = await agentRunCoordinator.enqueueAndStart(
       dealId,
       'legal',
-      COMPREHENSIVE_LEGAL_QUESTIONS.length
+      COMPREHENSIVE_LEGAL_QUESTIONS.length,
+      true  // forceRestart - cancel existing and restart fresh
     );
     
     if (!result.success && result.queuePosition > 0) {

@@ -185,6 +185,7 @@ export interface IStorage {
   completeAgentRun(id: number): Promise<void>;
   failAgentRun(id: number, error: string): Promise<void>;
   clearAgentRunQueue(dealId: number): Promise<number>;
+  deleteAgentRunEntry(id: number): Promise<boolean>;
   isAgentQueued(dealId: number, agentType: string): Promise<boolean>;
   
   // System settings methods
@@ -2930,6 +2931,17 @@ export class DatabaseStorage implements IStorage {
       return queue.some(q => q.agentType === agentType && (q.status === 'queued' || q.status === 'running'));
     } catch (error) {
       console.error(`Error checking if agent ${agentType} is queued for deal ${dealId}:`, error);
+      return false;
+    }
+  }
+
+  async deleteAgentRunEntry(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(agentRunQueue).where(eq(agentRunQueue.id, id));
+      console.log(`🗑️ Deleted agent run entry ${id}`);
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error(`Error deleting agent run entry ${id}:`, error);
       return false;
     }
   }
