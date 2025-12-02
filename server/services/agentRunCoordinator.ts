@@ -63,8 +63,9 @@ class AgentRunCoordinatorService {
     try {
       console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId} (forceRestart=${forceRestart})`);
       
-      // CRITICAL: Clear any previous cancellation flag so new agent can run
-      this.clearCancellation(dealId);
+      // NOTE: Do NOT clear cancellation here - it will be cleared in startNextAgent
+      // after confirming no callback is still running. This prevents a race where
+      // the old callback checks the flag after we clear it.
       
       // Check if agent is already queued or running (database check)
       const isAlreadyQueued = await storage.isAgentQueued(dealId, agentType);
@@ -182,6 +183,13 @@ class AgentRunCoordinatorService {
       
       // Set the lock IMMEDIATELY - this is synchronous so no race window
       this.processingDeals.add(dealId);
+      
+      // CRITICAL: Clear cancellation flag now that we have the lock
+      // This ensures the previous callback has fully exited before clearing
+      if (this.cancelledDeals.has(dealId)) {
+        console.log(`🔓 Clearing cancellation flag for deal ${dealId} - new agent about to start`);
+        this.clearCancellation(dealId);
+      }
 
       // Use atomic promotion with SKIP LOCKED to prevent concurrent promotions
       const nextAgent = await storage.promoteNextQueuedAgent(dealId);
@@ -209,40 +217,37 @@ class AgentRunCoordinatorService {
 
       // BULLETPROOF: Execute callback and AWAIT completion before releasing lock
       // This ensures only one agent runs at a time per deal
+      let wasCancelled = false;
       try {
         await callback(dealId);
         
         // CHECK CANCELLATION: If deal was cancelled during callback, don't complete the agent
         if (this.cancelledDeals.has(dealId)) {
           console.log(`🚫 Deal ${dealId} was cancelled, not completing agent ${nextAgent.agentType}`);
-          this.processingDeals.delete(dealId);
-          return; // Don't try to complete or start next agent
+          wasCancelled = true;
+        } else {
+          console.log(`✅ Agent ${nextAgent.agentType} completed for deal ${dealId}`);
+          await storage.completeAgentRun(nextAgent.id);
         }
-        
-        console.log(`✅ Agent ${nextAgent.agentType} completed for deal ${dealId}`);
-        await storage.completeAgentRun(nextAgent.id);
       } catch (error: any) {
         // CHECK CANCELLATION: Don't log as failure if deal was cancelled
         if (this.cancelledDeals.has(dealId)) {
           console.log(`🚫 Deal ${dealId} was cancelled, ignoring error`);
-          this.processingDeals.delete(dealId);
-          return;
+          wasCancelled = true;
+        } else {
+          console.error(`❌ Agent ${nextAgent.agentType} failed for deal ${dealId}:`, error);
+          await storage.failAgentRun(nextAgent.id, error.message || 'Unknown error');
         }
-        console.error(`❌ Agent ${nextAgent.agentType} failed for deal ${dealId}:`, error);
-        await storage.failAgentRun(nextAgent.id, error.message || 'Unknown error');
       }
       
       // Only release lock AFTER callback fully completes
       this.processingDeals.delete(dealId);
       this.broadcastQueueUpdate(dealId);
       
-      // CHECK CANCELLATION before starting next agent
-      if (this.cancelledDeals.has(dealId)) {
-        console.log(`🚫 Deal ${dealId} was cancelled, not starting next agent`);
-        return;
-      }
-      
-      // Now start next agent in queue (lock is released, so this can acquire it)
+      // IMPORTANT: Even if cancelled, try to start next agent
+      // (new agents may have been queued during the stop-all + re-enqueue flow)
+      // The cancellation flag will be cleared at the start of startNextAgent
+      // before promoting the new agent
       await this.startNextAgent(dealId);
 
     } catch (error) {
@@ -425,9 +430,12 @@ class AgentRunCoordinatorService {
       await db.delete(arq).where(eq(arq.dealId, dealId));
       console.log(`🗑️ Deleted ${stoppedCount} queue entries for deal ${dealId}`);
       
-      // 4. CRITICAL: Clear the processingDeals lock so new agents can start immediately
-      this.processingDeals.delete(dealId);
-      console.log(`🔓 Cleared processing lock for deal ${dealId}`);
+      // 4. NOTE: Do NOT clear the processingDeals lock here!
+      // The running callback will check isDealCancelled(), exit early, and 
+      // the lock will be released naturally in startNextAgent's try/finally.
+      // Clearing it here would create a race where new agents start before
+      // the old callback has exited.
+      console.log(`⚠️ Processing lock for deal ${dealId} will be released when callback exits`);
       
       // 5. Broadcast the empty queue state
       this.broadcastQueueUpdate(dealId);

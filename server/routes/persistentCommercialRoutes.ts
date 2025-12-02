@@ -62,6 +62,17 @@ async function executeCommercialForceRerunAll(dealId: number): Promise<void> {
   
   try {
     for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+      // CANCELLATION CHECK: Stop early if deal was cancelled (Stop All Jobs)
+      if (agentRunCoordinator.isDealCancelled(dealId)) {
+        console.log(`🚫 COMMERCIAL FORCE RERUN CANCELLED for deal ${dealId} after ${completedCount} questions`);
+        await storage.updateBackgroundJob(masterJobId, {
+          status: 'cancelled',
+          progress: Math.round((completedCount / COMMERCIAL_QUESTIONS.length) * 100),
+          currentStep: `Cancelled after ${completedCount} questions`
+        });
+        return; // Exit the callback early
+      }
+      
       const question = COMMERCIAL_QUESTIONS[i];
       const questionNumber = i + 1;
       const startTime = Date.now();
