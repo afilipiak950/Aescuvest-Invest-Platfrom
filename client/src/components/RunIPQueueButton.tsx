@@ -186,7 +186,7 @@ export function RunIPQueueButton({
                        (queueStatus?.running ?? 0) > 0;
   
   // Check if this agent is waiting in cross-agent queue (queued but not running)
-  const isWaitingInQueue = agentQueuePosition?.status === 'pending';
+  const isWaitingInQueue = agentQueuePosition?.status === 'queued';
   const isRunningInQueue = agentQueuePosition?.status === 'running';
 
   // Show waiting state when queued behind other agents
