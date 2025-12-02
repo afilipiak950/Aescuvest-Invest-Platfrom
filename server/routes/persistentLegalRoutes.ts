@@ -65,6 +65,17 @@ async function executeLegalForceRerunAll(dealId: number): Promise<void> {
   
   try {
     for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
+      // CANCELLATION CHECK: Stop early if deal was cancelled (Stop All Jobs)
+      if (agentRunCoordinator.isDealCancelled(dealId)) {
+        console.log(`🚫 LEGAL FORCE RERUN CANCELLED for deal ${dealId} after ${completedCount} questions`);
+        await storage.updateBackgroundJob(masterJobId, {
+          status: 'cancelled',
+          progress: Math.round((completedCount / COMPREHENSIVE_LEGAL_QUESTIONS.length) * 100),
+          currentStep: `Cancelled after ${completedCount} questions`
+        });
+        return; // Exit the callback early
+      }
+      
       const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
       const questionNumber = i + 1;
       const startTime = Date.now();
