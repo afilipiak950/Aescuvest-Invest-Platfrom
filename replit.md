@@ -37,7 +37,10 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
-### Recent Critical Fixes (Nov 23, 2025)
+### Recent Critical Fixes (Dec 02, 2025)
+- **Bullet Point Formatting Fix**: All 7 AI agents now produce properly formatted bullet points with each item on its own line. Created shared `server/utils/textFormatting.ts` utility with `normalizeBulletLists()` function that converts inline bullets to newline-separated format. Updated all synthesis prompts with explicit "one bullet per line" instructions and examples. Applied `formatAgentAnswer()` post-processing to all agent answer outputs for consistent, readable markdown lists.
+
+### Previous Critical Fixes (Nov 23, 2025)
 - **Answer Contamination Bug Fix**: Fixed GPT-4o synthesis prompts across all comprehensive analysis services (Legal, Clinical, Financial, Research) to prevent question text prefixing. GPT-4o was incorrectly adding wrong question headers to answers (e.g., governance_1 answers showing contracts_1 question text). Solution: Explicit synthesis prompt instructions with question ID context, wrong/correct examples, and strict "DO NOT PREFIX" rules ensure each question generates isolated, correctly-labeled answers.
 
 ## External Dependencies
