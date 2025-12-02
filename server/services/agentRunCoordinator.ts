@@ -25,6 +25,8 @@ class AgentRunCoordinatorService {
   private agentCallbacks: Map<AgentType, AgentRunCallback> = new Map();
   private processingDeals: Set<number> = new Set(); // Guards startNextAgent from concurrent calls
   private cancelledDeals: Set<number> = new Set(); // Tracks deals where stop-all was called
+  private watchdogInterval: NodeJS.Timeout | null = null;
+  private watchdogRunning: boolean = false;
 
   static getInstance(): AgentRunCoordinatorService {
     if (!AgentRunCoordinatorService.instance) {
@@ -243,6 +245,13 @@ class AgentRunCoordinatorService {
       // Only release lock AFTER callback fully completes
       this.processingDeals.delete(dealId);
       this.broadcastQueueUpdate(dealId);
+      
+      // CONCURRENCY SAFETY NOTE:
+      // JavaScript's single-threaded event loop guarantees that startNextAgent's
+      // lock check (has) and acquisition (add) at lines 181-187 execute synchronously
+      // before any async yield. This means the lock is re-acquired within the same
+      // event loop tick, preventing watchdog/force-start from interleaving.
+      // See: https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop
       
       // IMPORTANT: Even if cancelled, try to start next agent
       // (new agents may have been queued during the stop-all + re-enqueue flow)
@@ -540,8 +549,144 @@ class AgentRunCoordinatorService {
       }
       
       console.log('✅ AgentRunCoordinator initialized');
+      
+      // Start the watchdog timer to catch any stuck agents
+      this.startWatchdog();
+      
     } catch (error) {
       console.error('❌ Error initializing AgentRunCoordinator:', error);
+    }
+  }
+
+  /**
+   * Start the watchdog timer that checks for stuck agents every 30 seconds
+   */
+  private startWatchdog(): void {
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+    }
+    
+    console.log('🐕 Starting agent queue watchdog (30s interval)');
+    
+    this.watchdogInterval = setInterval(async () => {
+      await this.runWatchdog();
+    }, 30000); // Every 30 seconds
+  }
+
+  /**
+   * Watchdog routine - finds and recovers stuck agents
+   */
+  private async runWatchdog(): Promise<void> {
+    // Prevent overlapping watchdog runs
+    if (this.watchdogRunning) {
+      return;
+    }
+    
+    this.watchdogRunning = true;
+    
+    try {
+      const { agentRunQueue: arq } = await import('../../shared/schema');
+      const { db } = await import('../db');
+      const { eq, and } = await import('drizzle-orm');
+      
+      // Find deals with queued agents at position 1 that aren't being processed
+      const stuckQueued = await db.select()
+        .from(arq)
+        .where(and(
+          eq(arq.status, 'queued'),
+          eq(arq.position, 1)
+        ));
+      
+      for (const stuck of stuckQueued) {
+        const dealId = stuck.dealId;
+        
+        // Check if this deal has the processing lock
+        if (!this.processingDeals.has(dealId)) {
+          // SAFETY: If deal is cancelled, DON'T restart - wait for cancellation to complete
+          if (this.cancelledDeals.has(dealId)) {
+            console.log(`🐕 WATCHDOG: Deal ${dealId} is cancelled, not restarting ${stuck.agentType}`);
+            continue;
+          }
+          
+          // No lock held, not cancelled, but agent at position 1 is queued - it's stuck!
+          console.log(`🐕 WATCHDOG: Found stuck agent ${stuck.agentType} at position 1 for deal ${dealId}, restarting...`);
+          
+          // Try to start the agent (startNextAgent will handle locking atomically)
+          this.startNextAgent(dealId).catch(err => 
+            console.error(`🐕 WATCHDOG: Error restarting agent for deal ${dealId}:`, err)
+          );
+        }
+      }
+      
+    } catch (error) {
+      console.error('🐕 WATCHDOG: Error in watchdog routine:', error);
+    } finally {
+      this.watchdogRunning = false;
+    }
+  }
+
+  /**
+   * Force start the next agent for a deal - for emergency recovery only
+   * SAFETY: 
+   * - Only operates when no agent is actively running (lock held)
+   * - Uses atomic promoteNextQueuedAgent (FOR UPDATE SKIP LOCKED) to prevent double-promotion
+   * - Respects cancellation flags to prevent defeating stop-all
+   */
+  async forceStartNext(dealId: number): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`🔧 FORCE START: Manually restarting queue for deal ${dealId}`);
+      
+      // SAFETY: Refuse if deal is currently being cancelled
+      if (this.cancelledDeals.has(dealId)) {
+        console.log(`🔧 FORCE START: Deal ${dealId} has active cancellation, not restarting`);
+        return { 
+          success: false, 
+          message: 'Stop All is in progress. Wait for it to complete before force starting.' 
+        };
+      }
+      
+      // SAFETY: Refuse if processing lock is held (agent is genuinely running)
+      if (this.processingDeals.has(dealId)) {
+        console.log(`🔧 FORCE START: Processing lock held for deal ${dealId}, not restarting`);
+        return { 
+          success: false, 
+          message: 'Agent is currently running. Use Stop All first if you want to restart.' 
+        };
+      }
+      
+      // Find the current queue state
+      const queue = await storage.getAgentRunQueue(dealId);
+      if (queue.length === 0) {
+        return { success: false, message: 'No agents in queue' };
+      }
+      
+      const firstAgent = queue[0];
+      
+      // If the first agent is 'queued' at position 1, it should have started but didn't
+      if (firstAgent.status === 'queued') {
+        console.log(`🔧 FORCE START: Starting stuck ${firstAgent.agentType} for deal ${dealId}`);
+        // startNextAgent will acquire lock atomically and use promoteNextQueuedAgent
+        await this.startNextAgent(dealId);
+        return { success: true, message: `Force started ${firstAgent.agentType}` };
+      }
+      
+      // If 'running' status but no lock held - it's orphaned from a crash
+      if (firstAgent.status === 'running') {
+        // Reset it to queued so it can be re-promoted atomically
+        await storage.updateAgentRunStatus(firstAgent.id, 'queued', {
+          currentStep: 'Force restarted by admin'
+        });
+        
+        console.log(`🔧 FORCE START: Reset orphaned ${firstAgent.agentType} to queued, restarting for deal ${dealId}`);
+        await this.startNextAgent(dealId);
+        return { success: true, message: `Force restarted orphaned ${firstAgent.agentType}` };
+      }
+      
+      return { success: false, message: 'Queue is in unexpected state' };
+      
+    } catch (error: any) {
+      console.error(`🔧 FORCE START: Error for deal ${dealId}:`, error);
+      return { success: false, message: error.message || 'Unknown error' };
     }
   }
 }
