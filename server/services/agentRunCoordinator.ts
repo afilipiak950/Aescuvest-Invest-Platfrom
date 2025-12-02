@@ -24,6 +24,7 @@ class AgentRunCoordinatorService {
   private static instance: AgentRunCoordinatorService;
   private agentCallbacks: Map<AgentType, AgentRunCallback> = new Map();
   private processingDeals: Set<number> = new Set(); // Guards startNextAgent from concurrent calls
+  private cancelledDeals: Set<number> = new Set(); // Tracks deals where stop-all was called
 
   static getInstance(): AgentRunCoordinatorService {
     if (!AgentRunCoordinatorService.instance) {
@@ -61,6 +62,9 @@ class AgentRunCoordinatorService {
   }> {
     try {
       console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId} (forceRestart=${forceRestart})`);
+      
+      // CRITICAL: Clear any previous cancellation flag so new agent can run
+      this.clearCancellation(dealId);
       
       // Check if agent is already queued or running (database check)
       const isAlreadyQueued = await storage.isAgentQueued(dealId, agentType);
@@ -207,9 +211,23 @@ class AgentRunCoordinatorService {
       // This ensures only one agent runs at a time per deal
       try {
         await callback(dealId);
+        
+        // CHECK CANCELLATION: If deal was cancelled during callback, don't complete the agent
+        if (this.cancelledDeals.has(dealId)) {
+          console.log(`🚫 Deal ${dealId} was cancelled, not completing agent ${nextAgent.agentType}`);
+          this.processingDeals.delete(dealId);
+          return; // Don't try to complete or start next agent
+        }
+        
         console.log(`✅ Agent ${nextAgent.agentType} completed for deal ${dealId}`);
         await storage.completeAgentRun(nextAgent.id);
       } catch (error: any) {
+        // CHECK CANCELLATION: Don't log as failure if deal was cancelled
+        if (this.cancelledDeals.has(dealId)) {
+          console.log(`🚫 Deal ${dealId} was cancelled, ignoring error`);
+          this.processingDeals.delete(dealId);
+          return;
+        }
         console.error(`❌ Agent ${nextAgent.agentType} failed for deal ${dealId}:`, error);
         await storage.failAgentRun(nextAgent.id, error.message || 'Unknown error');
       }
@@ -217,6 +235,12 @@ class AgentRunCoordinatorService {
       // Only release lock AFTER callback fully completes
       this.processingDeals.delete(dealId);
       this.broadcastQueueUpdate(dealId);
+      
+      // CHECK CANCELLATION before starting next agent
+      if (this.cancelledDeals.has(dealId)) {
+        console.log(`🚫 Deal ${dealId} was cancelled, not starting next agent`);
+        return;
+      }
       
       // Now start next agent in queue (lock is released, so this can acquire it)
       await this.startNextAgent(dealId);
@@ -356,6 +380,66 @@ class AgentRunCoordinatorService {
     } catch (error) {
       console.error(`Error cancelling agent ${agentType} for deal ${dealId}:`, error);
       return false;
+    }
+  }
+
+  /**
+   * Check if a deal has been cancelled (stop-all was called)
+   * Running callbacks should check this and abort gracefully
+   */
+  isDealCancelled(dealId: number): boolean {
+    return this.cancelledDeals.has(dealId);
+  }
+
+  /**
+   * Clear the cancellation flag for a deal (called when new agent is enqueued)
+   */
+  clearCancellation(dealId: number): void {
+    if (this.cancelledDeals.has(dealId)) {
+      this.cancelledDeals.delete(dealId);
+      console.log(`🔄 Cleared cancellation flag for deal ${dealId}`);
+    }
+  }
+
+  /**
+   * STOP ALL AGENTS for a deal - clears the entire queue and processing lock
+   * Use this when user clicks "Stop All Jobs"
+   */
+  async stopAllAgents(dealId: number): Promise<{ success: boolean; stoppedCount: number }> {
+    try {
+      console.log(`🛑 STOP ALL AGENTS: Clearing queue for deal ${dealId}`);
+      
+      // 1. FIRST: Set cancellation flag so running callbacks will abort
+      this.cancelledDeals.add(dealId);
+      console.log(`🚫 Set cancellation flag for deal ${dealId}`);
+      
+      const { agentRunQueue: arq } = await import('../../shared/schema');
+      const { db } = await import('../db');
+      const { eq } = await import('drizzle-orm');
+      
+      // 2. Get all queue entries for this deal (for counting)
+      const allEntries = await db.select().from(arq).where(eq(arq.dealId, dealId));
+      const stoppedCount = allEntries.length;
+      
+      // 3. DELETE ALL entries from agentRunQueue for this deal (regardless of status)
+      await db.delete(arq).where(eq(arq.dealId, dealId));
+      console.log(`🗑️ Deleted ${stoppedCount} queue entries for deal ${dealId}`);
+      
+      // 4. CRITICAL: Clear the processingDeals lock so new agents can start immediately
+      this.processingDeals.delete(dealId);
+      console.log(`🔓 Cleared processing lock for deal ${dealId}`);
+      
+      // 5. Broadcast the empty queue state
+      this.broadcastQueueUpdate(dealId);
+      
+      console.log(`✅ STOP ALL AGENTS complete for deal ${dealId}: ${stoppedCount} agents stopped`);
+      
+      return { success: true, stoppedCount };
+    } catch (error) {
+      console.error(`❌ Error stopping all agents for deal ${dealId}:`, error);
+      // On error, still try to clear locks to prevent deadlock
+      this.processingDeals.delete(dealId);
+      return { success: false, stoppedCount: 0 };
     }
   }
 

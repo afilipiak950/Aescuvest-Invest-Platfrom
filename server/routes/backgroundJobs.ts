@@ -201,6 +201,7 @@ router.post('/api/background-jobs/:jobId/stop', async (req: Request, res: Respon
 
 /**
  * Stop ALL background jobs for a deal
+ * This clears BOTH the backgroundJobs table AND the agentRunQueue
  */
 router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
   try {
@@ -228,13 +229,12 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
           eq(backgroundJobs.status, 'queued')
         )
       ));
-    const processingJobs = activeJobs.filter((job: any) => job.status === 'processing');
     
     let stoppedCount = 0;
     
-    for (const job of processingJobs) {
+    // Cancel all active/processing background jobs
+    for (const job of activeJobs) {
       try {
-        // Update job status to cancelled
         await db.update(backgroundJobs)
           .set({ 
             status: 'cancelled' as any,
@@ -245,18 +245,30 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
           .where(eq(backgroundJobs.jobId, job.jobId));
         
         stoppedCount++;
-        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
+        console.log(`🛑 Stopped background job: ${job.jobId} (${job.agentType})`);
       } catch (error) {
         console.error(`❌ Error stopping job ${job.jobId}:`, error);
       }
     }
     
-    console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
+    // CRITICAL: Also clear the agentRunQueue and processing lock
+    const { agentRunCoordinator } = await import('../services/agentRunCoordinator');
+    const queueResult = await agentRunCoordinator.stopAllAgents(dealId);
+    
+    const totalStopped = stoppedCount + queueResult.stoppedCount;
+    console.log(`✅ Stopped ${totalStopped} total jobs/agents for deal ${dealId} (${stoppedCount} background jobs, ${queueResult.stoppedCount} queue entries)`);
+    
+    // Check if queue clearing succeeded
+    if (!queueResult.success) {
+      console.error(`⚠️ Queue clearing partially failed for deal ${dealId}`);
+    }
     
     res.json({
-      success: true,
-      message: `Stopped ${stoppedCount} jobs for deal ${dealId}`,
-      stoppedCount
+      success: queueResult.success,
+      message: `Stopped ${totalStopped} jobs for deal ${dealId}`,
+      stoppedCount: totalStopped,
+      backgroundJobsStopped: stoppedCount,
+      queueEntriesStopped: queueResult.stoppedCount
     });
     
   } catch (error) {
