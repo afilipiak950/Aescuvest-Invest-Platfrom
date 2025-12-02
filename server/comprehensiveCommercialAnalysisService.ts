@@ -711,10 +711,22 @@ CRITICAL: Create ONE comprehensive answer that:
 4. Cites specific document sections and data points
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, amounts, metrics, and customer names
 - Structure with clear sections if multiple topics
-- Example: "• **Q4 2024 Revenue**: **$2.5M ARR** with **150 customers** at **$16.7K ACV**"
+
+CORRECT BULLET FORMAT (each on separate line):
+"The commercial analysis reveals the following:
+
+• **Q4 2024 Revenue**: **$2.5M ARR** with **150 customers** at **$16.7K ACV**
+
+• **Customer Growth**: **35% YoY growth** with **92% retention rate**
+
+• **Market Position**: **Top 3 player** in the **$500M addressable market**"
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Revenue: $2.5M • Customers: 150 • Growth: 35%"
 
 Respond in JSON:
 {

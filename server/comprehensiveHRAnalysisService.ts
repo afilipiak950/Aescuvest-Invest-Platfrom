@@ -734,18 +734,25 @@ Your answer should START IMMEDIATELY with the analysis. Do NOT include the quest
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, employee counts, compensation figures, and key personnel
 - Structure with clear sections if multiple topics
 - NO question prefix, NO disclaimers, NO "insufficient information" statements
-- Example CORRECT format:
-  "The analysis reveals the following:
-  
-  • **Team Size**: **45 employees** including **12 engineers**
-  • **Compensation**: Average salary of **$120K** with **15% annual bonus**
-  • **Turnover Rate**: **12%** over the past fiscal year
-  
-  Key organizational structure includes..."
+
+CORRECT BULLET FORMAT (each on separate line):
+"The analysis reveals the following:
+
+• **Team Size**: **45 employees** including **12 engineers**
+
+• **Compensation**: Average salary of **$120K** with **15% annual bonus**
+
+• **Turnover Rate**: **12%** over the past fiscal year
+
+Key organizational structure includes..."
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Team: 45 employees • Salary: $120K • Turnover: 12%"
 
 Respond in JSON:
 {

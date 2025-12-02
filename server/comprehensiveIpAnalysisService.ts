@@ -693,10 +693,22 @@ CRITICAL: Create ONE comprehensive answer that:
 4. Cites specific document sections and IP data points
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, patent numbers, filing dates, and inventor names
 - Structure with clear sections if multiple topics
-- Example: "• **Patent US123456**: Filed **Jan 2023** by **John Smith**, covers **AI-based diagnostic method** with **15 claims**"
+
+CORRECT BULLET FORMAT (each on separate line):
+"The IP analysis reveals the following:
+
+• **Patent US123456**: Filed **Jan 2023** by **John Smith**, covers **AI-based diagnostic method** with **15 claims**
+
+• **Patent US789012**: Filed **Mar 2024** covering **thermal imaging algorithm** with **8 claims pending**
+
+• **Trademark TM-2024-001**: Registered in **US, EU, and Asia** for **brand protection**"
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Patent A: 15 claims • Patent B: 8 claims • Trademark: registered"
 
 Respond in JSON:
 {

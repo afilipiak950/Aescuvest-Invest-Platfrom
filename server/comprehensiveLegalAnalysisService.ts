@@ -937,17 +937,23 @@ Your answer should START IMMEDIATELY with the analysis. Do NOT include the quest
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, amounts, dates, and party names
 - Structure with clear sections if multiple topics
 - NO question prefix, NO disclaimers, NO "insufficient information" statements
-- Example CORRECT format:
-  "The analysis reveals the following:
-  
-  • **Contract ABC**: Payment of **$50,000** due **Q4 2024** to **Party Name Inc.**
-  • **Agreement XYZ**: Includes **15% equity** with **3-year vesting**
-  
-  Key obligations include..."
+
+CORRECT BULLET FORMAT (each on separate line):
+"The analysis reveals the following:
+
+• **Contract ABC**: Payment of **$50,000** due **Q4 2024** to **Party Name Inc.**
+
+• **Agreement XYZ**: Includes **15% equity** with **3-year vesting**
+
+Key obligations include..."
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Contract A: $50K • Contract B: $100K • Contract C: $75K"
 
 Respond in JSON:
 {
