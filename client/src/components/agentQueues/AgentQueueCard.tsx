@@ -60,17 +60,15 @@ export function AgentQueueCard({
               <Button
                 onClick={onCancelQueue}
                 disabled={isLoading}
-                variant="outline"
-                size="sm"
+                variant="destructive"
+                size="icon"
+                className="h-8 w-8 shrink-0"
                 data-testid={`button-cancel-${config.testId}-waiting`}
               >
                 {isLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <Square className="h-3 w-3 mr-2" />
-                    Cancel
-                  </>
+                  <Square className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -101,19 +99,14 @@ export function AgentQueueCard({
                 onClick={onCancelQueue}
                 disabled={isLoading}
                 variant="destructive"
-                size="sm"
+                size="icon"
+                className="h-8 w-8 shrink-0"
                 data-testid={`button-cancel-${config.testId}-queue`}
               >
                 {isLoading ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                    Cancelling...
-                  </>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <>
-                    <Square className="h-3 w-3 mr-2" />
-                    Cancel
-                  </>
+                  <Square className="h-4 w-4" />
                 )}
               </Button>
             </div>
