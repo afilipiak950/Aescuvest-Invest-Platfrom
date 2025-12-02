@@ -327,6 +327,7 @@ class ComprehensiveLegalAnalysisService {
       await storage.createBackgroundJob({
         jobId,
         jobType: 'legal_question_rerun',
+        agentType: 'Legal',
         dealId,
         status: progress === 0 ? 'pending' : 'processing',
         progress,
@@ -420,6 +421,7 @@ class ComprehensiveLegalAnalysisService {
         await storage.createBackgroundJob({
           jobId,
           jobType: 'legal_question_rerun',
+          agentType: 'Legal',
           dealId,
           status: 'pending',
           progress: 0,

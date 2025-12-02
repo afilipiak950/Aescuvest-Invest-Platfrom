@@ -953,6 +953,7 @@ Respond in JSON:
         await storage.createBackgroundJob({
           jobId,
           jobType: 'commercial_question_rerun',
+          agentType: 'Commercial',
           dealId,
           status: 'pending',
           progress: 0,
@@ -1131,6 +1132,7 @@ Respond in JSON:
       await storage.createBackgroundJob({
         jobId,
         jobType: 'commercial_question_rerun',
+        agentType: 'Commercial',
         dealId,
         status: progress === 0 ? 'pending' : 'processing',
         progress,

@@ -122,6 +122,9 @@ export function RunFinancialQueueButton({
       if (response.success) {
         onQueueStart?.();
         
+        // CRITICAL: Invalidate background jobs cache to show fresh 0% progress
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
+        
         const message = response.isRunning 
           ? `Started ${response.totalQuestions} questions one-by-one. Each question extracts evidence from ALL documents.`
           : `Queued at position ${response.queuePosition}. Waiting for other agents to complete.`;

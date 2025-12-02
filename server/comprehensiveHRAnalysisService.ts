@@ -1123,6 +1123,7 @@ Respond in JSON:
       await storage.createBackgroundJob({
         jobId,
         jobType: 'hr_question_rerun',
+        agentType: 'HR',
         dealId,
         status: progress === 0 ? 'pending' : 'processing',
         progress,
@@ -1177,6 +1178,7 @@ Respond in JSON:
         await storage.createBackgroundJob({
           jobId,
           jobType: 'hr_question_rerun',
+          agentType: 'HR',
           dealId,
           status: 'pending',
           progress: 0,

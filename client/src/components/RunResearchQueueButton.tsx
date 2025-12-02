@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Square, Loader2, RefreshCw, Clock } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
@@ -103,6 +103,9 @@ export function RunResearchQueueButton({
 
       if (response.success) {
         onQueueStart?.();
+        
+        // CRITICAL: Invalidate background jobs cache to show fresh 0% progress
+        queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${dealId}`] });
         
         const message = response.isRunning 
           ? `Started ${response.totalQuestions} questions one-by-one. Each question extracts evidence from ALL documents.`
