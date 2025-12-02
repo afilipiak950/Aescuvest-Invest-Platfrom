@@ -12,6 +12,7 @@ import { storage } from '../storage';
 import { RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
 import { resilientOpenAI } from '../utils/resilientOpenAI';
 import { websocketManager } from './websocketManager';
+import { formatAgentAnswer } from '../utils/textFormatting';
 
 interface ResearchEvidence {
   documentName: string;
@@ -726,10 +727,22 @@ CRITICAL: Create ONE comprehensive answer that:
 4. Cites specific document sections and data points
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, metrics, company names, and important data
 - Structure with clear sections if multiple topics
-- Example: "• **Market Size**: TAM of **$50B** with **15% CAGR** growth rate"
+
+CORRECT BULLET FORMAT (each on separate line):
+"The research analysis reveals the following:
+
+• **Market Size**: TAM of **$50B** with **15% CAGR** growth rate
+
+• **Key Competitors**: **CompanyA** (**35% market share**), **CompanyB** (**25% share**)
+
+• **Technology Advantage**: **Proprietary AI** with **3 granted patents**"
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Market: $50B • CAGR: 15% • Patents: 3"
 
 Respond in JSON:
 {
@@ -767,7 +780,7 @@ Respond in JSON:
       
       return {
         question: question.questionText,
-        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        answer: formatAgentAnswer(compiledAnswer.answer || 'Unable to compile answer from available evidence'),
         confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,

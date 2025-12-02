@@ -3,6 +3,7 @@ import { db } from './db';
 import { documents, agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { resilientOpenAI } from './utils/resilientOpenAI';
+import { formatAgentAnswer } from './utils/textFormatting';
 
 const HR_QUESTIONS = [
   // Team Structure
@@ -793,7 +794,7 @@ Respond in JSON:
       return {
         question: question.question,
         category: question.category,
-        answer: compiledAnswer.answer || 'Unable to compile answer',
+        answer: formatAgentAnswer(compiledAnswer.answer || 'Unable to compile answer'),
         confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],

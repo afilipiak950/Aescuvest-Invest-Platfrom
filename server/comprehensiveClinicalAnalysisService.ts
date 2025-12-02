@@ -9,6 +9,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
+import { formatAgentAnswer } from './utils/textFormatting';
 
 // Enhanced clinical questions for comprehensive analysis
 export const COMPREHENSIVE_CLINICAL_QUESTIONS = [
@@ -1349,7 +1350,7 @@ Respond in JSON:
       return {
         question: question.question,
         category: question.category,
-        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        answer: formatAgentAnswer(compiledAnswer.answer || 'Unable to compile answer from available evidence'),
         confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],
