@@ -280,4 +280,38 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
   }
 });
 
+// Force start next agent - emergency recovery endpoint
+router.post('/api/deals/:dealId/force-start-next', async (req: Request, res: Response) => {
+  try {
+    const dealId = parseInt(req.params.dealId);
+    
+    if (isNaN(dealId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid deal ID'
+      });
+    }
+
+    console.log(`🔧 FORCE START: Manual force start requested for deal ${dealId}`);
+    
+    const { agentRunCoordinator } = await import('../services/agentRunCoordinator');
+    const result = await agentRunCoordinator.forceStartNext(dealId);
+    
+    if (result.success) {
+      console.log(`✅ Force start succeeded for deal ${dealId}: ${result.message}`);
+    } else {
+      console.log(`⚠️ Force start failed for deal ${dealId}: ${result.message}`);
+    }
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error(`❌ Error force starting for deal ${req.params.dealId}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to force start'
+    });
+  }
+});
+
 export default router;
