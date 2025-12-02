@@ -111,7 +111,7 @@ export function RunClinicalQueueButton({
         
         const message = response.isRunning 
           ? `Started ${response.totalQuestions} questions one-by-one. Each question extracts evidence from ALL documents.`
-          : `Queued at position ${response.queuePosition}. Waiting for other agents to complete.`;
+          : `Queued at position ${response.queuePosition}. ${response.currentRunningAgent ? `Waiting for ${response.currentRunningAgent} agent to complete.` : 'Waiting for other agents to complete.'}`;
         
         toast({
           title: response.isRunning ? "Analysis Started" : "Analysis Queued",

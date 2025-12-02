@@ -57,6 +57,7 @@ class AgentRunCoordinatorService {
     queuePosition: number; 
     isRunning: boolean;
     message: string;
+    currentRunningAgent?: string;
   }> {
     try {
       console.log(`📥 AgentRunCoordinator: Enqueueing ${agentType} for deal ${dealId} (forceRestart=${forceRestart})`);
@@ -148,7 +149,8 @@ class AgentRunCoordinatorService {
           success: true,
           queuePosition: queueEntry.position,
           isRunning: false,
-          message: `${agentType} queued (position ${queueEntry.position}), waiting for ${currentRunning.agentType} to complete`
+          message: `${agentType} queued (position ${queueEntry.position}), waiting for ${currentRunning.agentType} to complete`,
+          currentRunningAgent: currentRunning.agentType
         };
       }
     } catch (error: any) {
@@ -380,11 +382,46 @@ class AgentRunCoordinatorService {
     try {
       console.log('🔄 Initializing AgentRunCoordinator...');
       
-      // Find all "running" entries that might be stuck from server restart
       const { agentRunQueue: arq } = await import('../../shared/schema');
       const { db } = await import('../db');
-      const { eq } = await import('drizzle-orm');
+      const { eq, and, lt, or, inArray } = await import('drizzle-orm');
       
+      // CLEANUP 1: Remove old completed/failed entries (older than 6 hours)
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const deletedOld = await db.delete(arq)
+        .where(
+          and(
+            or(eq(arq.status, 'completed'), eq(arq.status, 'failed')),
+            lt(arq.triggeredAt, sixHoursAgo)
+          )
+        );
+      console.log(`🧹 Cleaned up old completed/failed queue entries older than 6 hours`);
+      
+      // CLEANUP 2: For each deal, remove duplicate queued entries for same agent type (keep most recent)
+      const allQueued = await db.select().from(arq).where(eq(arq.status, 'queued'));
+      const seenAgents = new Map<string, number>(); // key: "dealId-agentType", value: most recent ID
+      const idsToDelete: number[] = [];
+      
+      // Sort by triggeredAt desc to keep most recent
+      allQueued.sort((a, b) => new Date(b.triggeredAt).getTime() - new Date(a.triggeredAt).getTime());
+      
+      for (const entry of allQueued) {
+        const key = `${entry.dealId}-${entry.agentType}`;
+        if (seenAgents.has(key)) {
+          // This is a duplicate (older entry), mark for deletion
+          idsToDelete.push(entry.id);
+        } else {
+          // This is the most recent entry, keep it
+          seenAgents.set(key, entry.id);
+        }
+      }
+      
+      if (idsToDelete.length > 0) {
+        await db.delete(arq).where(inArray(arq.id, idsToDelete));
+        console.log(`🧹 Removed ${idsToDelete.length} duplicate queued entries`);
+      }
+      
+      // Find all "running" entries that might be stuck from server restart
       const stuckRunning = await db.select()
         .from(arq)
         .where(eq(arq.status, 'running'));
@@ -398,7 +435,6 @@ class AgentRunCoordinatorService {
       }
       
       // Find all deals with queued agents and start processing
-      const { sql } = await import('drizzle-orm');
       const dealsWithQueue = await db
         .selectDistinct({ dealId: arq.dealId })
         .from(arq)
