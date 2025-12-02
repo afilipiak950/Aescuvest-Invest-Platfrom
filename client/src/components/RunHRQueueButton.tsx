@@ -289,24 +289,35 @@ export function RunHRQueueButton({
     );
   }
 
+  // Show Force Rerun All button when queue is not active
   return (
-    <Button
-      onClick={handleForceRerunAll}
-      disabled={isLoading}
-      className={className}
-      data-testid="button-force-rerun-hr"
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Starting...
-        </>
-      ) : (
-        <>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Force Rerun All HR Questions
-        </>
-      )}
-    </Button>
+    <Card className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700/30">
+      <CardContent className="pt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-white">HR Analysis</p>
+            <p className="text-xs text-gray-400">Ready to analyze HR documents</p>
+          </div>
+          <Button
+            onClick={handleForceRerunAll}
+            disabled={isLoading}
+            className={className}
+            data-testid="button-force-rerun-hr"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Starting...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Force Rerun All
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
