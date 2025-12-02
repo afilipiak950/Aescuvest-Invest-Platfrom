@@ -1282,11 +1282,23 @@ Your answer should START IMMEDIATELY with the analysis. Do NOT include the quest
 
 FORMAT REQUIREMENTS FOR "answer" FIELD:
 - Start IMMEDIATELY with analysis (e.g., "The analysis reveals the following:")
+- CRITICAL: Each bullet point MUST be on its own line - NEVER put multiple bullets on the same line
 - Use markdown bullets (•) for lists of evidence/findings
 - Use **bold** for key terms, trial names, patient numbers, and efficacy metrics
 - Structure with clear sections if multiple topics
 - NO question prefix, NO disclaimers
-- Example: "• **Phase III Trial XYZ**: Enrolled **N=500 patients**, showed **65% efficacy** with **p<0.05**"
+
+CORRECT BULLET FORMAT (each on separate line):
+"The analysis reveals the following:
+
+• **Phase III Trial XYZ**: Enrolled **N=500 patients**, showed **65% efficacy** with **p<0.05**
+
+• **Safety Profile**: **No SAEs reported** across **12-month follow-up period**
+
+• **Regulatory Status**: **FDA 510(k) cleared** in **March 2024**"
+
+WRONG (inline bullets - NEVER DO THIS):
+"• Trial A: 100 patients • Trial B: 200 patients • Trial C: 150 patients"
 
 Respond in JSON:
 {
