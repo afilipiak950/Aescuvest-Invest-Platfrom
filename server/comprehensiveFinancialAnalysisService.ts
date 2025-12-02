@@ -10,6 +10,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
+import { formatAgentAnswer } from './utils/textFormatting';
 
 // Enhanced financial questions for comprehensive analysis
 export const COMPREHENSIVE_FINANCIAL_QUESTIONS = [
@@ -733,7 +734,7 @@ Respond in JSON:
       
       return {
         question: question.question,
-        answer: compiledAnswer.answer || 'Unable to compile answer',
+        answer: formatAgentAnswer(compiledAnswer.answer || 'Unable to compile answer'),
         confidence: compiledAnswer.confidence ? compiledAnswer.confidence / 100 : 0.5,
         sources: evidence.map(e => e.documentName),
         keyFindings: compiledAnswer.keyFindings || [],

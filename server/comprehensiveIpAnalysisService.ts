@@ -10,6 +10,7 @@ import { documents, agentAnalyses } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
+import { formatAgentAnswer } from './utils/textFormatting';
 
 // Enhanced IP questions for comprehensive analysis - 12 questions exactly like Financial
 export const COMPREHENSIVE_IP_QUESTIONS = [
@@ -748,7 +749,7 @@ Respond in JSON:
       
       return {
         question: question.question,
-        answer: compiledAnswer.answer || 'Unable to compile answer from available evidence',
+        answer: formatAgentAnswer(compiledAnswer.answer || 'Unable to compile answer from available evidence'),
         confidence: compiledAnswer.confidence || 30,
         sources: evidence.map(e => e.documentName),
         detailedEvidence: evidence,
