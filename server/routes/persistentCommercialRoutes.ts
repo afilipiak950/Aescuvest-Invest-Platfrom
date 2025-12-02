@@ -20,18 +20,32 @@ async function executeCommercialForceRerunAll(dealId: number): Promise<void> {
   
   const masterJobId = `force-rerun-all-commercial-${dealId}`;
   
+  // CRITICAL: Delete ALL existing Commercial background jobs (including old completed ones)
+  // This ensures the frontend shows fresh 0% progress instead of stale 100%
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'Commercial')
+      )
+    );
+  
+  // Also clean up old master job by ID if it exists (belt and suspenders)
   const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
   if (existingMasterJob) {
     await storage.deleteBackgroundJob(masterJobId);
   }
   
+  // Create master job for progress tracking - CRITICAL: include agentType for frontend matching
   await storage.createBackgroundJob({
     jobId: masterJobId,
     jobType: 'force_rerun_all_commercial',
     dealId,
     status: 'processing',
     progress: 0,
-    currentStep: 'Starting sequential force rerun of all commercial questions'
+    currentStep: 'Starting sequential force rerun of all commercial questions',
+    agentType: 'Commercial'
   });
   
   await db

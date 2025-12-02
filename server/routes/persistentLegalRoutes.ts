@@ -22,20 +22,32 @@ async function executeLegalForceRerunAll(dealId: number): Promise<void> {
   
   const masterJobId = `force-rerun-all-legal-${dealId}`;
   
-  // Clean up old master job if it exists
+  // CRITICAL: Delete ALL existing Legal background jobs (including old completed ones)
+  // This ensures the frontend shows fresh 0% progress instead of stale 100%
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'Legal')
+      )
+    );
+  
+  // Also clean up old master job by ID if it exists (belt and suspenders)
   const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
   if (existingMasterJob) {
     await storage.deleteBackgroundJob(masterJobId);
   }
   
-  // Create master job for progress tracking
+  // Create master job for progress tracking - CRITICAL: include agentType for frontend matching
   await storage.createBackgroundJob({
     jobId: masterJobId,
     jobType: 'force_rerun_all_legal',
     dealId,
     status: 'processing',
     progress: 0,
-    currentStep: 'Starting sequential force rerun of all legal questions'
+    currentStep: 'Starting sequential force rerun of all legal questions',
+    agentType: 'Legal'
   });
   
   // Clean up existing legal question rerun jobs

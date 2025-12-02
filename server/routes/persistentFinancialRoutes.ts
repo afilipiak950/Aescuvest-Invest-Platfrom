@@ -21,18 +21,32 @@ async function executeFinancialForceRerunAll(dealId: number): Promise<void> {
   
   const masterJobId = `force-rerun-all-financial-${dealId}`;
   
+  // CRITICAL: Delete ALL existing Financial background jobs (including old completed ones)
+  // This ensures the frontend shows fresh 0% progress instead of stale 100%
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'Financial')
+      )
+    );
+  
+  // Also clean up old master job by ID if it exists (belt and suspenders)
   const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
   if (existingMasterJob) {
     await storage.deleteBackgroundJob(masterJobId);
   }
   
+  // Create master job for progress tracking - CRITICAL: include agentType for frontend matching
   await storage.createBackgroundJob({
     jobId: masterJobId,
     jobType: 'force_rerun_all_financial',
     dealId,
     status: 'processing',
     progress: 0,
-    currentStep: 'Starting sequential force rerun of all financial questions'
+    currentStep: 'Starting sequential force rerun of all financial questions',
+    agentType: 'Financial'
   });
   
   await db

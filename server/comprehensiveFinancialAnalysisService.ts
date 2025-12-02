@@ -1050,6 +1050,7 @@ Respond in JSON:
         await storage.createBackgroundJob({
           jobId,
           jobType: 'financial_question_rerun',
+          agentType: 'Financial',
           dealId,
           status: 'pending',
           progress: 0,

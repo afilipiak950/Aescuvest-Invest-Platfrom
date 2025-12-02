@@ -1655,6 +1655,7 @@ Respond in JSON:
       await db.insert(backgroundJobs).values({
         jobId,
         jobType: 'clinical_question_rerun',
+        agentType: 'Clinical',
         dealId,
         status: progress === 0 ? 'pending' : 'processing',
         progress,

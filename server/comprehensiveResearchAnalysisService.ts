@@ -882,6 +882,7 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
         await storage.createBackgroundJob({
           jobId,
           jobType: 'research_question_rerun',
+          agentType: 'Research',
           dealId,
           status: 'pending',
           progress: 0,

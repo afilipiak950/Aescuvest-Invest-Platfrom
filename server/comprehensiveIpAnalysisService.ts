@@ -1159,6 +1159,7 @@ Respond in JSON:
         await storage.createBackgroundJob({
           jobId,
           jobType: 'ip_question_rerun',
+          agentType: 'IP',
           dealId,
           status: 'pending',
           progress: 0,

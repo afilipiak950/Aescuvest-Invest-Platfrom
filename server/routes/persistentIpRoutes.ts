@@ -20,18 +20,32 @@ import { agentRunCoordinator } from '../services/agentRunCoordinator';
 async function executeIpForceRerunAll(dealId: number): Promise<void> {
   const masterJobId = `force-rerun-all-ip-${dealId}`;
   
+  // CRITICAL: Delete ALL existing IP background jobs (including old completed ones)
+  // This ensures the frontend shows fresh 0% progress instead of stale 100%
+  await db
+    .delete(backgroundJobs)
+    .where(
+      and(
+        eq(backgroundJobs.dealId, dealId),
+        eq(backgroundJobs.agentType, 'IP')
+      )
+    );
+  
+  // Also clean up old master job by ID if it exists (belt and suspenders)
   const existingMasterJob = await storage.getBackgroundJobById(masterJobId);
   if (existingMasterJob) {
     await storage.deleteBackgroundJob(masterJobId);
   }
   
+  // Create master job for progress tracking - CRITICAL: include agentType for frontend matching
   await storage.createBackgroundJob({
     jobId: masterJobId,
     jobType: 'force_rerun_all_ip',
     dealId,
     status: 'processing',
     progress: 0,
-    currentStep: 'Starting sequential force rerun of all IP questions'
+    currentStep: 'Starting sequential force rerun of all IP questions',
+    agentType: 'IP'
   });
   
   await db
