@@ -3,7 +3,7 @@ import path from 'path';
 import AdmZip from 'adm-zip';
 // Import jobProcessor for creating OCR jobs
 // backgroundJobManager removed - using jobProcessor for automatic processing
-import { storage } from '../storage';
+import { storage, ALL_AGENTS } from '../storage';
 
 interface ProcessedFile {
   name: string;
@@ -109,7 +109,7 @@ export class ZipProcessor {
             documentType: fileType,
             parentId: parentDocumentId,
             uploadedAt: new Date(),
-            assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'],
+            assignedAgents: [...ALL_AGENTS], // Assign to ALL agents by default
             metadata: {
               originalPath: relativePath,
               extractedFrom: gcsPath,
@@ -162,7 +162,7 @@ export class ZipProcessor {
               documentType: 'Unknown',
               parentId: parentDocumentId,
               uploadedAt: new Date(),
-              assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
+              assignedAgents: [...ALL_AGENTS] // Assign to ALL agents by default
             } as any);
             documents.push(doc);
             console.log(`⚠️ Created basic document entry for ${path.basename(filePath)}`);
@@ -306,7 +306,7 @@ export class ZipProcessor {
             isFolder: false,
             category: 'General',
             documentType: fileType,
-            assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
+            assignedAgents: [...ALL_AGENTS] // Assign to ALL agents by default
           } as any);
           
           console.log(`✅ Created document ${document.id}: ${fileName}`);
@@ -358,7 +358,7 @@ export class ZipProcessor {
               isFolder: false,
               category: 'General',
               documentType: 'Unknown',
-              assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
+              assignedAgents: [...ALL_AGENTS] // Assign to ALL agents by default
             } as any);
             console.log(`⚠️ Created basic document entry for ${path.basename(filePath)}`);
           } catch (dbError) {

@@ -876,7 +876,7 @@ class JobProcessor {
         isFolder: true,
         category: 'Archive',
         documentType: 'ZIP',
-        assignedAgents: [],
+        assignedAgents: undefined, // Let storage.createDocument() apply ALL_AGENTS default
         metadata: {
           sessionId,
           extractedFrom: gcsPath,
