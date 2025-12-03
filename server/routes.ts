@@ -1,7 +1,7 @@
 // @ts-nocheck - bypass type errors for deployment
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, ALL_AGENTS } from "./storage";
 import { db } from "./db";
 import { documents, systemSettings, backgroundJobs } from "../shared/schema";
 import { eq, and } from "drizzle-orm";
@@ -1477,6 +1477,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         success: false,
         message: 'Failed to fetch assignment statistics' 
+      });
+    }
+  });
+
+  // 🎯 MIGRATION ENDPOINT: Fix existing documents without full agent assignments
+  // This ensures ALL documents are assigned to ALL 7 agents for comprehensive analysis
+  app.post('/api/documents/migrate-all-agents', async (req: Request, res: Response) => {
+    try {
+      console.log('🔄 Starting document agent migration to ALL_AGENTS...');
+      console.log(`📋 ALL_AGENTS = ${JSON.stringify(ALL_AGENTS)}`);
+      
+      // Get optional dealId filter
+      const { dealId } = req.body;
+      
+      // Get all documents (optionally filtered by dealId)
+      let allDocuments;
+      if (dealId) {
+        allDocuments = await storage.getDocumentsByDealId(parseInt(dealId));
+        console.log(`📄 Filtering documents for deal ${dealId}`);
+      } else {
+        allDocuments = await storage.getAllDocuments();
+        console.log(`📄 Processing ALL documents in database`);
+      }
+      
+      console.log(`📄 Found ${allDocuments.length} documents to check`);
+      
+      // Filter documents that don't have all 7 agents assigned
+      const documentsToFix = allDocuments.filter(doc => {
+        if (!doc.assignedAgents || doc.assignedAgents.length === 0) {
+          return true; // No agents at all
+        }
+        // Check if all 7 agents are present
+        const hasAllAgents = ALL_AGENTS.every(agent => 
+          doc.assignedAgents?.includes(agent)
+        );
+        return !hasAllAgents;
+      });
+      
+      console.log(`🔧 Found ${documentsToFix.length} documents needing agent migration`);
+      
+      // Fix each document
+      let fixedCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+      
+      for (const doc of documentsToFix) {
+        try {
+          await storage.updateDocument(doc.id, {
+            assignedAgents: [...ALL_AGENTS],
+            agentType: doc.agentType || 'Legal' // Keep existing primary or default to Legal
+          });
+          fixedCount++;
+          console.log(`✅ Fixed document ${doc.id}: ${doc.name} - now assigned to all ${ALL_AGENTS.length} agents`);
+        } catch (error) {
+          errorCount++;
+          const errorMsg = `Failed to fix document ${doc.id}: ${String(error)}`;
+          errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+      
+      const summary = {
+        success: true,
+        message: `Migration complete: ${fixedCount} documents fixed, ${errorCount} errors`,
+        totalDocuments: allDocuments.length,
+        documentsFixed: fixedCount,
+        documentsAlreadyCorrect: allDocuments.length - documentsToFix.length,
+        errors: errorCount,
+        errorDetails: errors.length > 0 ? errors : undefined,
+        allAgents: [...ALL_AGENTS]
+      };
+      
+      console.log(`🎉 Migration summary:`, summary);
+      
+      return res.status(200).json(summary);
+    } catch (error) {
+      console.error('❌ Error during document agent migration:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to migrate document agents',
+        error: String(error)
       });
     }
   });
