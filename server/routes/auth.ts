@@ -39,8 +39,12 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Register user
     const result = await registerUser(userData);
-    if (!result) {
-      return res.status(400).json({ message: 'User registration failed, email may already be in use' });
+    
+    // Handle registration failure with specific error messages
+    if (!result.success) {
+      // Return 409 Conflict for duplicate email, 500 for server errors
+      const statusCode = result.error === 'email_exists' ? 409 : 500;
+      return res.status(statusCode).json({ message: result.message });
     }
 
     res.status(201).json({
@@ -50,7 +54,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error in /register:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'An error occurred while creating your account. Please try again.' });
   }
 });
 
