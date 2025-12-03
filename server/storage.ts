@@ -17,7 +17,8 @@ import {
   comprehensiveAnalysis, ComprehensiveAnalysis, InsertComprehensiveAnalysis,
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
-  researchJobs, ResearchJob, InsertResearchJob
+  researchJobs, ResearchJob, InsertResearchJob,
+  passwordResetTokens, PasswordResetToken, InsertPasswordResetToken
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
@@ -246,6 +247,34 @@ export class DatabaseStorage implements IStorage {
       .returning();
     console.log('✅ DatabaseStorage: User updated successfully:', updatedUser);
     return updatedUser || undefined;
+  }
+
+  // Password Reset Token methods
+  async createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const [token] = await db.insert(passwordResetTokens).values(data).returning();
+    return token;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return resetToken || undefined;
+  }
+
+  async markPasswordResetTokenAsUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async deleteExpiredPasswordResetTokens(): Promise<number> {
+    const result = await db
+      .delete(passwordResetTokens)
+      .where(sql`${passwordResetTokens.expiresAt} < NOW() OR ${passwordResetTokens.used} = true`);
+    return 0; // Drizzle doesn't return count for delete
   }
 
   async getAllDeals(): Promise<Deal[]> {
