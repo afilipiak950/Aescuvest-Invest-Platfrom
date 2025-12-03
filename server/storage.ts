@@ -22,6 +22,11 @@ import {
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
+// 🎯 ALL AGENTS CONSTANT: Every document is assigned to ALL agents by default
+// This ensures comprehensive due diligence analysis across all domains
+export const ALL_AGENTS = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'] as const;
+export type AgentType = typeof ALL_AGENTS[number];
+
 // In-memory cache for better performance across queries
 const documentCache = new Map<number, { data: Document[], timestamp: number }>();
 const dealsCache = new Map<string, { data: any[], timestamp: number }>();
@@ -727,7 +732,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
-    const [newDocument] = await db.insert(documents).values(document).returning();
+    // 🎯 BULLETPROOF: Auto-assign ALL agents by default if not specified or empty
+    // This ensures every document is available for comprehensive due diligence across all domains
+    const documentWithAgents = {
+      ...document,
+      assignedAgents: (document.assignedAgents && document.assignedAgents.length > 0) 
+        ? document.assignedAgents 
+        : [...ALL_AGENTS],
+      agentType: document.agentType || 'Legal', // Default primary agent for UI compatibility
+    };
+    
+    console.log(`📄 Creating document with agents: ${JSON.stringify(documentWithAgents.assignedAgents)}`);
+    
+    const [newDocument] = await db.insert(documents).values(documentWithAgents).returning();
     
     // Add new document to cache instead of invalidating
     if (newDocument.dealId) {
@@ -737,6 +754,8 @@ export class DatabaseStorage implements IStorage {
         console.log(`📄 Added document ${newDocument.id} to cache for deal ${newDocument.dealId}`);
       }
     }
+    
+    console.log(`✅ Document ${newDocument.id} created with ALL ${newDocument.assignedAgents?.length || 0} agents assigned`);
     
     return newDocument;
   }
