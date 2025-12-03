@@ -732,13 +732,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDocument(document: InsertDocument): Promise<Document> {
-    // 🎯 BULLETPROOF: Auto-assign ALL agents by default if not specified or empty
+    // 🎯 BULLETPROOF: ALWAYS ensure ALL agents are assigned
     // This ensures every document is available for comprehensive due diligence across all domains
+    // Even if caller provides a partial list, we extend it to include ALL agents
+    const providedAgents = document.assignedAgents || [];
+    const mergedAgents = [...new Set([...providedAgents, ...ALL_AGENTS])];
+    
     const documentWithAgents = {
       ...document,
-      assignedAgents: (document.assignedAgents && document.assignedAgents.length > 0) 
-        ? document.assignedAgents 
-        : [...ALL_AGENTS],
+      assignedAgents: mergedAgents,
       agentType: document.agentType || 'Legal', // Default primary agent for UI compatibility
     };
     
@@ -818,8 +820,22 @@ export class DatabaseStorage implements IStorage {
     // This eliminates the TOCTTOU window by checking existence in the WHERE clause
     console.log(`🔄 Attempting atomic update for document ${id}`);
     
+    // 🎯 BULLETPROOF AGENT PRESERVATION: If assignedAgents is being updated, ensure it has all agents
+    // This prevents accidental partial agent assignments from any code path
+    let processedUpdates = { ...updates };
+    if ('assignedAgents' in updates) {
+      // If explicitly setting agents, ensure all 7 are included
+      const currentAgents = updates.assignedAgents || [];
+      const hasAllAgents = ALL_AGENTS.every(agent => currentAgents.includes(agent));
+      if (!hasAllAgents) {
+        // Merge with ALL_AGENTS to ensure complete coverage
+        processedUpdates.assignedAgents = [...new Set([...currentAgents, ...ALL_AGENTS])];
+        console.log(`🎯 Extended assignedAgents from ${currentAgents.length} to ${processedUpdates.assignedAgents.length} agents`);
+      }
+    }
+    
     const updateData = {
-      ...updates,
+      ...processedUpdates,
       updatedAt: new Date()
     };
     
