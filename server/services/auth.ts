@@ -13,18 +13,24 @@ interface TokenPayload {
   role: string;
 }
 
+// Registration result types for specific error handling
+export type RegisterResult = 
+  | { success: true; user: Omit<User, 'password'>; token: string }
+  | { success: false; error: 'email_exists' | 'server_error'; message: string };
+
 /**
  * Register a new user
  */
-export async function registerUser(userData: Omit<InsertUser, 'password'> & { password: string }): Promise<{
-  user: Omit<User, 'password'>;
-  token: string;
-} | null> {
+export async function registerUser(userData: Omit<InsertUser, 'password'> & { password: string }): Promise<RegisterResult> {
   try {
     // Check if user already exists
     const existingUser = await storage.getUserByEmail(userData.email);
     if (existingUser) {
-      return null; // User already exists
+      return { 
+        success: false, 
+        error: 'email_exists',
+        message: 'This email address is already registered. Please use a different email or try logging in.' 
+      };
     }
 
     // Hash password
@@ -48,12 +54,17 @@ export async function registerUser(userData: Omit<InsertUser, 'password'> & { pa
     const { password, ...userWithoutPassword } = newUser;
 
     return {
+      success: true,
       user: userWithoutPassword,
       token,
     };
   } catch (error) {
     console.error('Error in registerUser:', error);
-    return null;
+    return { 
+      success: false, 
+      error: 'server_error',
+      message: 'An error occurred while creating your account. Please try again.' 
+    };
   }
 }
 
