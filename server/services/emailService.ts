@@ -13,7 +13,9 @@ function getResendClient(): Resend | null {
   return resendClient;
 }
 
-const FROM_EMAIL = 'noreply@aescuvest.com';
+// Use Resend's default test sender for development
+// For production, set RESEND_FROM_EMAIL env var to your verified domain email
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const APP_NAME = 'Aescuvest';
 
 interface SendPasswordResetEmailParams {
