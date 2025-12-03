@@ -1,6 +1,17 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization to avoid crashing on startup if API key is missing
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) {
+    return null;
+  }
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 const FROM_EMAIL = 'noreply@aescuvest.com';
 const APP_NAME = 'Aescuvest';
@@ -19,9 +30,10 @@ export async function sendPasswordResetEmail({
   resetUrl
 }: SendPasswordResetEmailParams): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    const resend = getResendClient();
+    if (!resend) {
       console.error('RESEND_API_KEY is not configured');
-      return { success: false, error: 'Email service not configured' };
+      return { success: false, error: 'Email service not configured. Please contact support.' };
     }
 
     const { data, error } = await resend.emails.send({

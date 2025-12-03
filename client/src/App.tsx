@@ -34,6 +34,7 @@ import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 
 function AppContent() {
@@ -50,7 +51,7 @@ function AppContent() {
   // } = useGlobalPersistentUploads();
   
   // Auth pages - don't show sidebar/navbar
-  const isAuthPage = location === '/login' || location === '/register';
+  const isAuthPage = location === '/login' || location === '/register' || location.startsWith('/reset-password');
   
   // Force redirection based on auth state
   useEffect(() => {
@@ -79,6 +80,7 @@ function AppContent() {
             <Switch>
               <Route path="/login" component={Login} />
               <Route path="/register" component={Register} />
+              <Route path="/reset-password" component={ResetPassword} />
               <Route component={NotFound} />
             </Switch>
           </div>
