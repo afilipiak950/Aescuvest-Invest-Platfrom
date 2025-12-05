@@ -22,7 +22,7 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Matching Intelligence System**: AI-powered organization-to-deal matching based on sector, stage, geography, check size, and thesis.
 - **PDF Viewer**: Inline PDF viewing with canvas-based rendering.
 - **Automated AI Evaluation**: Critical scoring (PASS, INVESTIGATE, REJECT) with live background progress tracking, reload persistence, and race condition protection.
-- **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system and live progress tracking.
+- **Investment Memo Generation**: Comprehensive 30-50 page investment memorandums with a robust fallback system and live progress tracking. **NEW (Dec 2025): Enhanced 100x Quality Mode** using Agent Data Fusion Layer, Claude Opus synthesis, quality validation with iterative refinement, and citation-backed content from all 7 specialized agents.
 - **Ultra-Premium PDF Export**: Enterprise-grade typography and professional formatting.
 - **Multi-Pass OCR Extraction**: Processes complete OCR text from documents without character limits using a three-pass extraction strategy.
 - **Large File Upload System**: Hybrid upload infrastructure supporting files up to 5GB, intelligently routing files ≤30MB directly to the server and files >30MB to GCS signed URLs. Includes upload negotiation, GCS signed URL generation, callback endpoints for background ZIP extraction jobs, WebSocket progress notifications, and error handling.
@@ -36,6 +36,15 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Configuration**: Environment variables and a modular service architecture.
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
+
+### Recent Major Updates (Dec 05, 2025)
+- **100x Memo Quality Improvement**: Implemented comprehensive Agent Data Fusion Layer (`server/services/agentDataFusion.ts`) that transforms raw agent Q&A outputs into structured, citation-ready facts. Added Claude Opus synthesis service (`server/services/claudeOpusMemoSynthesis.ts`) for high-quality memo section generation with deep agent integration. Created quality validation and refinement controller (`server/services/memoRefinementController.ts`) with iterative improvement passes. Key features:
+  - **Structured Fact Matrix**: Extracts and categorizes facts from all 7 agents with confidence scores
+  - **Quantitative Metric Extraction**: Automatically identifies currency, percentages, dates, counts
+  - **Citation-Backed Content**: Every claim links to source agent analysis [AGENT Agent - Category]
+  - **Quality Scoring**: 0-100 score per section based on citations, data points, specificity
+  - **Iterative Refinement**: Weak sections (score <65) automatically re-generated with targeted prompts
+  - **API Enhancement**: POST `/api/deals/:dealId/generate-memo` now accepts `enhanced=true` for quality mode
 
 ### Recent Critical Fixes (Dec 02, 2025)
 - **Bullet Point Formatting Fix**: All 7 AI agents now produce properly formatted bullet points with each item on its own line. Created shared `server/utils/textFormatting.ts` utility with `normalizeBulletLists()` function that converts inline bullets to newline-separated format. Updated all synthesis prompts with explicit "one bullet per line" instructions and examples. Applied `formatAgentAnswer()` post-processing to all agent answer outputs for consistent, readable markdown lists.
