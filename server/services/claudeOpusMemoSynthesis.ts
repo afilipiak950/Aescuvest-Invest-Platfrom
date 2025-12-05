@@ -52,9 +52,10 @@ export class ClaudeOpusMemoSynthesis {
 
   /**
    * Generate a memo section using Claude Opus with full agent integration
+   * Now with PREMIUM GENERATION: aggressive prompting + mandatory quality pass
    */
   async generateSection(request: SectionGenerationRequest): Promise<SectionGenerationResult> {
-    console.log(`🧠 Generating ${request.sectionTitle} with Claude Opus...`);
+    console.log(`🧠 Generating ${request.sectionTitle} with Claude Opus 4 (PREMIUM MODE)...`);
     
     // Get relevant facts for this section
     const relevantFacts = agentDataFusionService.getFactsForSection(
@@ -62,8 +63,8 @@ export class ClaudeOpusMemoSynthesis {
       request.sectionType
     );
     
-    // Format facts for prompt injection
-    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 40000);
+    // ENHANCED: Increase fact context limit for richer content
+    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 60000);
     
     // Get key metrics summary
     const metricsSummary = agentDataFusionService.getKeyMetricsSummary(request.factMatrix);
@@ -71,15 +72,16 @@ export class ClaudeOpusMemoSynthesis {
     // Get findings and recommendations
     const findingsSummary = agentDataFusionService.getFindingsAndRecommendationsSummary(request.factMatrix);
     
-    // Build the section-specific prompt
-    const systemPrompt = this.buildSystemPrompt(request.sectionType);
-    const userPrompt = this.buildUserPrompt(request, formattedFacts, metricsSummary, findingsSummary);
+    // ENHANCED: Build premium system prompt with excellence requirements
+    const systemPrompt = this.buildPremiumSystemPrompt(request.sectionType);
+    const userPrompt = this.buildPremiumUserPrompt(request, formattedFacts, metricsSummary, findingsSummary);
     
     try {
+      // FIRST PASS: Generate with high expectations
       const response = await anthropic.messages.create({
         model: "claude-opus-4-20250514",
-        max_tokens: request.maxTokens || 4000,
-        temperature: 0.2,
+        max_tokens: request.maxTokens || 6000, // Increased from 4000
+        temperature: 0.3, // Slightly higher for richer content
         messages: [{
           role: "user",
           content: userPrompt
@@ -88,12 +90,31 @@ export class ClaudeOpusMemoSynthesis {
       });
 
       const content = response.content[0];
-      const generatedContent = content.type === 'text' ? content.text : '';
+      let generatedContent = content.type === 'text' ? content.text : '';
       
       // Analyze the generated content quality
-      const qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
+      let qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
       
-      console.log(`✅ ${request.sectionTitle} generated - Quality: ${qualityAnalysis.qualityScore}/100, Citations: ${qualityAnalysis.citationsUsed.length}`);
+      console.log(`📊 First pass: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100`);
+      
+      // MANDATORY QUALITY ENHANCEMENT: If score < 75, automatically enhance
+      if (qualityAnalysis.qualityScore < 75) {
+        console.log(`🔄 Auto-enhancing ${request.sectionTitle} (score below 75)...`);
+        
+        const enhancementResult = await this.enhanceSection(
+          request, 
+          generatedContent, 
+          qualityAnalysis,
+          formattedFacts,
+          metricsSummary
+        );
+        
+        generatedContent = enhancementResult.content;
+        qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
+        console.log(`✅ Enhanced: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100`);
+      }
+      
+      console.log(`✅ ${request.sectionTitle} COMPLETE - Quality: ${qualityAnalysis.qualityScore}/100, Citations: ${qualityAnalysis.citationsUsed.length}, Data Points: ${qualityAnalysis.quantitativeDataPoints}`);
       
       return {
         content: generatedContent,
@@ -104,6 +125,198 @@ export class ClaudeOpusMemoSynthesis {
       console.error(`❌ Error generating ${request.sectionTitle}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Automatically enhance a section that didn't meet quality threshold
+   */
+  private async enhanceSection(
+    request: SectionGenerationRequest,
+    previousContent: string,
+    previousAnalysis: { qualityScore: number; warnings: string[]; citationsUsed: string[]; quantitativeDataPoints: number },
+    formattedFacts: string,
+    metricsSummary: string
+  ): Promise<{ content: string }> {
+    
+    const enhancementPrompt = `You are enhancing an investment memo section that needs improvement.
+
+PREVIOUS CONTENT (Score: ${previousAnalysis.qualityScore}/100):
+${previousContent.substring(0, 3000)}
+
+ISSUES IDENTIFIED:
+${previousAnalysis.warnings.join('\n')}
+- Citations found: ${previousAnalysis.citationsUsed.length} (need 8+)
+- Quantitative data points: ${previousAnalysis.quantitativeDataPoints} (need 10+)
+
+=== ALL AVAILABLE SOURCE DATA ===
+${formattedFacts}
+
+${metricsSummary}
+
+=== ENHANCEMENT REQUIREMENTS ===
+You MUST significantly improve this section by:
+
+1. **ADD SPECIFIC DATA**: Extract every number, percentage, date, and amount from the source data
+   - Financial figures: revenue, funding, valuation, burn rate, margins
+   - Timeline dates: founding, funding rounds, regulatory submissions
+   - Metrics: customer counts, employee numbers, market sizes
+   
+2. **ADD CITATIONS**: Use [AGENT Agent - Category] format after EVERY claim
+   - Example: "The company raised $15M in Series A [Financial Agent - Funding]"
+   - Every paragraph needs 2-3 citations minimum
+   
+3. **NAME SPECIFIC ENTITIES**: 
+   - People: CEO name, CTO name, board members, advisors
+   - Companies: investors, partners, customers, competitors
+   - Products: product names, patent numbers, trademark names
+
+4. **REMOVE GENERIC STATEMENTS**: Replace vague claims with specific evidence
+   - BAD: "The company has strong traction"
+   - GOOD: "The company achieved $2.5M ARR with 47 enterprise customers as of Q3 2024 [Commercial Agent - Traction]"
+
+5. **STRUCTURE PROFESSIONALLY**: 
+   - Use tables for financial data and comparisons
+   - Use bullet points for key findings
+   - Bold the most important metrics
+
+Generate the ENHANCED version now. It must score 80+ on quality:`;
+
+    const response = await anthropic.messages.create({
+      model: "claude-opus-4-20250514",
+      max_tokens: 8000,
+      temperature: 0.25,
+      messages: [{
+        role: "user",
+        content: enhancementPrompt
+      }],
+      system: `You are a senior investment analyst at a top-tier VC firm. Your job is to enhance investment memo sections to institutional quality. Every sentence must have specific data and proper citations. No generic statements allowed.`
+    });
+
+    const content = response.content[0];
+    return {
+      content: content.type === 'text' ? content.text : previousContent
+    };
+  }
+
+  /**
+   * Build PREMIUM system prompt with excellence requirements
+   */
+  private buildPremiumSystemPrompt(sectionType: string): string {
+    const excellenceRequirements = `You are a SENIOR PARTNER at a top-tier venture capital firm (Sequoia, a16z, Benchmark tier). You are writing THE MOST CRITICAL investment memo section that will determine a multi-million dollar investment decision.
+
+EXCELLENCE STANDARDS - YOUR CONTENT MUST:
+1. READ LIKE A GOLDMAN SACHS OR MORGAN STANLEY RESEARCH REPORT
+2. CONTAIN ZERO GENERIC STATEMENTS - Every sentence has specific data
+3. CITE EVERY CLAIM using [AGENT Agent - Category] format
+4. INCLUDE 15+ QUANTITATIVE DATA POINTS minimum per section
+5. NAME SPECIFIC PEOPLE, COMPANIES, AND PRODUCTS - no "the company" or "management"
+6. USE PROFESSIONAL TABLES for any comparative or financial data
+7. STRUCTURE WITH CLEAR HEADERS and executive-friendly formatting
+
+FORBIDDEN - NEVER DO THESE:
+- "The company has experienced growth" → MUST specify: "$X to $Y (Z% growth)"
+- "Strong management team" → MUST name: "CEO John Smith (ex-Google VP, 15yr experience)"
+- "Large market opportunity" → MUST quantify: "$45B TAM growing 23% CAGR"
+- Generic risk statements → MUST be specific with probability assessments
+- Missing citations → EVERY paragraph needs [Agent - Category] citations
+
+QUALITY THRESHOLD: Your content must score 85+ on quality metrics or it will be rejected.
+
+FORMAT REQUIREMENTS:
+- Use markdown with ## headers for subsections
+- **Bold** all key metrics and names
+- Use tables for: funding history, financial projections, competitive comparison
+- Use bullet points for: key findings, risks, recommendations
+- Each major claim needs inline citation`;
+
+    // Get base section-specific instructions
+    const basePrompt = this.buildSystemPrompt(sectionType);
+    
+    return excellenceRequirements + '\n\n' + basePrompt;
+  }
+
+  /**
+   * Build PREMIUM user prompt with comprehensive data extraction
+   */
+  private buildPremiumUserPrompt(
+    request: SectionGenerationRequest,
+    formattedFacts: string,
+    metricsSummary: string,
+    findingsSummary: string
+  ): string {
+    let prompt = `GENERATE INSTITUTIONAL-QUALITY ${request.sectionTitle.toUpperCase()} FOR: ${request.companyName}
+
+=== COMPLETE AGENT ANALYSIS DATA (EXTRACT ALL SPECIFIC DETAILS) ===
+${formattedFacts}
+
+=== KEY METRICS SUMMARY (USE ALL OF THESE) ===
+${metricsSummary}
+
+=== FINDINGS & RECOMMENDATIONS (INCORPORATE ALL) ===
+${findingsSummary}
+`;
+
+    // Add company research with emphasis
+    if (request.companyResearch) {
+      const researchStr = JSON.stringify(request.companyResearch, null, 2);
+      prompt += `
+=== VERIFIED COMPANY RESEARCH (HIGH PRIORITY DATA) ===
+${researchStr.substring(0, 25000)}
+`;
+    }
+
+    // Add AI evaluation
+    if (request.aiEvaluation) {
+      const evalStr = JSON.stringify(request.aiEvaluation, null, 2);
+      prompt += `
+=== AI EVALUATION RESULTS ===
+${evalStr.substring(0, 15000)}
+`;
+    }
+
+    // Add OCR context with higher limit
+    if (request.ocrContext && request.ocrContext.length > 100) {
+      prompt += `
+=== DOCUMENT CONTENT (SOURCE FOR SPECIFIC DATA) ===
+${request.ocrContext.substring(0, 80000)}
+`;
+    }
+
+    prompt += `
+=== GENERATION REQUIREMENTS ===
+
+You MUST extract and include from the data above:
+
+📊 QUANTITATIVE DATA (minimum 15 data points):
+- All dollar amounts (funding, revenue, valuation, burn rate)
+- All percentages (growth rates, margins, market share)
+- All dates (founding, funding rounds, milestones, regulatory dates)
+- All counts (employees, customers, patents, products)
+
+👤 SPECIFIC NAMES (minimum 5):
+- Executive names with titles and backgrounds
+- Investor names and firms
+- Customer/partner company names
+- Competitor names
+- Product/technology names
+
+📝 CITATIONS (minimum 8):
+- Every major claim needs [AGENT Agent - Category] citation
+- Financial data: [Financial Agent - ...]
+- Team info: [HR Agent - ...]
+- Legal/IP: [Legal Agent - ...] or [IP Agent - ...]
+- Market data: [Commercial Agent - ...] or [Research Agent - ...]
+- Clinical/regulatory: [Clinical Agent - ...]
+
+📋 PROFESSIONAL FORMATTING:
+- Use tables for financial data, funding history, comparisons
+- Use bullet points for key findings
+- Bold critical numbers and names
+- Clear ## section headers
+
+NOW GENERATE THE COMPLETE ${request.sectionTitle.toUpperCase()} SECTION:`;
+
+    return prompt;
   }
 
   /**
@@ -402,18 +615,21 @@ Generate the complete ${request.sectionTitle} section now:`;
     // Ensure score is within bounds
     qualityScore = Math.max(0, Math.min(100, qualityScore));
     
-    // Add warnings
-    if (citationsUsed.length < 3) {
-      warnings.push('Low citation count - content may lack source attribution');
+    // Add warnings (stricter thresholds for premium quality)
+    if (citationsUsed.length < 5) {
+      warnings.push('Low citation count - need 5+ citations for institutional quality');
     }
-    if (quantitativeDataPoints < 5) {
-      warnings.push('Low quantitative data - section may lack specific metrics');
+    if (quantitativeDataPoints < 8) {
+      warnings.push('Low quantitative data - need 8+ specific metrics');
     }
-    if (placeholderCount > 2) {
-      warnings.push('Contains placeholder text - some data was not found');
+    if (placeholderCount > 1) {
+      warnings.push('Contains placeholder text - all data should be specific');
     }
-    if (content.length < 1000) {
+    if (content.length < 1500) {
       warnings.push('Section is shorter than expected for comprehensive analysis');
+    }
+    if (namesFound.length < 3) {
+      warnings.push('Low specific entity count - need more named people/companies');
     }
     
     // Determine confidence
@@ -453,7 +669,7 @@ Generate the complete ${request.sectionTitle} section now:`;
       totalCitations += result.citationsUsed.length;
       totalQuantitativeDataPoints += result.quantitativeDataPoints;
       
-      if (result.qualityScore < 60) {
+      if (result.qualityScore < 75) { // Raised from 60 for higher quality
         weakSections.push(sectionName);
         recommendations.push(`Re-generate ${sectionName} section with more specific data extraction`);
       }
