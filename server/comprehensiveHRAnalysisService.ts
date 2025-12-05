@@ -154,47 +154,47 @@ export class ComprehensiveHRAnalysisService {
   }
 
   async getAssignedHRDocuments(dealId: number): Promise<any[]> {
-    console.log(`👥 Finding assigned HR documents for deal ${dealId}`);
+    console.log(`👥 Using paginated document loading for efficient memory usage (deal ${dealId})`);
+    
+    const MAX_DOCS_FOR_ANALYSIS = 150;
+    const pageSize = 50;
+    const allDocs: any[] = [];
+    let page = 1;
     
     try {
-      // Get ALL documents for the deal with AI summaries - same approach as Legal and Clinical
-      const allDocuments = await db.select().from(documents).where(eq(documents.dealId, dealId));
-      console.log(`👥 Found ${allDocuments.length} total documents for deal ${dealId}`);
-      
-      // Filter to only include documents with AI summaries for analysis (like Legal/Clinical)
-      const documentsWithAI = allDocuments.filter(doc => {
-        // Check if aiSummary exists and is valid (could be object or string)
-        if (!doc.aiSummary) return false;
+      while (allDocs.length < MAX_DOCS_FOR_ANALYSIS) {
+        const result = await storage.getDocumentsByDealIdPaginated(dealId, page, pageSize, false);
         
-        // Handle aiSummary as object with executiveSummary field
-        if (typeof doc.aiSummary === 'object' && doc.aiSummary.executiveSummary) {
-          return doc.aiSummary.executiveSummary.length > 10;
-        }
+        if (!result.documents?.length) break;
         
-        // Handle aiSummary as string
-        if (typeof doc.aiSummary === 'string' && doc.aiSummary.length > 10) {
-          return true;
-        }
+        const docsWithAI = result.documents.filter((doc: any) => doc.aiSummary);
+        allDocs.push(...docsWithAI);
         
-        return false;
-      });
-      
-      console.log(`👥 HR analysis will process ALL ${documentsWithAI.length} documents with AI summaries (comprehensive approach matching Legal/Clinical)`);
-      
-      // Return ALL documents with AI summaries for maximum coverage
-      return documentsWithAI;
-      
-    } catch (error) {
-      console.error(`❌ Error finding HR documents:`, error);
-      // Fallback: return all documents if there's an error
-      try {
-        const allDocs = await db.select().from(documents).where(eq(documents.dealId, dealId));
-        console.log(`🏢 Error fallback: returning all ${allDocs.length} documents`);
-        return allDocs.filter(doc => doc.aiSummary);
-      } catch (fallbackError) {
-        console.error(`❌ Fallback error:`, fallbackError);
-        return [];
+        if (result.documents.length < pageSize || page * pageSize >= result.total) break;
+        page++;
       }
+      
+      console.log(`👥 Loaded ${allDocs.length} documents with AI summaries (max ${MAX_DOCS_FOR_ANALYSIS})`);
+      
+      const hrKeywords = ['hr', 'human resource', 'employee', 'team', 'compensation', 'salary', 'benefits', 'hiring', 'org chart', 'founder'];
+      
+      const prioritized = allDocs.map((doc: any) => ({
+        doc,
+        priority: hrKeywords.some(kw => 
+          doc.name?.toLowerCase().includes(kw) || 
+          (typeof doc.aiSummary === 'string' && doc.aiSummary.toLowerCase().includes(kw)) ||
+          (doc.aiSummary?.executiveSummary && doc.aiSummary.executiveSummary.toLowerCase().includes(kw))
+        ) ? 10 : 5
+      }))
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, MAX_DOCS_FOR_ANALYSIS)
+      .map(x => x.doc);
+      
+      console.log(`📊 Using ${prioritized.length} prioritized HR documents for analysis`);
+      return prioritized;
+    } catch (error) {
+      console.error(`❌ Error loading HR documents:`, error);
+      return [];
     }
   }
 

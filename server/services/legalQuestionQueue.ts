@@ -11,6 +11,7 @@ import { storage } from '../storage';
 import { COMPREHENSIVE_LEGAL_QUESTIONS } from '../comprehensiveLegalAnalysisService';
 import OpenAI from 'openai';
 import { websocketManager } from './websocketManager';
+import { documentBatchPlanner } from './documentBatchPlanner';
 
 // Initialize OpenAI client
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -294,13 +295,12 @@ export class LegalQuestionQueueService {
     try {
       console.log(`🔬 Analyzing question: ${question.questionText}`);
 
-      // Get all legal documents for this deal
-      const documentsResult = await storage.getDocumentsByDealIdPaginated(dealId, 1, 10000);
-      const dealDocuments = documentsResult.documents || [];
+      // Use DocumentBatchPlanner for efficient context building with large datarooms
+      const agentContext = await documentBatchPlanner.buildAgentContext(dealId, 'legal');
+      
+      console.log(`📊 Built context: ${agentContext.documentCount} docs, ${(agentContext.totalChars / 1000).toFixed(1)}k chars, strategy: ${agentContext.strategy}`);
 
-      console.log(`📄 Found ${dealDocuments.length} documents for analysis`);
-
-      if (dealDocuments.length === 0) {
+      if (agentContext.documentCount === 0) {
         return {
           question: question.questionText,
           answer: 'No documents available for analysis',
@@ -310,43 +310,8 @@ export class LegalQuestionQueueService {
         };
       }
 
-      // Build the analysis prompt with intelligent token limiting
-      // GPT-4o max context: 128k tokens (~96k words or ~384k characters)
-      // Reserve ~30k tokens for question, system prompt, and response
-      // Use ~90k tokens (~360k chars) for documents
-      const MAX_CONTEXT_CHARS = 360000;
-      const MAX_CHARS_PER_DOC = 800; // Reduced from 2000 to fit more docs
-      
-      let contextChars = 0;
-      const documentContext = dealDocuments
-        .map((doc, idx) => {
-          // Handle aiSummary/summary that might be objects or strings
-          let summaryText = 'No summary';
-          if (doc.aiSummary) {
-            summaryText = typeof doc.aiSummary === 'string' ? doc.aiSummary : JSON.stringify(doc.aiSummary);
-          } else if (doc.summary) {
-            summaryText = typeof doc.summary === 'string' ? doc.summary : JSON.stringify(doc.summary);
-          }
-          const summary = summaryText.substring(0, 500);
-          
-          // Handle text/ocrText
-          const textContent = doc.ocrText || doc.text || '';
-          const text = (typeof textContent === 'string' ? textContent : String(textContent)).substring(0, MAX_CHARS_PER_DOC);
-          
-          const docContent = `Document ${idx + 1}: ${doc.name}\nSummary: ${summary}\n${text ? `Content: ${text}...` : ''}`;
-          
-          // Check if adding this doc would exceed limit
-          if (contextChars + docContent.length > MAX_CONTEXT_CHARS) {
-            return null; // Skip this document
-          }
-          
-          contextChars += docContent.length;
-          return docContent;
-        })
-        .filter(Boolean)
-        .join('\n\n---\n\n');
-      
-      console.log(`📊 Using ${contextChars.toLocaleString()} characters from ${dealDocuments.length} documents (est. ${Math.round(contextChars / 4)} tokens)`);
+      const documentContext = agentContext.contextText;
+      console.log(`📊 Using ${agentContext.totalChars.toLocaleString()} characters from ${agentContext.sampledDocuments} documents (est. ${agentContext.estimatedTokens} tokens)`);
 
       const fullPrompt = `You are a legal analyst conducting due diligence. Analyze the following documents and answer this specific question:
 

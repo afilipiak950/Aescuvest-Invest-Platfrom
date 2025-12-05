@@ -13,7 +13,10 @@ interface JobProgress {
 
 class WebSocketManager {
   private wss: WebSocketServer | null = null;
-  private clients: Map<WebSocket, { dealId?: number }> = new Map();
+  private clients: Map<WebSocket, { dealId?: number; lastPong?: number }> = new Map();
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private readonly HEARTBEAT_INTERVAL = 10000; // 10 seconds - keeps connections alive during long operations
+  private readonly PONG_TIMEOUT = 30000; // 30 seconds - disconnect if no response
 
   initialize(server: Server) {
     this.wss = new WebSocketServer({ 
@@ -24,8 +27,17 @@ class WebSocketManager {
     this.wss.on('connection', (ws: WebSocket, req: any) => {
       console.log('📡 WebSocket client connected');
       
-      // Store client with metadata
-      this.clients.set(ws, {});
+      // Store client with metadata and last pong time
+      this.clients.set(ws, { lastPong: Date.now() });
+      
+      // Handle pong responses from client
+      ws.on('pong', () => {
+        const clientData = this.clients.get(ws);
+        if (clientData) {
+          clientData.lastPong = Date.now();
+          this.clients.set(ws, clientData);
+        }
+      });
 
       ws.on('message', (message: string) => {
         try {
@@ -55,6 +67,60 @@ class WebSocketManager {
     });
 
     console.log('📡 WebSocket manager initialized for background job progress tracking');
+    
+    // Start heartbeat to keep connections alive during long operations
+    this.startHeartbeat();
+  }
+
+  /**
+   * Start heartbeat mechanism to keep WebSocket connections alive
+   * Critical for long-running agent operations (1000+ docs)
+   */
+  private startHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+
+    this.heartbeatInterval = setInterval(() => {
+      const now = Date.now();
+      let activeCount = 0;
+      let terminatedCount = 0;
+
+      this.clients.forEach((clientData, ws) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          // Check if client has responded to previous pings
+          const lastPong = clientData.lastPong || now;
+          if (now - lastPong > this.PONG_TIMEOUT) {
+            console.log('⚠️ WebSocket client timed out, terminating connection');
+            ws.terminate();
+            this.clients.delete(ws);
+            terminatedCount++;
+            return;
+          }
+
+          // Send ping to keep connection alive
+          try {
+            ws.ping();
+            activeCount++;
+          } catch (error) {
+            console.error('❌ Error sending WebSocket ping:', error);
+            this.clients.delete(ws);
+          }
+        } else {
+          // Clean up dead connections
+          this.clients.delete(ws);
+        }
+      });
+
+      if (activeCount > 0) {
+        console.log(`💓 WebSocket heartbeat: ${activeCount} active connections`);
+      }
+      if (terminatedCount > 0) {
+        console.log(`🧹 WebSocket cleanup: ${terminatedCount} timed-out connections terminated`);
+      }
+    }, this.HEARTBEAT_INTERVAL);
+
+    console.log(`💓 WebSocket heartbeat started (interval: ${this.HEARTBEAT_INTERVAL / 1000}s)`);
   }
 
   // Generic broadcast method for any message type
@@ -182,6 +248,12 @@ class WebSocketManager {
 
   // Production safety: Cleanup WebSocket connections
   cleanup() {
+    // Stop heartbeat
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    
     if (this.wss) {
       console.log('🧹 Closing WebSocket server...');
       

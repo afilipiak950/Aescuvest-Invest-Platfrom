@@ -13,6 +13,7 @@ import { RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
 import { resilientOpenAI } from '../utils/resilientOpenAI';
 import { websocketManager } from './websocketManager';
 import { formatAgentAnswer } from '../utils/textFormatting';
+import { documentBatchPlanner } from './documentBatchPlanner';
 
 interface ResearchEvidence {
   documentName: string;
@@ -354,19 +355,18 @@ export class ResearchQuestionQueueService {
 
   /**
    * Process a single research question using MULTI-PASS ARCHITECTURE (EXACT IP pattern)
-   * Step 1: Extract evidence from each document individually
+   * Step 1: Extract evidence from each document individually (paginated for large datarooms)
    * Step 2: Compile comprehensive answer using token-based batching
    */
   private async processQuestion(dealId: number, question: QueueItem): Promise<any> {
     try {
       console.log(`🔬 [MULTI-PASS] Analyzing research question: ${question.questionText}`);
 
-      const documentsResult = await storage.getDocumentsByDealIdPaginated(dealId, 1, 10000);
-      const dealDocuments = documentsResult.documents || [];
+      // Get batch plan to understand dataroom size
+      const batchPlan = await documentBatchPlanner.calculateBatchPlan(dealId);
+      console.log(`📄 Found ${batchPlan.totalDocuments} documents for research analysis (strategy: ${batchPlan.samplingStrategy})`);
 
-      console.log(`📄 Found ${dealDocuments.length} documents for research analysis`);
-
-      if (dealDocuments.length === 0) {
+      if (batchPlan.totalDocuments === 0) {
         const noDocsResult = {
           question: question.questionText,
           answer: 'No documents available for analysis',
@@ -381,10 +381,10 @@ export class ResearchQuestionQueueService {
         return noDocsResult;
       }
 
-      // STEP 1: Extract evidence from ALL documents (EXACT IP pattern)
-      console.log(`📊 [MULTI-PASS] Step 1: Extracting evidence from ${dealDocuments.length} documents`);
-      const evidence = await this.extractEvidenceFromAllDocuments(dealDocuments, question);
-      console.log(`📋 [MULTI-PASS] Extracted evidence from ${evidence.length}/${dealDocuments.length} documents`);
+      // STEP 1: Extract evidence using paginated document loading for large datarooms
+      console.log(`📊 [MULTI-PASS] Step 1: Extracting evidence using ${batchPlan.samplingStrategy} strategy`);
+      const evidence = await this.extractEvidenceWithPagination(dealId, question, batchPlan);
+      console.log(`📋 [MULTI-PASS] Extracted evidence from ${evidence.length} documents`);
 
       // STEP 2: Compile comprehensive answer using batched synthesis (EXACT IP pattern)
       console.log(`🔄 [MULTI-PASS] Step 2: Compiling comprehensive answer from ${evidence.length} evidence pieces`);
@@ -412,6 +412,59 @@ export class ResearchQuestionQueueService {
       console.error(`❌ Error processing research question:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Extract evidence using paginated document loading for large datarooms
+   * Processes documents in pages to avoid memory exhaustion
+   */
+  private async extractEvidenceWithPagination(
+    dealId: number, 
+    question: QueueItem, 
+    batchPlan: { totalDocuments: number; samplingStrategy: string }
+  ): Promise<ResearchEvidence[]> {
+    const evidence: ResearchEvidence[] = [];
+    const pageSize = 100; // Load 100 documents at a time
+    const maxPages = batchPlan.samplingStrategy === 'sampled' ? 10 : Math.ceil(batchPlan.totalDocuments / pageSize);
+    const totalPages = Math.min(maxPages, Math.ceil(batchPlan.totalDocuments / pageSize));
+    
+    console.log(`📄 [PAGINATED] Processing ${batchPlan.totalDocuments} documents in ${totalPages} pages (strategy: ${batchPlan.samplingStrategy})`);
+    
+    for (let page = 1; page <= totalPages; page++) {
+      console.log(`📦 [PAGINATED] Loading page ${page}/${totalPages}...`);
+      
+      // For sampled strategy, distribute pages across the dataroom
+      let actualPage = page;
+      if (batchPlan.samplingStrategy === 'sampled') {
+        const pageSpacing = Math.floor(Math.ceil(batchPlan.totalDocuments / pageSize) / maxPages);
+        actualPage = 1 + ((page - 1) * Math.max(1, pageSpacing));
+      }
+      
+      const result = await storage.getDocumentsByDealIdPaginated(dealId, actualPage, pageSize, false);
+      const documents = result.documents || [];
+      
+      if (documents.length === 0) {
+        console.log(`⚠️ [PAGINATED] No documents on page ${actualPage}, stopping pagination`);
+        break;
+      }
+      
+      console.log(`📄 [PAGINATED] Processing ${documents.length} documents from page ${actualPage}`);
+      
+      // Process this page of documents using the existing batch extraction
+      const pageEvidence = await this.extractEvidenceFromAllDocuments(documents, question);
+      evidence.push(...pageEvidence);
+      
+      console.log(`✅ [PAGINATED] Page ${page}: ${pageEvidence.length}/${documents.length} documents had evidence (total: ${evidence.length})`);
+      
+      // For large datarooms, limit total evidence to prevent synthesis overload
+      if (evidence.length >= 200) {
+        console.log(`📊 [PAGINATED] Evidence limit reached (200), stopping early`);
+        break;
+      }
+    }
+    
+    console.log(`📋 [PAGINATED] Total evidence extracted: ${evidence.length} documents`);
+    return evidence;
   }
 
   /**

@@ -543,27 +543,43 @@ class ComprehensiveLegalAnalysisService {
    * This ensures full analysis has same quality as reruns
    */
   private async getAssignedLegalDocuments(dealId: number): Promise<any[]> {
-    const { eq } = await import('drizzle-orm');
+    console.log(`📄 Using paginated document loading for efficient memory usage (deal ${dealId})`);
     
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    const MAX_DOCS_FOR_ANALYSIS = 150;
+    const pageSize = 50;
+    const allDocs: any[] = [];
+    let page = 1;
     
-    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    while (allDocs.length < MAX_DOCS_FOR_ANALYSIS) {
+      const result = await storage.getDocumentsByDealIdPaginated(dealId, page, pageSize, false);
+      
+      if (!result.documents?.length) break;
+      
+      const docsWithAI = result.documents.filter((doc: any) => doc.aiSummary);
+      allDocs.push(...docsWithAI);
+      
+      if (result.documents.length < pageSize || page * pageSize >= result.total) break;
+      page++;
+    }
     
-    // 🚀 NEW COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (matching rerun behavior)
-    // This provides cross-agent insights and better evidence synthesis
-    const legalDocuments = allDocuments.filter(doc => doc.aiSummary);
+    console.log(`📄 Loaded ${allDocs.length} documents with AI summaries (max ${MAX_DOCS_FOR_ANALYSIS})`);
     
-    console.log(`📄 Using COMPREHENSIVE approach: ALL ${legalDocuments.length} documents with AI summaries`);
-    console.log(`📊 This matches rerun behavior for consistent high-quality analysis`);
+    const legalKeywords = ['contract', 'agreement', 'legal', 'license', 'ip', 'patent', 'governance', 'compliance', 'regulatory', 'litigation'];
     
-    // Log AI summary coverage for quality assurance
-    const aiCoverage = Math.round(legalDocuments.length / allDocuments.length * 100);
-    console.log(`📊 AI summary coverage: ${aiCoverage}% (${legalDocuments.length}/${allDocuments.length} documents)`);
+    const prioritized = allDocs.map((doc: any) => ({
+      doc,
+      priority: legalKeywords.some(kw => 
+        doc.name?.toLowerCase().includes(kw) || 
+        (typeof doc.aiSummary === 'string' && doc.aiSummary.toLowerCase().includes(kw)) ||
+        (doc.aiSummary?.executiveSummary && doc.aiSummary.executiveSummary.toLowerCase().includes(kw))
+      ) ? 10 : 5
+    }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, MAX_DOCS_FOR_ANALYSIS)
+    .map(x => x.doc);
     
-    return legalDocuments;
+    console.log(`📊 Using ${prioritized.length} prioritized legal documents for analysis`);
+    return prioritized;
   }
   
   /**

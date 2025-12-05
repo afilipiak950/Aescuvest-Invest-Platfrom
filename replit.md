@@ -38,12 +38,19 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
 ### Recent Major Updates (Dec 05, 2025)
+- **Large Dataroom Memory Optimization**: All 7 comprehensive analysis services now use paginated document loading to prevent memory exhaustion in large datarooms (1000+ documents). Key improvements:
+  - **Paginated Loading**: Uses `storage.getDocumentsByDealIdPaginated()` with 50-doc pages instead of loading all documents at once
+  - **Document Cap**: Maximum 150 documents per agent analysis to prevent API token limits from being exceeded
+  - **Priority-Based Selection**: Documents are scored and prioritized by agent-specific keywords (e.g., "patent" for IP, "clinical" for Clinical)
+  - **Affected Services**: `comprehensiveLegalAnalysisService.ts`, `comprehensiveClinicalAnalysisService.ts`, `comprehensiveFinancialAnalysisService.ts`, `comprehensiveIpAnalysisService.ts`, `comprehensiveCommercialAnalysisService.ts`, `comprehensiveHRAnalysisService.ts`
+  - **WebSocket Heartbeat**: 10-second heartbeat system prevents connection timeouts during long-running operations
+
 - **100x Memo Quality Improvement**: Implemented comprehensive Agent Data Fusion Layer (`server/services/agentDataFusion.ts`) that transforms raw agent Q&A outputs into structured, citation-ready facts. Added **Claude Opus 4** synthesis service (`server/services/claudeOpusMemoSynthesis.ts`) for premium-quality memo section generation with deep agent integration. Created quality validation and refinement controller (`server/services/memoRefinementController.ts`) with iterative improvement passes. Key features:
   - **Structured Fact Matrix**: Extracts and categorizes facts from all 7 agents with confidence scores
   - **Quantitative Metric Extraction**: Automatically identifies currency, percentages, dates, counts
   - **Citation-Backed Content**: Every claim links to source agent analysis [AGENT Agent - Category]
   - **Quality Scoring**: 0-100 score per section based on citations, data points, specificity
-  - **Iterative Refinement**: Weak sections (score <65) automatically re-generated with targeted prompts
+  - **Iterative Refinement**: Weak sections (score <75) automatically re-generated with targeted prompts
   - **API Enhancement**: POST `/api/deals/:dealId/generate-memo` now accepts `enhanced=true` for quality mode
 
 ### Recent Critical Fixes (Dec 02, 2025)

@@ -276,84 +276,43 @@ export class ComprehensiveIpAnalysisService {
   }
 
   private async getAssignedDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`🔬 Using paginated document loading for efficient memory usage (deal ${dealId})`);
     
-    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    const MAX_DOCS_FOR_ANALYSIS = 150;
+    const pageSize = 50;
+    const allDocs: any[] = [];
+    let page = 1;
     
-    // First try documents explicitly assigned to IP agent (AI SUMMARY ONLY like Legal/Clinical)
-    let ipDocuments = allDocuments.filter(doc => 
-      (doc.assignedAgents && doc.assignedAgents.includes('ip')) && 
-      doc.aiSummary
-    );
-    
-    console.log(`📄 Documents explicitly assigned to IP: ${ipDocuments.length}`);
-    
-    // If no documents are explicitly assigned to IP, identify IP-related documents
-    if (ipDocuments.length === 0) {
-      console.log('📄 No documents explicitly assigned to IP agent, identifying IP-related documents...');
+    while (allDocs.length < MAX_DOCS_FOR_ANALYSIS) {
+      const result = await storage.getDocumentsByDealIdPaginated(dealId, page, pageSize, false);
       
-      ipDocuments = allDocuments.filter(doc => {
-        if (!doc.aiSummary) return false;
-        
-        const docName = doc.name.toLowerCase();
-        const aiContent = typeof doc.aiSummary === 'string' ? doc.aiSummary.toLowerCase() : 
-          (doc.aiSummary.executiveSummary ? doc.aiSummary.executiveSummary.toLowerCase() : '');
-        
-        // IP document keywords - EXPANDED to match Financial's broad coverage approach
-        const ipKeywords = [
-          // Core IP terms
-          'patent', 'trademark', 'copyright', 'intellectual property', 'ip', 'license',
-          'licensing', 'infringement', 'prior art', 'patent application', 'patent pending',
-          'trade secret', 'confidential', 'proprietary', 'nda', 'non-disclosure',
-          'technology transfer', 'ip assignment', 'invention', 'innovation', 'know-how',
-          'technology', 'software', 'algorithm', 'technical', 'research', 'development',
-          'freedom to operate', 'patent landscape', 'ip strategy', 'brand', 'logo',
-          'service mark', 'domain', 'url', 'technology licensing', 'ip valuation',
-          
-          // Expanded technology and legal terms (like Financial uses broad terms)
-          'design', 'system', 'method', 'process', 'device', 'apparatus', 'product',
-          'solution', 'platform', 'framework', 'architecture', 'implementation',
-          'feature', 'functionality', 'capability', 'specification', 'standard',
-          'protocol', 'interface', 'module', 'component', 'equipment', 'instrument',
-          'machine', 'tool', 'application', 'software', 'hardware', 'firmware',
-          'data', 'database', 'information', 'content', 'document', 'file',
-          'code', 'program', 'script', 'library', 'api', 'sdk', 'framework',
-          'analysis', 'evaluation', 'assessment', 'review', 'study', 'report',
-          'legal', 'agreement', 'contract', 'terms', 'conditions', 'compliance',
-          'regulatory', 'regulation', 'requirement', 'standard', 'guideline',
-          'medical', 'device', 'clinical', 'health', 'safety', 'quality',
-          'manufacturing', 'production', 'distribution', 'commercial', 'business'
-        ];
-        
-        // Check document name and AI summary for IP keywords (NO OCR)
-        const hasIpKeywords = ipKeywords.some(keyword => 
-          docName.includes(keyword) || aiContent.includes(keyword)
-        );
-        
-        return hasIpKeywords;
-      });
+      if (!result.documents?.length) break;
       
-      console.log(`📄 Auto-identified IP documents: ${ipDocuments.length}`);
-    }
-
-    // If still no documents found, use all documents with AI summaries (EXACTLY like Legal/Clinical)
-    if (ipDocuments.length === 0) {
-      console.log('📄 No IP-related documents found, using all documents with AI summaries...');
-      ipDocuments = allDocuments.filter(doc => doc.aiSummary);
-      console.log(`📄 Documents with AI summaries available: ${ipDocuments.length}`);
+      const docsWithAI = result.documents.filter((doc: any) => doc.aiSummary);
+      allDocs.push(...docsWithAI);
+      
+      if (result.documents.length < pageSize || page * pageSize >= result.total) break;
+      page++;
     }
     
-    console.log(`📄 Found ${ipDocuments.length} documents for IP analysis`);
+    console.log(`📄 Loaded ${allDocs.length} documents with AI summaries (max ${MAX_DOCS_FOR_ANALYSIS})`);
     
-    if (ipDocuments.length === 0) {
-      console.log('⚠️ No documents found for IP analysis');
-      return [];
-    }
+    const ipKeywords = ['patent', 'trademark', 'copyright', 'ip', 'license', 'invention', 'innovation', 'proprietary', 'trade secret', 'technology'];
     
-    return ipDocuments;
+    const prioritized = allDocs.map((doc: any) => ({
+      doc,
+      priority: ipKeywords.some(kw => 
+        doc.name?.toLowerCase().includes(kw) || 
+        (typeof doc.aiSummary === 'string' && doc.aiSummary.toLowerCase().includes(kw)) ||
+        (doc.aiSummary?.executiveSummary && doc.aiSummary.executiveSummary.toLowerCase().includes(kw))
+      ) ? 10 : 5
+    }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, MAX_DOCS_FOR_ANALYSIS)
+    .map(x => x.doc);
+    
+    console.log(`📊 Using ${prioritized.length} prioritized IP documents for analysis`);
+    return prioritized;
   }
 
 
