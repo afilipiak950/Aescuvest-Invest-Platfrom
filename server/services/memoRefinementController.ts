@@ -44,8 +44,8 @@ export interface CompleteMemo {
 
 export class MemoRefinementController {
   private static instance: MemoRefinementController;
-  private readonly QUALITY_THRESHOLD = 65;
-  private readonly MAX_REFINEMENT_ATTEMPTS = 2;
+  private readonly QUALITY_THRESHOLD = 75; // Raised from 65 for higher quality output
+  private readonly MAX_REFINEMENT_ATTEMPTS = 3; // Increased from 2 for better results
 
   static getInstance(): MemoRefinementController {
     if (!MemoRefinementController.instance) {
@@ -64,19 +64,19 @@ export class MemoRefinementController {
   } {
     const issues: string[] = [];
     
-    // Check for minimum content length
-    if (result.content.length < 500) {
+    // Check for minimum content length (increased threshold)
+    if (result.content.length < 1500) {
       issues.push('Content is too short for a comprehensive section');
     }
     
-    // Check for minimum citations
-    if (result.citationsUsed.length < 2) {
-      issues.push('Insufficient source citations');
+    // Check for minimum citations (increased from 2 to 5)
+    if (result.citationsUsed.length < 5) {
+      issues.push('Insufficient source citations (need 5+)');
     }
     
-    // Check for quantitative data
-    if (result.quantitativeDataPoints < 3) {
-      issues.push('Lacks specific quantitative data points');
+    // Check for quantitative data (increased from 3 to 8)
+    if (result.quantitativeDataPoints < 8) {
+      issues.push('Lacks specific quantitative data points (need 8+)');
     }
     
     // Check for placeholder content
