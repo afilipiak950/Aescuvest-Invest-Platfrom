@@ -879,25 +879,43 @@ export class ComprehensiveClinicalAnalysisService {
    * This ensures full analysis has same quality as reruns
    */
   private async getAssignedClinicalDocuments(dealId: number): Promise<any[]> {
-    const allDocuments = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.dealId, dealId));
+    console.log(`📄 Using paginated document loading for efficient memory usage (deal ${dealId})`);
     
-    console.log(`📄 Total documents found for deal ${dealId}: ${allDocuments.length}`);
+    const MAX_DOCS_FOR_ANALYSIS = 150;
+    const pageSize = 50;
+    const allDocs: any[] = [];
+    let page = 1;
     
-    // 🚀 NEW COMPREHENSIVE APPROACH: Use ALL documents with AI summaries (matching rerun behavior)
-    // This provides cross-agent insights and better evidence synthesis
-    const clinicalDocuments = allDocuments.filter(doc => doc.aiSummary);
+    while (allDocs.length < MAX_DOCS_FOR_ANALYSIS) {
+      const result = await storage.getDocumentsByDealIdPaginated(dealId, page, pageSize, false);
+      
+      if (!result.documents?.length) break;
+      
+      const docsWithAI = result.documents.filter((doc: any) => doc.aiSummary);
+      allDocs.push(...docsWithAI);
+      
+      if (result.documents.length < pageSize || page * pageSize >= result.total) break;
+      page++;
+    }
     
-    console.log(`📄 Using COMPREHENSIVE approach: ALL ${clinicalDocuments.length} documents with AI summaries`);
-    console.log(`📊 This matches rerun behavior for consistent high-quality analysis`);
+    console.log(`📄 Loaded ${allDocs.length} documents with AI summaries (max ${MAX_DOCS_FOR_ANALYSIS})`);
     
-    // Log AI summary coverage for quality assurance
-    const aiCoverage = Math.round(clinicalDocuments.length / allDocuments.length * 100);
-    console.log(`📊 AI summary coverage: ${aiCoverage}% (${clinicalDocuments.length}/${allDocuments.length} documents)`);
+    const clinicalKeywords = ['clinical', 'trial', 'patient', 'study', 'fda', 'regulatory', 'safety', 'efficacy', 'medical', 'healthcare', 'treatment'];
     
-    return clinicalDocuments;
+    const prioritized = allDocs.map((doc: any) => ({
+      doc,
+      priority: clinicalKeywords.some(kw => 
+        doc.name?.toLowerCase().includes(kw) || 
+        (typeof doc.aiSummary === 'string' && doc.aiSummary.toLowerCase().includes(kw)) ||
+        (doc.aiSummary?.executiveSummary && doc.aiSummary.executiveSummary.toLowerCase().includes(kw))
+      ) ? 10 : 5
+    }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, MAX_DOCS_FOR_ANALYSIS)
+    .map(x => x.doc);
+    
+    console.log(`📊 Using ${prioritized.length} prioritized clinical documents for analysis`);
+    return prioritized;
   }
   
   /**
