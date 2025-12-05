@@ -38,7 +38,7 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
 ### Recent Major Updates (Dec 05, 2025)
-- **100x Memo Quality Improvement**: Implemented comprehensive Agent Data Fusion Layer (`server/services/agentDataFusion.ts`) that transforms raw agent Q&A outputs into structured, citation-ready facts. Added Claude Opus synthesis service (`server/services/claudeOpusMemoSynthesis.ts`) for high-quality memo section generation with deep agent integration. Created quality validation and refinement controller (`server/services/memoRefinementController.ts`) with iterative improvement passes. Key features:
+- **100x Memo Quality Improvement**: Implemented comprehensive Agent Data Fusion Layer (`server/services/agentDataFusion.ts`) that transforms raw agent Q&A outputs into structured, citation-ready facts. Added **Claude Opus 4** synthesis service (`server/services/claudeOpusMemoSynthesis.ts`) for premium-quality memo section generation with deep agent integration. Created quality validation and refinement controller (`server/services/memoRefinementController.ts`) with iterative improvement passes. Key features:
   - **Structured Fact Matrix**: Extracts and categorizes facts from all 7 agents with confidence scores
   - **Quantitative Metric Extraction**: Automatically identifies currency, percentages, dates, counts
   - **Citation-Backed Content**: Every claim links to source agent analysis [AGENT Agent - Category]
