@@ -719,6 +719,126 @@ ${fact.fact}
 
     return output.join('\n');
   }
+
+  /**
+   * Format evidence for memo synthesis with structured data ready for Claude
+   */
+  formatEvidenceForMemoSection(
+    evidence: any[],
+    sectionName: string
+  ): string {
+    if (!evidence || evidence.length === 0) {
+      return `[NO QUANTITATIVE DATA AVAILABLE FOR ${sectionName.toUpperCase()}]`;
+    }
+
+    const output: string[] = [`=== VERIFIED DATA FOR ${sectionName.toUpperCase()} ===\n`];
+
+    // Group by type
+    const byType: Record<string, any[]> = {};
+    for (const item of evidence) {
+      const type = item.metricType || 'other';
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(item);
+    }
+
+    // Currency metrics first (most important for investors)
+    if (byType['currency']?.length) {
+      output.push('\n💰 FINANCIAL FIGURES:');
+      for (const m of byType['currency']) {
+        output.push(`- ${m.metricValue}${m.period ? ` (${m.period})` : ''}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    // Percentages
+    if (byType['percentage']?.length) {
+      output.push('\n📊 PERCENTAGES:');
+      for (const m of byType['percentage']) {
+        output.push(`- ${m.metricValue}${m.period ? ` (${m.period})` : ''}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    // Counts
+    if (byType['count']?.length) {
+      output.push('\n📈 QUANTITIES:');
+      for (const m of byType['count']) {
+        output.push(`- ${m.metricValue}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    // Dates
+    if (byType['date']?.length) {
+      output.push('\n📅 KEY DATES:');
+      for (const m of byType['date']) {
+        output.push(`- ${m.metricValue}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    // Durations
+    if (byType['duration']?.length) {
+      output.push('\n⏱️ TIMEFRAMES:');
+      for (const m of byType['duration']) {
+        output.push(`- ${m.metricValue}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    // Ratios
+    if (byType['ratio']?.length) {
+      output.push('\n🔢 RATIOS/MULTIPLES:');
+      for (const m of byType['ratio']) {
+        output.push(`- ${m.metricValue}: "${m.context}" ${m.citation}`);
+      }
+    }
+
+    output.push(`\n[Total: ${evidence.length} verified data points for ${sectionName}]`);
+    return output.join('\n');
+  }
+
+  /**
+   * Check if enough evidence exists for a quality memo section
+   */
+  assessEvidenceReadiness(
+    evidence: any[],
+    requiredMetricCount: number = 5,
+    requiredHighConfidenceCount: number = 2
+  ): {
+    isReady: boolean;
+    totalMetrics: number;
+    highConfidenceMetrics: number;
+    missingTypes: string[];
+    recommendation: string;
+  } {
+    const highConfidence = evidence.filter(e => e.confidence === 'high');
+    const types = new Set(evidence.map(e => e.metricType));
+    
+    const essentialTypes = ['currency', 'percentage', 'count'];
+    const missingTypes = essentialTypes.filter(t => !types.has(t));
+
+    const isReady = evidence.length >= requiredMetricCount && 
+                    highConfidence.length >= requiredHighConfidenceCount;
+
+    let recommendation = '';
+    if (!isReady) {
+      if (evidence.length < requiredMetricCount) {
+        recommendation = `Need ${requiredMetricCount - evidence.length} more data points. `;
+      }
+      if (highConfidence.length < requiredHighConfidenceCount) {
+        recommendation += `Need ${requiredHighConfidenceCount - highConfidence.length} more high-confidence metrics.`;
+      }
+      if (missingTypes.length > 0) {
+        recommendation += ` Missing metric types: ${missingTypes.join(', ')}.`;
+      }
+    } else {
+      recommendation = 'Evidence is sufficient for quality memo generation.';
+    }
+
+    return {
+      isReady,
+      totalMetrics: evidence.length,
+      highConfidenceMetrics: highConfidence.length,
+      missingTypes,
+      recommendation
+    };
+  }
 }
 
 export const agentDataFusionService = AgentDataFusionService.getInstance();
