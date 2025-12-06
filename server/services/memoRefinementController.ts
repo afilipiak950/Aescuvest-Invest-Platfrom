@@ -3,6 +3,12 @@
  * 
  * Validates memo quality, identifies weak sections, and triggers
  * targeted refinement passes to ensure high-quality output.
+ * 
+ * Enhanced with:
+ * - Stricter quality gates (85% threshold for critical sections)
+ * - Minimum 5 metrics per section requirement
+ * - Fail-closed behavior when data is insufficient
+ * - Evidence-based validation with provenance tracking
  */
 
 import { 
@@ -12,6 +18,7 @@ import {
   MemoQualityMetrics 
 } from './claudeOpusMemoSynthesis';
 import { AgentFactMatrix } from './agentDataFusion';
+import { getSectionConfig, MEMO_SECTION_CONFIGS, SectionConfig } from './memoSectionConfig';
 
 export interface RefinementResult {
   originalScore: number;
@@ -19,6 +26,8 @@ export interface RefinementResult {
   refinementAttempts: number;
   sectionsRefined: string[];
   overallImprovement: number;
+  failedSections: string[];
+  evidenceGaps: string[];
 }
 
 export interface MemoSection {
@@ -31,6 +40,8 @@ export interface MemoSection {
   quantitativeDataPoints: number;
   confidence: 'high' | 'medium' | 'low';
   warnings: string[];
+  evidenceCount: number;
+  meetsMinimumRequirements: boolean;
 }
 
 export interface CompleteMemo {
@@ -40,12 +51,30 @@ export interface CompleteMemo {
   qualityMetrics: MemoQualityMetrics;
   refinementResult?: RefinementResult;
   generatedAt: string;
+  evidenceSummary: {
+    totalMetrics: number;
+    highConfidenceMetrics: number;
+    sectionsWithSufficientData: number;
+    sectionsWithInsufficientData: string[];
+  };
+}
+
+export interface EvidenceValidationResult {
+  isValid: boolean;
+  sectionName: string;
+  requiredMetrics: number;
+  actualMetrics: number;
+  requiredHighConfidence: number;
+  actualHighConfidence: number;
+  missingCategories: string[];
+  recommendation: string;
 }
 
 export class MemoRefinementController {
   private static instance: MemoRefinementController;
-  private readonly QUALITY_THRESHOLD = 75; // Raised from 65 for higher quality output
-  private readonly MAX_REFINEMENT_ATTEMPTS = 3; // Increased from 2 for better results
+  private readonly DEFAULT_QUALITY_THRESHOLD = 85; // Raised to 85 for stricter quality
+  private readonly MAX_REFINEMENT_ATTEMPTS = 3;
+  private readonly FAIL_CLOSED = true; // If true, reject sections without sufficient data
 
   static getInstance(): MemoRefinementController {
     if (!MemoRefinementController.instance) {
@@ -55,43 +84,118 @@ export class MemoRefinementController {
   }
 
   /**
+   * Get quality threshold for a specific section (some sections have higher requirements)
+   */
+  private getQualityThreshold(sectionName: string): number {
+    const config = getSectionConfig(sectionName);
+    return config?.qualityThreshold || this.DEFAULT_QUALITY_THRESHOLD;
+  }
+
+  /**
+   * Validate evidence availability for a section BEFORE attempting generation
+   */
+  validateEvidenceForSection(
+    sectionName: string,
+    evidence: any[]
+  ): EvidenceValidationResult {
+    const config = getSectionConfig(sectionName);
+    if (!config) {
+      return {
+        isValid: false,
+        sectionName,
+        requiredMetrics: 5,
+        actualMetrics: evidence.length,
+        requiredHighConfidence: 2,
+        actualHighConfidence: 0,
+        missingCategories: [],
+        recommendation: `No configuration found for section: ${sectionName}`
+      };
+    }
+
+    const highConfidence = evidence.filter(e => e.confidence === 'high');
+    const categories = new Set(evidence.map(e => e.category));
+    const missingCategories = config.requiredCategories.filter(c => !categories.has(c));
+
+    const isValid = evidence.length >= config.minMetrics && 
+                    highConfidence.length >= config.minHighConfidenceMetrics;
+
+    let recommendation = '';
+    if (!isValid) {
+      if (evidence.length < config.minMetrics) {
+        recommendation = `Need ${config.minMetrics - evidence.length} more data points. `;
+      }
+      if (highConfidence.length < config.minHighConfidenceMetrics) {
+        recommendation += `Need ${config.minHighConfidenceMetrics - highConfidence.length} more high-confidence metrics. `;
+      }
+      if (missingCategories.length > 0) {
+        recommendation += `Missing categories: ${missingCategories.join(', ')}.`;
+      }
+    } else {
+      recommendation = 'Evidence is sufficient for quality generation.';
+    }
+
+    return {
+      isValid,
+      sectionName,
+      requiredMetrics: config.minMetrics,
+      actualMetrics: evidence.length,
+      requiredHighConfidence: config.minHighConfidenceMetrics,
+      actualHighConfidence: highConfidence.length,
+      missingCategories,
+      recommendation
+    };
+  }
+
+  /**
    * Validate section quality and determine if refinement is needed
    */
-  validateSectionQuality(result: SectionGenerationResult): {
+  validateSectionQuality(
+    result: SectionGenerationResult,
+    sectionName?: string
+  ): {
     isAcceptable: boolean;
     issues: string[];
     refinementNeeded: boolean;
   } {
     const issues: string[] = [];
+    const threshold = sectionName ? this.getQualityThreshold(sectionName) : this.DEFAULT_QUALITY_THRESHOLD;
+    const config = sectionName ? getSectionConfig(sectionName) : null;
     
     // Check for minimum content length (increased threshold)
     if (result.content.length < 1500) {
       issues.push('Content is too short for a comprehensive section');
     }
     
-    // Check for minimum citations (increased from 2 to 5)
-    if (result.citationsUsed.length < 5) {
-      issues.push('Insufficient source citations (need 5+)');
+    // Check for minimum citations (use config or default of 5)
+    const minCitations = 5;
+    if (result.citationsUsed.length < minCitations) {
+      issues.push(`Insufficient source citations (need ${minCitations}+, have ${result.citationsUsed.length})`);
     }
     
-    // Check for quantitative data (increased from 3 to 8)
-    if (result.quantitativeDataPoints < 8) {
-      issues.push('Lacks specific quantitative data points (need 8+)');
+    // Check for quantitative data (use config minMetrics or default of 8)
+    const minDataPoints = config?.minMetrics || 8;
+    if (result.quantitativeDataPoints < minDataPoints) {
+      issues.push(`Lacks specific quantitative data points (need ${minDataPoints}+, have ${result.quantitativeDataPoints})`);
     }
     
-    // Check for placeholder content
+    // Check for placeholder content (FAIL-CLOSED)
     const placeholderPatterns = [
       /information not available/gi,
       /data not found/gi,
       /to be determined/gi,
       /placeholder/gi,
       /\[TBD\]/gi,
-      /analysis pending/gi
+      /analysis pending/gi,
+      /no data available/gi,
+      /information unavailable/gi,
+      /data unavailable/gi,
+      /not disclosed/gi,
+      /details not provided/gi
     ];
     
     for (const pattern of placeholderPatterns) {
       if (pattern.test(result.content)) {
-        issues.push('Contains placeholder or unavailable data markers');
+        issues.push('CRITICAL: Contains placeholder or unavailable data markers');
         break;
       }
     }
@@ -101,18 +205,43 @@ export class MemoRefinementController {
       /will be analyzed/gi,
       /requires further review/gi,
       /pending analysis/gi,
-      /to be completed/gi
+      /to be completed/gi,
+      /further research needed/gi,
+      /additional information required/gi,
+      /\[insert .+\]/gi,
+      /\[add .+\]/gi
     ];
     
     for (const pattern of genericPatterns) {
       if (pattern.test(result.content)) {
-        issues.push('Contains generic filler content');
+        issues.push('CRITICAL: Contains generic filler content');
         break;
       }
     }
+
+    // Check for vague language in investment context
+    const vaguePatterns = [
+      /significant growth/gi,
+      /substantial revenue/gi,
+      /strong performance/gi,
+      /considerable market/gi,
+      /notable traction/gi
+    ];
     
-    const isAcceptable = result.qualityScore >= this.QUALITY_THRESHOLD && issues.length <= 1;
-    const refinementNeeded = result.qualityScore < this.QUALITY_THRESHOLD || issues.length > 2;
+    let vagueCount = 0;
+    for (const pattern of vaguePatterns) {
+      if (pattern.test(result.content)) {
+        vagueCount++;
+      }
+    }
+    
+    if (vagueCount >= 3) {
+      issues.push('Contains too many vague terms without specific numbers');
+    }
+    
+    const hasBlockingIssues = issues.some(i => i.startsWith('CRITICAL'));
+    const isAcceptable = result.qualityScore >= threshold && issues.length <= 1 && !hasBlockingIssues;
+    const refinementNeeded = result.qualityScore < threshold || issues.length > 2 || hasBlockingIssues;
     
     return {
       isAcceptable,
