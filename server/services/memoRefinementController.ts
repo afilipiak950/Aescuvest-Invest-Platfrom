@@ -303,7 +303,8 @@ export class MemoRefinementController {
       let attempts = 0;
       
       // Try refinement up to MAX_REFINEMENT_ATTEMPTS times
-      while (bestResult.qualityScore < this.QUALITY_THRESHOLD && attempts < this.MAX_REFINEMENT_ATTEMPTS) {
+      const threshold = this.getQualityThreshold(weakSection.sectionName);
+      while (bestResult.qualityScore < threshold && attempts < this.MAX_REFINEMENT_ATTEMPTS) {
         attempts++;
         console.log(`🔄 Refinement attempt ${attempts} for ${weakSection.sectionName}...`);
         

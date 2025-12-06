@@ -37,8 +37,16 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
-### Recent Major Updates (Dec 05, 2025)
-- **Large Dataroom Memory Optimization**: All 7 comprehensive analysis services now use paginated document loading to prevent memory exhaustion in large datarooms (1000+ documents). Key improvements:
+### Recent Major Updates (Dec 06, 2025)
+- **Bulletproof Evidence-Based Memo System**: Complete overhaul of investment memo generation to ensure every claim is backed by real data extracted from documents. New components:
+  - **InvestmentEvidence Schema**: New database table (`investment_evidence`) stores structured metrics with full provenance (value, unit, period, source document, page, agent type, category, confidence score)
+  - **QuantitativeEvidenceExtractor Service** (`server/services/quantitativeEvidenceExtractor.ts`): Regex + AI validation pipeline extracts currencies, percentages, counts, dates, durations, and ratios from all agent outputs
+  - **MemoSectionConfig** (`server/services/memoSectionConfig.ts`): Defines required agents, categories, and minimum metrics per memo section (e.g., Financial Overview requires 10+ metrics, 5 high-confidence)
+  - **Enhanced Refinement Controller**: Stricter quality gates (85% threshold), fail-closed behavior, vague language detection, CRITICAL issue blocking
+  - **Evidence Validation API**: New endpoints `GET /api/deals/:dealId/memo-evidence` and `POST /api/deals/:dealId/extract-evidence` preview data availability before memo generation
+  - **AgentDataFusion Enhancements**: `formatEvidenceForMemoSection()` and `assessEvidenceReadiness()` methods ensure sufficient data before synthesis
+
+- **Large Dataroom Memory Optimization** (Dec 05): All 7 comprehensive analysis services now use paginated document loading to prevent memory exhaustion in large datarooms (1000+ documents). Key improvements:
   - **Paginated Loading**: Uses `storage.getDocumentsByDealIdPaginated()` with 50-doc pages instead of loading all documents at once
   - **Document Cap**: Maximum 150 documents per agent analysis to prevent API token limits from being exceeded
   - **Priority-Based Selection**: Documents are scored and prioritized by agent-specific keywords (e.g., "patent" for IP, "clinical" for Clinical)
@@ -50,7 +58,7 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
   - **Quantitative Metric Extraction**: Automatically identifies currency, percentages, dates, counts
   - **Citation-Backed Content**: Every claim links to source agent analysis [AGENT Agent - Category]
   - **Quality Scoring**: 0-100 score per section based on citations, data points, specificity
-  - **Iterative Refinement**: Weak sections (score <75) automatically re-generated with targeted prompts
+  - **Iterative Refinement**: Weak sections (score <85) automatically re-generated with targeted prompts
   - **API Enhancement**: POST `/api/deals/:dealId/generate-memo` now accepts `enhanced=true` for quality mode
 
 ### Recent Critical Fixes (Dec 02, 2025)
