@@ -128,10 +128,20 @@ export class QuantitativeEvidenceExtractor {
 
     const parsed = typeof answers === 'string' ? JSON.parse(answers) : answers;
     
-    for (const [questionId, answer] of Object.entries(parsed)) {
-      if (!answer || typeof answer !== 'string') continue;
+    for (const [questionId, answerData] of Object.entries(parsed)) {
+      if (!answerData) continue;
       
-      const answerText = String(answer);
+      // Handle both object format {question, answer} and direct string format
+      let answerText: string;
+      if (typeof answerData === 'object' && answerData !== null) {
+        const obj = answerData as Record<string, any>;
+        answerText = obj.answer || obj.response || JSON.stringify(obj);
+      } else if (typeof answerData === 'string') {
+        answerText = answerData;
+      } else {
+        continue;
+      }
+      
       if (answerText.length < 20) continue;
 
       // Extract all metric types
@@ -471,7 +481,7 @@ export class QuantitativeEvidenceExtractor {
       ip: 'ipAnswers',
       research: 'researchAnswers'
     };
-    return mapping[agentType] || 'legalAnswers';
+    return mapping[agentType.toLowerCase()] || 'legalAnswers';
   }
 
   private extractContext(text: string, match: string): string {
