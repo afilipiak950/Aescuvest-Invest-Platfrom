@@ -7024,6 +7024,96 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
+  // Evidence Validation API - Preview available data before memo generation
+  app.get('/api/deals/:dealId/memo-evidence', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      console.log(`📊 Fetching memo evidence summary for deal ${dealId}`);
+
+      // Import evidence extractor
+      const { quantitativeEvidenceExtractor } = await import('./services/quantitativeEvidenceExtractor');
+      const { MEMO_SECTION_CONFIGS, assessDealReadiness } = await import('./services/memoSectionConfig');
+      const { agentDataFusionService } = await import('./services/agentDataFusion');
+
+      // Get evidence summary
+      const evidenceSummary = await quantitativeEvidenceExtractor.getEvidenceSummary(dealId);
+      
+      // Assess readiness for each memo section
+      const sectionReadiness: Record<string, any> = {};
+      
+      for (const config of MEMO_SECTION_CONFIGS) {
+        const sectionEvidence = await quantitativeEvidenceExtractor.getEvidenceForSection(
+          dealId,
+          config.requiredAgents,
+          config.requiredCategories
+        );
+        
+        sectionReadiness[config.sectionName] = {
+          displayName: config.displayName,
+          requiredMetrics: config.minMetrics,
+          actualMetrics: sectionEvidence.length,
+          requiredHighConfidence: config.minHighConfidenceMetrics,
+          actualHighConfidence: sectionEvidence.filter(e => e.confidence === 'high').length,
+          isReady: sectionEvidence.length >= config.minMetrics,
+          qualityThreshold: config.qualityThreshold,
+          evidence: sectionEvidence.slice(0, 10) // Sample of evidence
+        };
+      }
+
+      // Calculate overall readiness
+      const overallReadiness = assessDealReadiness(evidenceSummary.byCategory);
+
+      res.json({
+        success: true,
+        dealId,
+        summary: evidenceSummary,
+        sectionReadiness,
+        overallReadiness,
+        recommendations: overallReadiness.missingData
+      });
+
+    } catch (error: any) {
+      console.error(`❌ Error fetching memo evidence for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to fetch memo evidence' });
+    }
+  });
+
+  // Extract and store evidence from agent analyses (call before memo generation)
+  app.post('/api/deals/:dealId/extract-evidence', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        return res.status(400).json({ success: false, error: 'Invalid deal ID' });
+      }
+
+      console.log(`📊 Starting evidence extraction for deal ${dealId}`);
+
+      // Import evidence extractor
+      const { quantitativeEvidenceExtractor } = await import('./services/quantitativeEvidenceExtractor');
+
+      // Extract and store evidence
+      const result = await quantitativeEvidenceExtractor.extractAndStoreEvidence(dealId);
+
+      console.log(`✅ Evidence extraction complete: ${result.totalMetricsExtracted} metrics extracted`);
+
+      res.json({
+        success: true,
+        dealId,
+        ...result
+      });
+
+    } catch (error: any) {
+      console.error(`❌ Error extracting evidence for deal ${req.params.dealId}:`, error);
+      res.status(500).json({ success: false, error: 'Failed to extract evidence' });
+    }
+  });
+
   // Investment Memo Generator Routes - PERSISTENT BACKGROUND JOB PATTERN (matches comprehensive agents)
   app.post('/api/deals/:dealId/generate-memo', async (req: Request, res: Response) => {
     try {
