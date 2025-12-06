@@ -1388,6 +1388,66 @@ export const insertInvestorListMembershipSchema = createInsertSchema(investorLis
 export type InvestorListMembership = typeof investorListMemberships.$inferSelect;
 export type InsertInvestorListMembership = z.infer<typeof insertInvestorListMembershipSchema>;
 
+// Investment Evidence table for structured metrics extracted from agent analyses
+export const investmentEvidence = pgTable("investment_evidence", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull(),
+  agentType: text("agent_type").notNull(), // legal, clinical, commercial, hr, financial, ip, research
+  category: text("category").notNull(), // funding_history, clinical_trials, patents, etc.
+  questionId: text("question_id"),
+  metricType: text("metric_type").notNull(), // currency, percentage, count, date, duration, ratio, text
+  metricValue: text("metric_value").notNull(), // The actual value: "$25M", "35%", "Q4 2024"
+  normalizedValue: numeric("normalized_value"), // Parsed numeric value for comparison
+  unit: text("unit"), // USD, EUR, %, employees, patients, etc.
+  period: text("period"), // Q1 2024, FY 2023, trailing 12 months, etc.
+  context: text("context").notNull(), // Surrounding sentence/phrase providing context
+  sourceDocumentId: integer("source_document_id"),
+  sourceDocumentName: text("source_document_name"),
+  sourcePage: integer("source_page"),
+  confidence: text("confidence").notNull().default("medium"), // high, medium, low
+  validated: boolean("validated").default(false), // AI or human validated
+  validationNotes: text("validation_notes"),
+  citation: text("citation").notNull(), // [LEGAL Agent - Contracts] format
+  rawAnswerText: text("raw_answer_text"), // Original agent answer for reference
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertInvestmentEvidenceSchema = createInsertSchema(investmentEvidence).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InvestmentEvidence = typeof investmentEvidence.$inferSelect;
+export type InsertInvestmentEvidence = z.infer<typeof insertInvestmentEvidenceSchema>;
+
+// Memo Section Requirements table for defining what each section needs
+export const memoSectionRequirements = pgTable("memo_section_requirements", {
+  id: serial("id").primaryKey(),
+  sectionName: text("section_name").notNull().unique(), // executive_summary, financial_overview, etc.
+  displayName: text("display_name").notNull(),
+  requiredAgents: text("required_agents").array().notNull(), // ['financial', 'legal'] etc.
+  requiredCategories: text("required_categories").array().notNull(), // ['funding_history', 'valuation']
+  minMetrics: integer("min_metrics").notNull().default(5), // Minimum metrics required
+  minHighConfidenceMetrics: integer("min_high_confidence_metrics").notNull().default(2),
+  requiredMetricTypes: text("required_metric_types").array(), // ['currency', 'percentage']
+  qualityThreshold: integer("quality_threshold").notNull().default(75), // 0-100 score
+  description: text("description"),
+  promptTemplate: text("prompt_template"), // Custom prompt for this section
+  orderIndex: integer("order_index").notNull().default(0),
+  isRequired: boolean("is_required").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertMemoSectionRequirementSchema = createInsertSchema(memoSectionRequirements).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type MemoSectionRequirement = typeof memoSectionRequirements.$inferSelect;
+export type InsertMemoSectionRequirement = z.infer<typeof insertMemoSectionRequirementSchema>;
+
 
 
 
