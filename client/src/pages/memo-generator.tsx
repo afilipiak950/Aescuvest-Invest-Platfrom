@@ -28,6 +28,25 @@ interface ComprehensiveMemo {
   [key: string]: string | undefined;
 }
 
+function normalizeMemoData(rawMemo: any): ComprehensiveMemo | null {
+  if (!rawMemo) return null;
+  
+  return {
+    coverPage: rawMemo.coverPage || '',
+    executiveSummary: rawMemo.executiveSummary || '',
+    financialAnalysis: rawMemo.financialAnalysis || '',
+    teamAssessment: rawMemo.teamAssessment || '',
+    marketAnalysis: rawMemo.marketAnalysis || '',
+    riskAnalysis: rawMemo.riskAnalysis || rawMemo.riskAssessment || '',
+    regulatoryPathway: rawMemo.regulatoryPathway || rawMemo.regulatoryAnalysis || '',
+    clinicalEvidence: rawMemo.clinicalEvidence || rawMemo.clinicalAssessment || '',
+    intellectualProperty: rawMemo.intellectualProperty || rawMemo.ipAnalysis || '',
+    investmentTerms: rawMemo.investmentTerms || '',
+    competitiveAnalysis: rawMemo.competitiveAnalysis || '',
+    technologyAssessment: rawMemo.technologyAssessment || '',
+  };
+}
+
 export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
@@ -106,8 +125,9 @@ export default function MemoGenerator() {
   });
   
   // Fetch document and analysis counts for each deal with real-time updates
+  const dealsArray = Array.isArray(deals) ? deals : [];
   const { data: dealCounts, isLoading: isLoadingCounts, refetch: refetchCounts } = useQuery({
-    queryKey: ['/api/deals/counts', deals?.length],
+    queryKey: ['/api/deals/counts', dealsArray.length],
     queryFn: async () => {
       if (!Array.isArray(deals) || deals.length === 0) return {};
       
@@ -333,9 +353,10 @@ export default function MemoGenerator() {
       
       return response.memo;
     },
-    onSuccess: (memo: ComprehensiveMemo) => {
+    onSuccess: (memo: any) => {
       console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
-      setGeneratedMemo(memo);
+      const normalizedMemo = normalizeMemoData(memo);
+      setGeneratedMemo(normalizedMemo);
       // 🔥 FIX: Start generation mode - this keeps progress bar visible
       setIsGenerationActive(true);
       
@@ -417,7 +438,8 @@ export default function MemoGenerator() {
   const isLoading = isLoadingDeals || isLoadingMemo || isLoadingCounts;
   const isGenerating = generateMemoMutation.isPending;
   // Use existing memo from database first, then fallback to newly generated memo
-  const currentMemo = existingMemo?.memo || generatedMemo;
+  // Apply normalization to handle both old and new key names
+  const currentMemo = normalizeMemoData(existingMemo?.memo) || generatedMemo;
   const selectedDealData = Array.isArray(deals) ? deals.find((d: any) => d.id.toString() === selectedDeal) : null;
   
   // CRITICAL: Check if job is actually running (fixes the "instant success" bug)
