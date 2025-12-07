@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import PageHeader from '@/components/layout/page-header';
-import MemoSection from '@/components/memo-generator/memo-section';
-import MemoControls from '@/components/memo-generator/memo-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,91 +8,24 @@ import { Button } from '@/components/ui/button';
 import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { cleanMarkdown, formatBusinessText, formatObjectContent } from '@/utils/textFormatter';
-import { FormattedContent, SectionHeader, InfoGrid } from '@/components/FormattedContent';
-import { ProfessionalFormattedContent, ProfessionalInfoGrid } from '@/components/ProfessionalFormattedContent';
+import { ProfessionalFormattedContent } from '@/components/ProfessionalFormattedContent';
 import { SectionInfoBadge } from '@/components/memo-generator/SectionInfoBadge';
 import { SectionEditor } from '@/components/memo-generator/SectionEditor';
 
 interface ComprehensiveMemo {
-  coverPage: string;                        // Professional cover page
-  tableOfContents: string;                  // Comprehensive table of contents
-  executiveSummary: string;                 // Executive summary
-  investmentHighlights: string[];           // Key investment highlights
-  marketAnalysis: {                         // Comprehensive market analysis (5-6 pages)
-    marketContext: string;
-    marketSize: {
-      tam: string;
-      sam: string;
-      som: string;
-    };
-    competitiveLandscape: string;
-    marketTiming: string;
-  };
-  productAnalysis: {                        // Detailed product and technology analysis (4-5 pages)
-    productOverview: string;
-    technologyAdvantage: string;
-    competitiveEdge: string;
-    developmentStage: string;
-  };
-  businessModel: {                          // Business model analysis (3-4 pages)
-    revenueModel: string;
-    pricingStrategy: string;
-    salesChannels: string;
-    customerAcquisition: string;
-  };
-  teamAssessment: {                         // Management team assessment (3-4 pages)
-    management: string;
-    keyPersonnel: string[];
-    advisors: string;
-    boardComposition: string;
-  };
-  financialAnalysis: {                      // Financial analysis and projections (4-5 pages)
-    currentFinancials: string;
-    projections: string;
-    fundingHistory: string;
-    useOfFunds: string;
-  };
-  commercialAnalysis: string;               // Commercial analysis and market penetration (3-4 pages)
-  regulatoryAnalysis: string;               // Regulatory landscape and compliance (2-3 pages)
-  clinicalAssessment: string;               // Clinical development and regulatory pathway (3-4 pages)
-  ipAnalysis: string;                       // Intellectual property analysis (2-3 pages)
-  researchInsights: string;                 // Research insights and technical differentiation (2-3 pages)
-  riskAssessment: {                         // Risk assessment overview
-    technicalRisks: string[];
-    marketRisks: string[];
-    competitiveRisks: string[];
-    regulatoryRisks: string[];
-    managementRisks: string[];
-  };
-  mitigationStrategies: string;             // Risk mitigation strategies (2-3 pages)
-  legalAssessment: {                        // Legal assessment
-    corporateStructure: string;
-    ipProtection: string;
-    regulatoryCompliance: string;
-    contractualObligations: string;
-  };
-  swotAnalysis: {                           // SWOT analysis
-    strengths: string[];
-    weaknesses: string[];
-    opportunities: string[];
-    threats: string[];
-  };
-  investmentTerms: {                        // Investment terms and structure
-    valuation: string;
-    fundingAmount: string;
-    securities: string;
-    boardRights: string;
-    liquidationPreference: string;
-  };
-  exitStrategy: string;                     // Exit strategy analysis (2-3 pages)
-  recommendation: {                         // Investment recommendation and rationale (2-3 pages)
-    investment_recommendation: string;
-    rationale: string;
-    keyMilestones: string[];
-    exitStrategy: string;
-  };
-  appendices: string;                       // Comprehensive appendices with supporting data (5-10 pages)
+  coverPage: string;
+  executiveSummary: string;
+  financialAnalysis: string;
+  teamAssessment: string;
+  marketAnalysis: string;
+  riskAnalysis: string;
+  regulatoryPathway: string;
+  clinicalEvidence: string;
+  intellectualProperty: string;
+  investmentTerms: string;
+  competitiveAnalysis: string;
+  technologyAssessment: string;
+  [key: string]: string | undefined;
 }
 
 export default function MemoGenerator() {
@@ -126,7 +55,7 @@ export default function MemoGenerator() {
       const loadSectionSources = async () => {
         try {
           console.log(`🔄 Loading section sources for deal ${selectedDeal}`);
-          const mainSections = ['executiveSummary', 'investmentHighlights', 'marketAnalysis', 'teamAssessment', 'financialAnalysis', 'riskAssessment', 'clinicalAssessment', 'ipAnalysis', 'legalAssessment', 'productAnalysis', 'regulatoryAnalysis', 'recommendation', 'exitStrategy', 'appendices', 'businessModel', 'competitiveAnalysis', 'commercialStrategy', 'technologyAssessment'];
+          const mainSections = ['coverPage', 'executiveSummary', 'financialAnalysis', 'teamAssessment', 'marketAnalysis', 'riskAnalysis', 'regulatoryPathway', 'clinicalEvidence', 'intellectualProperty', 'investmentTerms', 'competitiveAnalysis', 'technologyAssessment'];
           const sourcePromises = mainSections.map(async (sectionKey) => {
             try {
               // Add cache busting parameter to ensure fresh data
@@ -725,86 +654,7 @@ export default function MemoGenerator() {
                         </Card>
                       )}
 
-                      {/* Investment Highlights */}
-                      {Array.isArray(currentMemo?.investmentHighlights) && currentMemo.investmentHighlights.length > 0 && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">Investment Highlights</CardTitle>
-                                  <p className="text-slate-400 text-sm">Key value propositions and investment attractiveness factors</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.investmentHighlights || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="investmentHighlights"
-                                  sectionTitle="Investment Highlights"
-                                  currentContent={Array.isArray(currentMemo.investmentHighlights) ? currentMemo.investmentHighlights.join('\n') : currentMemo.investmentHighlights}
-                                  onUpdate={(newContent) => {
-                                    const highlights = newContent.split('\n').filter(h => h.trim());
-                                    setGeneratedMemo(prev => prev ? { ...prev, investmentHighlights: highlights } : null);
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="grid gap-3">
-                              {currentMemo.investmentHighlights.map((highlight: string, index: number) => (
-                                <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <div className="w-2 h-2 bg-green-400 rounded-full mt-2 flex-shrink-0"></div>
-                                  <span className="text-slate-200 leading-relaxed">{highlight}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {!Array.isArray(currentMemo?.investmentHighlights) && currentMemo?.investmentHighlights && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">Investment Highlights</CardTitle>
-                                  <p className="text-slate-400 text-sm">Key value propositions and investment attractiveness factors</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.investmentHighlights || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="investmentHighlights"
-                                  sectionTitle="Investment Highlights"
-                                  currentContent={currentMemo.investmentHighlights}
-                                  onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, investmentHighlights: newContent } : null);
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="prose prose-invert max-w-none">
-                              <ProfessionalFormattedContent 
-                                content={currentMemo.investmentHighlights} 
-                                variant="default"
-                                className="text-slate-200 leading-relaxed"
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
                     {/* Market Analysis Section */}
-                      {/* Market Analysis */}
                       {currentMemo?.marketAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
@@ -822,7 +672,7 @@ export default function MemoGenerator() {
                                   dealId={selectedDeal}
                                   sectionKey="marketAnalysis"
                                   sectionTitle="Market Analysis"
-                                  currentContent={typeof currentMemo.marketAnalysis === 'object' ? JSON.stringify(currentMemo.marketAnalysis, null, 2) : currentMemo.marketAnalysis}
+                                  currentContent={currentMemo.marketAnalysis}
                                   onUpdate={(newContent) => {
                                     setGeneratedMemo(prev => prev ? { ...prev, marketAnalysis: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
@@ -832,151 +682,38 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Market Context</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.marketContext || formatObjectContent(currentMemo.marketAnalysis)} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Market Timing</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.marketTiming || 'Market timing analysis included in main analysis'} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              </div>
-                              <div className="space-y-4">
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Market Size (TAM/SAM/SOM)</h4>
-                                  <div className="space-y-2 text-slate-300">
-                                    {currentMemo.marketAnalysis.marketSize ? (
-                                      <>
-                                        <div><span className="font-medium text-blue-400">TAM:</span> {currentMemo.marketAnalysis.marketSize.tam}</div>
-                                        <div><span className="font-medium text-green-400">SAM:</span> {currentMemo.marketAnalysis.marketSize.sam}</div>
-                                        <div><span className="font-medium text-yellow-400">SOM:</span> {currentMemo.marketAnalysis.marketSize.som}</div>
-                                      </>
-                                    ) : (
-                                      <ProfessionalFormattedContent 
-                                        content={formatObjectContent(currentMemo.marketAnalysis.tamSamSomAnalysis || 'Market size analysis not available')} 
-                                        variant="small"
-                                        className="text-slate-300"
-                                      />
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Competitive Landscape</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.marketAnalysis.competitiveLandscape || 'Competitive analysis included in main market analysis'} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              </div>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.marketAnalysis} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
                             </div>
                           </CardContent>
                         </Card>
                       )}
 
-                      {/* Product Analysis */}
-                      {currentMemo?.productAnalysis && (
+                      {/* Technology Assessment */}
+                      {currentMemo?.technologyAssessment && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-8 bg-cyan-500 rounded-full"></div>
                                 <div>
-                                  <CardTitle className="text-xl text-white">Product & Technology Analysis</CardTitle>
+                                  <CardTitle className="text-xl text-white">Technology Assessment</CardTitle>
                                   <p className="text-slate-400 text-sm">Product overview and technological differentiation</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.productAnalysis || {}} />
+                                <SectionInfoBadge sources={sectionSources.technologyAssessment || {}} />
                                 <SectionEditor 
                                   dealId={selectedDeal}
-                                  sectionKey="productAnalysis"
-                                  sectionTitle="Product Analysis"
-                                  currentContent={typeof currentMemo.productAnalysis === 'object' ? JSON.stringify(currentMemo.productAnalysis, null, 2) : currentMemo.productAnalysis}
+                                  sectionKey="technologyAssessment"
+                                  sectionTitle="Technology Assessment"
+                                  currentContent={currentMemo.technologyAssessment}
                                   onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, productAnalysis: newContent } : null);
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-2">Product Overview</h4>
-                                <ProfessionalFormattedContent 
-                                  content={currentMemo.productAnalysis.productOverview || formatObjectContent(currentMemo.productAnalysis)} 
-                                  variant="small"
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              {currentMemo.productAnalysis.technologyAdvantage && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Technology Advantage</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.productAnalysis.technologyAdvantage} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
-                              {currentMemo.productAnalysis.competitiveEdge && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Competitive Edge</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.productAnalysis.competitiveEdge} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
-                              {currentMemo.productAnalysis.developmentStage && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-2">Development Stage</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={currentMemo.productAnalysis.developmentStage} 
-                                    variant="small"
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Business Model */}
-                      {currentMemo?.businessModel && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">Business Model</CardTitle>
-                                  <p className="text-slate-400 text-sm">Revenue strategy and customer acquisition approach</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.businessModel || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="businessModel"
-                                  sectionTitle="Business Model"
-                                  currentContent={typeof currentMemo.businessModel === 'object' ? JSON.stringify(currentMemo.businessModel, null, 2) : currentMemo.businessModel}
-                                  onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, businessModel: newContent } : null);
+                                    setGeneratedMemo(prev => prev ? { ...prev, technologyAssessment: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
                                   }}
                                 />
@@ -986,7 +723,7 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.businessModel)} 
+                                content={currentMemo.technologyAssessment} 
                                 variant="default"
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1003,7 +740,7 @@ export default function MemoGenerator() {
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-8 bg-violet-500 rounded-full"></div>
                                 <div>
-                                  <CardTitle className="text-xl text-white">Management Team Assessment</CardTitle>
+                                  <CardTitle className="text-xl text-white">Team Assessment</CardTitle>
                                   <p className="text-slate-400 text-sm">Leadership team evaluation and key personnel analysis</p>
                                 </div>
                               </div>
@@ -1013,7 +750,7 @@ export default function MemoGenerator() {
                                   dealId={selectedDeal}
                                   sectionKey="teamAssessment"
                                   sectionTitle="Team Assessment"
-                                  currentContent={typeof currentMemo.teamAssessment === 'object' ? JSON.stringify(currentMemo.teamAssessment, null, 2) : currentMemo.teamAssessment}
+                                  currentContent={currentMemo.teamAssessment}
                                   onUpdate={(newContent) => {
                                     setGeneratedMemo(prev => prev ? { ...prev, teamAssessment: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
@@ -1023,101 +760,10 @@ export default function MemoGenerator() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-6">
-                              <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                <h4 className="font-semibold text-slate-200 mb-3">Management</h4>
-                                <ProfessionalFormattedContent 
-                                  content={formatObjectContent(currentMemo.teamAssessment.management)} 
-                                  variant="small" 
-                                  className="text-slate-300"
-                                />
-                              </div>
-                              
-                              {Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel.length > 0 && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Key Personnel</h4>
-                                  <div className="space-y-3">
-                                    {currentMemo.teamAssessment.keyPersonnel.map((person: any, index: number) => (
-                                      <div key={index} className="flex items-start gap-3 p-3 rounded-md bg-slate-700/50">
-                                        <div className="w-2 h-2 bg-violet-400 rounded-full mt-2 flex-shrink-0"></div>
-                                        <span className="text-slate-300">
-                                          {typeof person === 'string' ? person : 
-                                           typeof person === 'object' && person !== null ? 
-                                           `${person.name || ''} - ${person.role || ''} ${person.background ? `(${person.background})` : ''}`.trim() :
-                                           String(person)}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {!Array.isArray(currentMemo.teamAssessment.keyPersonnel) && currentMemo.teamAssessment.keyPersonnel && (
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Key Personnel</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={formatObjectContent(currentMemo.teamAssessment.keyPersonnel)} 
-                                    variant="small" 
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              )}
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">  
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Advisors</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={formatObjectContent(currentMemo.teamAssessment.advisors)} 
-                                    variant="small" 
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                                <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-                                  <h4 className="font-semibold text-slate-200 mb-3">Board Composition</h4>
-                                  <ProfessionalFormattedContent 
-                                    content={formatObjectContent(currentMemo.teamAssessment.boardComposition)} 
-                                    variant="small" 
-                                    className="text-slate-300"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Commercial Analysis */}
-                      {currentMemo?.commercialAnalysis && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-amber-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">Commercial Analysis</CardTitle>
-                                  <p className="text-slate-400 text-sm">Commercial viability and market readiness assessment</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.commercialStrategy || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="commercialStrategy"
-                                  sectionTitle="Commercial Analysis"
-                                  currentContent={currentMemo.commercialAnalysis}
-                                  onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, commercialAnalysis: newContent } : null);
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={currentMemo.commercialAnalysis} 
-                                variant="default" 
+                                content={currentMemo.teamAssessment} 
+                                variant="default"
                                 className="text-slate-200 leading-relaxed"
                               />
                             </div>
@@ -1125,27 +771,27 @@ export default function MemoGenerator() {
                         </Card>
                       )}
 
-                      {/* Clinical Assessment */}
-                      {currentMemo?.clinicalAssessment && (
+                      {/* Clinical Evidence */}
+                      {currentMemo?.clinicalEvidence && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-8 bg-red-500 rounded-full"></div>
                                 <div>
-                                  <CardTitle className="text-xl text-white">Clinical Assessment</CardTitle>
+                                  <CardTitle className="text-xl text-white">Clinical Evidence</CardTitle>
                                   <p className="text-slate-400 text-sm">Clinical evaluation and regulatory pathway analysis</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.clinicalAssessment || {}} />
+                                <SectionInfoBadge sources={sectionSources.clinicalEvidence || {}} />
                                 <SectionEditor 
                                   dealId={selectedDeal}
-                                  sectionKey="clinicalAssessment"
-                                  sectionTitle="Clinical Assessment"
-                                  currentContent={currentMemo.clinicalAssessment}
+                                  sectionKey="clinicalEvidence"
+                                  sectionTitle="Clinical Evidence"
+                                  currentContent={currentMemo.clinicalEvidence}
                                   onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, clinicalAssessment: newContent } : null);
+                                    setGeneratedMemo(prev => prev ? { ...prev, clinicalEvidence: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
                                   }}
                                 />
@@ -1155,7 +801,7 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={currentMemo.clinicalAssessment} 
+                                content={currentMemo.clinicalEvidence} 
                                 variant="default" 
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1164,27 +810,27 @@ export default function MemoGenerator() {
                         </Card>
                       )}
 
-                      {/* IP Analysis */}
-                      {currentMemo?.ipAnalysis && (
+                      {/* Intellectual Property */}
+                      {currentMemo?.intellectualProperty && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
                                 <div>
-                                  <CardTitle className="text-xl text-white">Intellectual Property Analysis</CardTitle>
+                                  <CardTitle className="text-xl text-white">Intellectual Property</CardTitle>
                                   <p className="text-slate-400 text-sm">Patent portfolio and IP protection strategy</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.ipAnalysis || {}} />
+                                <SectionInfoBadge sources={sectionSources.intellectualProperty || {}} />
                                 <SectionEditor 
                                   dealId={selectedDeal}
-                                  sectionKey="ipAnalysis"
-                                  sectionTitle="IP Analysis"
-                                  currentContent={currentMemo.ipAnalysis}
+                                  sectionKey="intellectualProperty"
+                                  sectionTitle="Intellectual Property"
+                                  currentContent={currentMemo.intellectualProperty}
                                   onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, ipAnalysis: newContent } : null);
+                                    setGeneratedMemo(prev => prev ? { ...prev, intellectualProperty: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
                                   }}
                                 />
@@ -1194,7 +840,7 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={currentMemo.ipAnalysis} 
+                                content={currentMemo.intellectualProperty} 
                                 variant="default" 
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1203,22 +849,76 @@ export default function MemoGenerator() {
                         </Card>
                       )}
 
-                      {/* Research Insights */}
-                      {currentMemo?.researchInsights && (
+                      {/* Regulatory Pathway */}
+                      {currentMemo?.regulatoryPathway && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-teal-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Research Insights</CardTitle>
-                                <p className="text-slate-400 text-sm">Market research and competitive intelligence</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-teal-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Regulatory Pathway</CardTitle>
+                                  <p className="text-slate-400 text-sm">Regulatory landscape and compliance assessment</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.regulatoryPathway || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="regulatoryPathway"
+                                  sectionTitle="Regulatory Pathway"
+                                  currentContent={currentMemo.regulatoryPathway}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, regulatoryPathway: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={currentMemo.researchInsights} 
+                                content={currentMemo.regulatoryPathway} 
+                                variant="default"
+                                className="text-slate-200 leading-relaxed"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Competitive Analysis */}
+                      {currentMemo?.competitiveAnalysis && (
+                        <Card className="border-slate-700 bg-slate-900/50">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-orange-500 rounded-full"></div>
+                                <div>
+                                  <CardTitle className="text-xl text-white">Competitive Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Competitive landscape and market positioning</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <SectionInfoBadge sources={sectionSources.competitiveAnalysis || {}} />
+                                <SectionEditor 
+                                  dealId={selectedDeal}
+                                  sectionKey="competitiveAnalysis"
+                                  sectionTitle="Competitive Analysis"
+                                  currentContent={currentMemo.competitiveAnalysis}
+                                  onUpdate={(newContent) => {
+                                    setGeneratedMemo(prev => prev ? { ...prev, competitiveAnalysis: newContent } : null);
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="prose prose-invert max-w-none">
+                              <ProfessionalFormattedContent 
+                                content={currentMemo.competitiveAnalysis} 
                                 variant="default"
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1228,7 +928,6 @@ export default function MemoGenerator() {
                       )}
                       
                     {/* Financial Analysis Section */}
-                      {/* Financial Analysis */}
                       {currentMemo?.financialAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
@@ -1246,7 +945,7 @@ export default function MemoGenerator() {
                                   dealId={selectedDeal}
                                   sectionKey="financialAnalysis"
                                   sectionTitle="Financial Analysis"
-                                  currentContent={typeof currentMemo.financialAnalysis === 'object' ? JSON.stringify(currentMemo.financialAnalysis, null, 2) : currentMemo.financialAnalysis}
+                                  currentContent={currentMemo.financialAnalysis}
                                   onUpdate={(newContent) => {
                                     setGeneratedMemo(prev => prev ? { ...prev, financialAnalysis: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
@@ -1258,7 +957,7 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.financialAnalysis)} 
+                                content={currentMemo.financialAnalysis} 
                                 variant="default"
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1285,7 +984,7 @@ export default function MemoGenerator() {
                                   dealId={selectedDeal}
                                   sectionKey="investmentTerms"
                                   sectionTitle="Investment Terms"
-                                  currentContent={typeof currentMemo.investmentTerms === 'object' ? JSON.stringify(currentMemo.investmentTerms, null, 2) : currentMemo.investmentTerms}
+                                  currentContent={currentMemo.investmentTerms}
                                   onUpdate={(newContent) => {
                                     setGeneratedMemo(prev => prev ? { ...prev, investmentTerms: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
@@ -1297,7 +996,7 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.investmentTerms)} 
+                                content={currentMemo.investmentTerms} 
                                 variant="default"
                                 className="text-slate-200 leading-relaxed"
                               />
@@ -1305,201 +1004,28 @@ export default function MemoGenerator() {
                           </CardContent>
                         </Card>
                       )}
-                      
-                    {/* Risk Assessment Section */}
-                      {/* Risk Assessment */}
-                      {currentMemo?.riskAssessment && (
-                        <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">Risk Assessment</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-red-400 mb-3">Technical Risks</h4>
-                              {Array.isArray(currentMemo.riskAssessment.technicalRisks) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.riskAssessment.technicalRisks.map((risk: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-red-400 mr-2">⚠</span>
-                                      {risk}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.technicalRisks) || 'No technical risks identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-orange-400 mb-3">Market Risks</h4>
-                              {Array.isArray(currentMemo.riskAssessment.marketRisks) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.riskAssessment.marketRisks.map((risk: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-orange-400 mr-2">⚠</span>
-                                      {risk}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.marketRisks) || 'No market risks identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-yellow-400 mb-3">Competitive Risks</h4>
-                              {Array.isArray(currentMemo.riskAssessment.competitiveRisks) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.riskAssessment.competitiveRisks.map((risk: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-yellow-400 mr-2">⚠</span>
-                                      {risk}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.competitiveRisks) || 'No competitive risks identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-pink-400 mb-3">Regulatory Risks</h4>
-                              {Array.isArray(currentMemo.riskAssessment.regulatoryRisks) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.riskAssessment.regulatoryRisks.map((risk: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-pink-400 mr-2">⚠</span>
-                                      {risk}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.riskAssessment.regulatoryRisks) || 'No regulatory risks identified'}</div>
-                              )}
-                            </div>
-                            <div className="md:col-span-2">
-                              <h4 className="font-semibold text-purple-400 mb-3">Management Risks</h4>
-                              {Array.isArray(currentMemo.riskAssessment.managementRisks) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.riskAssessment.managementRisks.map((risk: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-purple-400 mr-2">⚠</span>
-                                      {risk}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm">{currentMemo.riskAssessment.managementRisks || 'No management risks identified'}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Mitigation Strategies */}
-                      {currentMemo?.mitigationStrategies && (
-                        <div className="bg-gradient-to-r from-green-500/10 to-teal-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Risk Mitigation Strategies" 
-                            subtitle="Risk management and mitigation approaches"
-                          />
-                          <FormattedContent content={currentMemo.mitigationStrategies} variant="default" />
-                        </div>
-                      )}
-
-                      {/* SWOT Analysis */}
-                      {currentMemo?.swotAnalysis && (
-                        <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
-                          <h3 className="text-xl font-bold text-white mb-4">SWOT Analysis</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-green-400 mb-3">Strengths</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.strengths) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.strengths.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-green-400 mr-2">+</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.strengths) || 'No strengths identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-red-400 mb-3">Weaknesses</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.weaknesses) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.weaknesses.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-red-400 mr-2">-</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.weaknesses) || 'No weaknesses identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-blue-400 mb-3">Opportunities</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.opportunities) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.opportunities.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-blue-400 mr-2">↗</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.opportunities) || 'No opportunities identified'}</div>
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-yellow-400 mb-3">Threats</h4>
-                              {Array.isArray(currentMemo.swotAnalysis.threats) ? (
-                                <ul className="space-y-2">
-                                  {currentMemo.swotAnalysis.threats.map((item: string, index: number) => (
-                                    <li key={index} className="text-gray-300 text-sm flex items-start">
-                                      <span className="text-yellow-400 mr-2">⚠</span>
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div className="text-gray-300 text-sm whitespace-pre-line">{formatBusinessText(currentMemo.swotAnalysis.threats) || 'No threats identified'}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Fallback content if no risk sections exist */}
-                      {!currentMemo?.riskAssessment && !currentMemo?.mitigationStrategies && !currentMemo?.swotAnalysis && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-8 text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">Risk Analysis In Progress</h3>
-                          <p className="text-gray-300">Risk assessment, mitigation strategies, and SWOT analysis will appear here once the investment memo is generated.</p>
-                        </div>
-                      )}
-
-                    {/* Legal Assessment Section */}
-                      {currentMemo?.legalAssessment && (
+                      {/* Risk Analysis */}
+                      {currentMemo?.riskAnalysis && (
                         <Card className="border-slate-700 bg-slate-900/50">
                           <CardHeader className="pb-4">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-slate-500 rounded-full"></div>
+                                <div className="w-2 h-8 bg-red-500 rounded-full"></div>
                                 <div>
-                                  <CardTitle className="text-xl text-white">Legal Assessment</CardTitle>
-                                  <p className="text-slate-400 text-sm">Legal structure, IP protection, and compliance evaluation</p>
+                                  <CardTitle className="text-xl text-white">Risk Analysis</CardTitle>
+                                  <p className="text-slate-400 text-sm">Investment risks and mitigation strategies</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.legalAssessment || {}} />
+                                <SectionInfoBadge sources={sectionSources.riskAnalysis || {}} />
                                 <SectionEditor 
                                   dealId={selectedDeal}
-                                  sectionKey="legalAssessment"
-                                  sectionTitle="Legal Assessment"
-                                  currentContent={typeof currentMemo.legalAssessment === 'object' ? JSON.stringify(currentMemo.legalAssessment, null, 2) : currentMemo.legalAssessment}
+                                  sectionKey="riskAnalysis"
+                                  sectionTitle="Risk Analysis"
+                                  currentContent={currentMemo.riskAnalysis}
                                   onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, legalAssessment: newContent } : null);
+                                    setGeneratedMemo(prev => prev ? { ...prev, riskAnalysis: newContent } : null);
                                     queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
                                   }}
                                 />
@@ -1509,168 +1035,8 @@ export default function MemoGenerator() {
                           <CardContent>
                             <div className="prose prose-invert max-w-none">
                               <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.legalAssessment)} 
+                                content={currentMemo.riskAnalysis} 
                                 variant="default"
-                                className="text-slate-200 leading-relaxed"
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Regulatory Analysis */}
-                      {currentMemo?.regulatoryAnalysis && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
-                                <div>
-                                  <CardTitle className="text-xl text-white">Regulatory Analysis</CardTitle>
-                                  <p className="text-slate-400 text-sm">Regulatory requirements and compliance pathway</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <SectionInfoBadge sources={sectionSources.regulatoryAnalysis || {}} />
-                                <SectionEditor 
-                                  dealId={selectedDeal}
-                                  sectionKey="regulatoryAnalysis"
-                                  sectionTitle="Regulatory Analysis"
-                                  currentContent={currentMemo.regulatoryAnalysis}
-                                  onUpdate={(newContent) => {
-                                    setGeneratedMemo(prev => prev ? { ...prev, regulatoryAnalysis: newContent } : null);
-                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="prose prose-invert max-w-none">
-                              <ProfessionalFormattedContent 
-                                content={currentMemo.regulatoryAnalysis} 
-                                variant="default" 
-                                className="text-slate-200 leading-relaxed"
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      
-                    {/* Investment Recommendation Section */}
-                      {/* Investment Recommendation */}
-                      {currentMemo?.recommendation && (
-                        <div className="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Investment Recommendation" 
-                            subtitle="Final investment decision and strategic rationale"
-                          />
-                          <div className="space-y-6">
-                            <div>
-                              <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.recommendation)} 
-                                variant="default"
-                                className="text-slate-200 leading-relaxed"
-                              />
-                            </div>
-                            {(Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones.length > 0) && (
-                              <div>
-                                <h4 className="font-semibold text-gray-200 mb-3">Key Milestones</h4>
-                                <div className="space-y-2">
-                                  {currentMemo.recommendation.keyMilestones.map((milestone: string, index: number) => (
-                                    <div key={index} className="flex items-start">
-                                      <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
-                                      <span className="text-gray-300 text-sm">{milestone}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {!Array.isArray(currentMemo.recommendation.keyMilestones) && currentMemo.recommendation.keyMilestones && (
-                              <div>
-                                <h4 className="font-semibold text-gray-200 mb-3">Key Milestones</h4>
-                                <FormattedContent content={currentMemo.recommendation.keyMilestones} variant="small" />
-                              </div>
-                            )}
-                            <div>
-                              <h4 className="font-semibold text-gray-200 mb-3">Exit Strategy</h4>
-                              <FormattedContent content={currentMemo.recommendation.exitStrategy} variant="small" />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Exit Strategy */}
-                      {currentMemo?.exitStrategy && (
-                        <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Exit Strategy Analysis" 
-                            subtitle="Potential exit opportunities and timeline"
-                          />
-                          <ProfessionalFormattedContent 
-                            content={formatObjectContent(currentMemo.exitStrategy)} 
-                            variant="default"
-                            className="text-slate-200 leading-relaxed"
-                          />
-                        </div>
-                      )}
-
-                      {/* Appendices */}
-                      {currentMemo?.appendices && (
-                        <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 rounded-lg p-6">
-                          <SectionHeader 
-                            title="Appendices" 
-                            subtitle="Additional supporting documentation and data"
-                          />
-                          <ProfessionalFormattedContent 
-                            content={formatObjectContent(currentMemo.appendices)} 
-                            variant="default"
-                            className="text-slate-200 leading-relaxed"
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Investment Recommendation */}
-                      {currentMemo?.recommendation && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-indigo-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Investment Recommendation</CardTitle>
-                                <p className="text-slate-400 text-sm">Final investment decision and strategic rationale</p>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="prose prose-invert max-w-none">
-                              <ProfessionalFormattedContent 
-                                content={formatObjectContent(currentMemo.recommendation)} 
-                                variant="default"
-                                className="text-slate-200 leading-relaxed"
-                              />
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Appendices */}
-                      {currentMemo?.appendices && (
-                        <Card className="border-slate-700 bg-slate-900/50">
-                          <CardHeader className="pb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-8 bg-slate-500 rounded-full"></div>
-                              <div>
-                                <CardTitle className="text-xl text-white">Appendices</CardTitle>
-                                <p className="text-slate-400 text-sm">Additional supporting documentation and data</p>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="prose prose-invert max-w-none">
-                              <ProfessionalFormattedContent 
-                                content={currentMemo.appendices} 
-                                variant="default" 
                                 className="text-slate-200 leading-relaxed"
                               />
                             </div>
