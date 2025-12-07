@@ -579,73 +579,24 @@ export class EnhancedPdfExportService {
       startNewSection(true); // Force new page after executive summary
     }
 
-    // Ultra-premium Investment Highlights section
-    if (memo.investmentHighlights) {
-      addTitle('INVESTMENT HIGHLIGHTS', true);
-      yPosition += 5;
-      
-      if (Array.isArray(memo.investmentHighlights)) {
-        memo.investmentHighlights.forEach((highlight, index) => {
-          checkPageBreak(18);
-          
-          // Premium highlight box with gradient background
-          doc.setFillColor(colors.background[0], colors.background[1], colors.background[2]);
-          doc.rect(margin - 2, yPosition - 8, contentWidth + 4, 16, 'F');
-          
-          // Accent border
-          doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-          doc.setLineWidth(0.5);
-          
-          // Premium bullet with numbering
-          doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          doc.circle(margin + 5, yPosition - 1, 3, 'F');
-          
-          setSmallTextStyle();
-          doc.setFont('helvetica', 'bold'); // Override for bullet numbers
-          doc.setTextColor(colors.white[0], colors.white[1], colors.white[2]);
-          doc.text(`${index + 1}`, margin + 5, yPosition, { align: 'center' });
-          
-          // Highlight content with consistent typography
-          setBodyTextStyle();
-          
-          const cleanHighlight = this.processTextContent(highlight)[0]?.content || highlight;
-          const highlightLines = doc.splitTextToSize(cleanHighlight, contentWidth - 25);
-          
-          highlightLines.forEach((line: string, lineIndex: number) => {
-            doc.text(line, margin + 15, yPosition + (lineIndex * 5) - 1);
-          });
-          
-          yPosition += Math.max(16, highlightLines.length * 5 + 8);
-        });
-      } else {
-        addText(memo.investmentHighlights);
-      }
-      startNewSection(true); // Force new page after investment highlights
-    }
+    // Note: investmentHighlights section removed - new memo structure uses flat sections
+    // (executiveSummary, marketAnalysis, teamAssessment, financialAnalysis, etc.)
 
-    // Main sections
+    // Main sections - Updated to match new flat memo structure (12 sections)
+    // Database stores: coverPage, executiveSummary, financialAnalysis, teamAssessment, 
+    // marketAnalysis, riskAnalysis, regulatoryPathway, clinicalEvidence, 
+    // intellectualProperty, investmentTerms, competitiveAnalysis, technologyAssessment
     const sectionMappings = [
       { key: 'marketAnalysis', title: 'Market Analysis' },
-      { key: 'productAnalysis', title: 'Product Analysis' },
-      { key: 'businessModel', title: 'Business Model' },
       { key: 'teamAssessment', title: 'Team Assessment' },
       { key: 'financialAnalysis', title: 'Financial Analysis' },
-      { key: 'clinicalAssessment', title: 'Clinical Assessment' },
+      { key: 'clinicalEvidence', title: 'Clinical Evidence' },
       { key: 'technologyAssessment', title: 'Technology Assessment' },
-      { key: 'ipAnalysis', title: 'Intellectual Property Analysis' },
-      { key: 'regulatoryAnalysis', title: 'Regulatory Analysis' },
+      { key: 'intellectualProperty', title: 'Intellectual Property' },
+      { key: 'regulatoryPathway', title: 'Regulatory Pathway' },
       { key: 'competitiveAnalysis', title: 'Competitive Analysis' },
-      { key: 'commercialStrategy', title: 'Commercial Strategy' },
-      { key: 'swotAnalysis', title: 'SWOT Analysis' },
-      { key: 'riskAssessment', title: 'Risk Assessment' },
-      { key: 'mitigationStrategies', title: 'Mitigation Strategies' },
-      { key: 'legalAssessment', title: 'Legal Assessment' },
-      { key: 'financialProjections', title: 'Financial Projections' },
-      { key: 'tamSamSomAnalysis', title: 'TAM/SAM/SOM Analysis' },
-      { key: 'valuationAnalysis', title: 'Valuation Analysis' },
-      { key: 'investmentTerms', title: 'Investment Terms' },
-      { key: 'exitStrategy', title: 'Exit Strategy' },
-      { key: 'recommendation', title: 'Investment Recommendation' }
+      { key: 'riskAnalysis', title: 'Risk Assessment' },
+      { key: 'investmentTerms', title: 'Investment Terms' }
     ];
 
     sectionMappings.forEach((section) => {
@@ -804,15 +755,16 @@ export class EnhancedPdfExportService {
   private static getSectionList(): string[] {
     return [
       'Executive Summary',
-      'Investment Highlights', 
       'Market Analysis',
-      'Product Analysis',
-      'Business Model',
       'Team Assessment',
       'Financial Analysis',
+      'Clinical Evidence',
       'Technology Assessment',
+      'Intellectual Property',
+      'Regulatory Pathway',
+      'Competitive Analysis',
       'Risk Assessment',
-      'Investment Recommendation'
+      'Investment Terms'
     ];
   }
 
