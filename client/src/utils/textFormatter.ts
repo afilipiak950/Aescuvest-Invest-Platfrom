@@ -8,6 +8,8 @@ export function cleanMarkdown(text: string | null | undefined): string {
   }
 
   return text
+    // Remove markdown horizontal rules (---, ***, ___) FIRST before other processing
+    .replace(/^[-*_]{3,}\s*$/gm, '')
     // Remove excessive asterisks and hashtags but preserve structure
     .replace(/\*{3,}/g, '') // Remove 3+ asterisks
     .replace(/#{3,}/g, '') // Remove 3+ hashtags
@@ -21,7 +23,8 @@ export function cleanMarkdown(text: string | null | undefined): string {
     // Restore paragraph breaks
     .replace(/§PARAGRAPH§/g, '\n\n')
     // Convert bullet points but preserve line structure - BUT NOT subheadings with colons
-    .replace(/^\s*[-*+]\s*(?!.*:$)/gm, '• ') // Convert bullet points (but not lines ending with :)
+    // Also don't match lines that are just dashes (horizontal rules already removed)
+    .replace(/^\s*[-*+]\s+(?!.*:$)/gm, '• ') // Convert bullet points (but not lines ending with :) - require whitespace after dash
     .replace(/^\s*\d+\.\s*(?!.*:$)/gm, '• ') // Convert numbered lists (but not lines ending with :)
     // Final cleanup - limit excessive line breaks but preserve paragraphs
     .replace(/\n{3,}/g, '\n\n') // Limit to double line breaks
