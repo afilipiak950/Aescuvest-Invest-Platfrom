@@ -28,22 +28,55 @@ interface ComprehensiveMemo {
   [key: string]: string | undefined;
 }
 
+function flattenToString(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map(item => {
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          return trimmed.length > 0 ? `• ${trimmed}` : '';
+        }
+        return flattenToString(item);
+      })
+      .filter(s => s.trim().length > 0)
+      .join('\n');
+  }
+  if (typeof value === 'object') {
+    const parts: string[] = [];
+    for (const [key, val] of Object.entries(value)) {
+      if (val !== null && val !== undefined) {
+        const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim();
+        const content = flattenToString(val);
+        if (content.length > 0) {
+          parts.push(`**${label}**\n${content}`);
+        }
+      }
+    }
+    return parts.join('\n\n');
+  }
+  return String(value);
+}
+
 function normalizeMemoData(rawMemo: any): ComprehensiveMemo | null {
   if (!rawMemo) return null;
   
   return {
-    coverPage: rawMemo.coverPage || '',
-    executiveSummary: rawMemo.executiveSummary || '',
-    financialAnalysis: rawMemo.financialAnalysis || '',
-    teamAssessment: rawMemo.teamAssessment || '',
-    marketAnalysis: rawMemo.marketAnalysis || '',
-    riskAnalysis: rawMemo.riskAnalysis || rawMemo.riskAssessment || '',
-    regulatoryPathway: rawMemo.regulatoryPathway || rawMemo.regulatoryAnalysis || '',
-    clinicalEvidence: rawMemo.clinicalEvidence || rawMemo.clinicalAssessment || '',
-    intellectualProperty: rawMemo.intellectualProperty || rawMemo.ipAnalysis || '',
-    investmentTerms: rawMemo.investmentTerms || '',
-    competitiveAnalysis: rawMemo.competitiveAnalysis || '',
-    technologyAssessment: rawMemo.technologyAssessment || '',
+    coverPage: flattenToString(rawMemo.coverPage),
+    executiveSummary: flattenToString(rawMemo.executiveSummary),
+    financialAnalysis: flattenToString(rawMemo.financialAnalysis),
+    teamAssessment: flattenToString(rawMemo.teamAssessment),
+    marketAnalysis: flattenToString(rawMemo.marketAnalysis),
+    riskAnalysis: flattenToString(rawMemo.riskAnalysis || rawMemo.riskAssessment),
+    regulatoryPathway: flattenToString(rawMemo.regulatoryPathway || rawMemo.regulatoryAnalysis),
+    clinicalEvidence: flattenToString(rawMemo.clinicalEvidence || rawMemo.clinicalAssessment),
+    intellectualProperty: flattenToString(rawMemo.intellectualProperty || rawMemo.ipAnalysis),
+    investmentTerms: flattenToString(rawMemo.investmentTerms),
+    competitiveAnalysis: flattenToString(rawMemo.competitiveAnalysis),
+    technologyAssessment: flattenToString(rawMemo.technologyAssessment),
   };
 }
 
