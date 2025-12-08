@@ -11,6 +11,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { ProfessionalFormattedContent } from '@/components/ProfessionalFormattedContent';
 import { SectionInfoBadge } from '@/components/memo-generator/SectionInfoBadge';
 import { SectionEditor } from '@/components/memo-generator/SectionEditor';
+import { MemoSectionRerunButton } from '@/components/memoSections/MemoSectionRerunButton';
 
 interface ComprehensiveMemo {
   coverPage: string;
@@ -684,6 +685,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.executiveSummary || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="executiveSummary"
+                                  displayName="Executive Summary"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="executiveSummary"
@@ -723,6 +732,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.marketAnalysis || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="marketAnalysis"
+                                  displayName="Market Analysis"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="marketAnalysis"
@@ -762,6 +779,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.technologyAssessment || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="technologyAssessment"
+                                  displayName="Technology Assessment"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="technologyAssessment"
@@ -801,6 +826,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.teamAssessment || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="teamAssessment"
+                                  displayName="Team Assessment"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="teamAssessment"
@@ -840,6 +873,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.clinicalEvidence || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="clinicalEvidence"
+                                  displayName="Clinical Evidence"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="clinicalEvidence"
@@ -879,6 +920,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.intellectualProperty || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="intellectualProperty"
+                                  displayName="Intellectual Property"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="intellectualProperty"
@@ -918,6 +967,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.regulatoryPathway || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="regulatoryPathway"
+                                  displayName="Regulatory Pathway"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="regulatoryPathway"
@@ -957,6 +1014,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.competitiveAnalysis || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="competitiveAnalysis"
+                                  displayName="Competitive Analysis"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="competitiveAnalysis"
@@ -996,6 +1061,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.financialAnalysis || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="financialAnalysis"
+                                  displayName="Financial Analysis"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="financialAnalysis"
@@ -1035,6 +1108,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.investmentTerms || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="investmentTerms"
+                                  displayName="Investment Terms"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="investmentTerms"
@@ -1074,6 +1155,14 @@ export default function MemoGenerator() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <SectionInfoBadge sources={sectionSources.riskAnalysis || {}} />
+                                <MemoSectionRerunButton
+                                  dealId={parseInt(selectedDeal)}
+                                  sectionName="riskAnalysis"
+                                  displayName="Risk Analysis"
+                                  onRerunComplete={() => {
+                                    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+                                  }}
+                                />
                                 <SectionEditor 
                                   dealId={selectedDeal}
                                   sectionKey="riskAnalysis"
