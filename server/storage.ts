@@ -18,7 +18,8 @@ import {
   evaluationCriteria, EvaluationCriteria, InsertEvaluationCriteria,
   evaluationResults, EvaluationResult, InsertEvaluationResult,
   researchJobs, ResearchJob, InsertResearchJob,
-  passwordResetTokens, PasswordResetToken, InsertPasswordResetToken
+  passwordResetTokens, PasswordResetToken, InsertPasswordResetToken,
+  memoSectionRuns, MemoSectionRun, InsertMemoSectionRun
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
@@ -200,6 +201,14 @@ export interface IStorage {
   setSystemSetting(key: string, value: string, description?: string, category?: string): Promise<any>;
   deleteSystemSetting(key: string): Promise<boolean>;
   getAllSystemSettings(category?: string): Promise<any[]>;
+  
+  // Memo section run methods - for per-section regeneration tracking
+  createMemoSectionRun(run: any): Promise<any>;
+  getMemoSectionRun(dealId: number, sectionName: string): Promise<any | undefined>;
+  getMemoSectionRunsByDealId(dealId: number): Promise<any[]>;
+  updateMemoSectionRun(id: number, data: any): Promise<any | undefined>;
+  updateMemoSectionRunByDealAndSection(dealId: number, sectionName: string, data: any): Promise<any | undefined>;
+  deleteMemoSectionRunsByDealId(dealId: number): Promise<number>;
 }
 
 // Database storage implementation
@@ -3032,6 +3041,85 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error deleting agent run entry ${id}:`, error);
       return false;
+    }
+  }
+
+  // Memo Section Run methods - for per-section regeneration tracking
+  async createMemoSectionRun(run: InsertMemoSectionRun): Promise<MemoSectionRun> {
+    try {
+      const [result] = await db.insert(memoSectionRuns).values(run).returning();
+      console.log(`📝 Created memo section run for deal ${run.dealId}, section: ${run.sectionName}`);
+      return result;
+    } catch (error) {
+      console.error(`Error creating memo section run:`, error);
+      throw error;
+    }
+  }
+
+  async getMemoSectionRun(dealId: number, sectionName: string): Promise<MemoSectionRun | undefined> {
+    try {
+      const [result] = await db.select().from(memoSectionRuns)
+        .where(and(
+          eq(memoSectionRuns.dealId, dealId),
+          eq(memoSectionRuns.sectionName, sectionName)
+        ))
+        .orderBy(desc(memoSectionRuns.triggeredAt))
+        .limit(1);
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error getting memo section run for deal ${dealId}, section ${sectionName}:`, error);
+      return undefined;
+    }
+  }
+
+  async getMemoSectionRunsByDealId(dealId: number): Promise<MemoSectionRun[]> {
+    try {
+      const results = await db.select().from(memoSectionRuns)
+        .where(eq(memoSectionRuns.dealId, dealId))
+        .orderBy(desc(memoSectionRuns.triggeredAt));
+      return results;
+    } catch (error) {
+      console.error(`Error getting memo section runs for deal ${dealId}:`, error);
+      return [];
+    }
+  }
+
+  async updateMemoSectionRun(id: number, data: Partial<MemoSectionRun>): Promise<MemoSectionRun | undefined> {
+    try {
+      const [result] = await db.update(memoSectionRuns)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(memoSectionRuns.id, id))
+        .returning();
+      return result || undefined;
+    } catch (error) {
+      console.error(`Error updating memo section run ${id}:`, error);
+      return undefined;
+    }
+  }
+
+  async updateMemoSectionRunByDealAndSection(dealId: number, sectionName: string, data: Partial<MemoSectionRun>): Promise<MemoSectionRun | undefined> {
+    try {
+      const existing = await this.getMemoSectionRun(dealId, sectionName);
+      if (!existing) {
+        return undefined;
+      }
+      return this.updateMemoSectionRun(existing.id, data);
+    } catch (error) {
+      console.error(`Error updating memo section run for deal ${dealId}, section ${sectionName}:`, error);
+      return undefined;
+    }
+  }
+
+  async deleteMemoSectionRunsByDealId(dealId: number): Promise<number> {
+    try {
+      const result = await db.delete(memoSectionRuns)
+        .where(eq(memoSectionRuns.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ Deleted ${count} memo section runs for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`Error deleting memo section runs for deal ${dealId}:`, error);
+      return 0;
     }
   }
 }
