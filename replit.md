@@ -37,7 +37,17 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Build System**: Executable shell script for Replit deployment, Vite for frontend, esbuild for backend.
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
-### Recent Major Updates (Dec 06, 2025)
+### Recent Major Updates (Dec 08, 2025)
+- **Ultra-Specific Memo Section Prompts**: Enhanced all 12 memo sections with bulletproof, checklist-based prompts in `claudeOpusMemoSynthesis.ts`. Each section now includes:
+  - **Mandatory Data Extraction Checklists**: Explicit fields that MUST be included (e.g., CEO name, funding amount, TAM)
+  - **Required Tables**: Pre-defined table structures for financial data, competitive comparison, risk matrices
+  - **Minimum Data Point Requirements**: 15-30 quantitative data points per section
+  - **Citation Minimums**: 8-15 citations required per section from agent analyses
+  - **Section-Specific Agent Mapping**: Each section pulls from the most relevant agents with fallback to all 7 agents
+  - **Quality Thresholds**: Aligned at 85 (90 for financialAnalysis) across backend and frontend
+  - **CamelCase Section Names**: All 12 sections (executiveSummary, financialAnalysis, teamAssessment, marketAnalysis, riskAnalysis, clinicalEvidence, regulatoryPathway, intellectualProperty, competitiveAnalysis, technologyAssessment, investmentTerms, coverPage) have enhanced prompts
+
+### Previous Major Updates (Dec 06, 2025)
 - **Bulletproof Evidence-Based Memo System**: Complete overhaul of investment memo generation to ensure every claim is backed by real data extracted from documents. New components:
   - **InvestmentEvidence Schema**: New database table (`investment_evidence`) stores structured metrics with full provenance (value, unit, period, source document, page, agent type, category, confidence score)
   - **QuantitativeEvidenceExtractor Service** (`server/services/quantitativeEvidenceExtractor.ts`): Regex + AI validation pipeline extracts currencies, percentages, counts, dates, durations, and ratios from all agent outputs
