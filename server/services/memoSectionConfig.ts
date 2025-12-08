@@ -35,7 +35,7 @@ export const MEMO_SECTION_CONFIGS: SectionConfig[] = [
     minMetrics: 3,
     minHighConfidenceMetrics: 1,
     requiredMetricTypes: ['currency'],
-    qualityThreshold: 80,
+    qualityThreshold: 85,
     description: 'Professional cover page with company info and investment highlights',
     orderIndex: 1,
     isRequired: true

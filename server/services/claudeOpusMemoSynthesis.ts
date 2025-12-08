@@ -342,6 +342,44 @@ FORMAT REQUIREMENTS:
 - Include specific citations after each major claim`;
 
     const sectionSpecificInstructions: Record<string, string> = {
+      // CamelCase section names (new standard)
+      'executiveSummary': `
+SECTION: EXECUTIVE SUMMARY (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+You MUST include ALL of the following if available in the source data:
+
+□ Company Name: [EXACT company legal name]
+□ Founding Date: [Month/Year founded]
+□ Headquarters: [City, Country]
+□ CEO Name: [Full name and background]
+□ Total Funding: [$X raised to date]
+□ Latest Valuation: [$X pre/post money]
+□ Current Revenue: [$X ARR/MRR]
+□ Employee Count: [Number of employees]
+□ TAM: [$X billion market size]
+□ Lead Investors: [Names of key investors]
+
+=== SECTION STRUCTURE ===
+1. **Company Snapshot** (use table format):
+   | Field | Value | Source |
+   |-------|-------|--------|
+   | Company Name | [Name] | [Legal Agent] |
+   | Founded | [Date] | [HR/Legal Agent] |
+   | Headquarters | [Location] | [Legal Agent] |
+   | Employees | [Count] | [HR Agent] |
+
+2. **Investment Thesis**: 3-5 bullet points with specific evidence and citations
+3. **Technology/Product**: Technical specifications, FDA status if applicable
+4. **Market Opportunity**: TAM/SAM/SOM with sources and methodology
+5. **Traction Metrics**: Revenue, customers, growth rates with dates
+6. **Leadership Team**: CEO, CTO, key hires with backgrounds
+7. **Financial Highlights**: Funding history, runway, projections
+8. **Key Risks**: Top 3 risks with probability/impact assessment
+
+REQUIRED CITATIONS PER PARAGRAPH: Minimum 2
+REQUIRED DATA POINTS: Minimum 20`,
+
       'executive_summary': `
 SECTION: EXECUTIVE SUMMARY (2-3 pages)
 
@@ -362,6 +400,56 @@ PRIORITY DATA SOURCES:
 - Commercial Agent: Market sizing, customer traction
 - Legal Agent: Corporate structure, deal terms
 - Clinical Agent: Regulatory status (if applicable)`,
+
+      'financialAnalysis': `
+SECTION: FINANCIAL ANALYSIS (4-5 pages) - STRICTER 90+ QUALITY THRESHOLD
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Latest Revenue: [$X ARR/MRR with date]
+□ Revenue Growth: [YoY or MoM percentage]
+□ Gross Margin: [Percentage]
+□ Monthly Burn Rate: [$X per month]
+□ Cash Position: [$X as of date]
+□ Runway: [X months]
+□ Total Funding Raised: [$X to date]
+□ Latest Valuation: [$X pre/post money valuation]
+□ CAC: [Customer acquisition cost]
+□ LTV: [Lifetime value]
+
+=== REQUIRED TABLES (MUST INCLUDE) ===
+
+**Table 1: Funding History**
+| Round | Date | Amount | Lead Investor | Valuation | Participation |
+|-------|------|--------|---------------|-----------|---------------|
+
+**Table 2: Financial Projections**
+| Metric | 2024 | 2025 | 2026 | 2027 | 2028 |
+|--------|------|------|------|------|------|
+| Revenue | | | | | |
+| Gross Profit | | | | | |
+| Net Income | | | | | |
+| Headcount | | | | | |
+
+**Table 3: Unit Economics**
+| Metric | Value | Benchmark |
+|--------|-------|-----------|
+| CAC | | |
+| LTV | | |
+| LTV:CAC | | |
+| Payback | | |
+
+=== SECTION STRUCTURE ===
+1. **Financial Snapshot**: Key metrics table with sources
+2. **Funding History**: Complete round-by-round breakdown
+3. **Revenue Analysis**: Historical trends, growth drivers
+4. **Expense Analysis**: Burn rate, cost structure
+5. **Cap Table Summary**: Ownership percentages
+6. **Projections**: 5-year forecasts with assumptions
+7. **Unit Economics**: CAC, LTV, margins
+8. **Use of Proceeds**: Detailed allocation
+
+REQUIRED CITATIONS: Minimum 15 (every number must be sourced)
+REQUIRED DATA POINTS: Minimum 30`,
 
       'financial_analysis': `
 SECTION: FINANCIAL ANALYSIS (4-5 pages)
@@ -386,6 +474,40 @@ REQUIRED TABLES:
 - Financial projections table (Year, Revenue, Expenses, Net Income)
 - Use of proceeds table (Category, Amount, Percentage)`,
 
+      'teamAssessment': `
+SECTION: TEAM ASSESSMENT (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ CEO Name: [Full name]
+□ CEO Background: [Prior companies, roles, years experience]
+□ CTO Name: [Full name]
+□ CTO Background: [Technical expertise, prior companies]
+□ Total Employees: [Current headcount]
+□ Engineering Team Size: [Number of engineers]
+□ Board Members: [Names and affiliations]
+□ Key Advisors: [Names and expertise areas]
+□ Hiring Plans: [Target headcount growth]
+
+=== REQUIRED TABLE ===
+**Leadership Team Profiles**
+| Name | Title | Education | Prior Experience | Years in Role | Domain Expertise |
+|------|-------|-----------|------------------|---------------|------------------|
+| [CEO] | CEO | [School] | [Companies] | [Years] | [Expertise] |
+| [CTO] | CTO | [School] | [Companies] | [Years] | [Expertise] |
+
+=== SECTION STRUCTURE ===
+1. **Executive Leadership**: Full profiles with backgrounds (table format)
+2. **Technical Team**: Key engineers, scientists, domain experts
+3. **Advisory Board**: Names, credentials, how they help
+4. **Board of Directors**: Composition, investor seats, independent directors
+5. **Organizational Design**: Departments, reporting structure
+6. **Team Strengths**: What the team does well
+7. **Team Gaps**: Areas needing additional hires
+8. **Culture & Retention**: Employee satisfaction, turnover
+
+REQUIRED CITATIONS: Minimum 10
+REQUIRED NAMED INDIVIDUALS: Minimum 8`,
+
       'team_assessment': `
 SECTION: TEAM ASSESSMENT (2-3 pages)
 
@@ -406,6 +528,271 @@ PRIORITY DATA SOURCES:
 - HR Agent: All team-related Q&A answers
 - Legal Agent: Governance, board composition
 - Document OCR: LinkedIn profiles, bios, organizational charts`,
+
+      'marketAnalysis': `
+SECTION: MARKET ANALYSIS (3-4 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ TAM: [$X billion with source and year]
+□ SAM: [$X billion with segmentation methodology]
+□ SOM: [$X million with capture assumptions]
+□ Market Growth Rate: [X% CAGR with timeframe]
+□ Key Market Drivers: [3-5 specific trends]
+□ Competitor Names: [List of 5+ competitors]
+□ Market Share: [% held by key players]
+□ Target Customer Profile: [Specific characteristics]
+
+=== REQUIRED TABLES ===
+**Table 1: Market Sizing**
+| Market | Size ($) | Growth Rate | Source | Year |
+|--------|----------|-------------|--------|------|
+| TAM | | | | |
+| SAM | | | | |
+| SOM | | | | |
+
+**Table 2: Competitive Landscape**
+| Competitor | Products | Market Share | Strengths | Weaknesses |
+|------------|----------|--------------|-----------|------------|
+
+=== SECTION STRUCTURE ===
+1. **Market Overview**: Industry context and dynamics
+2. **TAM/SAM/SOM**: Detailed sizing with methodology
+3. **Growth Drivers**: Regulatory, technology, demand trends
+4. **Customer Segments**: Target profiles with characteristics
+5. **Competitive Positioning**: Differentiation vs competitors
+6. **Barriers to Entry**: Moats and defensibility
+7. **Market Risks**: Competitive, regulatory, technology threats
+
+REQUIRED CITATIONS: Minimum 12
+REQUIRED DATA POINTS: Minimum 20`,
+
+      'riskAnalysis': `
+SECTION: RISK ANALYSIS (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Top 5 Risks: [Specific risk descriptions with evidence]
+□ Risk Probability: [High/Medium/Low for each]
+□ Risk Impact: [High/Medium/Low for each]
+□ Mitigation Strategies: [Specific plans for each risk]
+□ Runway Risk: [Months of runway, funding needs]
+□ Regulatory Risk: [Specific approval requirements]
+□ Competitive Risk: [Named competitors as threats]
+□ Key Person Risk: [Dependency on specific individuals]
+
+=== REQUIRED TABLE ===
+**Risk Assessment Matrix**
+| Risk Category | Specific Risk | Probability | Impact | Mitigation | Owner |
+|---------------|---------------|-------------|--------|------------|-------|
+| Technology | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+| Market | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+| Regulatory | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+| Financial | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+| Team | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+
+=== SECTION STRUCTURE ===
+1. **Risk Summary Table**: All risks with ratings
+2. **Technology Risks**: Development, scalability, IP challenges
+3. **Market Risks**: Competition, adoption, pricing
+4. **Regulatory Risks**: Approval timelines, compliance
+5. **Financial Risks**: Funding, burn rate, revenue
+6. **Team Risks**: Key person dependencies, hiring
+7. **Mitigation Summary**: How risks are being addressed
+
+REQUIRED CITATIONS: Minimum 10 (from all 7 agents)
+REQUIRED RISKS IDENTIFIED: Minimum 8`,
+
+      'clinicalEvidence': `
+SECTION: CLINICAL EVIDENCE (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Clinical Trial Phase: [Phase I/II/III and status]
+□ Patient Count: [Number enrolled in trials]
+□ Primary Endpoints: [Specific endpoints measured]
+□ Efficacy Results: [% improvement, statistical significance]
+□ Safety Profile: [Adverse events, SAEs]
+□ Trial Sites: [Number and locations]
+□ Completion Timeline: [Expected completion dates]
+□ Regulatory Interactions: [FDA meetings, feedback]
+
+=== SECTION STRUCTURE ===
+1. **Clinical Development Overview**: Current stage and strategy
+2. **Completed Studies**: Results with patient counts and endpoints
+3. **Ongoing Trials**: Status, enrollment, timeline
+4. **Efficacy Data**: Specific results with statistics
+5. **Safety Data**: Adverse events, risk profile
+6. **Regulatory Pathway**: FDA interactions and feedback
+7. **Clinical Milestones**: Upcoming data readouts
+
+REQUIRED CITATIONS: Minimum 8 (from Clinical Agent)
+REQUIRED DATA POINTS: Minimum 15`,
+
+      'regulatoryPathway': `
+SECTION: REGULATORY PATHWAY (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Regulatory Strategy: [510(k), PMA, De Novo, BLA, etc.]
+□ FDA Classification: [Class I/II/III device or drug type]
+□ Submission Status: [Pending, submitted, cleared/approved]
+□ Approval Timeline: [Expected date]
+□ CE Mark Status: [If applicable]
+□ ISO Certifications: [13485, etc.]
+□ Clinical Requirements: [Studies needed for approval]
+□ Post-Market Obligations: [Surveillance, reporting]
+
+=== SECTION STRUCTURE ===
+1. **Regulatory Strategy**: Pathway selection rationale
+2. **FDA Status**: Current status and interactions
+3. **Submission Timeline**: Key dates and milestones
+4. **Clinical Requirements**: Studies needed
+5. **International Markets**: CE Mark, other markets
+6. **Compliance Infrastructure**: QMS, ISO certifications
+7. **Post-Market Plans**: Surveillance and reporting
+
+REQUIRED CITATIONS: Minimum 8
+REQUIRED REGULATORY DATA POINTS: Minimum 12`,
+
+      'intellectualProperty': `
+SECTION: INTELLECTUAL PROPERTY (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Patent Count: [Number of patents granted/pending]
+□ Patent Numbers: [Specific US/EP patent numbers]
+□ Patent Claims: [Key claims covered]
+□ Expiration Dates: [When patents expire]
+□ Patent Coverage: [Geographic scope]
+□ Trademark Status: [Key trademarks registered]
+□ Trade Secrets: [Non-disclosed IP assets]
+□ Licensing: [In-licenses and out-licenses]
+
+=== REQUIRED TABLE ===
+**Patent Portfolio**
+| Patent # | Title | Status | Filing Date | Expiration | Coverage |
+|----------|-------|--------|-------------|------------|----------|
+
+=== SECTION STRUCTURE ===
+1. **IP Overview**: Portfolio summary
+2. **Patent Analysis**: Key patents with claim scope
+3. **Freedom to Operate**: Competitive IP landscape
+4. **Trade Secrets**: Proprietary know-how
+5. **Licensing Agreements**: In/out licenses
+6. **IP Strategy**: Prosecution and defense plans
+7. **IP Risks**: Potential challenges, expired patents
+
+REQUIRED CITATIONS: Minimum 10
+REQUIRED PATENT REFERENCES: Minimum 5`,
+
+      'competitiveAnalysis': `
+SECTION: COMPETITIVE ANALYSIS (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Competitor Names: [5+ named competitors]
+□ Competitor Funding: [Funding raised by each]
+□ Competitor Products: [Product offerings]
+□ Market Share: [% held by key players]
+□ Differentiation: [How company differs]
+□ Competitive Advantages: [Specific moats]
+□ Competitive Threats: [Specific risks]
+
+=== REQUIRED TABLE ===
+**Competitive Comparison**
+| Company | Funding | Product | Technology | Regulatory Status | Pricing |
+|---------|---------|---------|------------|-------------------|---------|
+
+=== SECTION STRUCTURE ===
+1. **Competitive Landscape**: Overview of market players
+2. **Direct Competitors**: Detailed profiles (table format)
+3. **Indirect Competitors**: Adjacent market players
+4. **Differentiation Analysis**: How company stands out
+5. **Competitive Advantages**: Sustainable moats
+6. **Competitive Threats**: Risks from competitors
+7. **Market Positioning**: Strategy vs competition
+
+REQUIRED CITATIONS: Minimum 10
+REQUIRED NAMED COMPETITORS: Minimum 5`,
+
+      'technologyAssessment': `
+SECTION: TECHNOLOGY ASSESSMENT (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Core Technology: [Description of technology]
+□ Technical Differentiation: [What makes it unique]
+□ Development Stage: [Prototype, MVP, Production]
+□ R&D Team Size: [Number of engineers/scientists]
+□ Technical Milestones: [Key achievements]
+□ Technology Roadmap: [Future development plans]
+□ Technical Risks: [Development challenges]
+□ Scalability: [Path to scale]
+
+=== SECTION STRUCTURE ===
+1. **Technology Overview**: Core innovation
+2. **Technical Differentiation**: Unique aspects
+3. **Development Stage**: Current maturity
+4. **R&D Pipeline**: Upcoming development
+5. **Technical Team**: Key technical talent
+6. **Scalability Analysis**: Path to production scale
+7. **Technical Risks**: Development challenges
+
+REQUIRED CITATIONS: Minimum 10
+REQUIRED TECHNICAL DATA POINTS: Minimum 12`,
+
+      'investmentTerms': `
+SECTION: INVESTMENT TERMS (2-3 pages)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Valuation: [$X pre/post money]
+□ Round Size: [$X being raised]
+□ Investment Type: [Equity, SAFE, Convertible Note]
+□ Lead Investor: [Name and allocation]
+□ Board Seats: [New seats granted]
+□ Liquidation Preference: [1x, participating, etc.]
+□ Pro-rata Rights: [Included or not]
+□ Anti-dilution: [Broad-based, narrow-based]
+
+=== REQUIRED TABLE ===
+**Deal Terms Summary**
+| Term | Provision |
+|------|-----------|
+| Pre-money Valuation | $ |
+| Round Size | $ |
+| Post-money Valuation | $ |
+| Lead Investor | |
+| Board Seats | |
+| Liquidation Preference | |
+| Anti-dilution | |
+
+=== SECTION STRUCTURE ===
+1. **Deal Summary**: Key terms table
+2. **Valuation Analysis**: Reasonableness assessment
+3. **Investor Rights**: Board, information, pro-rata
+4. **Protective Provisions**: Investor protections
+5. **Comparison to Market**: How terms compare
+6. **Deal Risks**: Term-related concerns
+
+REQUIRED CITATIONS: Minimum 8
+REQUIRED DEAL TERMS: Minimum 10`,
+
+      'coverPage': `
+SECTION: COVER PAGE (1 page)
+
+=== MANDATORY DATA EXTRACTION CHECKLIST ===
+□ Company Legal Name: [Full legal entity name]
+□ Tagline: [One-line description]
+□ Sector: [Industry/market segment]
+□ Stage: [Seed, Series A, B, etc.]
+□ Round Size: [$X being raised]
+□ Valuation: [$X pre-money]
+□ Lead Investor: [Name if known]
+□ Contact: [CEO name and email]
+
+=== FORMAT ===
+Professional cover page with:
+- Company logo placeholder
+- Investment memorandum title
+- Confidential notice
+- Date of preparation
+- Key metrics summary box
+
+REQUIRED DATA POINTS: Minimum 8`,
 
       'legal_assessment': `
 SECTION: LEGAL ASSESSMENT (2-3 pages)
