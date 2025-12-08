@@ -57,14 +57,14 @@ export class ClaudeOpusMemoSynthesis {
   async generateSection(request: SectionGenerationRequest): Promise<SectionGenerationResult> {
     console.log(`🧠 Generating ${request.sectionTitle} with Claude Opus 4 (PREMIUM MODE)...`);
     
-    // Get relevant facts for this section
+    // Get relevant facts for this section (primary agents + high-conf secondary)
     const relevantFacts = agentDataFusionService.getFactsForSection(
       request.factMatrix, 
       request.sectionType
     );
     
-    // ENHANCED: Increase fact context limit for richer content
-    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 60000);
+    // 🎯 Balanced fact context limit for quality + coverage
+    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 70000);
     
     // Get key metrics summary
     const metricsSummary = agentDataFusionService.getKeyMetricsSummary(request.factMatrix);
@@ -256,12 +256,13 @@ ${metricsSummary}
 ${findingsSummary}
 `;
 
+    // 🚀 ENHANCED: Increased limits for maximum data coverage
     // Add company research with emphasis
     if (request.companyResearch) {
       const researchStr = JSON.stringify(request.companyResearch, null, 2);
       prompt += `
 === VERIFIED COMPANY RESEARCH (HIGH PRIORITY DATA) ===
-${researchStr.substring(0, 25000)}
+${researchStr.substring(0, 40000)}
 `;
     }
 
@@ -270,16 +271,17 @@ ${researchStr.substring(0, 25000)}
       const evalStr = JSON.stringify(request.aiEvaluation, null, 2);
       prompt += `
 === AI EVALUATION RESULTS ===
-${evalStr.substring(0, 15000)}
+${evalStr.substring(0, 25000)}
 `;
     }
 
-    // Add OCR context with higher limit
+    // 🎯 OCR context with balanced limit for quality vs quantity
     if (request.ocrContext && request.ocrContext.length > 100) {
       prompt += `
 === DOCUMENT CONTENT (SOURCE FOR SPECIFIC DATA) ===
-${request.ocrContext.substring(0, 80000)}
+${request.ocrContext.substring(0, 100000)}
 `;
+      console.log(`📄 OCR context included: ${Math.min(request.ocrContext.length, 100000).toLocaleString()} of ${request.ocrContext.length.toLocaleString()} characters`);
     }
 
     prompt += `

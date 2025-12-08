@@ -80,6 +80,7 @@ export class AgentDataFusionService {
     agentAnalyses: any[]
   ): Promise<AgentFactMatrix> {
     console.log(`🔬 Building agent fact matrix for deal ${dealId} from ${agentAnalyses.length} analyses`);
+    console.log(`📊 COMPREHENSIVE DATA EXTRACTION: Analyzing ALL 7 agent types for maximum coverage`);
 
     const factMatrix: AgentFactMatrix = {
       dealId,
@@ -93,11 +94,21 @@ export class AgentDataFusionService {
       recommendations: []
     };
 
+    // 🚀 ENHANCED: Track which agents we're processing for debugging
+    const processedAgents: string[] = [];
+    const agentFactCounts: Record<string, number> = {};
+
     for (const analysis of agentAnalyses) {
       const agentType = analysis.agentType?.toLowerCase() || 'unknown';
+      processedAgents.push(agentType);
+      
+      // 🚀 DEBUG: Log available fields in each analysis
+      const availableFields = Object.keys(analysis).filter(k => analysis[k] && String(analysis[k]).length > 0);
+      console.log(`📋 ${agentType.toUpperCase()} Agent fields: [${availableFields.join(', ')}]`);
       
       // Extract facts from each agent type's answers
       const agentFacts = this.extractFactsFromAgentAnalysis(analysis, agentType);
+      agentFactCounts[agentType] = (agentFactCounts[agentType] || 0) + agentFacts.length;
       
       // Store by agent type
       if (!factMatrix.factsByAgent[agentType]) {
@@ -122,24 +133,40 @@ export class AgentDataFusionService {
       if (analysis.findings && Array.isArray(analysis.findings)) {
         const keyFindings = this.extractKeyFindings(analysis.findings, agentType);
         factMatrix.keyFindings.push(...keyFindings);
+        console.log(`   → ${agentType} findings: ${keyFindings.length}`);
       }
       
       // Extract recommendations
       if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
         const recommendations = this.extractRecommendations(analysis.recommendations, agentType);
         factMatrix.recommendations.push(...recommendations);
+        console.log(`   → ${agentType} recommendations: ${recommendations.length}`);
       }
       
       factMatrix.totalFacts += agentFacts.length;
     }
 
-    console.log(`✅ Built fact matrix: ${factMatrix.totalFacts} facts, ${factMatrix.keyFindings.length} findings, ${factMatrix.recommendations.length} recommendations`);
+    // 🚀 COMPREHENSIVE DEBUG OUTPUT
+    console.log(`\n========== FACT MATRIX BUILD COMPLETE ==========`);
+    console.log(`📊 Deal: ${dealId} (${companyName})`);
+    console.log(`📊 Agents Processed: [${processedAgents.join(', ')}]`);
+    console.log(`📊 Facts per Agent:`);
+    Object.entries(agentFactCounts).forEach(([agent, count]) => {
+      console.log(`   → ${agent}: ${count} facts`);
+    });
+    console.log(`📊 Total Facts: ${factMatrix.totalFacts}`);
+    console.log(`📊 Total Quantitative Metrics: ${factMatrix.quantitativeMetrics.length}`);
+    console.log(`📊 Total Key Findings: ${factMatrix.keyFindings.length}`);
+    console.log(`📊 Total Recommendations: ${factMatrix.recommendations.length}`);
+    console.log(`📊 Categories: [${Object.keys(factMatrix.factsByCategory).join(', ')}]`);
+    console.log(`==================================================\n`);
     
     return factMatrix;
   }
 
   /**
    * Extract structured facts from a single agent's analysis
+   * 🎯 TARGETED: Focus on Q&A answers (primary) + validated summary (secondary)
    */
   private extractFactsFromAgentAnalysis(analysis: any, agentType: string): AgentFact[] {
     const facts: AgentFact[] = [];
@@ -155,14 +182,35 @@ export class AgentDataFusionService {
       researchAnswers: 'research'
     };
 
-    // Process each answer field
+    // 1. PRIMARY: Process Q&A answer fields (highest quality structured data)
     for (const [field, type] of Object.entries(answerFields)) {
       if (analysis[field] && type === agentType) {
         const parsedFacts = this.parseAgentAnswers(analysis[field], type);
         facts.push(...parsedFacts);
       }
     }
+    
+    // 2. SECONDARY: Extract summary ONLY if it contains ≥3 quantitative metrics (HIGH BAR)
+    // This ensures we only add summaries that provide concrete quantitative value
+    if (analysis.summary && typeof analysis.summary === 'string' && analysis.summary.length > 100) {
+      const summaryMetrics = this.extractQuantitativeMetrics(analysis.summary);
+      // STRICT: Only include summary if it has ≥3 quantitative metrics (high-value content)
+      if (summaryMetrics.length >= 3) {
+        facts.push({
+          id: `${agentType}_summary`,
+          agentType: agentType as AgentFact['agentType'],
+          category: 'summary',
+          questionId: 'analysis_summary',
+          fact: analysis.summary.substring(0, 3000), // Strict limit for summaries
+          confidence: 'high', // Only high-value summaries qualify
+          sourceDocuments: this.extractSourceDocuments(analysis.summary),
+          quantitativeData: summaryMetrics,
+          citation: `[${agentType.toUpperCase()} Agent - Summary]`
+        });
+      }
+    }
 
+    console.log(`📊 extractFactsFromAgentAnalysis(${agentType}): Extracted ${facts.length} facts`);
     return facts;
   }
 
@@ -577,77 +625,212 @@ export class AgentDataFusionService {
    * Maps both camelCase (new) and snake_case (legacy) section names to relevant agents
    */
   getFactsForSection(factMatrix: AgentFactMatrix, sectionType: string): AgentFact[] {
-    const sectionAgentMapping: Record<string, string[]> = {
+    // 🎯 TARGETED DATA STRATEGY: Use primary agents + cross-functional agents where valuable
+    // Primary agents are fully included; secondary agents are filtered by high-confidence only
+    const ALL_AGENTS = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    
+    // Section-specific mappings with PRIMARY and SECONDARY agents
+    // PRIMARY: All facts included (core domain experts)
+    // SECONDARY: Only high-confidence facts included (cross-functional value)
+    const sectionConfig: Record<string, { primary: string[], secondary: string[] }> = {
       // CamelCase section names (matches InvestmentMemoSections interface)
-      'coverPage': ['legal', 'financial', 'commercial'],
-      'executiveSummary': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
-      'financialAnalysis': ['financial', 'legal'],
-      'teamAssessment': ['hr', 'legal'],
-      'marketAnalysis': ['commercial', 'research'],
-      'riskAnalysis': ['legal', 'clinical', 'commercial', 'financial', 'ip', 'research', 'hr'],
-      'regulatoryPathway': ['clinical', 'legal'],
-      'clinicalEvidence': ['clinical', 'research'],
-      'intellectualProperty': ['ip', 'legal', 'research'],
-      'investmentTerms': ['legal', 'financial'],
-      'competitiveAnalysis': ['commercial', 'research', 'ip'],
-      'technologyAssessment': ['research', 'ip', 'clinical'],
+      'coverPage': { primary: ['financial', 'commercial', 'legal'], secondary: [] },
+      'executiveSummary': { primary: ALL_AGENTS, secondary: [] },
+      'financialAnalysis': { primary: ['financial'], secondary: ['commercial', 'legal'] },
+      'teamAssessment': { primary: ['hr'], secondary: ['research', 'financial'] },
+      'marketAnalysis': { primary: ['commercial', 'research'], secondary: ['clinical'] },
+      'riskAnalysis': { primary: ALL_AGENTS, secondary: [] },
+      'regulatoryPathway': { primary: ['clinical', 'legal'], secondary: ['research'] },
+      'clinicalEvidence': { primary: ['clinical', 'research'], secondary: [] },
+      'intellectualProperty': { primary: ['ip', 'legal'], secondary: ['research'] },
+      'investmentTerms': { primary: ['legal', 'financial'], secondary: ['commercial'] },
+      'competitiveAnalysis': { primary: ['commercial', 'research'], secondary: ['ip'] },
+      'technologyAssessment': { primary: ['research', 'ip'], secondary: ['clinical'] },
       // Legacy snake_case mappings for backwards compatibility
-      'executive_summary': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
-      'cover_page': ['legal', 'financial', 'commercial'],
-      'swot_analysis': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
-      'market_analysis': ['commercial', 'research'],
-      'competitive_analysis': ['commercial', 'research', 'ip'],
-      'technology_assessment': ['research', 'ip', 'clinical'],
-      'product_analysis': ['clinical', 'commercial', 'research'],
-      'business_model': ['commercial', 'financial'],
-      'commercial_strategy': ['commercial'],
-      'team_assessment': ['hr', 'legal'],
-      'management_analysis': ['hr', 'legal'],
-      'financial_analysis': ['financial', 'legal'],
-      'financial_projections': ['financial'],
-      'valuation_analysis': ['financial'],
-      'legal_assessment': ['legal', 'ip'],
-      'regulatory_analysis': ['legal', 'clinical'],
-      'clinical_assessment': ['clinical', 'research'],
-      'ip_analysis': ['ip', 'legal', 'research'],
-      'research_insights': ['research'],
-      'risk_assessment': ['legal', 'clinical', 'commercial', 'financial', 'ip', 'research', 'hr'],
-      'mitigation_strategies': ['legal', 'clinical', 'commercial', 'financial'],
-      'investment_terms': ['legal', 'financial'],
-      'exit_strategy': ['financial', 'commercial'],
-      'recommendation': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research']
+      'executive_summary': { primary: ALL_AGENTS, secondary: [] },
+      'cover_page': { primary: ['financial', 'commercial', 'legal'], secondary: [] },
+      'swot_analysis': { primary: ALL_AGENTS, secondary: [] },
+      'market_analysis': { primary: ['commercial', 'research'], secondary: ['clinical', 'financial'] },
+      'competitive_analysis': { primary: ['commercial', 'research'], secondary: ['ip'] },
+      'technology_assessment': { primary: ['research', 'ip'], secondary: ['clinical'] },
+      'product_analysis': { primary: ['clinical', 'commercial', 'research'], secondary: [] },
+      'business_model': { primary: ['commercial', 'financial'], secondary: ['research'] },
+      'commercial_strategy': { primary: ['commercial'], secondary: ['research', 'financial'] },
+      'team_assessment': { primary: ['hr'], secondary: ['research', 'financial'] },
+      'management_analysis': { primary: ['hr'], secondary: ['research', 'legal'] },
+      'financial_analysis': { primary: ['financial'], secondary: ['commercial', 'legal'] },
+      'financial_projections': { primary: ['financial'], secondary: ['commercial'] },
+      'valuation_analysis': { primary: ['financial'], secondary: ['commercial'] },
+      'legal_assessment': { primary: ['legal', 'ip'], secondary: ['clinical'] },
+      'regulatory_analysis': { primary: ['legal', 'clinical'], secondary: ['research'] },
+      'clinical_assessment': { primary: ['clinical', 'research'], secondary: [] },
+      'ip_analysis': { primary: ['ip', 'legal'], secondary: ['research'] },
+      'research_insights': { primary: ['research'], secondary: ['clinical', 'ip'] },
+      'risk_assessment': { primary: ALL_AGENTS, secondary: [] },
+      'mitigation_strategies': { primary: ['legal', 'clinical', 'commercial', 'financial'], secondary: ['ip', 'research'] },
+      'investment_terms': { primary: ['legal', 'financial'], secondary: ['commercial'] },
+      'exit_strategy': { primary: ['financial', 'commercial'], secondary: ['research'] },
+      'recommendation': { primary: ALL_AGENTS, secondary: [] }
     };
     
-    // Try exact match first, then try converting camelCase to snake_case
-    let relevantAgents = sectionAgentMapping[sectionType];
-    if (!relevantAgents) {
+    // Get config for this section (or try snake_case)
+    let config = sectionConfig[sectionType];
+    if (!config) {
       const snakeCase = sectionType.replace(/([A-Z])/g, '_$1').toLowerCase();
-      relevantAgents = sectionAgentMapping[snakeCase] || [];
+      config = sectionConfig[snakeCase];
     }
     
-    // If still no match, use ALL agents to ensure maximum data coverage
-    if (relevantAgents.length === 0) {
-      console.log(`⚠️ No agent mapping for section "${sectionType}", using ALL agents`);
-      relevantAgents = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    // Default to all primary agents if no config found
+    if (!config) {
+      console.log(`⚠️ No config for section "${sectionType}", using all agents as primary`);
+      config = { primary: ALL_AGENTS, secondary: [] };
     }
     
     const facts: AgentFact[] = [];
     
-    for (const agentType of relevantAgents) {
+    // Collect ALL facts from PRIMARY agents
+    for (const agentType of config.primary) {
       const agentFacts = factMatrix.factsByAgent[agentType] || [];
       facts.push(...agentFacts);
     }
     
-    return facts;
+    // Collect only HIGH-CONFIDENCE facts with quantitative data from SECONDARY agents
+    for (const agentType of config.secondary) {
+      const agentFacts = factMatrix.factsByAgent[agentType] || [];
+      // STRICT: Secondary agents must have high confidence AND quantitative data
+      const qualifiedFacts = agentFacts.filter(f => 
+        f.confidence === 'high' && 
+        f.quantitativeData && 
+        f.quantitativeData.length >= 1 &&
+        f.category !== 'summary' // Exclude summary blocks from secondary agents
+      );
+      facts.push(...qualifiedFacts);
+    }
+    
+    // 🎯 DEDUPLICATION: Remove overlapping facts based on content similarity
+    const deduplicatedFacts = this.deduplicateFacts(facts);
+    
+    // 🎯 SECTION-SPECIFIC RELEVANCE SCORING with category alignment
+    const sectionKeywords = this.getSectionKeywords(sectionType);
+    const scoredFacts = deduplicatedFacts.map(fact => ({
+      fact,
+      score: this.calculateFactRelevanceScore(fact, sectionKeywords)
+    }));
+    
+    // Sort by relevance score (highest first)
+    scoredFacts.sort((a, b) => b.score - a.score);
+    
+    // 🎯 EVIDENCE BUDGET: Cap at 40 facts per section (reduced for quality)
+    const MAX_FACTS_PER_SECTION = 40;
+    const budgetedFacts = scoredFacts.slice(0, MAX_FACTS_PER_SECTION).map(sf => sf.fact);
+    
+    console.log(`📊 getFactsForSection("${sectionType}"): ${budgetedFacts.length}/${facts.length} facts after dedup+ranking (primary: ${config.primary.join(',')}, secondary: ${config.secondary.join(',')})`);
+    
+    return budgetedFacts;
+  }
+  
+  /**
+   * Deduplicate facts based on content similarity
+   */
+  private deduplicateFacts(facts: AgentFact[]): AgentFact[] {
+    const seen = new Map<string, AgentFact>();
+    
+    for (const fact of facts) {
+      // Create a simple signature from first 200 chars of content
+      const signature = fact.fact.substring(0, 200).toLowerCase().replace(/\s+/g, ' ').trim();
+      
+      // Keep the fact with higher confidence or more metrics
+      if (!seen.has(signature)) {
+        seen.set(signature, fact);
+      } else {
+        const existing = seen.get(signature)!;
+        const existingScore = (existing.confidence === 'high' ? 2 : 1) + (existing.quantitativeData?.length || 0);
+        const newScore = (fact.confidence === 'high' ? 2 : 1) + (fact.quantitativeData?.length || 0);
+        if (newScore > existingScore) {
+          seen.set(signature, fact);
+        }
+      }
+    }
+    
+    return Array.from(seen.values());
+  }
+  
+  /**
+   * Get section-specific keywords for relevance scoring
+   */
+  private getSectionKeywords(sectionType: string): string[] {
+    const keywordMap: Record<string, string[]> = {
+      'financialAnalysis': ['revenue', 'funding', 'valuation', 'burn', 'margin', 'profit', 'loss', 'cap table', 'runway'],
+      'financial_analysis': ['revenue', 'funding', 'valuation', 'burn', 'margin', 'profit', 'loss', 'cap table', 'runway'],
+      'teamAssessment': ['ceo', 'cto', 'founder', 'team', 'experience', 'background', 'advisor', 'board'],
+      'team_assessment': ['ceo', 'cto', 'founder', 'team', 'experience', 'background', 'advisor', 'board'],
+      'marketAnalysis': ['market', 'tam', 'sam', 'som', 'growth', 'customer', 'segment', 'addressable'],
+      'market_analysis': ['market', 'tam', 'sam', 'som', 'growth', 'customer', 'segment', 'addressable'],
+      'clinicalEvidence': ['clinical', 'trial', 'fda', 'study', 'patient', 'outcome', 'efficacy', 'safety'],
+      'clinical_assessment': ['clinical', 'trial', 'fda', 'study', 'patient', 'outcome', 'efficacy', 'safety'],
+      'intellectualProperty': ['patent', 'trademark', 'ip', 'license', 'intellectual', 'proprietary'],
+      'ip_analysis': ['patent', 'trademark', 'ip', 'license', 'intellectual', 'proprietary'],
+      'regulatoryPathway': ['fda', 'regulatory', 'approval', 'clearance', 'submission', 'pathway'],
+      'regulatory_analysis': ['fda', 'regulatory', 'approval', 'clearance', 'submission', 'pathway'],
+      'riskAnalysis': ['risk', 'threat', 'concern', 'challenge', 'weakness', 'vulnerability'],
+      'risk_assessment': ['risk', 'threat', 'concern', 'challenge', 'weakness', 'vulnerability'],
+      'competitiveAnalysis': ['competitor', 'competitive', 'market share', 'differentiation', 'advantage'],
+      'competitive_analysis': ['competitor', 'competitive', 'market share', 'differentiation', 'advantage']
+    };
+    return keywordMap[sectionType] || [];
+  }
+  
+  /**
+   * Calculate relevance score for a fact based on section keywords and quality
+   */
+  private calculateFactRelevanceScore(fact: AgentFact, keywords: string[]): number {
+    let score = 0;
+    
+    // Base score from confidence
+    const confidenceScore = { high: 30, medium: 15, low: 5 };
+    score += confidenceScore[fact.confidence] || 0;
+    
+    // Bonus for quantitative data (critical for memo quality)
+    const metricCount = fact.quantitativeData?.length || 0;
+    score += metricCount * 10; // Each metric adds 10 points
+    
+    // Keyword alignment bonus
+    const factLower = fact.fact.toLowerCase();
+    let keywordMatches = 0;
+    for (const keyword of keywords) {
+      if (factLower.includes(keyword)) {
+        keywordMatches++;
+      }
+    }
+    score += keywordMatches * 5; // Each keyword match adds 5 points
+    
+    // Penalize very long facts (likely noise) and very short facts (likely useless)
+    if (fact.fact.length > 10000) score -= 20;
+    if (fact.fact.length < 50) score -= 15;
+    
+    // Penalize summary category (prefer structured Q&A answers)
+    if (fact.category === 'summary') score -= 10;
+    
+    return score;
   }
 
   /**
    * Format facts for prompt injection
+   * 🚀 ENHANCED: Increased default limit and comprehensive logging
    */
-  formatFactsForPrompt(facts: AgentFact[], maxLength: number = 50000): string {
+  formatFactsForPrompt(facts: AgentFact[], maxLength: number = 80000): string {
     if (facts.length === 0) {
+      console.log(`⚠️ formatFactsForPrompt: No facts to format!`);
       return 'No agent analysis facts available.';
     }
+
+    // 🚀 DEBUG: Log input statistics
+    const agentBreakdown: Record<string, number> = {};
+    facts.forEach(f => {
+      agentBreakdown[f.agentType] = (agentBreakdown[f.agentType] || 0) + 1;
+    });
+    console.log(`📊 formatFactsForPrompt: Formatting ${facts.length} facts (max ${maxLength} chars)`);
+    console.log(`   Agent breakdown: ${Object.entries(agentBreakdown).map(([k, v]) => `${k}:${v}`).join(', ')}`);
 
     // Sort by confidence (high first) and length (longer = more detailed)
     const sortedFacts = [...facts].sort((a, b) => {
@@ -658,8 +841,10 @@ export class AgentDataFusionService {
       return b.fact.length - a.fact.length;
     });
 
-    let output = '=== STRUCTURED AGENT ANALYSIS FACTS ===\n\n';
+    let output = '=== STRUCTURED AGENT ANALYSIS FACTS FROM ALL 7 AGENTS ===\n\n';
     let currentLength = output.length;
+    let includedFacts = 0;
+    let truncatedFacts = 0;
 
     for (const fact of sortedFacts) {
       const factBlock = `
@@ -673,10 +858,20 @@ ${fact.fact}
 ---
 `;
       
-      if (currentLength + factBlock.length > maxLength) break;
+      if (currentLength + factBlock.length > maxLength) {
+        truncatedFacts++;
+        continue; // 🚀 CHANGED: Continue counting truncated facts
+      }
       
       output += factBlock;
       currentLength += factBlock.length;
+      includedFacts++;
+    }
+
+    // 🚀 ENHANCED: Log output statistics
+    console.log(`   Output: ${includedFacts} facts included (${currentLength.toLocaleString()} chars), ${truncatedFacts} truncated due to limit`);
+    if (truncatedFacts > 0) {
+      console.log(`   ⚠️ ${truncatedFacts} facts were truncated - consider increasing maxLength for more comprehensive data`);
     }
 
     return output;
