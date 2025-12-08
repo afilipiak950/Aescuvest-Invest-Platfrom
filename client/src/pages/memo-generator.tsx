@@ -12,6 +12,7 @@ import { ProfessionalFormattedContent } from '@/components/ProfessionalFormatted
 import { SectionInfoBadge } from '@/components/memo-generator/SectionInfoBadge';
 import { SectionEditor } from '@/components/memo-generator/SectionEditor';
 import { MemoSectionRerunButton } from '@/components/memoSections/MemoSectionRerunButton';
+import { MemoSectionProgressPanel } from '@/components/memoSections/MemoSectionProgressPanel';
 
 interface ComprehensiveMemo {
   coverPage: string;
@@ -565,6 +566,18 @@ export default function MemoGenerator() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold">Investment Memo</h2>
                 </div>
+
+                {/* Section Regeneration Control Panel - Always visible when a deal is selected */}
+                {selectedDeal && currentMemo && (
+                  <div className="mb-6">
+                    <MemoSectionProgressPanel
+                      dealId={parseInt(selectedDeal)}
+                      onSectionComplete={() => {
+                        queryClient.invalidateQueries({ queryKey: [`/api/deals/${selectedDeal}/memo`] });
+                      }}
+                    />
+                  </div>
+                )}
                 
 {!selectedDeal ? (
                   <div className="text-center py-12">
