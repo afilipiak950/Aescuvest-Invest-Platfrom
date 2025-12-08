@@ -46,6 +46,7 @@ import { persistentCommercialRoutes } from './routes/persistentCommercialRoutes'
 import { persistentResearchRoutes } from './routes/persistentResearchRoutes';
 import persistentFinancialRoutes from './routes/persistentFinancialRoutes';
 import persistentIpRoutes from './routes/persistentIpRoutes';
+import { memoSectionRerunRoutes } from './routes/memoSectionRerunRoutes';
 import { safeGetDocumentContent } from './utils/documentUtils';
 import { safeString, safeTruncate, safeContentExcerpt } from './utils/safeString';
 import { aiDocumentAssignmentService } from './services/aiDocumentAssignment';
@@ -484,6 +485,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log('🔬 Registering persistent research analysis routes...');
   app.use(persistentResearchRoutes);
   console.log('✅ Persistent research analysis routes registered');
+  
+  // Register memo section rerun routes (per-section Force Rerun buttons)
+  console.log('📝 Registering memo section rerun routes...');
+  app.use(memoSectionRerunRoutes);
+  console.log('✅ Memo section rerun routes registered');
   
   // Register persistent analysis routes (includes clear-stuck-jobs and stop-all-jobs endpoints)
   console.log('🔄 Registering persistent analysis routes...');
