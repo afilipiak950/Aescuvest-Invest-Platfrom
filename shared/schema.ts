@@ -1448,6 +1448,37 @@ export const insertMemoSectionRequirementSchema = createInsertSchema(memoSection
 export type MemoSectionRequirement = typeof memoSectionRequirements.$inferSelect;
 export type InsertMemoSectionRequirement = z.infer<typeof insertMemoSectionRequirementSchema>;
 
+// Memo Section Runs table for tracking individual section regeneration jobs
+export const memoSectionRuns = pgTable("memo_section_runs", {
+  id: serial("id").primaryKey(),
+  dealId: integer("deal_id").notNull().references(() => deals.id),
+  sectionName: text("section_name").notNull(), // coverPage, executiveSummary, financialAnalysis, etc.
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed', 'cancelled'
+  progress: integer("progress").notNull().default(0), // 0-100 percentage
+  currentStep: text("current_step"), // Current processing step description
+  content: text("content"), // Generated section content
+  qualityScore: integer("quality_score"), // 0-100 quality score
+  citationCount: integer("citation_count").default(0), // Number of citations included
+  metricCount: integer("metric_count").default(0), // Number of quantitative metrics extracted
+  evidenceCount: integer("evidence_count").default(0), // Number of evidence items used
+  agentsUsed: text("agents_used").array(), // Array of agent types that contributed
+  error: text("error"), // Error message if failed
+  jobId: text("job_id"), // Links to background_jobs for processing
+  triggeredAt: timestamp("triggered_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertMemoSectionRunSchema = createInsertSchema(memoSectionRuns).omit({
+  id: true,
+  triggeredAt: true,
+  updatedAt: true,
+});
+
+export type MemoSectionRun = typeof memoSectionRuns.$inferSelect;
+export type InsertMemoSectionRun = z.infer<typeof insertMemoSectionRunSchema>;
+
 
 
 
