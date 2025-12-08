@@ -242,17 +242,58 @@ export class MemoSectionRerunService {
       await this.updateProgress(dealId, sectionName, 70, 'Validating quality...');
       
       const meetsThreshold = generationResult.qualityScore >= sectionConfig.qualityThreshold;
-      if (!meetsThreshold) {
-        console.log(`⚠️ Quality ${generationResult.qualityScore} below threshold ${sectionConfig.qualityThreshold}`);
-      }
       
       // Step 9: Count evidence metrics from the generated content
-      await this.updateProgress(dealId, sectionName, 80, 'Counting evidence metrics...');
-      
       let evidenceCount = generationResult.quantitativeDataPoints || 0;
       console.log(`📊 Found ${evidenceCount} evidence items in generated content`);
       
-      // Step 10: Update investment memo with new section content
+      // CRITICAL: Only update memo if quality threshold is met
+      if (!meetsThreshold) {
+        console.log(`❌ Quality ${generationResult.qualityScore} BELOW threshold ${sectionConfig.qualityThreshold} - NOT updating memo`);
+        
+        // Mark as failed due to quality
+        await this.updateProgress(dealId, sectionName, 100, `Quality too low: ${generationResult.qualityScore}/${sectionConfig.qualityThreshold}`);
+        
+        await storage.updateBackgroundJob(jobId, {
+          status: 'failed',
+          progress: 100,
+          currentStep: `Quality ${generationResult.qualityScore} below required ${sectionConfig.qualityThreshold}`
+        });
+        
+        const runRecord = await storage.getMemoSectionRun(dealId, sectionName);
+        if (runRecord) {
+          await storage.updateMemoSectionRun(runRecord.id, {
+            status: 'failed',
+            progress: 100,
+            currentStep: `Quality too low: ${generationResult.qualityScore}/${sectionConfig.qualityThreshold}`,
+            qualityScore: generationResult.qualityScore,
+            citationCount: generationResult.citationsUsed.length,
+            metricCount: generationResult.quantitativeDataPoints,
+            error: `Generated content quality (${generationResult.qualityScore}) did not meet required threshold (${sectionConfig.qualityThreshold})`,
+            completedAt: new Date()
+          });
+        }
+        
+        this.activeSectionRuns.delete(jobId);
+        
+        console.log(`\n❌ ========================================`);
+        console.log(`❌ MEMO SECTION RERUN FAILED: ${sectionConfig.displayName}`);
+        console.log(`❌ Quality Score: ${generationResult.qualityScore}/100 (Required: ${sectionConfig.qualityThreshold}+)`);
+        console.log(`❌ Content NOT saved to memo`);
+        console.log(`❌ ========================================\n`);
+        
+        return {
+          success: false,
+          sectionName,
+          error: `Quality score ${generationResult.qualityScore} below required threshold ${sectionConfig.qualityThreshold}`,
+          qualityScore: generationResult.qualityScore,
+          citationCount: generationResult.citationsUsed.length,
+          metricCount: generationResult.quantitativeDataPoints,
+          evidenceCount
+        };
+      }
+      
+      // Step 10: Update investment memo with new section content (only if quality met)
       await this.updateProgress(dealId, sectionName, 90, 'Saving to investment memo...');
       
       await this.updateMemoSection(dealId, sectionName, generationResult.content, {
@@ -292,7 +333,7 @@ export class MemoSectionRerunService {
       
       console.log(`\n✅ ========================================`);
       console.log(`✅ MEMO SECTION RERUN COMPLETE: ${sectionConfig.displayName}`);
-      console.log(`✅ Quality Score: ${generationResult.qualityScore}/100`);
+      console.log(`✅ Quality Score: ${generationResult.qualityScore}/100 (Required: ${sectionConfig.qualityThreshold}+)`);
       console.log(`✅ Citations: ${generationResult.citationsUsed.length}`);
       console.log(`✅ Data Points: ${generationResult.quantitativeDataPoints}`);
       console.log(`✅ Evidence Items: ${evidenceCount}`);
