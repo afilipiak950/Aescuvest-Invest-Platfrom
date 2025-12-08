@@ -574,36 +574,63 @@ export class AgentDataFusionService {
 
   /**
    * Get facts for a specific memo section
+   * Maps both camelCase (new) and snake_case (legacy) section names to relevant agents
    */
   getFactsForSection(factMatrix: AgentFactMatrix, sectionType: string): AgentFact[] {
     const sectionAgentMapping: Record<string, string[]> = {
+      // CamelCase section names (matches InvestmentMemoSections interface)
+      'coverPage': ['legal', 'financial', 'commercial'],
+      'executiveSummary': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
+      'financialAnalysis': ['financial', 'legal'],
+      'teamAssessment': ['hr', 'legal'],
+      'marketAnalysis': ['commercial', 'research'],
+      'riskAnalysis': ['legal', 'clinical', 'commercial', 'financial', 'ip', 'research', 'hr'],
+      'regulatoryPathway': ['clinical', 'legal'],
+      'clinicalEvidence': ['clinical', 'research'],
+      'intellectualProperty': ['ip', 'legal', 'research'],
+      'investmentTerms': ['legal', 'financial'],
+      'competitiveAnalysis': ['commercial', 'research', 'ip'],
+      'technologyAssessment': ['research', 'ip', 'clinical'],
+      // Legacy snake_case mappings for backwards compatibility
       'executive_summary': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
-      'cover_page': ['legal', 'financial', 'hr'],
+      'cover_page': ['legal', 'financial', 'commercial'],
       'swot_analysis': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'],
       'market_analysis': ['commercial', 'research'],
-      'competitive_analysis': ['commercial', 'research'],
+      'competitive_analysis': ['commercial', 'research', 'ip'],
       'technology_assessment': ['research', 'ip', 'clinical'],
       'product_analysis': ['clinical', 'commercial', 'research'],
       'business_model': ['commercial', 'financial'],
       'commercial_strategy': ['commercial'],
-      'team_assessment': ['hr'],
+      'team_assessment': ['hr', 'legal'],
       'management_analysis': ['hr', 'legal'],
-      'financial_analysis': ['financial'],
+      'financial_analysis': ['financial', 'legal'],
       'financial_projections': ['financial'],
       'valuation_analysis': ['financial'],
       'legal_assessment': ['legal', 'ip'],
       'regulatory_analysis': ['legal', 'clinical'],
-      'clinical_assessment': ['clinical'],
+      'clinical_assessment': ['clinical', 'research'],
       'ip_analysis': ['ip', 'legal', 'research'],
       'research_insights': ['research'],
-      'risk_assessment': ['legal', 'clinical', 'commercial', 'financial', 'ip', 'research'],
+      'risk_assessment': ['legal', 'clinical', 'commercial', 'financial', 'ip', 'research', 'hr'],
       'mitigation_strategies': ['legal', 'clinical', 'commercial', 'financial'],
       'investment_terms': ['legal', 'financial'],
       'exit_strategy': ['financial', 'commercial'],
       'recommendation': ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research']
     };
     
-    const relevantAgents = sectionAgentMapping[sectionType] || [];
+    // Try exact match first, then try converting camelCase to snake_case
+    let relevantAgents = sectionAgentMapping[sectionType];
+    if (!relevantAgents) {
+      const snakeCase = sectionType.replace(/([A-Z])/g, '_$1').toLowerCase();
+      relevantAgents = sectionAgentMapping[snakeCase] || [];
+    }
+    
+    // If still no match, use ALL agents to ensure maximum data coverage
+    if (relevantAgents.length === 0) {
+      console.log(`⚠️ No agent mapping for section "${sectionType}", using ALL agents`);
+      relevantAgents = ['legal', 'clinical', 'commercial', 'hr', 'financial', 'ip', 'research'];
+    }
+    
     const facts: AgentFact[] = [];
     
     for (const agentType of relevantAgents) {

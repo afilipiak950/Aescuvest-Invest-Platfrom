@@ -50,7 +50,7 @@ const DEFAULT_AGENTS: Record<string, string[]> = {
  * CRITICAL: financialAnalysis requires 90+ (stricter than default 85)
  */
 const DEFAULT_THRESHOLDS: Record<string, number> = {
-  coverPage: 80,
+  coverPage: 85,
   executiveSummary: 85,
   financialAnalysis: 90, // Stricter threshold for financial sections
   teamAssessment: 85,
