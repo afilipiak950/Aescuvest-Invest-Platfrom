@@ -38,6 +38,14 @@ The backend is built with Node.js and Express.js, using TypeScript. PostgreSQL w
 - **Size Optimization**: Enhanced `.dockerignore`, automated cleanup, Node modules optimization, and a production build pipeline ensure deployment size under 2GB.
 
 ### Recent Major Updates (Dec 08, 2025)
+- **Refined Agent Data Fusion Pipeline**: Complete overhaul of evidence selection for memo generation to prevent prompt saturation while maximizing high-quality data utilization:
+  - **PRIMARY + SECONDARY Agent Strategy**: Each memo section now maps to primary agents (all facts included) and secondary agents (only high-confidence facts with quantitative data)
+  - **Section-Specific Relevance Scoring**: Facts ranked by confidence (30/15/5 pts), quantitative metric count (+10 per metric), keyword alignment (+5 per match), with penalties for very long/short content
+  - **Content Deduplication**: 200-character signature-based deduplication keeps strongest representative of overlapping facts
+  - **Evidence Budget Enforcement**: 40 facts max per section applied AFTER ranking, ensuring highest-value content fills the prompt
+  - **Strict Summary Inclusion**: Summaries only included if ≥3 quantitative metrics AND high confidence, limited to 3K chars
+  - **Balanced Context Limits**: 70K facts, 100K OCR, 40K research, 25K AI eval - prevents Claude prompt overflow
+
 - **Ultra-Specific Memo Section Prompts**: Enhanced all 12 memo sections with bulletproof, checklist-based prompts in `claudeOpusMemoSynthesis.ts`. Each section now includes:
   - **Mandatory Data Extraction Checklists**: Explicit fields that MUST be included (e.g., CEO name, funding amount, TAM)
   - **Required Tables**: Pre-defined table structures for financial data, competitive comparison, risk matrices
