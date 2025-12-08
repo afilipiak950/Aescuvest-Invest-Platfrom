@@ -979,3 +979,6 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
     }
   }
 }
+
+// Export singleton instance for use in routes
+export const comprehensiveResearchAnalysisService = new ComprehensiveResearchAnalysisService();

@@ -136,9 +136,14 @@ export function AgentQueueCard({
     );
   }
 
+  const handleButtonClick = () => {
+    console.log(`🔴🔴🔴 FORCE RERUN BUTTON CLICKED for ${config.displayName} - calling onForceRerunAll`);
+    onForceRerunAll();
+  };
+  
   return (
     <Button
-      onClick={onForceRerunAll}
+      onClick={handleButtonClick}
       disabled={isLoading}
       className={className}
       data-testid={`button-force-rerun-${config.testId}`}

@@ -101,6 +101,8 @@ export function useAgentQueue({
   }, [dealId, config, onQueueComplete, onQuestionComplete]);
 
   const handleForceRerunAll = useCallback(async () => {
+    console.log(`🔴🔴🔴 handleForceRerunAll CALLED for ${config.displayName} dealId=${dealId}`);
+    console.log(`🔴 Current state: isLoading=${isLoading}, isQueueActive=${isQueueActive}, queueStatus=`, queueStatus);
     setIsLoading(true);
     try {
       console.log(`🔥 FORCE RERUN: Starting ALL ${config.displayName} questions for deal ${dealId}`);
