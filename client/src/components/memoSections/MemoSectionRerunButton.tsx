@@ -26,6 +26,10 @@ interface MemoSectionRerunButtonProps {
   className?: string;
 }
 
+/**
+ * Default agent mappings - mirrors MEMO_SECTION_CONFIGS from server
+ * These are used as fallbacks; ideally fetch from /api/memo/sections
+ */
 const DEFAULT_AGENTS: Record<string, string[]> = {
   coverPage: ['financial', 'commercial', 'legal'],
   executiveSummary: ['financial', 'commercial', 'clinical', 'legal'],
@@ -41,10 +45,14 @@ const DEFAULT_AGENTS: Record<string, string[]> = {
   technologyAssessment: ['research', 'ip', 'clinical'],
 };
 
+/**
+ * Default quality thresholds - mirrors MEMO_SECTION_CONFIGS from server
+ * CRITICAL: financialAnalysis requires 90+ (stricter than default 85)
+ */
 const DEFAULT_THRESHOLDS: Record<string, number> = {
   coverPage: 80,
   executiveSummary: 85,
-  financialAnalysis: 90,
+  financialAnalysis: 90, // Stricter threshold for financial sections
   teamAssessment: 85,
   marketAnalysis: 85,
   riskAnalysis: 85,
