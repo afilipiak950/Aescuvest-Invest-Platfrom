@@ -82,6 +82,61 @@ function normalizeMemoData(rawMemo: any): ComprehensiveMemo | null {
   };
 }
 
+// Generating placeholder component for sections in progress
+function SectionGeneratingPlaceholder({ 
+  title, 
+  description,
+  colorClass = "bg-slate-500"
+}: { 
+  title: string; 
+  description: string;
+  colorClass?: string;
+}) {
+  return (
+    <Card className="border-slate-700 bg-slate-900/50 opacity-80">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-8 ${colorClass} rounded-full animate-pulse`}></div>
+            <div>
+              <CardTitle className="text-xl text-white flex items-center gap-2">
+                {title}
+                <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+              </CardTitle>
+              <p className="text-slate-400 text-sm">{description}</p>
+            </div>
+          </div>
+          <span className="text-xs text-blue-400 bg-blue-500/20 px-2 py-1 rounded">Generating...</span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <div className="h-4 bg-slate-700/50 rounded animate-pulse w-full"></div>
+          <div className="h-4 bg-slate-700/50 rounded animate-pulse w-3/4"></div>
+          <div className="h-4 bg-slate-700/50 rounded animate-pulse w-5/6"></div>
+          <div className="h-4 bg-slate-700/50 rounded animate-pulse w-2/3"></div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Section metadata for generating placeholders
+const SECTION_METADATA: Record<string, { title: string; description: string; colorClass: string }> = {
+  coverPage: { title: "Cover Page", description: "Investment memo title and company details", colorClass: "bg-slate-500" },
+  executiveSummary: { title: "Executive Summary", description: "Investment opportunity overview", colorClass: "bg-blue-500" },
+  marketAnalysis: { title: "Market Analysis", description: "Market size and competitive landscape", colorClass: "bg-purple-500" },
+  technologyAssessment: { title: "Technology Assessment", description: "Product and technological differentiation", colorClass: "bg-cyan-500" },
+  clinicalEvidence: { title: "Clinical Evidence", description: "Clinical data and trial outcomes", colorClass: "bg-green-500" },
+  regulatoryPathway: { title: "Regulatory Pathway", description: "FDA/regulatory strategy and timeline", colorClass: "bg-amber-500" },
+  intellectualProperty: { title: "Intellectual Property", description: "Patent portfolio and IP protection", colorClass: "bg-indigo-500" },
+  competitiveAnalysis: { title: "Competitive Analysis", description: "Market position and competitor assessment", colorClass: "bg-pink-500" },
+  teamAssessment: { title: "Team Assessment", description: "Management team capabilities", colorClass: "bg-teal-500" },
+  financialAnalysis: { title: "Financial Analysis", description: "Financial metrics and projections", colorClass: "bg-emerald-500" },
+  investmentTerms: { title: "Investment Terms", description: "Deal structure and valuation", colorClass: "bg-blue-500" },
+  riskAnalysis: { title: "Risk Analysis", description: "Investment risks and mitigation", colorClass: "bg-red-500" },
+};
+
 export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
@@ -234,7 +289,7 @@ export default function MemoGenerator() {
     }
   }, []); // Run only on mount
   
-  // Fetch existing memo if available
+  // Fetch existing memo if available - poll during generation to show sections as they complete
   const { data: existingMemo, isLoading: isLoadingMemo } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo'],
     queryFn: async () => {
@@ -246,7 +301,8 @@ export default function MemoGenerator() {
       return data;
     },
     enabled: !!selectedDeal,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache to ensure fresh data
+    staleTime: isGenerationActive ? 1000 : 1000 * 60 * 5, // Short cache during generation, 5 min otherwise
+    refetchInterval: isGenerationActive ? 4000 : false, // Poll every 4s during generation to show sections as they complete
   });
 
   // Helper function to find LATEST memo generation job
@@ -305,11 +361,18 @@ export default function MemoGenerator() {
     }
   });
 
+  // Check if there's an active job from job progress data (for reload detection)
+  const hasActiveJobFromProgress = useMemo(() => {
+    const memoJob = findMemoJob(jobProgressData?.jobs || []);
+    return memoJob?.status === 'processing';
+  }, [jobProgressData]);
+
   // Fetch section rerun statuses for progress tracking
+  // Enabled when either isGenerationActive is true OR we detect an active job from job progress
   const { data: sectionStatusesData } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'],
-    enabled: !!selectedDeal && isGenerationActive,
-    refetchInterval: isGenerationActive ? 3000 : false, // Poll every 3s during generation
+    enabled: !!selectedDeal && (isGenerationActive || hasActiveJobFromProgress),
+    refetchInterval: (isGenerationActive || hasActiveJobFromProgress) ? 3000 : false, // Poll every 3s during generation
     queryFn: async () => {
       const response = await fetch(`/api/deals/${selectedDeal}/memo/sections/status`);
       return response.json();
@@ -383,6 +446,16 @@ export default function MemoGenerator() {
     };
   }, [jobProgressData, sectionProgress]);
   
+  // Auto-detect active jobs after reload and resume generation mode
+  useEffect(() => {
+    // If we detect an active memo job but isGenerationActive is false, activate it
+    // This handles page refresh while generation is in progress
+    if (memoProgress?.isRunning && !isGenerationActive) {
+      console.log('🔄 Detected active memo generation, resuming progress tracking...');
+      setIsGenerationActive(true);
+    }
+  }, [memoProgress?.isRunning, isGenerationActive]);
+
   // Stop generation mode when all sections complete
   useEffect(() => {
     if (memoProgress?.isAllComplete && isGenerationActive) {
@@ -656,61 +729,37 @@ export default function MemoGenerator() {
                       Generate Investment Memo
                     </Button>
                   </div>
-                ) : showProgressBar ? (
-                  <div className="py-8">
-                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-                      <CardContent className="pt-6">
-                        <div className="space-y-6">
-                          <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0">
-                              <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-xl font-semibold text-white mb-2">
-                                Generating Investment Memo
-                              </h3>
-                              <p className="text-sm text-gray-400 mb-4">
-                                Creating comprehensive analysis for {selectedDealData?.companyName}
-                              </p>
-                              
-                              {/* Progress Bar */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-gray-300 font-medium">
-                                    {memoProgress?.currentStep || 'Initializing memo generation...'}
+                ) : (currentMemo || showProgressBar) ? (
+                  <>
+                    {/* Compact progress bar during generation */}
+                    {showProgressBar && (
+                      <div className="mb-6">
+                        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                          <CardContent className="pt-4 pb-4">
+                            <div className="flex items-center gap-4">
+                              <Loader2 className="h-8 w-8 text-primary animate-spin flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between text-sm mb-2">
+                                  <span className="text-gray-300 font-medium truncate">
+                                    {memoProgress?.currentStep || 'Generating sections...'}
                                   </span>
-                                  <span className="text-primary font-semibold">
+                                  <span className="text-primary font-semibold ml-2">
                                     {memoProgress?.progress || 0}%
                                   </span>
                                 </div>
                                 <Progress 
                                   value={memoProgress?.progress || 0} 
-                                  className="h-3 bg-dark-lighter"
+                                  className="h-2 bg-dark-lighter"
                                   data-testid="memo-generation-progress-bar"
                                 />
                               </div>
-
-                              {/* Status Messages */}
-                              <div className="mt-4 p-3 bg-dark-light/50 rounded-lg border border-dark-lighter">
-                                <div className="flex items-center gap-2 text-xs text-gray-400">
-                                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                                  <span>
-                                    {memoProgress?.progress === 0 && 'Starting analysis...'}
-                                    {memoProgress?.progress > 0 && memoProgress?.progress < 25 && 'Processing documents and analyses...'}
-                                    {memoProgress?.progress >= 25 && memoProgress?.progress < 50 && 'Generating executive summary and highlights...'}
-                                    {memoProgress?.progress >= 50 && memoProgress?.progress < 75 && 'Analyzing market and team assessment...'}
-                                    {memoProgress?.progress >= 75 && memoProgress?.progress < 100 && 'Finalizing recommendations and appendices...'}
-                                    {memoProgress?.progress === 100 && 'Completing memo generation...'}
-                                  </span>
-                                </div>
-                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ) : (
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                    
+                    {/* Sections container - shows completed sections + placeholders */}
                   <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-4 custom-scrollbar">{/* Single scrollable document layout */}
                       {/* Cover Page */}
                       {currentMemo?.coverPage && (
@@ -1252,8 +1301,34 @@ export default function MemoGenerator() {
                           </CardContent>
                         </Card>
                       )}
+
+                      {/* Generating placeholders for pending sections during generation */}
+                      {(isGenerationActive || hasActiveJobFromProgress) && sectionStatusesData?.sections && (
+                        <>
+                          {Object.entries(sectionStatusesData.sections)
+                            .filter(([sectionName, status]: [string, any]) => {
+                              // Show placeholder for sections that are pending/processing and don't have content yet
+                              const hasContent = currentMemo?.[sectionName as keyof ComprehensiveMemo];
+                              const isPendingOrProcessing = status?.status === 'pending' || status?.status === 'processing';
+                              return isPendingOrProcessing && !hasContent;
+                            })
+                            .map(([sectionName, status]: [string, any]) => {
+                              const meta = SECTION_METADATA[sectionName];
+                              if (!meta) return null;
+                              return (
+                                <SectionGeneratingPlaceholder
+                                  key={sectionName}
+                                  title={meta.title}
+                                  description={status?.status === 'processing' ? (status?.currentStep || meta.description) : meta.description}
+                                  colorClass={meta.colorClass}
+                                />
+                              );
+                            })}
+                        </>
+                      )}
                   </div>
-                )}
+                  </>
+                ) : null}
               </CardContent>
             </Card>
           </div>
