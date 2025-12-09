@@ -305,8 +305,71 @@ export default function MemoGenerator() {
     }
   });
 
-  // Create progress state from job data
+  // Fetch section rerun statuses for progress tracking
+  const { data: sectionStatusesData } = useQuery({
+    queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'],
+    enabled: !!selectedDeal && isGenerationActive,
+    refetchInterval: isGenerationActive ? 3000 : false, // Poll every 3s during generation
+    queryFn: async () => {
+      const response = await fetch(`/api/deals/${selectedDeal}/memo/sections/status`);
+      return response.json();
+    }
+  });
+  
+  // Calculate section-based progress
+  const sectionProgress = useMemo(() => {
+    if (!sectionStatusesData?.sections) return null;
+    
+    const sections = sectionStatusesData.sections;
+    const sectionNames = Object.keys(sections);
+    const totalSections = 12; // Total expected sections
+    
+    const completedCount = sectionNames.filter(
+      name => sections[name]?.status === 'completed'
+    ).length;
+    
+    const processingSection = sectionNames.find(
+      name => sections[name]?.status === 'processing'
+    );
+    
+    const progress = Math.round((completedCount / totalSections) * 100);
+    
+    return {
+      completedCount,
+      totalSections,
+      progress,
+      currentSection: processingSection ? sections[processingSection]?.currentStep : null,
+      hasActiveSection: !!processingSection
+    };
+  }, [sectionStatusesData]);
+
+  // Create progress state from job data OR section progress
   const memoProgress = useMemo(() => {
+    // First check section-based progress (for section-by-section generation)
+    if (sectionProgress && sectionProgress.hasActiveSection) {
+      return {
+        isRunning: true,
+        progress: sectionProgress.progress,
+        currentStep: sectionProgress.currentSection || `Generating sections (${sectionProgress.completedCount}/${sectionProgress.totalSections})`,
+        status: 'processing',
+        jobId: null,
+        isAllComplete: false
+      };
+    }
+    
+    // Check if all sections are complete
+    if (sectionProgress && sectionProgress.completedCount >= sectionProgress.totalSections) {
+      return {
+        isRunning: false,
+        progress: 100,
+        currentStep: 'All sections complete',
+        status: 'completed',
+        jobId: null,
+        isAllComplete: true
+      };
+    }
+    
+    // Fall back to job-based progress
     const memoJob = findMemoJob(jobProgressData?.jobs || []);
     if (!memoJob) return null;
     
@@ -315,9 +378,22 @@ export default function MemoGenerator() {
       progress: memoJob.progress || 0,
       currentStep: memoJob.currentStep || memoJob.message || 'Generating investment memo...',
       status: memoJob.status || 'processing',
-      jobId: memoJob.id
+      jobId: memoJob.id,
+      isAllComplete: false
     };
-  }, [jobProgressData]);
+  }, [jobProgressData, sectionProgress]);
+  
+  // Stop generation mode when all sections complete
+  useEffect(() => {
+    if (memoProgress?.isAllComplete && isGenerationActive) {
+      setIsGenerationActive(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      toast({
+        title: "Memo Generated Successfully",
+        description: "All sections have been generated with AI analysis.",
+      });
+    }
+  }, [memoProgress?.isAllComplete, isGenerationActive, selectedDeal, queryClient, toast]);
 
   // Auto-refresh memo when job completes
   useEffect(() => {
@@ -371,73 +447,49 @@ export default function MemoGenerator() {
     }
   }, [memoProgress, selectedDeal, queryClient, toast]);
 
-  // Memo generation mutation
+  // Memo generation mutation - uses section-by-section rerun for quality
   const generateMemoMutation = useMutation({
     mutationFn: async (dealId: string) => {
-      console.log(`🔄 Generating comprehensive investment memo for deal ${dealId}`);
+      console.log(`🔄 Generating comprehensive investment memo for deal ${dealId} (section-by-section)`);
       
-      const response = await apiRequest(`/api/deals/${dealId}/generate-memo`, {
+      // Use the force-rerun-all-sections endpoint for enhanced quality
+      const response = await apiRequest(`/api/deals/${dealId}/memo/force-rerun-all-sections`, {
         method: 'POST',
       });
       
-      console.log('📝 Generate memo response:', { success: response.success, hasMemo: !!response.memo, error: response.error });
+      console.log('📝 Generate memo response:', { success: response.success, totalSections: response.totalSections, error: response.error });
       
       if (!response.success) {
-        throw new Error(response.error || 'Failed to generate memo');
+        throw new Error(response.error || 'Failed to start memo generation');
       }
       
-      return response.memo;
+      return response;
     },
-    onSuccess: (memo: any) => {
-      console.log('✅ Investment memo generation job started', { memo: !!memo, keys: memo ? Object.keys(memo) : [] });
-      const normalizedMemo = normalizeMemoData(memo);
-      setGeneratedMemo(normalizedMemo);
-      // 🔥 FIX: Start generation mode - this keeps progress bar visible
+    onSuccess: (response: any) => {
+      console.log('✅ Section-by-section memo generation started', { totalSections: response.totalSections });
+      
+      // Start generation mode - this enables progress bar and section status polling
       setIsGenerationActive(true);
       
-      // Immediately refetch background jobs to start progress tracking
+      // Immediately refetch section statuses to start progress tracking
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
       queryClient.invalidateQueries({ queryKey: [`/api/background-jobs/${selectedDeal}`] });
       
-      // CRITICAL FIX: Only show success toast if memo data actually exists
-      // Otherwise the job is still running and we should show progress
-      if (memo && Object.keys(memo).length > 0) {
-        // Memo generated synchronously (fast path) - stop generation mode
-        setIsGenerationActive(false);
-        toast({
-          title: "Investment Memo Generated",
-          description: "Comprehensive memo created successfully. The memo content is now available.",
-        });
-        // Force immediate cache invalidation and refetch of the database memo
-        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        setTimeout(() => {
-          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        }, 1000); // Small delay to ensure database persistence
-      } else {
-        // Job started in background - show info toast instead
-        toast({
-          title: "Generating Investment Memo",
-          description: "Memo generation started in background. You'll see live progress updates as sections are generated.",
-        });
-      }
+      // Show info toast - sections will be generated one by one
+      toast({
+        title: "Generating Investment Memo",
+        description: `Generating ${response.totalSections || 12} sections with AI-powered analysis. You'll see live progress as each section completes.`,
+      });
+      
+      // Polling is handled by sectionStatusesData query's refetchInterval when isGenerationActive is true
     },
     onError: (error: any) => {
       console.error('❌ Memo generation failed:', error);
-      // 🔥 FIX: Don't stop generation mode on timeout - job might still be running
-      // Only stop on real errors (not timeout)
-      if (!error?.message?.includes('timeout') && !error?.message?.includes('took too long')) {
-        setIsGenerationActive(false);
-      }
-      
-      // Check if memo was actually generated but API timed out
-      setTimeout(() => {
-        console.log('🔄 Checking for saved memo after timeout...');
-        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-        queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-      }, 2000);
+      setIsGenerationActive(false);
       
       // Handle specific error types
-      let title = "Generation Timeout";
-      let description = "Memo generation may have completed in the background. Check for saved memo in a moment.";
+      let title = "Generation Failed";
+      let description = "Failed to start memo generation. Please try again.";
       
       if (error?.message?.includes('quota') || error?.message?.includes('429')) {
         title = "API Quota Exceeded";
