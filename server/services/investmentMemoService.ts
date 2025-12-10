@@ -117,6 +117,25 @@ class InvestmentMemoService {
     console.log(`🔍 Starting tracked investment memo generation for deal ${dealId} (Job: ${jobId}, Numeric ID: ${numericJobId})`);
     
     try {
+      // CRITICAL: Clear all existing sections BEFORE regeneration
+      // This ensures UI shows generating placeholders and fresh content appears
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (existingMemo) {
+        console.log(`🧹 Clearing all existing memo sections before regeneration...`);
+        // Clear ALL fields that exist in the database schema:
+        // executiveSummary, productMarket, team, financials, swot, memo
+        await storage.updateMemo(existingMemo.id, {
+          executiveSummary: null,
+          productMarket: null,
+          team: null,
+          financials: null,
+          swot: null,
+          memo: null, // Clear the JSON sections (where all detailed sections are stored)
+          status: 'DRAFT'
+        });
+        console.log(`✅ Cleared all memo sections`);
+      }
+      
       // Update progress: Data gathering phase (10%)
       await storage.updateBackgroundJob(jobId, {
         status: 'processing',
@@ -135,9 +154,9 @@ class InvestmentMemoService {
       }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo to show data gathering
-      const existingMemo = await storage.getMemoByDealId(dealId);
-      if (existingMemo) {
-        await storage.updateMemo(existingMemo.id, {
+      const refreshedMemo = await storage.getMemoByDealId(dealId);
+      if (refreshedMemo) {
+        await storage.updateMemo(refreshedMemo.id, {
           executiveSummary: 'Gathering comprehensive data from documents, analyses, and research... (10% complete)',
           status: 'DRAFT'
         });
@@ -162,8 +181,8 @@ class InvestmentMemoService {
       }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo to show section generation
-      if (existingMemo) {
-        await storage.updateMemo(existingMemo.id, {
+      if (refreshedMemo) {
+        await storage.updateMemo(refreshedMemo.id, {
           executiveSummary: `Generating ultra-deep 26 comprehensive sections with AI analysis for ${memoData.companyName}... (30% complete)`,
           status: 'DRAFT'
         });
@@ -210,8 +229,8 @@ class InvestmentMemoService {
       }, dealId);
       
       // PROGRESSIVE UPDATE: Update memo with partial content
-      if (existingMemo) {
-        await storage.updateMemo(existingMemo.id, {
+      if (refreshedMemo) {
+        await storage.updateMemo(refreshedMemo.id, {
           executiveSummary: memo.executiveSummary || 'Investment memo sections generated successfully.',
           memo: memo, // Store full memo sections
           status: 'DRAFT'

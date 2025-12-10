@@ -674,6 +674,15 @@ export default function MemoGenerator() {
       return;
     }
 
+    // CRITICAL: Clear local memo state BEFORE starting generation
+    // This ensures old content disappears immediately and placeholders show
+    setGeneratedMemo(null);
+    console.log('🧹 Cleared local memo state for fresh regeneration');
+    
+    // Invalidate memo cache so stale database data doesn't show 
+    // (the backend also clears sections, but this ensures UI updates immediately)
+    queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+
     generateMemoMutation.mutate(selectedDeal);
   };
   

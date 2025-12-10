@@ -180,6 +180,11 @@ export class MemoSectionRerunService {
         currentStep: `Starting ${sectionConfig.displayName} generation`
       });
       
+      // CRITICAL: Clear existing section content BEFORE regeneration
+      // This ensures UI shows placeholder while generating and new content appears fresh
+      await this.clearMemoSection(dealId, sectionName);
+      console.log(`🧹 Cleared old content for section: ${sectionName}`);
+      
       // Step 1: Get deal info
       await this.updateProgress(dealId, sectionName, 5, 'Loading deal information...');
       const deal = await storage.getDealById(dealId);
@@ -494,6 +499,42 @@ export class MemoSectionRerunService {
   }
 
   /**
+   * Clear a memo section content before regeneration
+   * This ensures the UI shows generating placeholder and fresh content appears
+   */
+  private async clearMemoSection(dealId: number, sectionName: string): Promise<void> {
+    const existingMemo = await storage.getMemoByDealId(dealId);
+    
+    if (existingMemo) {
+      // Parse existing memo JSON field and clear the specific section
+      const memoData = (existingMemo.memo as any) || {};
+      
+      // Clear the specific section in the JSON memo field
+      if (memoData.sections) {
+        memoData.sections[sectionName] = null;
+      }
+      // Also clear top-level section if it exists in the memo JSON
+      if (memoData[sectionName]) {
+        memoData[sectionName] = null;
+      }
+      
+      // Build update data - clear nested section in memo JSON
+      const updateData: any = {
+        memo: memoData
+      };
+      
+      // Only executiveSummary and productMarket have top-level DB columns
+      if (sectionName === 'executiveSummary') {
+        updateData.executiveSummary = null;
+      } else if (sectionName === 'marketAnalysis' || sectionName === 'competitiveAnalysis') {
+        updateData.productMarket = null;
+      }
+      
+      await storage.updateMemo(existingMemo.id, updateData);
+    }
+  }
+
+  /**
    * Cancel a running section rerun
    */
   async cancelSectionRerun(dealId: number, sectionName: string): Promise<boolean> {
@@ -527,6 +568,34 @@ export class MemoSectionRerunService {
    */
   getAvailableSections(): SectionConfig[] {
     return MEMO_SECTION_CONFIGS;
+  }
+
+  /**
+   * Clear ALL memo sections at once before full regeneration
+   * This ensures the UI shows empty state with generating placeholders immediately
+   */
+  async clearAllMemoSections(dealId: number): Promise<void> {
+    const existingMemo = await storage.getMemoByDealId(dealId);
+    
+    if (existingMemo) {
+      console.log(`🧹 Clearing ALL memo sections for deal ${dealId}...`);
+      
+      // Clear ALL fields that exist in the database schema:
+      // executiveSummary, productMarket, team, financials, swot, memo
+      await storage.updateMemo(existingMemo.id, {
+        executiveSummary: null,
+        productMarket: null,
+        team: null,
+        financials: null,
+        swot: null,
+        memo: null, // Clear the JSON sections (where all detailed sections are stored)
+        status: 'DRAFT'
+      });
+      
+      console.log(`✅ All memo sections cleared for deal ${dealId}`);
+    } else {
+      console.log(`ℹ️ No existing memo to clear for deal ${dealId}`);
+    }
   }
 }
 
