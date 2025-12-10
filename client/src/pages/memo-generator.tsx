@@ -66,19 +66,35 @@ function flattenToString(value: any): string {
 function normalizeMemoData(rawMemo: any): ComprehensiveMemo | null {
   if (!rawMemo) return null;
   
+  // CRITICAL FIX: Backend saves sections to memo.sections.coverPage, but also might save to memo.coverPage
+  // Check BOTH locations and prefer the nested sections structure (used by section rerun service)
+  const sections = rawMemo.sections || {};
+  
+  // Helper to get section content from either location, preferring the sections object
+  const getSection = (key: string, altKey?: string): string => {
+    // First try the nested sections object (where section rerun saves content)
+    if (sections[key]) return flattenToString(sections[key]);
+    // Then try the top-level key
+    if (rawMemo[key]) return flattenToString(rawMemo[key]);
+    // Try alternate key if provided
+    if (altKey && sections[altKey]) return flattenToString(sections[altKey]);
+    if (altKey && rawMemo[altKey]) return flattenToString(rawMemo[altKey]);
+    return '';
+  };
+  
   return {
-    coverPage: flattenToString(rawMemo.coverPage),
-    executiveSummary: flattenToString(rawMemo.executiveSummary),
-    financialAnalysis: flattenToString(rawMemo.financialAnalysis),
-    teamAssessment: flattenToString(rawMemo.teamAssessment),
-    marketAnalysis: flattenToString(rawMemo.marketAnalysis),
-    riskAnalysis: flattenToString(rawMemo.riskAnalysis || rawMemo.riskAssessment),
-    regulatoryPathway: flattenToString(rawMemo.regulatoryPathway || rawMemo.regulatoryAnalysis),
-    clinicalEvidence: flattenToString(rawMemo.clinicalEvidence || rawMemo.clinicalAssessment),
-    intellectualProperty: flattenToString(rawMemo.intellectualProperty || rawMemo.ipAnalysis),
-    investmentTerms: flattenToString(rawMemo.investmentTerms),
-    competitiveAnalysis: flattenToString(rawMemo.competitiveAnalysis),
-    technologyAssessment: flattenToString(rawMemo.technologyAssessment),
+    coverPage: getSection('coverPage'),
+    executiveSummary: getSection('executiveSummary'),
+    financialAnalysis: getSection('financialAnalysis'),
+    teamAssessment: getSection('teamAssessment'),
+    marketAnalysis: getSection('marketAnalysis'),
+    riskAnalysis: getSection('riskAnalysis', 'riskAssessment'),
+    regulatoryPathway: getSection('regulatoryPathway', 'regulatoryAnalysis'),
+    clinicalEvidence: getSection('clinicalEvidence', 'clinicalAssessment'),
+    intellectualProperty: getSection('intellectualProperty', 'ipAnalysis'),
+    investmentTerms: getSection('investmentTerms'),
+    competitiveAnalysis: getSection('competitiveAnalysis'),
+    technologyAssessment: getSection('technologyAssessment'),
   };
 }
 
@@ -801,7 +817,15 @@ export default function MemoGenerator() {
     selectedDeal,
     showReadyToGenerate: !currentMemo && !showProgressBar,
     showGenerating: showProgressBar,
-    showMemoContent: !!currentMemo && !showProgressBar
+    showMemoContent: !!currentMemo && !showProgressBar,
+    // CRITICAL: Show actual section content lengths to debug rendering
+    sectionContentLengths: currentMemo ? {
+      coverPage: currentMemo.coverPage?.length || 0,
+      executiveSummary: currentMemo.executiveSummary?.length || 0,
+      financialAnalysis: currentMemo.financialAnalysis?.length || 0,
+      teamAssessment: currentMemo.teamAssessment?.length || 0,
+      marketAnalysis: currentMemo.marketAnalysis?.length || 0,
+    } : null
   });
   
   return (
