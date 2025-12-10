@@ -218,6 +218,11 @@ memoSectionRerunRoutes.post('/api/deals/:dealId/memo/force-rerun-all-sections', 
     
     console.log(`\n🚀 [API] Force rerun ALL sections requested for deal: ${dealId}`);
     
+    // CRITICAL: Clear ALL sections UPFRONT before starting any regeneration
+    // This ensures the UI immediately shows empty state with generating placeholders
+    await memoSectionRerunService.clearAllMemoSections(dealId);
+    console.log(`🧹 All memo sections cleared for deal ${dealId}`);
+    
     // Respond immediately
     res.json({
       success: true,
