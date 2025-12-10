@@ -137,6 +137,51 @@ const SECTION_METADATA: Record<string, { title: string; description: string; col
   riskAnalysis: { title: "Risk Analysis", description: "Investment risks and mitigation", colorClass: "bg-red-500" },
 };
 
+// Error card component for failed sections
+function SectionFailedCard({ 
+  title, 
+  description,
+  colorClass = "bg-red-500",
+  onRetry
+}: { 
+  title: string; 
+  description: string;
+  colorClass?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <Card className="border-red-700 bg-red-900/20">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-8 ${colorClass} rounded-full`}></div>
+            <div>
+              <CardTitle className="text-xl text-white flex items-center gap-2">
+                {title}
+                <span className="text-red-400 text-sm">Failed</span>
+              </CardTitle>
+              <p className="text-slate-400 text-sm">{description}</p>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onRetry}
+            className="border-red-500 text-red-400 hover:bg-red-500/20"
+          >
+            Retry
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-red-400 text-sm">
+          This section failed to generate. Click Retry to try again.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MemoGenerator() {
   const [selectedDeal, setSelectedDeal] = useState<string>('');
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
@@ -301,8 +346,8 @@ export default function MemoGenerator() {
       return data;
     },
     enabled: !!selectedDeal,
-    staleTime: isGenerationActive ? 1000 : 1000 * 60 * 5, // Short cache during generation, 5 min otherwise
-    refetchInterval: isGenerationActive ? 4000 : false, // Poll every 4s during generation to show sections as they complete
+    staleTime: isGenerationActive ? 500 : 1000 * 60 * 5, // Very short cache during generation
+    refetchInterval: isGenerationActive ? 2000 : false, // Poll every 2s during generation for faster section display
   });
 
   // Helper function to find LATEST memo generation job
@@ -455,6 +500,43 @@ export default function MemoGenerator() {
       setIsGenerationActive(true);
     }
   }, [memoProgress?.isRunning, isGenerationActive]);
+
+  // Track previous completed count to detect new completions
+  const prevCompletedCountRef = useRef<number>(0);
+  const prevGenerationActiveRef = useRef<boolean>(false);
+  
+  // Reset completed count ref when new generation starts
+  useEffect(() => {
+    if (isGenerationActive && !prevGenerationActiveRef.current) {
+      console.log('🔄 New generation started, resetting completed count tracker');
+      prevCompletedCountRef.current = 0;
+    }
+    prevGenerationActiveRef.current = isGenerationActive;
+  }, [isGenerationActive]);
+  
+  // Trigger immediate memo refetch when a section completes (faster than polling)
+  useEffect(() => {
+    if (sectionProgress && sectionProgress.completedCount > prevCompletedCountRef.current) {
+      console.log(`✨ Section completed! (${prevCompletedCountRef.current} -> ${sectionProgress.completedCount}), fetching updated memo...`);
+      prevCompletedCountRef.current = sectionProgress.completedCount;
+      // Immediately refetch memo to show the newly completed section
+      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+    }
+  }, [sectionProgress?.completedCount, selectedDeal, queryClient]);
+  
+  // Refetch memo when tab becomes visible again (handles navigation away/back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedDeal) {
+        console.log('👁️ Tab became visible, refreshing memo data...');
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [selectedDeal, queryClient]);
 
   // Stop generation mode when all sections complete
   useEffect(() => {
@@ -1321,6 +1403,47 @@ export default function MemoGenerator() {
                                   title={meta.title}
                                   description={status?.status === 'processing' ? (status?.currentStep || meta.description) : meta.description}
                                   colorClass={meta.colorClass}
+                                />
+                              );
+                            })}
+                        </>
+                      )}
+
+                      {/* Failed section cards with retry button */}
+                      {sectionStatusesData?.sections && (
+                        <>
+                          {Object.entries(sectionStatusesData.sections)
+                            .filter(([sectionName, status]: [string, any]) => {
+                              const hasContent = currentMemo?.[sectionName as keyof ComprehensiveMemo];
+                              return status?.status === 'failed' && !hasContent;
+                            })
+                            .map(([sectionName]: [string, any]) => {
+                              const meta = SECTION_METADATA[sectionName];
+                              if (!meta) return null;
+                              return (
+                                <SectionFailedCard
+                                  key={sectionName}
+                                  title={meta.title}
+                                  description={meta.description}
+                                  colorClass={meta.colorClass}
+                                  onRetry={async () => {
+                                    try {
+                                      await apiRequest(`/api/deals/${selectedDeal}/memo/sections/${sectionName}/rerun`, {
+                                        method: 'POST',
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
+                                      toast({
+                                        title: "Retrying Section",
+                                        description: `Regenerating ${meta.title}...`,
+                                      });
+                                    } catch (error) {
+                                      toast({
+                                        title: "Retry Failed",
+                                        description: "Could not retry section generation.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
                                 />
                               );
                             })}
