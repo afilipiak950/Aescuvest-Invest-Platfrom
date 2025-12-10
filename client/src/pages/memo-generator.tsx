@@ -539,16 +539,16 @@ export default function MemoGenerator() {
   }, [selectedDeal, queryClient]);
 
   // BULLETPROOF INSTANT SECTION VISIBILITY: WebSocket subscription for real-time section completion
-  // Connect when: deal is selected AND (generation is active OR we detect an active job from polling)
-  // This handles page reloads where isGenerationActive hasn't been restored yet but jobs exist
+  // CRITICAL FIX: Connect ALWAYS when a deal is selected, not just during active generation
+  // This ensures we don't miss broadcasts for fast-completing sections (like coverPage)
+  // that finish before the first poll cycle detects the active job
   useEffect(() => {
-    const shouldConnect = selectedDeal && (isGenerationActive || hasActiveJobFromProgress);
-    if (!shouldConnect) return;
+    if (!selectedDeal) return;
     
     const dealId = parseInt(selectedDeal);
     if (isNaN(dealId)) return;
     
-    console.log(`📡 Connecting WebSocket for instant section updates (deal ${dealId}, generationActive=${isGenerationActive}, hasActiveJob=${hasActiveJobFromProgress})...`);
+    console.log(`📡 BULLETPROOF WebSocket: Connecting for deal ${dealId} (always-on subscription)...`);
     
     // Connect to WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -556,8 +556,8 @@ export default function MemoGenerator() {
     const ws = new WebSocket(wsUrl);
     
     ws.onopen = () => {
-      console.log('📡 WebSocket connected for memo section updates');
-      // Subscribe to this deal's updates
+      console.log('📡 WebSocket connected for memo section updates (always-on)');
+      // Subscribe to this deal's updates immediately
       ws.send(JSON.stringify({ type: 'subscribe', dealId }));
     };
     
@@ -567,17 +567,36 @@ export default function MemoGenerator() {
         
         // Listen for section completion events
         if (message.type === 'memo_section_complete' && message.data?.dealId === dealId) {
-          console.log(`🚀 INSTANT UPDATE: Section "${message.data.sectionName}" ${message.data.status}! Fetching updated memo immediately...`);
+          console.log(`🚀 INSTANT UPDATE via WebSocket: Section "${message.data.sectionName}" ${message.data.status}!`);
+          console.log(`🔄 Triggering immediate refetch with EXACT query keys...`);
           
-          // CRITICAL: Immediate refetch for instant visibility
-          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
-          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
+          // CRITICAL FIX: Use EXACT same query key format as the useQuery definitions
+          // selectedDeal is already a string, so use it directly to match the query key
+          const memoQueryKey = ['/api/deals', selectedDeal, 'memo'];
+          const statusQueryKey = ['/api/deals', selectedDeal, 'memo', 'sections', 'status'];
+          
+          console.log(`📋 Invalidating memo query:`, memoQueryKey);
+          console.log(`📋 Invalidating status query:`, statusQueryKey);
+          
+          // Use invalidateQueries to mark as stale AND trigger immediate refetch
+          queryClient.invalidateQueries({ queryKey: memoQueryKey });
+          queryClient.invalidateQueries({ queryKey: statusQueryKey });
+          
+          // Also force a refetch to be absolutely sure
+          queryClient.refetchQueries({ queryKey: memoQueryKey });
+          queryClient.refetchQueries({ queryKey: statusQueryKey });
           
           // Show toast notification
           if (message.data.status === 'completed') {
             toast({
               title: "Section Generated",
               description: `${message.data.sectionName} is now ready to view.`,
+            });
+          } else if (message.data.status === 'failed') {
+            toast({
+              title: "Section Failed",
+              description: `${message.data.sectionName} generation failed.`,
+              variant: "destructive",
             });
           }
         }
@@ -594,13 +613,14 @@ export default function MemoGenerator() {
       console.log('📡 WebSocket disconnected');
     };
     
-    // Cleanup on unmount or deal change
+    // Cleanup on unmount or deal change only
     return () => {
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        console.log('📡 Closing WebSocket (deal changed or unmount)');
         ws.close();
       }
     };
-  }, [selectedDeal, isGenerationActive, hasActiveJobFromProgress, queryClient, toast]);
+  }, [selectedDeal, queryClient, toast]); // Removed isGenerationActive/hasActiveJobFromProgress - always connect when deal selected
 
   // Stop generation mode when all sections complete
   useEffect(() => {

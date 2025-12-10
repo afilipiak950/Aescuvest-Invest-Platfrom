@@ -67,7 +67,14 @@ export class MemoSectionRerunService {
    * This is called immediately when a section finishes generating
    */
   private broadcastSectionCompletion(dealId: number, sectionName: string, status: 'completed' | 'failed', content?: string, qualityScore?: number) {
-    console.log(`📡 Broadcasting section completion: ${sectionName} (${status})`);
+    console.log(`\n📡📡📡 ========================================`);
+    console.log(`📡 BROADCASTING SECTION COMPLETION VIA WEBSOCKET`);
+    console.log(`📡 Deal ID: ${dealId} (type: ${typeof dealId})`);
+    console.log(`📡 Section: ${sectionName}`);
+    console.log(`📡 Status: ${status}`);
+    console.log(`📡 Quality Score: ${qualityScore}`);
+    console.log(`📡 Has Content: ${!!content}`);
+    console.log(`📡📡📡 ========================================\n`);
     
     websocketManager.broadcast('memo_section_complete', {
       dealId,

@@ -48,6 +48,7 @@ class WebSocketManager {
             if (clientData) {
               clientData.dealId = data.dealId;
               this.clients.set(ws, clientData);
+              console.log(`📡 Client subscribed to deal ${data.dealId} (type: ${typeof data.dealId}) - now ${this.clients.size} active subscriptions`);
             }
           }
         } catch (error) {
@@ -136,17 +137,27 @@ class WebSocketManager {
     });
 
     let sentCount = 0;
+    let skippedCount = 0;
+    console.log(`📡 Broadcasting ${type} to clients (target dealId: ${dealId}, type: ${typeof dealId})`);
+    
     this.clients.forEach((clientData, ws) => {
+      console.log(`  - Client dealId: ${clientData.dealId} (type: ${typeof clientData.dealId}), readyState: ${ws.readyState}`);
       if (ws.readyState === WebSocket.OPEN) {
         // Send to all clients or filter by dealId
-        if (!dealId || clientData.dealId === dealId) {
+        // CRITICAL: Ensure type comparison works (both should be numbers)
+        const shouldSend = !dealId || clientData.dealId === dealId;
+        if (shouldSend) {
           ws.send(message);
           sentCount++;
+          console.log(`  ✅ SENT to client (dealId match: ${clientData.dealId} === ${dealId})`);
+        } else {
+          skippedCount++;
+          console.log(`  ⏭️ SKIPPED client (dealId mismatch: ${clientData.dealId} !== ${dealId})`);
         }
       }
     });
 
-    console.log(`📡 Broadcast ${type}: sent to ${sentCount} clients`);
+    console.log(`📡 Broadcast ${type}: sent to ${sentCount} clients, skipped ${skippedCount}`);
   }
 
   broadcastJobProgress(progress: JobProgress, dealId?: number) {
