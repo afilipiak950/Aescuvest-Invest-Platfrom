@@ -74,7 +74,7 @@ export const MEMO_SECTION_CONFIGS: SectionConfig[] = [
     minMetrics: 4,
     minHighConfidenceMetrics: 2,
     requiredMetricTypes: ['count'],
-    qualityThreshold: 85,
+    qualityThreshold: 80, // Lowered from 85 - team data is often sparse
     description: 'Founder backgrounds, team composition, advisors',
     orderIndex: 4,
     isRequired: true
