@@ -346,8 +346,8 @@ export default function MemoGenerator() {
       return data;
     },
     enabled: !!selectedDeal,
-    staleTime: isGenerationActive ? 500 : 1000 * 60 * 5, // Very short cache during generation
-    refetchInterval: isGenerationActive ? 2000 : false, // Poll every 2s during generation for faster section display
+    staleTime: isGenerationActive ? 300 : 1000 * 60 * 5, // Very short cache during generation
+    refetchInterval: isGenerationActive ? 1000 : false, // Poll every 1s during generation for faster section display
   });
 
   // Helper function to find LATEST memo generation job
@@ -417,7 +417,7 @@ export default function MemoGenerator() {
   const { data: sectionStatusesData } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'],
     enabled: !!selectedDeal && (isGenerationActive || hasActiveJobFromProgress),
-    refetchInterval: (isGenerationActive || hasActiveJobFromProgress) ? 1500 : false, // Poll every 1.5s during generation for faster section display
+    refetchInterval: (isGenerationActive || hasActiveJobFromProgress) ? 1000 : false, // Poll every 1s during generation for faster section display
     queryFn: async () => {
       const response = await fetch(`/api/deals/${selectedDeal}/memo/sections/status`);
       return response.json();
@@ -537,6 +537,70 @@ export default function MemoGenerator() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [selectedDeal, queryClient]);
+
+  // BULLETPROOF INSTANT SECTION VISIBILITY: WebSocket subscription for real-time section completion
+  // Connect when: deal is selected AND (generation is active OR we detect an active job from polling)
+  // This handles page reloads where isGenerationActive hasn't been restored yet but jobs exist
+  useEffect(() => {
+    const shouldConnect = selectedDeal && (isGenerationActive || hasActiveJobFromProgress);
+    if (!shouldConnect) return;
+    
+    const dealId = parseInt(selectedDeal);
+    if (isNaN(dealId)) return;
+    
+    console.log(`📡 Connecting WebSocket for instant section updates (deal ${dealId}, generationActive=${isGenerationActive}, hasActiveJob=${hasActiveJobFromProgress})...`);
+    
+    // Connect to WebSocket
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onopen = () => {
+      console.log('📡 WebSocket connected for memo section updates');
+      // Subscribe to this deal's updates
+      ws.send(JSON.stringify({ type: 'subscribe', dealId }));
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        
+        // Listen for section completion events
+        if (message.type === 'memo_section_complete' && message.data?.dealId === dealId) {
+          console.log(`🚀 INSTANT UPDATE: Section "${message.data.sectionName}" ${message.data.status}! Fetching updated memo immediately...`);
+          
+          // CRITICAL: Immediate refetch for instant visibility
+          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+          queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
+          
+          // Show toast notification
+          if (message.data.status === 'completed') {
+            toast({
+              title: "Section Generated",
+              description: `${message.data.sectionName} is now ready to view.`,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('📡 WebSocket disconnected');
+    };
+    
+    // Cleanup on unmount or deal change
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
+  }, [selectedDeal, isGenerationActive, hasActiveJobFromProgress, queryClient, toast]);
 
   // Stop generation mode when all sections complete
   useEffect(() => {

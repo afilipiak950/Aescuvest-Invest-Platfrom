@@ -20,6 +20,7 @@ import { eq, and } from 'drizzle-orm';
 import { agentDataFusionService } from './agentDataFusion';
 import { claudeOpusMemoSynthesis } from './claudeOpusMemoSynthesis';
 import { MEMO_SECTION_CONFIGS, getSectionConfig, SectionConfig } from './memoSectionConfig';
+import { websocketManager } from './websocketManager';
 
 export interface SectionRerunProgress {
   sectionName: string;
@@ -59,6 +60,23 @@ export class MemoSectionRerunService {
    */
   private getJobId(dealId: number, sectionName: string): string {
     return `memo-section-rerun-${sectionName}-${dealId}`;
+  }
+
+  /**
+   * Broadcast section completion via WebSocket for instant UI updates
+   * This is called immediately when a section finishes generating
+   */
+  private broadcastSectionCompletion(dealId: number, sectionName: string, status: 'completed' | 'failed', content?: string, qualityScore?: number) {
+    console.log(`📡 Broadcasting section completion: ${sectionName} (${status})`);
+    
+    websocketManager.broadcast('memo_section_complete', {
+      dealId,
+      sectionName,
+      status,
+      content: content ? content.substring(0, 500) + '...' : undefined, // Preview only for efficiency
+      qualityScore,
+      timestamp: Date.now()
+    }, dealId);
   }
 
   /**
@@ -320,6 +338,9 @@ export class MemoSectionRerunService {
           
           this.activeSectionRuns.delete(jobId);
           
+          // INSTANT VISIBILITY: Broadcast completion via WebSocket
+          this.broadcastSectionCompletion(dealId, sectionName, 'completed', generationResult!.content, generationResult!.qualityScore);
+          
           console.log(`\n⚠️ ========================================`);
           console.log(`⚠️ MEMO SECTION COMPLETE WITH WARNING: ${sectionConfig.displayName}`);
           console.log(`⚠️ Quality Score: ${generationResult!.qualityScore}/100 (Required: ${sectionConfig.qualityThreshold}+)`);
@@ -360,6 +381,9 @@ export class MemoSectionRerunService {
         }
         
         this.activeSectionRuns.delete(jobId);
+        
+        // INSTANT VISIBILITY: Broadcast failure via WebSocket
+        this.broadcastSectionCompletion(dealId, sectionName, 'failed', undefined, generationResult!.qualityScore);
         
         console.log(`\n❌ ========================================`);
         console.log(`❌ MEMO SECTION RERUN FAILED: ${sectionConfig.displayName}`);
@@ -416,6 +440,9 @@ export class MemoSectionRerunService {
       
       this.activeSectionRuns.delete(jobId);
       
+      // INSTANT VISIBILITY: Broadcast completion via WebSocket immediately
+      this.broadcastSectionCompletion(dealId, sectionName, 'completed', generationResult!.content, generationResult!.qualityScore);
+      
       console.log(`\n✅ ========================================`);
       console.log(`✅ MEMO SECTION RERUN COMPLETE: ${sectionConfig.displayName}`);
       console.log(`✅ Quality Score: ${generationResult!.qualityScore}/100 (Required: ${sectionConfig.qualityThreshold}+)`);
@@ -454,6 +481,9 @@ export class MemoSectionRerunService {
       }
       
       this.activeSectionRuns.delete(jobId);
+      
+      // INSTANT VISIBILITY: Broadcast failure via WebSocket
+      this.broadcastSectionCompletion(dealId, sectionName, 'failed');
       
       return {
         success: false,
