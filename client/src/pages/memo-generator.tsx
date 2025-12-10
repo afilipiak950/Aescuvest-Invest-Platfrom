@@ -417,7 +417,7 @@ export default function MemoGenerator() {
   const { data: sectionStatusesData } = useQuery({
     queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'],
     enabled: !!selectedDeal && (isGenerationActive || hasActiveJobFromProgress),
-    refetchInterval: (isGenerationActive || hasActiveJobFromProgress) ? 3000 : false, // Poll every 3s during generation
+    refetchInterval: (isGenerationActive || hasActiveJobFromProgress) ? 1500 : false, // Poll every 1.5s during generation for faster section display
     queryFn: async () => {
       const response = await fetch(`/api/deals/${selectedDeal}/memo/sections/status`);
       return response.json();
@@ -519,8 +519,8 @@ export default function MemoGenerator() {
     if (sectionProgress && sectionProgress.completedCount > prevCompletedCountRef.current) {
       console.log(`✨ Section completed! (${prevCompletedCountRef.current} -> ${sectionProgress.completedCount}), fetching updated memo...`);
       prevCompletedCountRef.current = sectionProgress.completedCount;
-      // Immediately refetch memo to show the newly completed section
-      queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
+      // CRITICAL: Force immediate refetch (not just invalidate) to show newly completed section instantly
+      queryClient.refetchQueries({ queryKey: ['/api/deals', selectedDeal, 'memo'] });
     }
   }, [sectionProgress?.completedCount, selectedDeal, queryClient]);
   
