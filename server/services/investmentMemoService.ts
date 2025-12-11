@@ -306,14 +306,122 @@ class InvestmentMemoService {
   }
 
   /**
+   * Helper function to generate a section with retry logic and fail-forward behavior
+   * @param request - The section generation request
+   * @param sectionName - Name of the section for logging
+   * @param maxRetries - Maximum retry attempts (default: 3)
+   * @returns Section result or fallback content
+   */
+  private async generateSectionWithRetry(
+    request: any,
+    sectionName: string,
+    maxRetries: number = 3
+  ): Promise<SectionGenerationResult> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`📝 Generating ${sectionName} (attempt ${attempt}/${maxRetries})...`);
+        const result = await claudeOpusMemoSynthesis.generateSection(request);
+        
+        if (result && result.content && result.content.length > 100) {
+          console.log(`✅ ${sectionName} generated successfully on attempt ${attempt}`);
+          return result;
+        } else {
+          throw new Error(`Empty or invalid content returned for ${sectionName}`);
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.warn(`⚠️ ${sectionName} attempt ${attempt} failed: ${lastError.message}`);
+        
+        if (attempt < maxRetries) {
+          // Exponential backoff: 2s, 4s, 8s
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`⏳ Retrying ${sectionName} in ${delay/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // All retries failed - return fallback content
+    console.error(`❌ ${sectionName} failed after ${maxRetries} attempts. Using fallback content.`);
+    return {
+      content: `## ${request.sectionTitle}\n\n*This section could not be generated due to a processing error. Please regenerate this section manually.*\n\n**Error:** ${lastError?.message || 'Unknown error'}`,
+      qualityAnalysis: {
+        qualityScore: 0,
+        warnings: [`Section generation failed after ${maxRetries} attempts: ${lastError?.message}`],
+        suggestions: ['Regenerate this section using the individual section regeneration feature'],
+        confidence: 'low'
+      },
+      metadata: {
+        sectionType: request.sectionType,
+        totalTokensUsed: 0,
+        generationTimeMs: 0,
+        passesCompleted: 0,
+        failed: true,
+        error: lastError?.message
+      }
+    };
+  }
+  
+  /**
+   * Save partial memo progress to enable fail-forward behavior
+   * SAFE: Only updates status/progress fields, not memo content structures
+   * This prevents corrupting the final memo with malformed partial data
+   */
+  private async savePartialMemo(
+    dealId: number, 
+    sectionResults: Record<string, SectionGenerationResult>,
+    memoData: any
+  ): Promise<void> {
+    try {
+      const existingMemo = await storage.getMemoByDealId(dealId);
+      if (!existingMemo) {
+        console.log(`⚠️ No existing memo record to update for deal ${dealId}`);
+        return;
+      }
+      
+      // Count completed sections
+      const completedSections = Object.values(sectionResults).filter(r => 
+        r?.content && r.content.length > 100 && !(r.metadata as any)?.failed
+      ).length;
+      const failedSections = Object.values(sectionResults).filter(r => 
+        (r?.metadata as any)?.failed
+      ).length;
+      const totalSections = 7; // Critical sections
+      const progress = Math.round((completedSections / totalSections) * 60) + 30; // 30-90% range
+      
+      // SAFE: Only update status message, not memo content
+      // The actual memo content will be saved once all sections complete
+      const statusMessage = failedSections > 0 
+        ? `Generating memo: ${completedSections}/${totalSections} sections complete, ${failedSections} retrying... (${progress}%)`
+        : `Generating memo: ${completedSections}/${totalSections} critical sections complete (${progress}%)`;
+      
+      await storage.updateMemo(existingMemo.id, {
+        executiveSummary: statusMessage,
+        status: 'DRAFT'
+      });
+      
+      console.log(`💾 Progress update: ${completedSections}/${totalSections} sections (${progress}%), ${failedSections} failed`);
+    } catch (error) {
+      console.warn(`⚠️ Failed to save partial memo progress:`, error);
+    }
+  }
+
+  /**
    * ENHANCED MEMO GENERATION using Agent Data Fusion and Claude Opus
    * This method produces 100x higher quality memos by:
    * 1. Building a structured fact matrix from all 7 agent analyses
    * 2. Using Claude Opus for deep synthesis with agent citations
    * 3. Running quality validation and iterative refinement
+   * 
+   * FAIL-FORWARD ARCHITECTURE: Continues generating remaining sections even if one fails
    */
   async generateEnhancedMemo(dealId: number): Promise<InvestmentMemoSections> {
     console.log(`🚀 Starting ENHANCED investment memo generation for deal ${dealId}`);
+    
+    const failedSections: string[] = [];
+    const sectionResults: Record<string, SectionGenerationResult> = {};
     
     try {
       // 1. Gather all data with COMPLETE OCR extraction
@@ -332,93 +440,58 @@ class InvestmentMemoService {
       const ocrContext = await this.prepareComprehensiveAnalysisContext(memoData);
       
       // 4. Generate critical sections with Claude Opus and agent integration
+      // Using per-section retry logic with fail-forward behavior
       console.log(`🧠 Generating sections with Claude Opus and agent fact integration...`);
       
-      const sectionResults: Record<string, SectionGenerationResult> = {};
+      // Define all critical sections to generate
+      const criticalSections = [
+        { key: 'executive_summary', type: 'executive_summary', title: 'Executive Summary', tokens: 6000, includeEval: true },
+        { key: 'financial_analysis', type: 'financial_analysis', title: 'Financial Analysis', tokens: 5000, includeResearch: true },
+        { key: 'team_assessment', type: 'team_assessment', title: 'Team Assessment', tokens: 4000, includeResearch: true },
+        { key: 'risk_assessment', type: 'risk_assessment', title: 'Risk Assessment', tokens: 4000 },
+        { key: 'market_analysis', type: 'market_analysis', title: 'Market Analysis', tokens: 5000, includeResearch: true },
+        { key: 'legal_assessment', type: 'legal_assessment', title: 'Legal Assessment', tokens: 4000 },
+        { key: 'recommendation', type: 'recommendation', title: 'Investment Recommendation', tokens: 4000, includeEval: true, includeResearch: true }
+      ];
       
-      // Generate Executive Summary with all agent data
-      const execSummaryResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'executive_summary',
-        sectionTitle: 'Executive Summary',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        companyResearch: memoData.companyResearch,
-        aiEvaluation: memoData.aiEvaluation,
-        maxTokens: 6000
-      });
-      sectionResults['executive_summary'] = execSummaryResult;
+      // Generate each section with retry logic - continue even if one fails
+      for (const section of criticalSections) {
+        const request: any = {
+          sectionType: section.type,
+          sectionTitle: section.title,
+          companyName: memoData.companyName,
+          factMatrix,
+          ocrContext,
+          maxTokens: section.tokens
+        };
+        
+        if (section.includeResearch) {
+          request.companyResearch = memoData.companyResearch;
+        }
+        if (section.includeEval) {
+          request.aiEvaluation = memoData.aiEvaluation;
+        }
+        
+        const result = await this.generateSectionWithRetry(request, section.title);
+        sectionResults[section.key] = result;
+        
+        // Track failed sections for logging
+        if ((result.metadata as any)?.failed) {
+          failedSections.push(section.key);
+        }
+        
+        // Save partial progress after each section (fail-forward)
+        try {
+          await this.savePartialMemo(dealId, sectionResults, memoData);
+        } catch (saveError) {
+          console.warn(`⚠️ Could not save partial progress after ${section.title}:`, saveError);
+        }
+      }
       
-      // Generate Financial Analysis
-      const financialResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'financial_analysis',
-        sectionTitle: 'Financial Analysis',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        companyResearch: memoData.companyResearch,
-        maxTokens: 5000
-      });
-      sectionResults['financial_analysis'] = financialResult;
-      
-      // Generate Team Assessment
-      const teamResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'team_assessment',
-        sectionTitle: 'Team Assessment',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        companyResearch: memoData.companyResearch,
-        maxTokens: 4000
-      });
-      sectionResults['team_assessment'] = teamResult;
-      
-      // Generate Risk Assessment
-      const riskResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'risk_assessment',
-        sectionTitle: 'Risk Assessment',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        maxTokens: 4000
-      });
-      sectionResults['risk_assessment'] = riskResult;
-      
-      // Generate Market Analysis
-      const marketResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'market_analysis',
-        sectionTitle: 'Market Analysis',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        companyResearch: memoData.companyResearch,
-        maxTokens: 5000
-      });
-      sectionResults['market_analysis'] = marketResult;
-      
-      // Generate Legal Assessment
-      const legalResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'legal_assessment',
-        sectionTitle: 'Legal Assessment',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        maxTokens: 4000
-      });
-      sectionResults['legal_assessment'] = legalResult;
-      
-      // Generate Investment Recommendation
-      const recResult = await claudeOpusMemoSynthesis.generateSection({
-        sectionType: 'recommendation',
-        sectionTitle: 'Investment Recommendation',
-        companyName: memoData.companyName,
-        factMatrix,
-        ocrContext,
-        companyResearch: memoData.companyResearch,
-        aiEvaluation: memoData.aiEvaluation,
-        maxTokens: 4000
-      });
-      sectionResults['recommendation'] = recResult;
+      // Log failed sections summary
+      if (failedSections.length > 0) {
+        console.warn(`⚠️ ${failedSections.length} sections failed and have fallback content: ${failedSections.join(', ')}`);
+      }
       
       // 5. Validate quality and identify weak sections
       console.log(`📊 Validating memo quality...`);
