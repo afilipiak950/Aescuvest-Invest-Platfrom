@@ -136,11 +136,15 @@ class InvestmentMemoService {
         console.log(`✅ Cleared all memo sections`);
       }
       
-      // Update progress: Data gathering phase (10%)
+      // Update progress: Data gathering phase (10%) with section tracking
       await storage.updateBackgroundJob(jobId, {
         status: 'processing',
         progress: 10,
         currentStep: 'Gathering comprehensive data with full OCR extraction',
+        totalSections: 7, // 7 critical sections with Claude Opus
+        completedSections: 0,
+        currentSectionName: 'Data Gathering',
+        lastHeartbeat: new Date(),
         updatedAt: new Date()
       });
       
@@ -188,19 +192,20 @@ class InvestmentMemoService {
         });
       }
       
-      // 🔥 CRITICAL: Start heartbeat to prevent stuck job cleanup during long AI generation (30-90%)
+      // 🔥 CRITICAL: Start heartbeat to prevent orphan detection during long AI generation (30-90%)
       // The comprehensive memo generation can take 30+ minutes for complex deals with 300+ documents
-      // Without heartbeat, the stuck job cleanup (15 min threshold) would kill the job!
+      // Heartbeat every 30 seconds to stay well under the 3-minute orphan detection threshold
       const heartbeatInterval = setInterval(async () => {
         try {
           await storage.updateBackgroundJob(jobId, {
+            lastHeartbeat: new Date(),
             updatedAt: new Date()
           });
           console.log(`💓 Heartbeat: Updated timestamp for job ${jobId} during AI generation`);
         } catch (err) {
           console.error(`❌ Heartbeat failed for job ${jobId}:`, err);
         }
-      }, 5 * 60 * 1000); // Update every 5 minutes to stay under 15-minute stuck threshold
+      }, 30 * 1000); // Update every 30 seconds to stay under 3-minute orphan threshold
       
       // Hoist memo declaration to outer scope so it's accessible after try/finally
       let memo: InvestmentMemoSections;
@@ -752,7 +757,10 @@ class InvestmentMemoService {
         try {
           await storage.updateBackgroundJob(jobId, {
             progress,
+            completedSections: completedSections,
+            currentSectionName: sectionName,
             currentStep: `Generating section ${completedSections}/${totalSections}: ${sectionName}`,
+            lastHeartbeat: new Date(),
             updatedAt: new Date()
           });
           
