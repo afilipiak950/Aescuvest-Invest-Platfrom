@@ -6,6 +6,41 @@ interface MemoMarkdownRendererProps {
   className?: string;
 }
 
+/**
+ * Preprocess markdown content to fix common table formatting issues
+ * - Ensures tables have proper newlines before/after
+ * - Fixes inline table syntax that doesn't render properly
+ */
+function preprocessMarkdown(content: string): string {
+  let processed = content;
+  
+  // Fix tables that are missing newlines before/after
+  // Match table rows and ensure they're on separate lines
+  processed = processed.replace(/\|\s*\|/g, '|\n|');
+  
+  // Fix inline table headers - detect patterns like "| Header | | |---|---|"
+  // and convert to proper multi-line format
+  const inlineTablePattern = /(\|[^|\n]+\|[^|\n]*)\s*(\|[-:\s|]+\|)/g;
+  processed = processed.replace(inlineTablePattern, '$1\n$2');
+  
+  // Ensure table separator rows are on their own line
+  processed = processed.replace(/([^\n])(\|[-:\s|]+\|)/g, '$1\n$2');
+  processed = processed.replace(/(\|[-:\s|]+\|)([^\n])/g, '$1\n$2');
+  
+  // Ensure each table row starts on a new line
+  processed = processed.replace(/([^\n|])(\|[^|\n]+\|)/g, '$1\n$2');
+  
+  // Add blank line before and after table blocks for proper parsing
+  // Match the start of a table (line starting with |)
+  processed = processed.replace(/([^\n])\n(\|)/g, '$1\n\n$2');
+  processed = processed.replace(/(\|[^\n]*)\n([^|\n])/g, '$1\n\n$2');
+  
+  // Clean up multiple consecutive newlines (max 2)
+  processed = processed.replace(/\n{3,}/g, '\n\n');
+  
+  return processed;
+}
+
 export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRendererProps) {
   if (!content || content.trim() === '') {
     return (
@@ -14,6 +49,9 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
       </div>
     );
   }
+
+  // Preprocess content to fix table formatting issues
+  const processedContent = preprocessMarkdown(content);
 
   return (
     <div className={`memo-markdown-content ${className}`}>
@@ -52,7 +90,7 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
             <em className="italic text-slate-200">{children}</em>
           ),
           ul: ({ children }) => (
-            <ul className="list-disc list-outside ml-6 mb-4 space-y-2 text-slate-300">
+            <ul className="list-none ml-0 mb-4 space-y-3 text-slate-300">
               {children}
             </ul>
           ),
@@ -61,11 +99,36 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
               {children}
             </ol>
           ),
-          li: ({ children }) => (
-            <li className="text-slate-300 leading-relaxed pl-1">
-              {children}
-            </li>
-          ),
+          li: ({ children, ...props }) => {
+            // Check if this is a "highlight" style item (starts with bold text)
+            // These get rendered as styled cards instead of plain bullets
+            const childArray = Array.isArray(children) ? children : [children];
+            const firstChild = childArray[0];
+            const hasStrongStart = firstChild?.type === 'strong' || 
+              (typeof firstChild === 'object' && firstChild?.props?.children);
+            
+            // Render as a styled card for highlight/risk items
+            if (hasStrongStart) {
+              return (
+                <li className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-4 hover:bg-slate-700/40 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                    <div className="flex-1 text-slate-300 leading-relaxed">
+                      {children}
+                    </div>
+                  </div>
+                </li>
+              );
+            }
+            
+            // Default bullet point style
+            return (
+              <li className="flex items-start gap-2 text-slate-300 leading-relaxed">
+                <span className="text-blue-400 mt-1.5">•</span>
+                <span>{children}</span>
+              </li>
+            );
+          },
           table: ({ children }) => (
             <div className="overflow-x-auto my-6 rounded-lg border border-slate-600 shadow-lg">
               <table className="min-w-full divide-y divide-slate-600 bg-slate-800/50">
@@ -133,7 +196,7 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

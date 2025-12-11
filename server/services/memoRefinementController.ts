@@ -74,7 +74,7 @@ export class MemoRefinementController {
   private static instance: MemoRefinementController;
   private readonly DEFAULT_QUALITY_THRESHOLD = 85; // Raised to 85 for stricter quality
   private readonly MAX_REFINEMENT_ATTEMPTS = 3;
-  private readonly FAIL_CLOSED = true; // If true, reject sections without sufficient data
+  private readonly FAIL_CLOSED = false; // NEVER reject sections - always generate content, flag quality issues as warnings
 
   static getInstance(): MemoRefinementController {
     if (!MemoRefinementController.instance) {

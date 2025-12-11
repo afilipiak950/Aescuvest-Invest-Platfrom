@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Brain, TrendingUp, Download } from 'lucide-react';
+import { Loader2, FileText, Brain, TrendingUp, Download, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { ProfessionalFormattedContent } from '@/components/ProfessionalFormattedContent';
@@ -13,6 +13,7 @@ import { SectionInfoBadge } from '@/components/memo-generator/SectionInfoBadge';
 import { SectionEditor } from '@/components/memo-generator/SectionEditor';
 import { MemoSectionRerunButton } from '@/components/memoSections/MemoSectionRerunButton';
 import { MemoSectionProgressPanel } from '@/components/memoSections/MemoSectionProgressPanel';
+import { MemoMarkdownRenderer } from '@/components/MemoMarkdownRenderer';
 
 interface ComprehensiveMemo {
   coverPage: string;
@@ -153,20 +154,22 @@ const SECTION_METADATA: Record<string, { title: string; description: string; col
   riskAnalysis: { title: "Risk Analysis", description: "Investment risks and mitigation", colorClass: "bg-red-500" },
 };
 
-// Error card component for failed sections
-function SectionFailedCard({ 
+// Low confidence warning card component - shows content but with warning badge
+function SectionLowConfidenceCard({ 
   title, 
   description,
-  colorClass = "bg-red-500",
-  onRetry
+  content,
+  colorClass = "bg-amber-500",
+  onRegenerate
 }: { 
   title: string; 
   description: string;
+  content: string;
   colorClass?: string;
-  onRetry: () => void;
+  onRegenerate: () => void;
 }) {
   return (
-    <Card className="border-red-700 bg-red-900/20">
+    <Card className="border-amber-700/50 bg-amber-900/10">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -174,7 +177,10 @@ function SectionFailedCard({
             <div>
               <CardTitle className="text-xl text-white flex items-center gap-2">
                 {title}
-                <span className="text-red-400 text-sm">Failed</span>
+                <span className="text-xs text-amber-400 bg-amber-500/20 px-2 py-1 rounded flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Limited Data
+                </span>
               </CardTitle>
               <p className="text-slate-400 text-sm">{description}</p>
             </div>
@@ -182,17 +188,18 @@ function SectionFailedCard({
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={onRetry}
-            className="border-red-500 text-red-400 hover:bg-red-500/20"
+            onClick={onRegenerate}
+            className="border-amber-500 text-amber-400 hover:bg-amber-500/20"
           >
-            Retry
+            Regenerate
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-red-400 text-sm">
-          This section failed to generate. Click Retry to try again.
+        <div className="text-amber-400 text-xs mb-3">
+          This section was generated with limited available data. Consider uploading more documents for a complete analysis.
         </div>
+        <MemoMarkdownRenderer content={content} />
       </CardContent>
     </Card>
   );
@@ -608,11 +615,11 @@ export default function MemoGenerator() {
               title: "Section Generated",
               description: `${message.data.sectionName} is now ready to view.`,
             });
-          } else if (message.data.status === 'failed') {
+          } else if (message.data.status === 'low_confidence') {
+            // Low confidence means content was saved but below quality threshold
             toast({
-              title: "Section Failed",
-              description: `${message.data.sectionName} generation failed.`,
-              variant: "destructive",
+              title: "Section Generated",
+              description: `${message.data.sectionName} generated with limited data - may need review.`,
             });
           }
         }
@@ -689,15 +696,14 @@ export default function MemoGenerator() {
           console.log('⚠️ Job completed but no memo found in database, skipping success notification');
         }
       }, 1500); // Wait for memo refetch to complete
-    } else if (memoProgress && memoProgress.status === 'failed') {
-      console.log('❌ Memo generation job failed');
-      // 🔥 FIX: Stop generation mode on failure
+    } else if (memoProgress && memoProgress.status === 'low_confidence') {
+      // Low confidence is still a success - content was saved
+      console.log('⚠️ Memo generation completed with low confidence');
       setIsGenerationActive(false);
       
       toast({
-        title: "Memo Generation Failed",
-        description: "There was an error generating the memo. Please try again.",
-        variant: "destructive",
+        title: "Memo Generated",
+        description: "Memo generated with limited data - some sections may need review.",
       });
     }
   }, [memoProgress, selectedDeal, queryClient, toast]);
@@ -1526,37 +1532,40 @@ export default function MemoGenerator() {
                         </>
                       )}
 
-                      {/* Failed section cards with retry button */}
+                      {/* Low confidence section cards with regenerate button - show content with warning */}
                       {sectionStatusesData?.sections && (
                         <>
                           {Object.entries(sectionStatusesData.sections)
                             .filter(([sectionName, status]: [string, any]) => {
+                              // Show low-confidence card if section has content but is marked as low confidence
                               const hasContent = currentMemo?.[sectionName as keyof ComprehensiveMemo];
-                              return status?.status === 'failed' && !hasContent;
+                              return status?.confidence === 'low' && hasContent;
                             })
                             .map(([sectionName]: [string, any]) => {
                               const meta = SECTION_METADATA[sectionName];
+                              const content = currentMemo?.[sectionName as keyof ComprehensiveMemo] || '';
                               if (!meta) return null;
                               return (
-                                <SectionFailedCard
+                                <SectionLowConfidenceCard
                                   key={sectionName}
                                   title={meta.title}
                                   description={meta.description}
+                                  content={flattenToString(content)}
                                   colorClass={meta.colorClass}
-                                  onRetry={async () => {
+                                  onRegenerate={async () => {
                                     try {
                                       await apiRequest(`/api/deals/${selectedDeal}/memo/sections/${sectionName}/rerun`, {
                                         method: 'POST',
                                       });
                                       queryClient.invalidateQueries({ queryKey: ['/api/deals', selectedDeal, 'memo', 'sections', 'status'] });
                                       toast({
-                                        title: "Retrying Section",
-                                        description: `Regenerating ${meta.title}...`,
+                                        title: "Regenerating Section",
+                                        description: `Regenerating ${meta.title} for improved quality...`,
                                       });
                                     } catch (error) {
                                       toast({
-                                        title: "Retry Failed",
-                                        description: "Could not retry section generation.",
+                                        title: "Regeneration Failed",
+                                        description: "Could not regenerate section.",
                                         variant: "destructive",
                                       });
                                     }
