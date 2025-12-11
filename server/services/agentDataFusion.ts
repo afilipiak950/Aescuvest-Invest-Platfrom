@@ -720,8 +720,8 @@ export class AgentDataFusionService {
     // Sort by relevance score (highest first)
     scoredFacts.sort((a, b) => b.score - a.score);
     
-    // 🎯 EVIDENCE BUDGET: Cap at 40 facts per section (reduced for quality)
-    const MAX_FACTS_PER_SECTION = 40;
+    // 🎯 EVIDENCE BUDGET: Increased to 80 facts per section for richer detail
+    const MAX_FACTS_PER_SECTION = 80;
     const budgetedFacts = scoredFacts.slice(0, MAX_FACTS_PER_SECTION).map(sf => sf.fact);
     
     console.log(`📊 getFactsForSection("${sectionType}"): ${budgetedFacts.length}/${facts.length} facts after dedup+ranking (primary: ${config.primary.join(',')}, secondary: ${config.secondary.join(',')})`);
@@ -818,7 +818,7 @@ export class AgentDataFusionService {
    * Format facts for prompt injection
    * 🚀 ENHANCED: Increased default limit and comprehensive logging
    */
-  formatFactsForPrompt(facts: AgentFact[], maxLength: number = 80000): string {
+  formatFactsForPrompt(facts: AgentFact[], maxLength: number = 120000): string {
     if (facts.length === 0) {
       console.log(`⚠️ formatFactsForPrompt: No facts to format!`);
       return 'No agent analysis facts available.';

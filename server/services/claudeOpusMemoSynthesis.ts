@@ -65,8 +65,8 @@ export class ClaudeOpusMemoSynthesis {
       request.sectionType
     );
     
-    // 🎯 Balanced fact context limit for quality + coverage
-    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 70000);
+    // 🎯 EXPANDED fact context for maximum detail - 120k chars
+    const formattedFacts = agentDataFusionService.formatFactsForPrompt(relevantFacts, 120000);
     
     // Get key metrics summary
     const metricsSummary = agentDataFusionService.getKeyMetricsSummary(request.factMatrix);
@@ -79,11 +79,11 @@ export class ClaudeOpusMemoSynthesis {
     const userPrompt = this.buildPremiumUserPrompt(request, formattedFacts, metricsSummary, findingsSummary);
     
     try {
-      // FIRST PASS: Generate with high expectations
+      // FIRST PASS: Generate with high expectations - MAXIMUM DETAIL
       const response = await anthropic.messages.create({
         model: "claude-opus-4-20250514",
-        max_tokens: request.maxTokens || 6000, // Increased from 4000
-        temperature: 0.3, // Slightly higher for richer content
+        max_tokens: request.maxTokens || 10000, // Increased to 10k for maximum detail
+        temperature: 0.4, // Higher for richer, more creative content
         messages: [{
           role: "user",
           content: userPrompt
@@ -95,20 +95,27 @@ export class ClaudeOpusMemoSynthesis {
       let generatedContent = content.type === 'text' ? content.text : '';
       
       // Analyze the generated content quality
-      let qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
+      let qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts, request.sectionType);
       
       // Calculate narrative density for enhancement decisions
       let currentNarrativeDensity = calculateNarrativeDensity(generatedContent);
       
-      console.log(`📊 First pass: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100, Prose: ${currentNarrativeDensity}%`);
+      // Get section-specific quality requirements for adaptive thresholds
+      const sectionReqs = this.getSectionQualityRequirements(request.sectionType);
+      console.log(`📊 First pass: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/${sectionReqs.qualityThreshold} required, Prose: ${currentNarrativeDensity}/${sectionReqs.minProseDensity}% required`);
       
-      // MANDATORY QUALITY ENHANCEMENT: If score < 75 OR narrative density < 50%, automatically enhance
-      const needsEnhancement = qualityAnalysis.qualityScore < 75 || currentNarrativeDensity < 50;
+      // MULTI-PASS QUALITY IMPROVEMENT SYSTEM with SECTION-SPECIFIC THRESHOLDS
+      // Pass 1: Basic enhancement if below section minimums
+      // Pass 2: Critique and rewrite for institutional quality
+      
+      // Use section-specific thresholds instead of hard-coded values
+      const pass1Threshold = Math.max(sectionReqs.qualityThreshold - 15, 70); // 10-15 below target
+      const needsEnhancement = qualityAnalysis.qualityScore < pass1Threshold || currentNarrativeDensity < (sectionReqs.minProseDensity - 10);
       if (needsEnhancement) {
-        const reason = currentNarrativeDensity < 50 
-          ? `prose too low (${currentNarrativeDensity}%)`
-          : `score below 75`;
-        console.log(`🔄 Auto-enhancing ${request.sectionTitle} (${reason})...`);
+        const reason = currentNarrativeDensity < (sectionReqs.minProseDensity - 10)
+          ? `prose too low (${currentNarrativeDensity}% < ${sectionReqs.minProseDensity}%)`
+          : `score below ${pass1Threshold} (section needs ${sectionReqs.qualityThreshold})`;
+        console.log(`🔄 PASS 1: Auto-enhancing ${request.sectionTitle} (${reason})...`);
         
         try {
           const enhancementResult = await this.enhanceSection(
@@ -123,14 +130,52 @@ export class ClaudeOpusMemoSynthesis {
           const enhancedDensity = calculateNarrativeDensity(enhancementResult.content);
           if (enhancedDensity >= currentNarrativeDensity) {
             generatedContent = enhancementResult.content;
-            qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
-            console.log(`✅ Enhanced: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100, Prose: ${enhancedDensity}%`);
+            currentNarrativeDensity = enhancedDensity;
+            qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts, request.sectionType);
+            console.log(`✅ PASS 1 Complete: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100, Prose: ${enhancedDensity}%`);
           } else {
             console.log(`⚠️ Enhancement did not improve prose density (${enhancedDensity}% vs ${currentNarrativeDensity}%), keeping original`);
           }
         } catch (enhanceError) {
           console.error(`⚠️ Enhancement failed for ${request.sectionTitle}, keeping original content:`, enhanceError);
-          // Keep original content but log warning - don't silently fail
+        }
+      }
+      
+      // PASS 2: CRITIQUE AND REWRITE for institutional quality (using section-specific threshold)
+      if (qualityAnalysis.qualityScore < sectionReqs.qualityThreshold) {
+        console.log(`📝 PASS 2: Critique & Rewrite for ${request.sectionTitle} (current: ${qualityAnalysis.qualityScore}/${sectionReqs.qualityThreshold} required)...`);
+        
+        try {
+          // Get critique with specific improvement instructions
+          const critique = await this.critiqueSection(request.sectionType, generatedContent, request.factMatrix);
+          
+          // If critique score is low enough to warrant a rewrite
+          if (critique.score < 80 && critique.improvements.length > 0) {
+            console.log(`🔄 Rewriting ${request.sectionTitle} based on ${critique.improvements.length} improvements...`);
+            
+            const rewrittenContent = await this.rewriteWithCritique(
+              request,
+              generatedContent,
+              critique,
+              formattedFacts
+            );
+            
+            // Analyze the rewritten content
+            const rewriteAnalysis = this.analyzeContentQuality(rewrittenContent, relevantFacts, request.sectionType);
+            
+            // Accept if quality improved
+            if (rewriteAnalysis.qualityScore > qualityAnalysis.qualityScore) {
+              generatedContent = rewrittenContent;
+              qualityAnalysis = rewriteAnalysis;
+              console.log(`✅ PASS 2 Complete: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100`);
+            } else {
+              console.log(`⚠️ Rewrite did not improve quality, keeping previous version`);
+            }
+          } else {
+            console.log(`✅ Critique passed (${critique.score}/100), skipping rewrite`);
+          }
+        } catch (critiqueError) {
+          console.error(`⚠️ Critique/rewrite failed for ${request.sectionTitle}:`, critiqueError);
         }
       }
       
@@ -138,7 +183,7 @@ export class ClaudeOpusMemoSynthesis {
       const cleanedContent = cleanMemoSectionContent(generatedContent);
       
       // Re-analyze after cleanup to get final quality metrics including narrativeDensity
-      const finalAnalysis = this.analyzeContentQuality(cleanedContent, relevantFacts);
+      const finalAnalysis = this.analyzeContentQuality(cleanedContent, relevantFacts, request.sectionType);
       
       console.log(`✅ ${request.sectionTitle} COMPLETE - Quality: ${finalAnalysis.qualityScore}/100, Citations: ${finalAnalysis.citationsUsed.length}, Data Points: ${finalAnalysis.quantitativeDataPoints}, Prose: ${finalAnalysis.narrativeDensity}%`);
       
@@ -223,6 +268,144 @@ Generate the ENHANCED version now with narrative-first structure. It must score 
     return {
       content: cleanMemoSectionContent(enhancedText)
     };
+  }
+
+  /**
+   * MULTI-PASS CRITIQUE SYSTEM
+   * Critiques generated content and provides specific improvement instructions
+   */
+  private async critiqueSection(
+    sectionType: string,
+    content: string,
+    factMatrix: any
+  ): Promise<{ score: number; issues: string[]; improvements: string[] }> {
+    
+    const critiquePrompt = `You are a senior investment committee reviewer at a top-tier VC firm.
+Critique this memo section for institutional quality. Be BRUTALLY HONEST.
+
+SECTION TYPE: ${sectionType}
+
+CONTENT TO REVIEW:
+${content.substring(0, 8000)}
+
+=== EVALUATION RUBRIC ===
+
+1. **SPECIFICITY (0-25 pts)**
+   - Are specific people named with backgrounds?
+   - Are specific companies named as customers/partners/competitors?
+   - Are specific dollar amounts, percentages, dates included?
+   - Deduct 5 pts for each "the company" that should name the actual company
+
+2. **DATA DENSITY (0-25 pts)**
+   - Count quantitative data points ($ amounts, %, numbers, dates)
+   - 20+ data points = 25 pts
+   - 15-19 = 20 pts
+   - 10-14 = 15 pts
+   - 5-9 = 10 pts
+   - <5 = 5 pts
+
+3. **NARRATIVE FLOW (0-25 pts)**
+   - Does it read like prose, not bullet lists?
+   - Are paragraphs connected with logical transitions?
+   - Does it tell a compelling story?
+   - Deduct 10 pts if >40% is bullets/tables
+
+4. **CITATION QUALITY (0-25 pts)**
+   - Are claims backed by [Agent - Category] citations?
+   - 10+ citations = 25 pts
+   - 7-9 = 20 pts
+   - 4-6 = 15 pts
+   - <4 = 5 pts
+
+RESPOND IN THIS EXACT FORMAT:
+SCORE: [0-100]
+ISSUES:
+- [issue 1]
+- [issue 2]
+...
+IMPROVEMENTS:
+- [specific improvement instruction 1]
+- [specific improvement instruction 2]
+...`;
+
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-opus-4-20250514",
+        max_tokens: 2000,
+        temperature: 0.2,
+        messages: [{ role: "user", content: critiquePrompt }]
+      });
+
+      const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+      
+      // Parse the response
+      const scoreMatch = responseText.match(/SCORE:\s*(\d+)/);
+      const score = scoreMatch ? parseInt(scoreMatch[1]) : 50;
+      
+      const issuesMatch = responseText.match(/ISSUES:\s*([\s\S]*?)(?=IMPROVEMENTS:|$)/);
+      const issues = issuesMatch 
+        ? issuesMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
+        : [];
+      
+      const improvementsMatch = responseText.match(/IMPROVEMENTS:\s*([\s\S]*?)$/);
+      const improvements = improvementsMatch
+        ? improvementsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
+        : [];
+
+      console.log(`📝 Critique for ${sectionType}: Score ${score}/100, ${issues.length} issues, ${improvements.length} improvements`);
+      
+      return { score, issues, improvements };
+    } catch (error) {
+      console.error('Critique failed:', error);
+      return { score: 70, issues: ['Critique failed'], improvements: [] };
+    }
+  }
+
+  /**
+   * REWRITE based on critique feedback
+   */
+  private async rewriteWithCritique(
+    request: SectionGenerationRequest,
+    originalContent: string,
+    critique: { score: number; issues: string[]; improvements: string[] },
+    formattedFacts: string
+  ): Promise<string> {
+    
+    const rewritePrompt = `You are rewriting an investment memo section based on critical feedback.
+
+ORIGINAL CONTENT (Score: ${critique.score}/100):
+${originalContent.substring(0, 4000)}
+
+=== CRITICAL ISSUES IDENTIFIED ===
+${critique.issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n')}
+
+=== REQUIRED IMPROVEMENTS ===
+${critique.improvements.map((i, idx) => `${idx + 1}. ${i}`).join('\n')}
+
+=== SOURCE DATA FOR IMPROVEMENTS ===
+${formattedFacts.substring(0, 50000)}
+
+=== REWRITE INSTRUCTIONS ===
+1. Fix EVERY issue listed above
+2. Implement EVERY improvement suggestion
+3. Add MORE specific data points from the source data
+4. Name MORE specific people, companies, products
+5. Add MORE quantitative metrics with proper citations
+6. Ensure narrative flow with smooth paragraph transitions
+7. Target 85+ quality score
+
+Generate the IMPROVED version now:`;
+
+    const response = await anthropic.messages.create({
+      model: "claude-opus-4-20250514",
+      max_tokens: 10000,
+      temperature: 0.35,
+      messages: [{ role: "user", content: rewritePrompt }],
+      system: `You are a senior investment analyst. Rewrite sections to fix all identified issues while maintaining narrative flow. Every claim needs specific data and citations.`
+    });
+
+    const content = response.content[0];
+    return content.type === 'text' ? cleanMemoSectionContent(content.text) : originalContent;
   }
 
   /**
@@ -938,10 +1121,79 @@ Generate the complete ${request.sectionTitle} section now:`;
   }
 
   /**
-   * Analyze the quality of generated content
-   * Now includes NARRATIVE DENSITY check to enforce prose-first writing
+   * Get section-specific quality requirements
+   * Each section type has different minimum thresholds for institutional quality
    */
-  private analyzeContentQuality(content: string, facts: AgentFact[]): Omit<SectionGenerationResult, 'content'> {
+  private getSectionQualityRequirements(sectionType: string): {
+    minCitations: number;
+    minDataPoints: number;
+    minNamedEntities: number;
+    minContentLength: number;
+    minProseDensity: number;
+    qualityThreshold: number;
+  } {
+    const requirements: Record<string, any> = {
+      'financialAnalysis': { 
+        minCitations: 12, minDataPoints: 25, minNamedEntities: 5, 
+        minContentLength: 4000, minProseDensity: 50, qualityThreshold: 90
+      },
+      'executiveSummary': { 
+        minCitations: 15, minDataPoints: 20, minNamedEntities: 8, 
+        minContentLength: 3500, minProseDensity: 60, qualityThreshold: 85
+      },
+      'teamAssessment': { 
+        minCitations: 8, minDataPoints: 10, minNamedEntities: 8, 
+        minContentLength: 2500, minProseDensity: 70, qualityThreshold: 80
+      },
+      'marketAnalysis': { 
+        minCitations: 10, minDataPoints: 18, minNamedEntities: 6, 
+        minContentLength: 3000, minProseDensity: 60, qualityThreshold: 85
+      },
+      'riskAnalysis': { 
+        minCitations: 8, minDataPoints: 12, minNamedEntities: 4, 
+        minContentLength: 2500, minProseDensity: 60, qualityThreshold: 85
+      },
+      'clinicalEvidence': { 
+        minCitations: 8, minDataPoints: 15, minNamedEntities: 3, 
+        minContentLength: 2500, minProseDensity: 60, qualityThreshold: 85
+      },
+      'regulatoryPathway': { 
+        minCitations: 8, minDataPoints: 12, minNamedEntities: 3, 
+        minContentLength: 2000, minProseDensity: 60, qualityThreshold: 85
+      },
+      'intellectualProperty': { 
+        minCitations: 8, minDataPoints: 10, minNamedEntities: 4, 
+        minContentLength: 2000, minProseDensity: 60, qualityThreshold: 85
+      },
+      'competitiveAnalysis': { 
+        minCitations: 10, minDataPoints: 12, minNamedEntities: 8, 
+        minContentLength: 2500, minProseDensity: 60, qualityThreshold: 85
+      },
+      'technologyAssessment': { 
+        minCitations: 8, minDataPoints: 12, minNamedEntities: 4, 
+        minContentLength: 2500, minProseDensity: 60, qualityThreshold: 85
+      },
+      'investmentTerms': { 
+        minCitations: 6, minDataPoints: 10, minNamedEntities: 3, 
+        minContentLength: 2000, minProseDensity: 50, qualityThreshold: 85
+      },
+      'coverPage': { 
+        minCitations: 2, minDataPoints: 8, minNamedEntities: 2, 
+        minContentLength: 500, minProseDensity: 40, qualityThreshold: 75
+      }
+    };
+    
+    return requirements[sectionType] || {
+      minCitations: 8, minDataPoints: 15, minNamedEntities: 5,
+      minContentLength: 2500, minProseDensity: 55, qualityThreshold: 85
+    };
+  }
+
+  /**
+   * Analyze the quality of generated content
+   * Now includes NARRATIVE DENSITY check and SECTION-SPECIFIC thresholds
+   */
+  private analyzeContentQuality(content: string, facts: AgentFact[], sectionType?: string): Omit<SectionGenerationResult, 'content'> {
     const warnings: string[] = [];
     
     // Count citations used
@@ -988,28 +1240,39 @@ Generate the complete ${request.sectionTitle} section now:`;
     // NEW: Calculate narrative density (prose vs bullets/tables)
     const narrativeDensity = calculateNarrativeDensity(content);
     
-    // Calculate quality score
-    let qualityScore = 50; // Base score
+    // Get section-specific requirements for score calibration
+    const reqs = sectionType ? this.getSectionQualityRequirements(sectionType) : null;
     
-    // Citations boost (up to +20)
-    qualityScore += Math.min(citationsUsed.length * 4, 20);
+    // Calculate quality score with ENHANCED CEILING for data-rich sections
+    let qualityScore = 40; // Lowered base score to allow more headroom
     
-    // Quantitative data boost (up to +20)
-    qualityScore += Math.min(quantitativeDataPoints * 2, 20);
+    // Citations boost (up to +25 - increased ceiling)
+    const citationTarget = reqs?.minCitations || 8;
+    const citationRatio = Math.min(citationsUsed.length / citationTarget, 2); // Allow 2x boost
+    qualityScore += Math.round(citationRatio * 12.5); // Up to +25 for meeting 2x target
     
-    // Specific names boost (up to +10)
-    qualityScore += Math.min(namesFound.length * 2, 10);
+    // Quantitative data boost (up to +25 - increased ceiling)
+    const dataTarget = reqs?.minDataPoints || 15;
+    const dataRatio = Math.min(quantitativeDataPoints / dataTarget, 2); // Allow 2x boost
+    qualityScore += Math.round(dataRatio * 12.5); // Up to +25 for meeting 2x target
     
-    // Content length factor
-    if (content.length > 2000) qualityScore += 5;
-    if (content.length > 4000) qualityScore += 5;
+    // Specific names boost (up to +15 - increased ceiling)
+    const entityTarget = reqs?.minNamedEntities || 5;
+    const entityRatio = Math.min(namesFound.length / entityTarget, 2);
+    qualityScore += Math.round(entityRatio * 7.5); // Up to +15 for meeting 2x target
     
-    // NEW: Narrative density factor - boost for prose-heavy content
-    // Target is 60% prose, give bonus for meeting/exceeding
-    if (narrativeDensity >= 60) {
+    // Content length factor - more granular
+    const lengthTarget = reqs?.minContentLength || 2500;
+    if (content.length >= lengthTarget * 1.5) qualityScore += 10;
+    else if (content.length >= lengthTarget) qualityScore += 5;
+    else if (content.length >= lengthTarget * 0.7) qualityScore += 2;
+    
+    // Narrative density factor with section-specific thresholds
+    const proseTarget = reqs?.minProseDensity || 55;
+    if (narrativeDensity >= proseTarget) {
       qualityScore += 5; // Meets narrative-first requirement
-    } else if (narrativeDensity >= 40) {
-      qualityScore += 0; // Neutral
+    } else if (narrativeDensity >= proseTarget - 15) {
+      qualityScore += 0; // Neutral - close but not there
     } else {
       qualityScore -= 10; // Penalty for bullet/table heavy content
     }
@@ -1017,38 +1280,48 @@ Generate the complete ${request.sectionTitle} section now:`;
     // Placeholder penalty
     qualityScore -= placeholderCount * 5;
     
-    // Ensure score is within bounds
+    // Ensure score is within bounds (now with realistic 100 ceiling for excellent content)
     qualityScore = Math.max(0, Math.min(100, qualityScore));
     
-    // Add warnings (stricter thresholds for premium quality)
-    if (citationsUsed.length < 5) {
-      warnings.push('Low citation count - need 5+ citations for institutional quality');
+    // Use existing reqs for warnings (already defined above), or use default
+    const reqsForWarnings = reqs || {
+      minCitations: 8, minDataPoints: 15, minNamedEntities: 5,
+      minContentLength: 2500, minProseDensity: 55, qualityThreshold: 85
+    };
+    
+    // Add warnings based on section-specific thresholds
+    if (citationsUsed.length < reqsForWarnings.minCitations) {
+      warnings.push(`Low citation count (${citationsUsed.length}/${reqsForWarnings.minCitations} required) - need more citations for institutional quality`);
     }
-    if (quantitativeDataPoints < 8) {
-      warnings.push('Low quantitative data - need 8+ specific metrics');
+    if (quantitativeDataPoints < reqsForWarnings.minDataPoints) {
+      warnings.push(`Low quantitative data (${quantitativeDataPoints}/${reqsForWarnings.minDataPoints} required) - need more specific metrics`);
     }
     if (placeholderCount > 1) {
       warnings.push('Contains placeholder text - all data should be specific');
     }
-    if (content.length < 1500) {
-      warnings.push('Section is shorter than expected for comprehensive analysis');
+    if (content.length < reqsForWarnings.minContentLength) {
+      warnings.push(`Section too short (${content.length}/${reqsForWarnings.minContentLength} chars) - needs more comprehensive analysis`);
     }
-    if (namesFound.length < 3) {
-      warnings.push('Low specific entity count - need more named people/companies');
-    }
-    
-    // NEW: Narrative density warning - critical for quality gate
-    if (narrativeDensity < 40) {
-      warnings.push(`CRITICAL: Too many bullets/tables (${narrativeDensity}% prose) - need 60%+ narrative paragraphs`);
-    } else if (narrativeDensity < 60) {
-      warnings.push(`Low prose density (${narrativeDensity}%) - aim for 60%+ narrative paragraphs`);
+    if (namesFound.length < reqsForWarnings.minNamedEntities) {
+      warnings.push(`Low entity count (${namesFound.length}/${reqsForWarnings.minNamedEntities} required) - need more named people/companies`);
     }
     
-    // Determine confidence
+    // Narrative density warning based on section-specific threshold
+    if (narrativeDensity < reqsForWarnings.minProseDensity - 20) {
+      warnings.push(`CRITICAL: Too many bullets/tables (${narrativeDensity}% prose) - need ${reqsForWarnings.minProseDensity}%+ narrative paragraphs`);
+    } else if (narrativeDensity < reqsForWarnings.minProseDensity) {
+      warnings.push(`Low prose density (${narrativeDensity}%) - aim for ${reqsForWarnings.minProseDensity}%+ narrative paragraphs`);
+    }
+    
+    // Determine confidence based on meeting section-specific thresholds
     let confidence: 'high' | 'medium' | 'low';
-    if (qualityScore >= 80 && narrativeDensity >= 50) {
+    const meetsAllReqs = citationsUsed.length >= reqsForWarnings.minCitations && 
+                         quantitativeDataPoints >= reqsForWarnings.minDataPoints &&
+                         narrativeDensity >= reqsForWarnings.minProseDensity - 10;
+    
+    if (qualityScore >= reqsForWarnings.qualityThreshold && meetsAllReqs) {
       confidence = 'high';
-    } else if (qualityScore >= 60 && narrativeDensity >= 40) {
+    } else if (qualityScore >= reqsForWarnings.qualityThreshold - 15) {
       confidence = 'medium';
     } else {
       confidence = 'low';
