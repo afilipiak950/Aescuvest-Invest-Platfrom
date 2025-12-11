@@ -149,6 +149,7 @@ export interface IStorage {
   deleteBackgroundJobsByDealId(dealId: number): Promise<number>;
   updateStuckBackgroundJobs(dealId: number): Promise<number>;
   clearStuckJobs(dealId: number): Promise<void>;
+  findOrphanedMemoJobs(cutoffTime: Date): Promise<any[]>;
   
   // Data room connection methods
   getDataRoomConnectionByDealId(dealId: number): Promise<any | undefined>;
@@ -2462,6 +2463,28 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`❌ Error failing background job ${jobId}:`, error);
       throw error;
+    }
+  }
+
+  async findOrphanedMemoJobs(cutoffTime: Date): Promise<BackgroundJob[]> {
+    try {
+      const jobs = await db.select().from(backgroundJobs)
+        .where(and(
+          eq(backgroundJobs.jobType, 'investment_memo_generation'),
+          eq(backgroundJobs.status, 'processing'),
+          or(
+            sql`${backgroundJobs.lastHeartbeat} IS NULL`,
+            sql`${backgroundJobs.lastHeartbeat} < ${cutoffTime}`,
+            sql`${backgroundJobs.updatedAt} < ${cutoffTime}`
+          )
+        ))
+        .orderBy(backgroundJobs.createdAt);
+      
+      console.log(`🔍 Found ${jobs.length} orphaned memo generation jobs older than ${cutoffTime.toISOString()}`);
+      return jobs;
+    } catch (error) {
+      console.error('❌ Error finding orphaned memo jobs:', error);
+      return [];
     }
   }
 
