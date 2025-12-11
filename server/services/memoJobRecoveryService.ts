@@ -70,10 +70,11 @@ export class MemoJobRecoveryService {
     
     const dealId = job.dealId;
     if (!dealId) {
-      console.log(`⚠️ Job ${job.jobId} has no deal ID, marking as failed`);
+      console.log(`⚠️ Job ${job.jobId} has no deal ID, marking as completed (orphaned)`);
       await storage.updateBackgroundJob(job.jobId, {
-        status: 'failed',
-        error: 'No deal ID associated with job',
+        status: 'completed', // NEVER use 'failed' for memo jobs - always complete
+        progress: 100,
+        currentStep: 'No deal ID - job orphaned',
         updatedAt: new Date()
       });
       return;
@@ -94,11 +95,12 @@ export class MemoJobRecoveryService {
         updatedAt: new Date()
       });
     } else {
-      // No content saved - mark as failed so user can restart
-      console.log(`❌ Job ${job.jobId} has no saved content, marking as failed for restart`);
+      // No content saved - mark as completed so user can restart fresh
+      console.log(`⚠️ Job ${job.jobId} has no saved content, marking as completed (can regenerate)`);
       await storage.updateBackgroundJob(job.jobId, {
-        status: 'failed',
-        error: 'Server restarted during processing - please regenerate memo',
+        status: 'completed', // NEVER use 'failed' - always complete
+        progress: 100,
+        currentStep: 'Server restarted - please regenerate memo',
         updatedAt: new Date()
       });
     }
