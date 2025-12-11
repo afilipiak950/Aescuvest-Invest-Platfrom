@@ -708,6 +708,11 @@ export const backgroundJobs = pgTable("background_jobs", {
   result: json("result"), // Store processing results
   error: text("error"), // Error message if failed
   runId: text("run_id"), // Run ID for binding progress to specific comprehensive analysis runs
+  // MEMO GENERATION: Per-section tracking for resumable jobs
+  completedSections: integer("completed_sections").default(0), // Number of sections completed
+  totalSections: integer("total_sections").default(0), // Total sections to generate
+  currentSectionName: text("current_section_name"), // Name of section currently being generated
+  lastHeartbeat: timestamp("last_heartbeat"), // Last activity timestamp for orphan detection
   createdAt: timestamp("created_at").defaultNow().notNull(),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
