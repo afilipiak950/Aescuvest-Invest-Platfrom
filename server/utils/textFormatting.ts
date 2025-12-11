@@ -180,6 +180,8 @@ export function cleanMemoSectionContent(content: string): string {
  * Uses word counts per paragraph rather than line length for accuracy,
  * since markdown can wrap paragraphs across multiple short lines.
  * 
+ * ENHANCED: Better detection of tables and structured content
+ * 
  * @param content - Memo section content
  * @returns Narrative density score (higher = more prose)
  */
@@ -188,36 +190,52 @@ export function calculateNarrativeDensity(content: string): number {
     return 0;
   }
 
-  // Split by double newlines to get paragraphs/blocks
-  const blocks = content.split(/\n\n+/).filter(block => block.trim().length > 0);
-  if (blocks.length === 0) return 0;
+  // Split by newlines for line-by-line analysis
+  const lines = content.split('\n').filter(line => line.trim().length > 0);
+  if (lines.length === 0) return 0;
 
   let proseWordCount = 0;
-  let structuredWordCount = 0; // tables, bullets, headers
+  let structuredWordCount = 0;
+  let tableLineCount = 0;
+  let bulletLineCount = 0;
 
-  for (const block of blocks) {
-    const trimmed = block.trim();
+  for (const line of lines) {
+    const trimmed = line.trim();
     const words = trimmed.split(/\s+/).length;
     
-    // Check if this is a structured element (table, bullets, header)
-    const lines = trimmed.split('\n');
-    const isTable = lines.some(line => line.trim().startsWith('|') && line.trim().endsWith('|'));
-    const isBulletList = lines.every(line => {
-      const t = line.trim();
-      return t.startsWith('•') || t.startsWith('-') || t.startsWith('*') || /^\d+\./.test(t) || t === '';
-    });
-    const isHeader = lines.every(line => {
-      const t = line.trim();
-      return t.startsWith('#') || t === '';
-    });
+    // ENHANCED: Detect table rows (starts/ends with | or is separator like |---|---|)
+    const isTableRow = (trimmed.startsWith('|') || trimmed.endsWith('|')) ||
+                       /^\|[\s\-:]+\|/.test(trimmed);
     
-    if (isTable || isBulletList || isHeader) {
+    // ENHANCED: Detect bullet/list items (including bold bullet headers)
+    const isBulletLine = /^[\-•*]\s/.test(trimmed) || 
+                         /^\d+\.\s/.test(trimmed) ||
+                         /^[\-•*]\s*\*\*/.test(trimmed);
+    
+    // Detect headers
+    const isHeader = /^#{1,6}\s/.test(trimmed);
+    
+    // Detect short fragments (labels, short headers, etc.)
+    const isShortFragment = words < 8 && !trimmed.includes('.') && !trimmed.includes(',');
+    
+    if (isTableRow) {
       structuredWordCount += words;
-    } else if (words >= 15) {
-      // Count as prose if block has at least 15 words (roughly 2 sentences)
+      tableLineCount++;
+    } else if (isBulletLine) {
+      structuredWordCount += words;
+      bulletLineCount++;
+    } else if (isHeader) {
+      structuredWordCount += words;
+    } else if (isShortFragment) {
+      // Short fragments without punctuation are likely labels/headers
+      structuredWordCount += words;
+    } else if (words >= 10) {
+      // Longer sentences are prose (10+ words = roughly 1 full sentence)
+      proseWordCount += words;
+    } else if (trimmed.includes('.') || trimmed.includes(',')) {
+      // Shorter lines with punctuation are likely prose continuation
       proseWordCount += words;
     } else {
-      // Short fragments - could be either, count as structured
       structuredWordCount += words;
     }
   }
@@ -225,10 +243,47 @@ export function calculateNarrativeDensity(content: string): number {
   const totalWords = proseWordCount + structuredWordCount;
   if (totalWords === 0) return 0;
 
-  // Calculate prose percentage based on word count
-  const prosePercentage = (proseWordCount / totalWords) * 100;
+  // Calculate prose percentage
+  let prosePercentage = (proseWordCount / totalWords) * 100;
+  
+  // PENALTY: If >30% of content lines are tables, apply table-heavy penalty
+  const totalLines = lines.length;
+  const tableRatio = tableLineCount / totalLines;
+  if (tableRatio > 0.3) {
+    prosePercentage = Math.max(0, prosePercentage - 15);
+  }
+  
+  // PENALTY: If >50% of content lines are bullets, apply bullet-heavy penalty
+  const bulletRatio = bulletLineCount / totalLines;
+  if (bulletRatio > 0.5) {
+    prosePercentage = Math.max(0, prosePercentage - 10);
+  }
   
   return Math.round(prosePercentage);
+}
+
+/**
+ * Calculate table content percentage for quality scoring
+ * Returns what % of the content is table rows
+ */
+export function calculateTablePercentage(content: string): number {
+  if (!content || typeof content !== 'string') {
+    return 0;
+  }
+
+  const lines = content.split('\n').filter(line => line.trim().length > 0);
+  if (lines.length === 0) return 0;
+
+  let tableLines = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if ((trimmed.startsWith('|') || trimmed.endsWith('|')) ||
+        /^\|[\s\-:]+\|/.test(trimmed)) {
+      tableLines++;
+    }
+  }
+
+  return Math.round((tableLines / lines.length) * 100);
 }
 
 export default {
@@ -236,5 +291,6 @@ export default {
   formatAgentAnswer,
   formatKeyFindings,
   cleanMemoSectionContent,
-  calculateNarrativeDensity
+  calculateNarrativeDensity,
+  calculateTablePercentage
 };

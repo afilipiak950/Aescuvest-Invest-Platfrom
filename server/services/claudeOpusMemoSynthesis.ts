@@ -7,7 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentFactMatrix, AgentFact, agentDataFusionService } from './agentDataFusion';
-import { cleanMemoSectionContent, calculateNarrativeDensity } from '../utils/textFormatting';
+import { cleanMemoSectionContent, calculateNarrativeDensity, calculateTablePercentage } from '../utils/textFormatting';
 
 const anthropic = new Anthropic();
 
@@ -691,20 +691,23 @@ REQUIRED TABLES:
       'teamAssessment': `
 SECTION: TEAM ASSESSMENT (2-3 pages) - NARRATIVE-FIRST
 
+=== CRITICAL: PROSE-FIRST REQUIREMENT ===
+You MUST write 3+ narrative paragraphs BEFORE any table or bullet list. Tables are ONLY allowed as an appendix at the very end. Failing to lead with narrative prose will cause this section to be rejected.
+
 === WRITING APPROACH ===
 Write this as a NARRATIVE PROFILE of the leadership team. Tell the story of who is running this company and why they're the right team. Lead with prose that brings executives to life, not tables.
 
 === REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-**1. Team Overview (2 paragraphs)**
+**1. Team Overview (2 paragraphs) - MANDATORY NARRATIVE**
 Open with a narrative that introduces the leadership team and explains why they're well-suited for this opportunity. Highlight key executives by name with their most relevant credentials woven into prose.
 
 Example: "BAIBYS is led by a complementary founding team with deep expertise in both fertility medicine and AI technology. Co-CEO Dr. Yaron Silberman brings 15 years of MedTech experience, including roles at [Company X] and an MBA from [University], providing the commercial acumen needed to navigate FDA pathways and scale the business [HR Agent - Leadership]. Co-CEO Gal Golov contributes operational expertise, having previously [background] [HR Agent - Leadership]."
 
-**2. Executive Profiles (2-3 paragraphs)**
-Detailed narrative profiles of key executives. Write about each leader in flowing prose - their background, why they joined, what they contribute. DO NOT use a table.
+**2. Executive Profiles (2-3 paragraphs) - MANDATORY NARRATIVE**
+Detailed narrative profiles of key executives. Write about each leader in flowing prose - their background, why they joined, what they contribute. DO NOT use a table here.
 
-**3. Technical Team (1-2 paragraphs)**
+**3. Technical Team (1-2 paragraphs) - MANDATORY NARRATIVE**
 Describe the engineering/scientific team composition, key technical leaders, and relevant expertise in narrative form.
 
 **4. Advisory Board & Governance (1-2 paragraphs)**
@@ -716,8 +719,19 @@ Brief description of headcount, departments, and growth plans.
 **6. Team Assessment Summary (5-7 bullets)**
 END with bullet points on team strengths, gaps, and overall assessment.
 
-FORBIDDEN: Starting with a table. Leadership profile tables. More than 1 optional table.
-REQUIRED: 70%+ narrative prose, 10+ citations, 8+ named individuals with backgrounds.`,
+**7. Optional: Team Summary Table (ONLY at the very end)**
+If you include a table, it MUST come AFTER all narrative sections as an appendix.
+
+=== WRONG OUTPUT (WILL BE REJECTED) ===
+| Name | Title | Background |
+|------|-------|------------|
+| John Smith | CEO | 10 years experience |
+
+=== CORRECT OUTPUT ===
+The company is led by a highly qualified founding team with complementary expertise spanning technology and business development. CEO John Smith brings over 10 years of experience in the industry, having previously served as VP of Engineering at TechCorp where he led a team of 50 engineers and oversaw the launch of three successful products [HR Agent - Leadership].
+
+FORBIDDEN: Starting with a table. Tables before paragraph 6. More than 1 optional table.
+REQUIRED: 70%+ narrative prose, 10+ citations, 8+ named individuals with backgrounds, 3+ narrative paragraphs before any structured content.`,
 
       'team_assessment': `
 SECTION: TEAM ASSESSMENT (2-3 pages)
@@ -1240,6 +1254,9 @@ Generate the complete ${request.sectionTitle} section now:`;
     // NEW: Calculate narrative density (prose vs bullets/tables)
     const narrativeDensity = calculateNarrativeDensity(content);
     
+    // NEW: Calculate table percentage for table-heavy penalty
+    const tablePercentage = calculateTablePercentage(content);
+    
     // Get section-specific requirements for score calibration
     const reqs = sectionType ? this.getSectionQualityRequirements(sectionType) : null;
     
@@ -1277,6 +1294,14 @@ Generate the complete ${request.sectionTitle} section now:`;
       qualityScore -= 10; // Penalty for bullet/table heavy content
     }
     
+    // TABLE-HEAVY PENALTY: Reduce score if >30% of content is tables
+    // This prevents table-only output from passing quality checks
+    if (tablePercentage > 50) {
+      qualityScore -= 20; // Heavy penalty for mostly-table content
+    } else if (tablePercentage > 30) {
+      qualityScore -= 10; // Moderate penalty for table-heavy content
+    }
+    
     // Placeholder penalty
     qualityScore -= placeholderCount * 5;
     
@@ -1311,6 +1336,13 @@ Generate the complete ${request.sectionTitle} section now:`;
       warnings.push(`CRITICAL: Too many bullets/tables (${narrativeDensity}% prose) - need ${reqsForWarnings.minProseDensity}%+ narrative paragraphs`);
     } else if (narrativeDensity < reqsForWarnings.minProseDensity) {
       warnings.push(`Low prose density (${narrativeDensity}%) - aim for ${reqsForWarnings.minProseDensity}%+ narrative paragraphs`);
+    }
+    
+    // Table-heavy warning
+    if (tablePercentage > 50) {
+      warnings.push(`CRITICAL: Table-heavy output (${tablePercentage}% tables) - need more narrative prose before tables`);
+    } else if (tablePercentage > 30) {
+      warnings.push(`High table content (${tablePercentage}%) - add more narrative context around tables`);
     }
     
     // Determine confidence based on meeting section-specific thresholds

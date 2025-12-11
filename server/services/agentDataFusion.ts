@@ -166,7 +166,7 @@ export class AgentDataFusionService {
 
   /**
    * Extract structured facts from a single agent's analysis
-   * 🎯 TARGETED: Focus on Q&A answers (primary) + validated summary (secondary)
+   * 🎯 ENHANCED: Extract ALL available content including summaries, findings, recommendations
    */
   private extractFactsFromAgentAnalysis(analysis: any, agentType: string): AgentFact[] {
     const facts: AgentFact[] = [];
@@ -190,24 +190,79 @@ export class AgentDataFusionService {
       }
     }
     
-    // 2. SECONDARY: Extract summary ONLY if it contains ≥3 quantitative metrics (HIGH BAR)
-    // This ensures we only add summaries that provide concrete quantitative value
+    // 2. SECONDARY: Include ALL summaries with substantial content (lowered bar from 3 to 1 metric)
+    // This ensures we capture qualitative insights even without quantitative metrics
     if (analysis.summary && typeof analysis.summary === 'string' && analysis.summary.length > 100) {
       const summaryMetrics = this.extractQuantitativeMetrics(analysis.summary);
-      // STRICT: Only include summary if it has ≥3 quantitative metrics (high-value content)
-      if (summaryMetrics.length >= 3) {
+      // RELAXED: Include summary if it has any metric OR is substantial (500+ chars)
+      if (summaryMetrics.length >= 1 || analysis.summary.length > 500) {
         facts.push({
           id: `${agentType}_summary`,
           agentType: agentType as AgentFact['agentType'],
           category: 'summary',
           questionId: 'analysis_summary',
-          fact: analysis.summary.substring(0, 3000), // Strict limit for summaries
-          confidence: 'high', // Only high-value summaries qualify
+          fact: analysis.summary.substring(0, 5000), // Increased limit for more detail
+          confidence: summaryMetrics.length >= 3 ? 'high' : 'medium',
           sourceDocuments: this.extractSourceDocuments(analysis.summary),
-          quantitativeData: summaryMetrics,
+          quantitativeData: summaryMetrics.length > 0 ? summaryMetrics : undefined,
           citation: `[${agentType.toUpperCase()} Agent - Summary]`
         });
       }
+    }
+    
+    // 3. NEW: Extract findings as individual facts
+    if (analysis.findings && Array.isArray(analysis.findings)) {
+      analysis.findings.forEach((finding: any, index: number) => {
+        const findingText = typeof finding === 'string' ? finding : (finding.content || finding.description || JSON.stringify(finding));
+        if (findingText && findingText.length > 30) {
+          facts.push({
+            id: `${agentType}_finding_${index}`,
+            agentType: agentType as AgentFact['agentType'],
+            category: 'findings',
+            questionId: `finding_${index}`,
+            fact: findingText.substring(0, 2000),
+            confidence: 'high',
+            sourceDocuments: [],
+            quantitativeData: this.extractQuantitativeMetrics(findingText),
+            citation: `[${agentType.toUpperCase()} Agent - Finding]`
+          });
+        }
+      });
+    }
+    
+    // 4. NEW: Extract recommendations as individual facts
+    if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
+      analysis.recommendations.forEach((rec: any, index: number) => {
+        const recText = typeof rec === 'string' ? rec : (rec.content || rec.description || rec.recommendation || JSON.stringify(rec));
+        if (recText && recText.length > 30) {
+          facts.push({
+            id: `${agentType}_recommendation_${index}`,
+            agentType: agentType as AgentFact['agentType'],
+            category: 'recommendations',
+            questionId: `recommendation_${index}`,
+            fact: recText.substring(0, 2000),
+            confidence: 'high',
+            sourceDocuments: [],
+            quantitativeData: this.extractQuantitativeMetrics(recText),
+            citation: `[${agentType.toUpperCase()} Agent - Recommendation]`
+          });
+        }
+      });
+    }
+    
+    // 5. NEW: Extract score and status information
+    if (analysis.score !== undefined && analysis.score !== null) {
+      facts.push({
+        id: `${agentType}_score`,
+        agentType: agentType as AgentFact['agentType'],
+        category: 'assessment',
+        questionId: 'overall_score',
+        fact: `Overall ${agentType} assessment score: ${analysis.score}/100`,
+        confidence: 'high',
+        sourceDocuments: [],
+        quantitativeData: [{ type: 'percentage', value: `${analysis.score}%`, context: 'assessment score' }],
+        citation: `[${agentType.toUpperCase()} Agent - Assessment]`
+      });
     }
 
     console.log(`📊 extractFactsFromAgentAnalysis(${agentType}): Extracted ${facts.length} facts`);
@@ -720,8 +775,8 @@ export class AgentDataFusionService {
     // Sort by relevance score (highest first)
     scoredFacts.sort((a, b) => b.score - a.score);
     
-    // 🎯 EVIDENCE BUDGET: Increased to 80 facts per section for richer detail
-    const MAX_FACTS_PER_SECTION = 80;
+    // 🎯 EVIDENCE BUDGET: Increased to 120 facts per section for maximum detail
+    const MAX_FACTS_PER_SECTION = 120;
     const budgetedFacts = scoredFacts.slice(0, MAX_FACTS_PER_SECTION).map(sf => sf.fact);
     
     console.log(`📊 getFactsForSection("${sectionType}"): ${budgetedFacts.length}/${facts.length} facts after dedup+ranking (primary: ${config.primary.join(',')}, secondary: ${config.secondary.join(',')})`);
