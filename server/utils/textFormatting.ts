@@ -115,8 +115,126 @@ export function formatKeyFindings(findings: string[]): string[] {
     .filter(finding => finding.length > 0);
 }
 
+/**
+ * Clean up memo section content for professional display
+ * Handles HTML tags, spacing issues, and formatting consistency
+ * 
+ * @param content - Raw memo section content
+ * @returns Cleaned and formatted content ready for rendering
+ */
+export function cleanMemoSectionContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+
+  let result = content;
+
+  // Remove raw HTML tags that shouldn't be in markdown
+  result = result.replace(/<br\s*\/?>/gi, '\n');
+  result = result.replace(/<\/?(p|div|span)[^>]*>/gi, '\n');
+  result = result.replace(/<strong>([^<]+)<\/strong>/gi, '**$1**');
+  result = result.replace(/<em>([^<]+)<\/em>/gi, '*$1*');
+  result = result.replace(/<b>([^<]+)<\/b>/gi, '**$1**');
+  result = result.replace(/<i>([^<]+)<\/i>/gi, '*$1*');
+  
+  // Clean up stray HTML entities
+  result = result.replace(/&nbsp;/gi, ' ');
+  result = result.replace(/&amp;/gi, '&');
+  result = result.replace(/&lt;/gi, '<');
+  result = result.replace(/&gt;/gi, '>');
+  result = result.replace(/&quot;/gi, '"');
+
+  // Fix table formatting issues
+  // Ensure table rows are on separate lines
+  result = result.replace(/\|\s*\n?\s*\|/g, '|\n|');
+  
+  // Ensure proper spacing around tables
+  result = result.replace(/([^\n])\n?\|(\s*[A-Za-z])/g, '$1\n\n|$2');
+  result = result.replace(/\|\n([^\|])/g, '|\n\n$1');
+
+  // Normalize bullet lists
+  result = normalizeBulletLists(result);
+
+  // Ensure proper heading formatting
+  // Add blank line before headers
+  result = result.replace(/([^\n])\n(#{1,4}\s)/g, '$1\n\n$2');
+  // Add blank line after headers
+  result = result.replace(/(#{1,4}\s[^\n]+)\n([^\n#])/g, '$1\n\n$2');
+
+  // Fix citation formatting (ensure they stay inline with text)
+  result = result.replace(/\]\s*\n+\s*\[/g, '] [');
+
+  // Clean up excessive blank lines
+  result = result.replace(/\n{4,}/g, '\n\n\n');
+
+  // Trim whitespace
+  result = result.trim();
+
+  return result;
+}
+
+/**
+ * Validate that memo content is not mostly tables/bullets
+ * Returns a narrative density score (0-100)
+ * 
+ * Uses word counts per paragraph rather than line length for accuracy,
+ * since markdown can wrap paragraphs across multiple short lines.
+ * 
+ * @param content - Memo section content
+ * @returns Narrative density score (higher = more prose)
+ */
+export function calculateNarrativeDensity(content: string): number {
+  if (!content || typeof content !== 'string') {
+    return 0;
+  }
+
+  // Split by double newlines to get paragraphs/blocks
+  const blocks = content.split(/\n\n+/).filter(block => block.trim().length > 0);
+  if (blocks.length === 0) return 0;
+
+  let proseWordCount = 0;
+  let structuredWordCount = 0; // tables, bullets, headers
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    const words = trimmed.split(/\s+/).length;
+    
+    // Check if this is a structured element (table, bullets, header)
+    const lines = trimmed.split('\n');
+    const isTable = lines.some(line => line.trim().startsWith('|') && line.trim().endsWith('|'));
+    const isBulletList = lines.every(line => {
+      const t = line.trim();
+      return t.startsWith('•') || t.startsWith('-') || t.startsWith('*') || /^\d+\./.test(t) || t === '';
+    });
+    const isHeader = lines.every(line => {
+      const t = line.trim();
+      return t.startsWith('#') || t === '';
+    });
+    
+    if (isTable || isBulletList || isHeader) {
+      structuredWordCount += words;
+    } else if (words >= 15) {
+      // Count as prose if block has at least 15 words (roughly 2 sentences)
+      proseWordCount += words;
+    } else {
+      // Short fragments - could be either, count as structured
+      structuredWordCount += words;
+    }
+  }
+
+  const totalWords = proseWordCount + structuredWordCount;
+  if (totalWords === 0) return 0;
+
+  // Calculate prose percentage based on word count
+  const prosePercentage = (proseWordCount / totalWords) * 100;
+  
+  return Math.round(prosePercentage);
+}
+
 export default {
   normalizeBulletLists,
   formatAgentAnswer,
-  formatKeyFindings
+  formatKeyFindings,
+  cleanMemoSectionContent,
+  calculateNarrativeDensity
 };
