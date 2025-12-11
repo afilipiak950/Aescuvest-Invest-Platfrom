@@ -1,5 +1,4 @@
-import React from 'react';
-import { formatBusinessText } from '@/utils/textFormatter';
+import { MemoMarkdownRenderer } from './MemoMarkdownRenderer';
 
 interface ProfessionalFormattedContentProps {
   content: string | null | undefined;
@@ -12,62 +11,20 @@ export function ProfessionalFormattedContent({
   className = '', 
   variant = 'default' 
 }: ProfessionalFormattedContentProps) {
-  const formattedText = formatBusinessText(content);
-  
-  if (!formattedText || formattedText === 'No information available') {
-    return (
-      <div className={`text-gray-400 italic ${className}`}>
-        No information available
-      </div>
-    );
-  }
-
-  // Split text into sections and format professionally
-  const lines = formattedText.split('\n').filter(line => line.trim());
-  
-  const baseClasses = variant === 'large' 
-    ? 'text-base leading-relaxed' 
+  const variantClasses = variant === 'large' 
+    ? 'text-base' 
     : variant === 'small'
-    ? 'text-sm leading-normal'
-    : 'text-sm leading-relaxed';
+    ? 'text-sm'
+    : 'text-sm';
 
   return (
-    <div className={`${baseClasses} ${className} space-y-3`}>
-      {lines.map((line, index) => {
-        const trimmedLine = line.trim();
-        
-        // Check if this is a heading/subheading (ends with colon and not a bullet point)
-        if (trimmedLine.endsWith(':') && !trimmedLine.startsWith('•') && !trimmedLine.startsWith('-')) {
-          return (
-            <h4 key={index} className="font-semibold text-gray-200 mb-2 mt-4 border-b border-gray-600 pb-1">
-              {trimmedLine}
-            </h4>
-          );
-        }
-        
-        // Check if this is a bullet point
-        if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.match(/^\d+\./)) {
-          const bulletText = trimmedLine.replace(/^[•\-]\s*/, '').replace(/^\d+\.\s*/, '');
-          return (
-            <div key={index} className="flex items-start mb-2">
-              <span className="text-primary mt-1 mr-3 flex-shrink-0">•</span>
-              <span className="text-gray-300">{bulletText}</span>
-            </div>
-          );
-        }
-        
-        // Regular paragraph text
-        return (
-          <p key={index} className="text-gray-300 leading-relaxed">
-            {trimmedLine}
-          </p>
-        );
-      })}
-    </div>
+    <MemoMarkdownRenderer 
+      content={content}
+      className={`${variantClasses} ${className}`}
+    />
   );
 }
 
-// Enhanced InfoGrid component with better formatting
 interface InfoGridProps {
   items: Array<{
     label: string;

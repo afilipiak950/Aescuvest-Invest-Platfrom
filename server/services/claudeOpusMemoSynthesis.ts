@@ -7,6 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentFactMatrix, AgentFact, agentDataFusionService } from './agentDataFusion';
+import { cleanMemoSectionContent, calculateNarrativeDensity } from '../utils/textFormatting';
 
 const anthropic = new Anthropic();
 
@@ -26,6 +27,7 @@ export interface SectionGenerationResult {
   qualityScore: number;
   citationsUsed: string[];
   quantitativeDataPoints: number;
+  narrativeDensity: number; // NEW: % of content that is prose vs bullets/tables
   confidence: 'high' | 'medium' | 'low';
   warnings: string[];
 }
@@ -95,30 +97,54 @@ export class ClaudeOpusMemoSynthesis {
       // Analyze the generated content quality
       let qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
       
-      console.log(`📊 First pass: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100`);
+      // Calculate narrative density for enhancement decisions
+      let currentNarrativeDensity = calculateNarrativeDensity(generatedContent);
       
-      // MANDATORY QUALITY ENHANCEMENT: If score < 75, automatically enhance
-      if (qualityAnalysis.qualityScore < 75) {
-        console.log(`🔄 Auto-enhancing ${request.sectionTitle} (score below 75)...`);
+      console.log(`📊 First pass: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100, Prose: ${currentNarrativeDensity}%`);
+      
+      // MANDATORY QUALITY ENHANCEMENT: If score < 75 OR narrative density < 50%, automatically enhance
+      const needsEnhancement = qualityAnalysis.qualityScore < 75 || currentNarrativeDensity < 50;
+      if (needsEnhancement) {
+        const reason = currentNarrativeDensity < 50 
+          ? `prose too low (${currentNarrativeDensity}%)`
+          : `score below 75`;
+        console.log(`🔄 Auto-enhancing ${request.sectionTitle} (${reason})...`);
         
-        const enhancementResult = await this.enhanceSection(
-          request, 
-          generatedContent, 
-          qualityAnalysis,
-          formattedFacts,
-          metricsSummary
-        );
-        
-        generatedContent = enhancementResult.content;
-        qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
-        console.log(`✅ Enhanced: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100`);
+        try {
+          const enhancementResult = await this.enhanceSection(
+            request, 
+            generatedContent, 
+            qualityAnalysis,
+            formattedFacts,
+            metricsSummary
+          );
+          
+          // Only accept enhanced content if it actually improves prose density
+          const enhancedDensity = calculateNarrativeDensity(enhancementResult.content);
+          if (enhancedDensity >= currentNarrativeDensity) {
+            generatedContent = enhancementResult.content;
+            qualityAnalysis = this.analyzeContentQuality(generatedContent, relevantFacts);
+            console.log(`✅ Enhanced: ${request.sectionTitle} - Quality: ${qualityAnalysis.qualityScore}/100, Prose: ${enhancedDensity}%`);
+          } else {
+            console.log(`⚠️ Enhancement did not improve prose density (${enhancedDensity}% vs ${currentNarrativeDensity}%), keeping original`);
+          }
+        } catch (enhanceError) {
+          console.error(`⚠️ Enhancement failed for ${request.sectionTitle}, keeping original content:`, enhanceError);
+          // Keep original content but log warning - don't silently fail
+        }
       }
       
-      console.log(`✅ ${request.sectionTitle} COMPLETE - Quality: ${qualityAnalysis.qualityScore}/100, Citations: ${qualityAnalysis.citationsUsed.length}, Data Points: ${qualityAnalysis.quantitativeDataPoints}`);
+      // Clean up and normalize the content before returning
+      const cleanedContent = cleanMemoSectionContent(generatedContent);
+      
+      // Re-analyze after cleanup to get final quality metrics including narrativeDensity
+      const finalAnalysis = this.analyzeContentQuality(cleanedContent, relevantFacts);
+      
+      console.log(`✅ ${request.sectionTitle} COMPLETE - Quality: ${finalAnalysis.qualityScore}/100, Citations: ${finalAnalysis.citationsUsed.length}, Data Points: ${finalAnalysis.quantitativeDataPoints}, Prose: ${finalAnalysis.narrativeDensity}%`);
       
       return {
-        content: generatedContent,
-        ...qualityAnalysis
+        content: cleanedContent,
+        ...finalAnalysis
       };
       
     } catch (error) {
@@ -153,33 +179,31 @@ ${formattedFacts}
 
 ${metricsSummary}
 
-=== ENHANCEMENT REQUIREMENTS ===
-You MUST significantly improve this section by:
+=== ENHANCEMENT REQUIREMENTS - NARRATIVE FIRST ===
 
-1. **ADD SPECIFIC DATA**: Extract every number, percentage, date, and amount from the source data
-   - Financial figures: revenue, funding, valuation, burn rate, margins
-   - Timeline dates: founding, funding rounds, regulatory submissions
-   - Metrics: customer counts, employee numbers, market sizes
+🚨 CRITICAL: The enhanced section must be NARRATIVE-FIRST with readable prose paragraphs.
+
+1. **WRITE FLOWING PARAGRAPHS**: Start each subsection with 1-2 narrative paragraphs that explain and analyze the data
+   - Weave data INTO sentences, don't just list it
+   - Explain WHY the data matters, not just WHAT it is
    
-2. **ADD CITATIONS**: Use [AGENT Agent - Category] format after EVERY claim
-   - Example: "The company raised $15M in Series A [Financial Agent - Funding]"
+2. **ADD SPECIFIC DATA INTO PROSE**: 
+   - BAD: "Revenue: $2.5M ARR"  
+   - GOOD: "The company achieved $2.5M ARR with 47 enterprise customers as of Q3 2024, representing 150% YoY growth [Commercial Agent - Traction]"
+   
+3. **ADD CITATIONS**: Use [AGENT Agent - Category] format after sentences
    - Every paragraph needs 2-3 citations minimum
    
-3. **NAME SPECIFIC ENTITIES**: 
-   - People: CEO name, CTO name, board members, advisors
-   - Companies: investors, partners, customers, competitors
-   - Products: product names, patent numbers, trademark names
+4. **NAME PEOPLE & COMPANIES IN PROSE**: 
+   - BAD: "Strong management team"
+   - GOOD: "CEO Maria Chen, formerly VP Product at Stripe where she led the expansion into healthcare payments, has assembled a team of 35 engineers..."
 
-4. **REMOVE GENERIC STATEMENTS**: Replace vague claims with specific evidence
-   - BAD: "The company has strong traction"
-   - GOOD: "The company achieved $2.5M ARR with 47 enterprise customers as of Q3 2024 [Commercial Agent - Traction]"
+5. **LIMIT TABLES & BULLETS**:
+   - Tables ONLY for: funding history, financial projections, competitive matrices
+   - Bullets ONLY for: final "Key Takeaways" sections
+   - Minimum 60% of content must be flowing prose paragraphs
 
-5. **STRUCTURE PROFESSIONALLY**: 
-   - Use tables for financial data and comparisons
-   - Use bullet points for key findings
-   - Bold the most important metrics
-
-Generate the ENHANCED version now. It must score 80+ on quality:`;
+Generate the ENHANCED version now with narrative-first structure. It must score 80+ on quality:`;
 
     const response = await anthropic.messages.create({
       model: "claude-opus-4-20250514",
@@ -193,41 +217,68 @@ Generate the ENHANCED version now. It must score 80+ on quality:`;
     });
 
     const content = response.content[0];
+    const enhancedText = content.type === 'text' ? content.text : previousContent;
+    
+    // Apply cleanup to enhanced content as well
     return {
-      content: content.type === 'text' ? content.text : previousContent
+      content: cleanMemoSectionContent(enhancedText)
     };
   }
 
   /**
    * Build PREMIUM system prompt with excellence requirements
+   * NARRATIVE-FIRST: Prioritizes readable prose over tables/bullets
    */
   private buildPremiumSystemPrompt(sectionType: string): string {
     const excellenceRequirements = `You are a SENIOR PARTNER at a top-tier venture capital firm (Sequoia, a16z, Benchmark tier). You are writing THE MOST CRITICAL investment memo section that will determine a multi-million dollar investment decision.
 
-EXCELLENCE STANDARDS - YOUR CONTENT MUST:
-1. READ LIKE A GOLDMAN SACHS OR MORGAN STANLEY RESEARCH REPORT
-2. CONTAIN ZERO GENERIC STATEMENTS - Every sentence has specific data
-3. CITE EVERY CLAIM using [AGENT Agent - Category] format
-4. INCLUDE 15+ QUANTITATIVE DATA POINTS minimum per section
-5. NAME SPECIFIC PEOPLE, COMPANIES, AND PRODUCTS - no "the company" or "management"
-6. USE PROFESSIONAL TABLES for any comparative or financial data
-7. STRUCTURE WITH CLEAR HEADERS and executive-friendly formatting
+=== WRITING STYLE: NARRATIVE-FIRST APPROACH ===
 
-FORBIDDEN - NEVER DO THESE:
-- "The company has experienced growth" → MUST specify: "$X to $Y (Z% growth)"
-- "Strong management team" → MUST name: "CEO John Smith (ex-Google VP, 15yr experience)"
-- "Large market opportunity" → MUST quantify: "$45B TAM growing 23% CAGR"
-- Generic risk statements → MUST be specific with probability assessments
-- Missing citations → EVERY paragraph needs [Agent - Category] citations
+Write like a McKinsey or Goldman Sachs research report. The content must be:
+- **READABLE**: Flowing narrative paragraphs that tell a compelling story
+- **ANALYTICAL**: Each paragraph explains the significance of the data, not just lists it
+- **PERSUASIVE**: Builds a clear investment thesis through logical argumentation
 
-QUALITY THRESHOLD: Your content must score 85+ on quality metrics or it will be rejected.
+STRUCTURE EACH SECTION AS:
+1. **Opening paragraph**: Set context and state the key conclusion upfront (2-3 sentences)
+2. **Analysis paragraphs**: Deep-dive into the evidence with specific data woven into flowing prose
+3. **Tables**: ONLY for actual tabular data (funding rounds, financial projections, comparisons)
+4. **Key takeaways**: End with 3-5 bullet points summarizing critical findings
 
-FORMAT REQUIREMENTS:
-- Use markdown with ## headers for subsections
-- **Bold** all key metrics and names
-- Use tables for: funding history, financial projections, competitive comparison
-- Use bullet points for: key findings, risks, recommendations
-- Each major claim needs inline citation`;
+=== PROSE REQUIREMENTS ===
+- Each subsection must start with 1-2 narrative paragraphs BEFORE any bullets or tables
+- Write complete sentences that flow naturally - not fragmented bullet spam
+- Explain WHY data matters, not just WHAT the data is
+- Use transitions between paragraphs: "This positions the company...", "Building on this foundation..."
+- Minimum 60% of content must be narrative prose, not bullets or tables
+
+=== DATA INTEGRATION ===
+- Weave specific numbers into sentences: "The company grew revenue from $2.1M to $8.5M (304% YoY) during 2024 [Financial Agent - Revenue]"
+- Name people inline: "CEO Maria Chen, who previously led product at Stripe for 8 years, has assembled..."
+- Citations go at end of sentences: [AGENT Agent - Category]
+- Include 15+ quantitative data points per section
+
+=== TABLES: USE SPARINGLY ===
+Tables are ONLY appropriate for:
+- Funding history (dates, amounts, investors)
+- Financial projections (multi-year numbers)
+- Competitive comparison matrices
+- Cap table breakdowns
+DO NOT use tables for: company snapshots, team bios, or information that reads better as prose
+
+=== BULLETS: USE AT END ===
+- Use bullet points ONLY for final "Key Takeaways" or "Critical Risks" summaries
+- Limit to 3-7 bullets maximum per subsection
+- Each bullet should be a complete thought, not a sentence fragment
+
+FORBIDDEN PATTERNS:
+- Starting with a table (always start with narrative context)
+- Bullet-only sections with no prose
+- Pipe table syntax for simple facts that should be in prose
+- Generic statements without specific data
+- "The company has..." statements - use specific names instead
+
+QUALITY THRESHOLD: 85+ score required. Sections that are bullet-heavy with insufficient prose will be rejected.`;
 
     // Get base section-specific instructions
     const basePrompt = this.buildSystemPrompt(sectionType);
@@ -287,36 +338,33 @@ ${request.ocrContext.substring(0, 100000)}
     prompt += `
 === GENERATION REQUIREMENTS ===
 
-You MUST extract and include from the data above:
+📖 NARRATIVE-FIRST FORMAT (CRITICAL):
+Write this section as a professional investment memo that tells a compelling story:
+1. Start each subsection with 1-2 PARAGRAPHS of analytical prose that explain the data's significance
+2. Weave quantitative data INTO sentences, don't just list it
+3. Use tables ONLY for: funding history, financial projections, competitive matrices
+4. End with bullet point "Key Takeaways" (3-5 bullets max)
+5. Minimum 60% of content must be flowing narrative paragraphs
 
-📊 QUANTITATIVE DATA (minimum 15 data points):
-- All dollar amounts (funding, revenue, valuation, burn rate)
-- All percentages (growth rates, margins, market share)
-- All dates (founding, funding rounds, milestones, regulatory dates)
-- All counts (employees, customers, patents, products)
+📊 QUANTITATIVE DATA (minimum 15 data points woven into prose):
+- Dollar amounts, percentages, dates, counts - all integrated into sentences
+- Example: "BAIBYS has secured $5M in Series A funding led by Rohto Pharmaceutical at a $20M pre-money valuation [Financial Agent - Funding]"
 
-👤 SPECIFIC NAMES (minimum 5):
-- Executive names with titles and backgrounds
-- Investor names and firms
-- Customer/partner company names
-- Competitor names
-- Product/technology names
+👤 SPECIFIC NAMES (integrated into narrative):
+- Name executives with context: "CEO Dr. Yaron Silberman, who brings 15 years of MedTech experience from his tenure at..."
+- Name investors, partners, customers within paragraphs
 
-📝 CITATIONS (minimum 8):
-- Every major claim needs [AGENT Agent - Category] citation
-- Financial data: [Financial Agent - ...]
-- Team info: [HR Agent - ...]
-- Legal/IP: [Legal Agent - ...] or [IP Agent - ...]
-- Market data: [Commercial Agent - ...] or [Research Agent - ...]
-- Clinical/regulatory: [Clinical Agent - ...]
+📝 CITATIONS:
+- Place [AGENT Agent - Category] at end of sentences
+- Every paragraph needs 2+ citations
 
-📋 PROFESSIONAL FORMATTING:
-- Use tables for financial data, funding history, comparisons
-- Use bullet points for key findings
-- Bold critical numbers and names
-- Clear ## section headers
+🚫 AVOID THESE PATTERNS:
+- Starting with a table (always narrative first)
+- Bullet-only content without prose
+- Tables for simple information (use prose instead)
+- Sentence fragments in bullets
 
-NOW GENERATE THE COMPLETE ${request.sectionTitle.toUpperCase()} SECTION:`;
+NOW GENERATE THE COMPLETE ${request.sectionTitle.toUpperCase()} SECTION WITH NARRATIVE-FIRST STRUCTURE:`;
 
     return prompt;
   }
@@ -344,43 +392,40 @@ FORMAT REQUIREMENTS:
 - Include specific citations after each major claim`;
 
     const sectionSpecificInstructions: Record<string, string> = {
-      // CamelCase section names (new standard)
+      // CamelCase section names (new standard) - NARRATIVE-FIRST APPROACH
       'executiveSummary': `
-SECTION: EXECUTIVE SUMMARY (2-3 pages)
+SECTION: EXECUTIVE SUMMARY (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-You MUST include ALL of the following if available in the source data:
+=== WRITING APPROACH ===
+Write this as an engaging NARRATIVE that tells the company's story. Start with the investment opportunity, build through evidence, and conclude with key takeaways.
 
-□ Company Name: [EXACT company legal name]
-□ Founding Date: [Month/Year founded]
-□ Headquarters: [City, Country]
-□ CEO Name: [Full name and background]
-□ Total Funding: [$X raised to date]
-□ Latest Valuation: [$X pre/post money]
-□ Current Revenue: [$X ARR/MRR]
-□ Employee Count: [Number of employees]
-□ TAM: [$X billion market size]
-□ Lead Investors: [Names of key investors]
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **Company Snapshot** (use table format):
-   | Field | Value | Source |
-   |-------|-------|--------|
-   | Company Name | [Name] | [Legal Agent] |
-   | Founded | [Date] | [HR/Legal Agent] |
-   | Headquarters | [Location] | [Legal Agent] |
-   | Employees | [Count] | [HR Agent] |
+**1. Opening Investment Thesis (2 paragraphs)**
+Start with a compelling narrative paragraph that captures why this is an exciting opportunity. Weave in the company name, what they do, the market size, and why now is the right time. Second paragraph should summarize the key evidence supporting the thesis.
 
-2. **Investment Thesis**: 3-5 bullet points with specific evidence and citations
-3. **Technology/Product**: Technical specifications, FDA status if applicable
-4. **Market Opportunity**: TAM/SAM/SOM with sources and methodology
-5. **Traction Metrics**: Revenue, customers, growth rates with dates
-6. **Leadership Team**: CEO, CTO, key hires with backgrounds
-7. **Financial Highlights**: Funding history, runway, projections
-8. **Key Risks**: Top 3 risks with probability/impact assessment
+Example opening: "BAIBYS Fertility Ltd. represents a compelling Series A opportunity in the $22B global fertility market. Founded in 2020 and headquartered in Tel Aviv, the company has developed an AI-powered sperm selection system that addresses male infertility—a factor in 30-50% of all IVF cases [Clinical Agent - Market]. With ISO 13485 certification secured and FDA De Novo submission planned for Q3 2025, BAIBYS is positioned to capture significant market share in the rapidly growing ICSI segment [Clinical Agent - Regulatory]."
 
-REQUIRED CITATIONS PER PARAGRAPH: Minimum 2
-REQUIRED DATA POINTS: Minimum 20`,
+**2. Company Overview (2-3 paragraphs)**
+Write flowing prose about the company's history, product, and technology. Avoid tables here - use narrative.
+
+**3. Traction & Evidence (2-3 paragraphs)**
+Describe commercial progress, partnerships, and milestones in narrative form. Include specific numbers woven into sentences.
+
+**4. Leadership (1-2 paragraphs)**
+Introduce key executives by name with their backgrounds in prose form.
+
+**5. Financial Summary (1 paragraph + 1 table)**
+Brief narrative context, then ONE funding history table if available.
+
+**6. Key Takeaways (5-7 bullets)**
+END with bullet points summarizing the investment highlights.
+
+**7. Critical Risks (3-5 bullets)**
+Brief risk summary bullets at the very end.
+
+FORBIDDEN: Starting with a table. Starting with bullets. More than 2 tables total.
+REQUIRED: Minimum 60% narrative prose, 2+ citations per paragraph, 20+ data points.`,
 
       'executive_summary': `
 SECTION: EXECUTIVE SUMMARY (2-3 pages)
@@ -404,54 +449,38 @@ PRIORITY DATA SOURCES:
 - Clinical Agent: Regulatory status (if applicable)`,
 
       'financialAnalysis': `
-SECTION: FINANCIAL ANALYSIS (4-5 pages) - STRICTER 90+ QUALITY THRESHOLD
+SECTION: FINANCIAL ANALYSIS (4-5 pages) - NARRATIVE-FIRST, 90+ QUALITY THRESHOLD
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Latest Revenue: [$X ARR/MRR with date]
-□ Revenue Growth: [YoY or MoM percentage]
-□ Gross Margin: [Percentage]
-□ Monthly Burn Rate: [$X per month]
-□ Cash Position: [$X as of date]
-□ Runway: [X months]
-□ Total Funding Raised: [$X to date]
-□ Latest Valuation: [$X pre/post money valuation]
-□ CAC: [Customer acquisition cost]
-□ LTV: [Lifetime value]
+=== WRITING APPROACH ===
+Write this as an ANALYTICAL NARRATIVE that explains the company's financial position, trajectory, and investment opportunity. Lead with prose that interprets the numbers, not just lists them.
 
-=== REQUIRED TABLES (MUST INCLUDE) ===
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-**Table 1: Funding History**
-| Round | Date | Amount | Lead Investor | Valuation | Participation |
-|-------|------|--------|---------------|-----------|---------------|
+**1. Financial Overview (2-3 paragraphs)**
+Open with a narrative summary of the company's financial position. Explain the revenue trajectory, burn rate implications, and funding status in prose form. Interpret what the numbers mean for the investment.
 
-**Table 2: Financial Projections**
-| Metric | 2024 | 2025 | 2026 | 2027 | 2028 |
-|--------|------|------|------|------|------|
-| Revenue | | | | | |
-| Gross Profit | | | | | |
-| Net Income | | | | | |
-| Headcount | | | | | |
+Example: "BAIBYS Fertility demonstrates an early-stage financial profile typical of pre-commercial MedTech ventures. The company has raised $X to date and maintains a monthly burn rate of $X, providing runway through Q3 2026 [Financial Agent - Funding]. Revenue generation remains nascent as the company prioritizes regulatory clearance, though management projects $1.5M in 2025 revenue from early commercial partnerships [Financial Agent - Projections]."
 
-**Table 3: Unit Economics**
-| Metric | Value | Benchmark |
-|--------|-------|-----------|
-| CAC | | |
-| LTV | | |
-| LTV:CAC | | |
-| Payback | | |
+**2. Funding History (1 paragraph + 1 table)**
+Brief context paragraph explaining the funding strategy, THEN a funding history table.
 
-=== SECTION STRUCTURE ===
-1. **Financial Snapshot**: Key metrics table with sources
-2. **Funding History**: Complete round-by-round breakdown
-3. **Revenue Analysis**: Historical trends, growth drivers
-4. **Expense Analysis**: Burn rate, cost structure
-5. **Cap Table Summary**: Ownership percentages
-6. **Projections**: 5-year forecasts with assumptions
-7. **Unit Economics**: CAC, LTV, margins
-8. **Use of Proceeds**: Detailed allocation
+**3. Revenue & Traction Analysis (2-3 paragraphs)**
+Narrative explanation of revenue sources, customer traction, and growth trajectory. Weave specific metrics into flowing prose.
 
-REQUIRED CITATIONS: Minimum 15 (every number must be sourced)
-REQUIRED DATA POINTS: Minimum 30`,
+**4. Unit Economics (1-2 paragraphs + 1 optional table)**
+Explain CAC, LTV, margins, and payback in narrative context. Table only if there are multiple comparable metrics.
+
+**5. Use of Proceeds (1-2 paragraphs)**
+Explain how the company plans to deploy raised capital. Narrative format preferred.
+
+**6. Financial Projections (1 paragraph + 1 table)**
+Brief context on assumptions, then a projections table for multi-year forecasts.
+
+**7. Key Financial Takeaways (4-6 bullets)**
+END with bullet summary of critical financial insights.
+
+FORBIDDEN: Starting with tables. More than 3 tables total. Bullet-only subsections.
+REQUIRED: 50%+ narrative prose, 15+ citations, 30+ data points. Every number needs a source.`,
 
       'financial_analysis': `
 SECTION: FINANCIAL ANALYSIS (4-5 pages)
@@ -477,38 +506,35 @@ REQUIRED TABLES:
 - Use of proceeds table (Category, Amount, Percentage)`,
 
       'teamAssessment': `
-SECTION: TEAM ASSESSMENT (2-3 pages)
+SECTION: TEAM ASSESSMENT (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ CEO Name: [Full name]
-□ CEO Background: [Prior companies, roles, years experience]
-□ CTO Name: [Full name]
-□ CTO Background: [Technical expertise, prior companies]
-□ Total Employees: [Current headcount]
-□ Engineering Team Size: [Number of engineers]
-□ Board Members: [Names and affiliations]
-□ Key Advisors: [Names and expertise areas]
-□ Hiring Plans: [Target headcount growth]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE PROFILE of the leadership team. Tell the story of who is running this company and why they're the right team. Lead with prose that brings executives to life, not tables.
 
-=== REQUIRED TABLE ===
-**Leadership Team Profiles**
-| Name | Title | Education | Prior Experience | Years in Role | Domain Expertise |
-|------|-------|-----------|------------------|---------------|------------------|
-| [CEO] | CEO | [School] | [Companies] | [Years] | [Expertise] |
-| [CTO] | CTO | [School] | [Companies] | [Years] | [Expertise] |
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **Executive Leadership**: Full profiles with backgrounds (table format)
-2. **Technical Team**: Key engineers, scientists, domain experts
-3. **Advisory Board**: Names, credentials, how they help
-4. **Board of Directors**: Composition, investor seats, independent directors
-5. **Organizational Design**: Departments, reporting structure
-6. **Team Strengths**: What the team does well
-7. **Team Gaps**: Areas needing additional hires
-8. **Culture & Retention**: Employee satisfaction, turnover
+**1. Team Overview (2 paragraphs)**
+Open with a narrative that introduces the leadership team and explains why they're well-suited for this opportunity. Highlight key executives by name with their most relevant credentials woven into prose.
 
-REQUIRED CITATIONS: Minimum 10
-REQUIRED NAMED INDIVIDUALS: Minimum 8`,
+Example: "BAIBYS is led by a complementary founding team with deep expertise in both fertility medicine and AI technology. Co-CEO Dr. Yaron Silberman brings 15 years of MedTech experience, including roles at [Company X] and an MBA from [University], providing the commercial acumen needed to navigate FDA pathways and scale the business [HR Agent - Leadership]. Co-CEO Gal Golov contributes operational expertise, having previously [background] [HR Agent - Leadership]."
+
+**2. Executive Profiles (2-3 paragraphs)**
+Detailed narrative profiles of key executives. Write about each leader in flowing prose - their background, why they joined, what they contribute. DO NOT use a table.
+
+**3. Technical Team (1-2 paragraphs)**
+Describe the engineering/scientific team composition, key technical leaders, and relevant expertise in narrative form.
+
+**4. Advisory Board & Governance (1-2 paragraphs)**
+Introduce advisors and board members by name with their value-add explained in prose.
+
+**5. Organizational Structure (1 paragraph)**
+Brief description of headcount, departments, and growth plans.
+
+**6. Team Assessment Summary (5-7 bullets)**
+END with bullet points on team strengths, gaps, and overall assessment.
+
+FORBIDDEN: Starting with a table. Leadership profile tables. More than 1 optional table.
+REQUIRED: 70%+ narrative prose, 10+ citations, 8+ named individuals with backgrounds.`,
 
       'team_assessment': `
 SECTION: TEAM ASSESSMENT (2-3 pages)
@@ -532,246 +558,222 @@ PRIORITY DATA SOURCES:
 - Document OCR: LinkedIn profiles, bios, organizational charts`,
 
       'marketAnalysis': `
-SECTION: MARKET ANALYSIS (3-4 pages)
+SECTION: MARKET ANALYSIS (3-4 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ TAM: [$X billion with source and year]
-□ SAM: [$X billion with segmentation methodology]
-□ SOM: [$X million with capture assumptions]
-□ Market Growth Rate: [X% CAGR with timeframe]
-□ Key Market Drivers: [3-5 specific trends]
-□ Competitor Names: [List of 5+ competitors]
-□ Market Share: [% held by key players]
-□ Target Customer Profile: [Specific characteristics]
+=== WRITING APPROACH ===
+Write this as an ANALYTICAL NARRATIVE that explains the market opportunity and competitive dynamics. Don't just list numbers - explain what they mean for the investment.
 
-=== REQUIRED TABLES ===
-**Table 1: Market Sizing**
-| Market | Size ($) | Growth Rate | Source | Year |
-|--------|----------|-------------|--------|------|
-| TAM | | | | |
-| SAM | | | | |
-| SOM | | | | |
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-**Table 2: Competitive Landscape**
-| Competitor | Products | Market Share | Strengths | Weaknesses |
-|------------|----------|--------------|-----------|------------|
+**1. Market Overview (2-3 paragraphs)**
+Open with a narrative that sets the market context. Explain the industry dynamics, why this market is attractive, and the key trends creating opportunity. Weave TAM/SAM numbers into the prose naturally.
 
-=== SECTION STRUCTURE ===
-1. **Market Overview**: Industry context and dynamics
-2. **TAM/SAM/SOM**: Detailed sizing with methodology
-3. **Growth Drivers**: Regulatory, technology, demand trends
-4. **Customer Segments**: Target profiles with characteristics
-5. **Competitive Positioning**: Differentiation vs competitors
-6. **Barriers to Entry**: Moats and defensibility
-7. **Market Risks**: Competitive, regulatory, technology threats
+Example: "The global fertility services market represents a $22 billion opportunity growing at 8% CAGR, driven by rising maternal age, increasing awareness of male infertility, and expanding insurance coverage [Commercial Agent - Market Size]. Within this market, the ICSI (Intracytoplasmic Sperm Injection) segment—where BAIBYS technology competes—accounts for 50-80% of all IVF procedures and represents a particularly attractive subsegment [Commercial Agent - Market Segment]."
 
-REQUIRED CITATIONS: Minimum 12
-REQUIRED DATA POINTS: Minimum 20`,
+**2. Market Sizing (1-2 paragraphs + 1 optional table)**
+Explain TAM/SAM/SOM with methodology in prose. A table is optional only if you have clear multi-row sizing data.
+
+**3. Market Dynamics & Growth Drivers (2-3 paragraphs)**
+Narrative analysis of what's driving market growth. Regulatory trends, technology shifts, demographic changes - all in flowing prose.
+
+**4. Competitive Landscape (2-3 paragraphs)**
+Analyze competitors in narrative form. Name specific competitors, describe their positioning, and explain differentiation. A comparison table is acceptable AFTER the narrative context.
+
+**5. Customer Analysis (1-2 paragraphs)**
+Describe target customer profiles and buying behavior in prose.
+
+**6. Market Takeaways (4-6 bullets)**
+END with bullet summary of key market insights.
+
+FORBIDDEN: Starting with tables. More than 2 tables total. Bullet-only subsections.
+REQUIRED: 60%+ narrative prose, 12+ citations, 20+ data points.`,
 
       'riskAnalysis': `
-SECTION: RISK ANALYSIS (2-3 pages)
+SECTION: RISK ANALYSIS (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Top 5 Risks: [Specific risk descriptions with evidence]
-□ Risk Probability: [High/Medium/Low for each]
-□ Risk Impact: [High/Medium/Low for each]
-□ Mitigation Strategies: [Specific plans for each risk]
-□ Runway Risk: [Months of runway, funding needs]
-□ Regulatory Risk: [Specific approval requirements]
-□ Competitive Risk: [Named competitors as threats]
-□ Key Person Risk: [Dependency on specific individuals]
+=== WRITING APPROACH ===
+Write this as an ANALYTICAL NARRATIVE that explains the key risks and how they can be mitigated. Don't just list risks - explain their significance and the company's response.
 
-=== REQUIRED TABLE ===
-**Risk Assessment Matrix**
-| Risk Category | Specific Risk | Probability | Impact | Mitigation | Owner |
-|---------------|---------------|-------------|--------|------------|-------|
-| Technology | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
-| Market | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
-| Regulatory | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
-| Financial | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
-| Team | [Description] | H/M/L | H/M/L | [Plan] | [Role] |
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **Risk Summary Table**: All risks with ratings
-2. **Technology Risks**: Development, scalability, IP challenges
-3. **Market Risks**: Competition, adoption, pricing
-4. **Regulatory Risks**: Approval timelines, compliance
-5. **Financial Risks**: Funding, burn rate, revenue
-6. **Team Risks**: Key person dependencies, hiring
-7. **Mitigation Summary**: How risks are being addressed
+**1. Risk Overview (1-2 paragraphs)**
+Open with a narrative summary of the overall risk profile. Identify the 2-3 most critical risks and why they matter for the investment decision.
 
-REQUIRED CITATIONS: Minimum 10 (from all 7 agents)
-REQUIRED RISKS IDENTIFIED: Minimum 8`,
+Example: "The primary investment risks for BAIBYS center on regulatory execution and financial sustainability. While the company has secured ISO 13485 certification, FDA De Novo clearance remains the critical gating milestone, with approval timelines potentially extending into 2026 [Clinical Agent - Regulatory]. Additionally, with 18 months of runway at current burn rate, successful Series A completion is essential for continued operations [Financial Agent - Funding]."
+
+**2. Regulatory & Clinical Risks (2-3 paragraphs)**
+Narrative analysis of regulatory pathway risks, FDA timeline uncertainties, and clinical requirements. Explain each risk and its mitigation in prose.
+
+**3. Financial & Funding Risks (2-3 paragraphs)**
+Narrative analysis of burn rate, runway, funding dependencies, and revenue risks. Explain implications for the investment.
+
+**4. Competitive & Market Risks (1-2 paragraphs)**
+Narrative analysis of competitive threats and market adoption risks. Name specific competitors as threats.
+
+**5. Operational & Team Risks (1-2 paragraphs)**
+Key person dependencies, hiring challenges, and operational risks in prose.
+
+**6. Risk Summary (1 optional table + 4-6 bullets)**
+If a summary table adds value, include one at the END (not the beginning). Conclude with bullet point key takeaways.
+
+FORBIDDEN: Starting with a risk table. Bullet-only risk lists without prose analysis. More than 1 table.
+REQUIRED: 60%+ narrative prose, 10+ citations, 8+ specific risks with mitigations.`,
 
       'clinicalEvidence': `
-SECTION: CLINICAL EVIDENCE (2-3 pages)
+SECTION: CLINICAL EVIDENCE (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Clinical Trial Phase: [Phase I/II/III and status]
-□ Patient Count: [Number enrolled in trials]
-□ Primary Endpoints: [Specific endpoints measured]
-□ Efficacy Results: [% improvement, statistical significance]
-□ Safety Profile: [Adverse events, SAEs]
-□ Trial Sites: [Number and locations]
-□ Completion Timeline: [Expected completion dates]
-□ Regulatory Interactions: [FDA meetings, feedback]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that tells the clinical development story. Explain the significance of clinical data, not just list trial results.
 
-=== SECTION STRUCTURE ===
-1. **Clinical Development Overview**: Current stage and strategy
-2. **Completed Studies**: Results with patient counts and endpoints
-3. **Ongoing Trials**: Status, enrollment, timeline
-4. **Efficacy Data**: Specific results with statistics
-5. **Safety Data**: Adverse events, risk profile
-6. **Regulatory Pathway**: FDA interactions and feedback
-7. **Clinical Milestones**: Upcoming data readouts
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-REQUIRED CITATIONS: Minimum 8 (from Clinical Agent)
-REQUIRED DATA POINTS: Minimum 15`,
+**1. Clinical Overview (2 paragraphs)**
+Open with narrative context about the clinical development strategy and current status. Explain why the chosen approach makes sense.
+
+**2. Completed Studies (2-3 paragraphs)**
+Describe completed trials in narrative form. Explain endpoints, results, and their significance. Weave patient counts and efficacy data into prose.
+
+**3. Ongoing Development (1-2 paragraphs)**
+Narrative on current and planned trials. Timeline, enrollment status, expected readouts.
+
+**4. Safety & Efficacy Summary (1-2 paragraphs)**
+Narrative interpretation of the overall clinical profile.
+
+**5. Clinical Takeaways (4-6 bullets)**
+END with bullet summary of key clinical insights.
+
+FORBIDDEN: Starting with tables. More than 1 optional table.
+REQUIRED: 60%+ narrative prose, 8+ citations, 15+ data points.`,
 
       'regulatoryPathway': `
-SECTION: REGULATORY PATHWAY (2-3 pages)
+SECTION: REGULATORY PATHWAY (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Regulatory Strategy: [510(k), PMA, De Novo, BLA, etc.]
-□ FDA Classification: [Class I/II/III device or drug type]
-□ Submission Status: [Pending, submitted, cleared/approved]
-□ Approval Timeline: [Expected date]
-□ CE Mark Status: [If applicable]
-□ ISO Certifications: [13485, etc.]
-□ Clinical Requirements: [Studies needed for approval]
-□ Post-Market Obligations: [Surveillance, reporting]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that explains the regulatory strategy and timeline. Help readers understand the pathway, its rationale, and key milestones.
 
-=== SECTION STRUCTURE ===
-1. **Regulatory Strategy**: Pathway selection rationale
-2. **FDA Status**: Current status and interactions
-3. **Submission Timeline**: Key dates and milestones
-4. **Clinical Requirements**: Studies needed
-5. **International Markets**: CE Mark, other markets
-6. **Compliance Infrastructure**: QMS, ISO certifications
-7. **Post-Market Plans**: Surveillance and reporting
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-REQUIRED CITATIONS: Minimum 8
-REQUIRED REGULATORY DATA POINTS: Minimum 12`,
+**1. Regulatory Strategy Overview (2 paragraphs)**
+Open with narrative explaining the chosen regulatory pathway (510(k), De Novo, PMA, etc.) and why it's appropriate. Explain FDA classification and timeline.
+
+**2. FDA Status & Timeline (2-3 paragraphs)**
+Narrative on current FDA status, pre-submission meetings, submission timeline. Weave specific dates and milestones into prose.
+
+**3. International Markets (1-2 paragraphs)**
+CE Mark status, international certifications, global expansion strategy in prose.
+
+**4. Quality & Compliance (1-2 paragraphs)**
+ISO certifications, QMS infrastructure, compliance posture.
+
+**5. Regulatory Takeaways (4-6 bullets)**
+END with bullet summary of key regulatory insights and milestones.
+
+FORBIDDEN: Starting with tables or checklists. More than 1 optional table.
+REQUIRED: 60%+ narrative prose, 8+ citations, 12+ data points.`,
 
       'intellectualProperty': `
-SECTION: INTELLECTUAL PROPERTY (2-3 pages)
+SECTION: INTELLECTUAL PROPERTY (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Patent Count: [Number of patents granted/pending]
-□ Patent Numbers: [Specific US/EP patent numbers]
-□ Patent Claims: [Key claims covered]
-□ Expiration Dates: [When patents expire]
-□ Patent Coverage: [Geographic scope]
-□ Trademark Status: [Key trademarks registered]
-□ Trade Secrets: [Non-disclosed IP assets]
-□ Licensing: [In-licenses and out-licenses]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that explains the IP strategy and its value. Don't just list patents - explain their significance and competitive implications.
 
-=== REQUIRED TABLE ===
-**Patent Portfolio**
-| Patent # | Title | Status | Filing Date | Expiration | Coverage |
-|----------|-------|--------|-------------|------------|----------|
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **IP Overview**: Portfolio summary
-2. **Patent Analysis**: Key patents with claim scope
-3. **Freedom to Operate**: Competitive IP landscape
-4. **Trade Secrets**: Proprietary know-how
-5. **Licensing Agreements**: In/out licenses
-6. **IP Strategy**: Prosecution and defense plans
-7. **IP Risks**: Potential challenges, expired patents
+**1. IP Overview (2 paragraphs)**
+Open with narrative explaining the overall IP strategy and portfolio strength. How does the IP create competitive moat?
 
-REQUIRED CITATIONS: Minimum 10
-REQUIRED PATENT REFERENCES: Minimum 5`,
+**2. Patent Portfolio (2-3 paragraphs + 1 optional table)**
+Narrative analysis of key patents, their claims, and coverage. Explain the significance of each major patent. A summary table is acceptable AFTER the narrative.
+
+**3. Freedom to Operate (1-2 paragraphs)**
+Narrative analysis of FTO position and potential IP conflicts with competitors.
+
+**4. Trade Secrets & Know-How (1 paragraph)**
+Narrative on proprietary knowledge beyond patents.
+
+**5. IP Takeaways (4-6 bullets)**
+END with bullet summary of IP strengths and risks.
+
+FORBIDDEN: Starting with patent tables. More than 1 table.
+REQUIRED: 60%+ narrative prose, 10+ citations, 5+ patent references.`,
 
       'competitiveAnalysis': `
-SECTION: COMPETITIVE ANALYSIS (2-3 pages)
+SECTION: COMPETITIVE ANALYSIS (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Competitor Names: [5+ named competitors]
-□ Competitor Funding: [Funding raised by each]
-□ Competitor Products: [Product offerings]
-□ Market Share: [% held by key players]
-□ Differentiation: [How company differs]
-□ Competitive Advantages: [Specific moats]
-□ Competitive Threats: [Specific risks]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that explains the competitive landscape and positioning. Tell the story of who the company competes with and why it wins.
 
-=== REQUIRED TABLE ===
-**Competitive Comparison**
-| Company | Funding | Product | Technology | Regulatory Status | Pricing |
-|---------|---------|---------|------------|-------------------|---------|
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **Competitive Landscape**: Overview of market players
-2. **Direct Competitors**: Detailed profiles (table format)
-3. **Indirect Competitors**: Adjacent market players
-4. **Differentiation Analysis**: How company stands out
-5. **Competitive Advantages**: Sustainable moats
-6. **Competitive Threats**: Risks from competitors
-7. **Market Positioning**: Strategy vs competition
+**1. Competitive Landscape Overview (2-3 paragraphs)**
+Open with narrative explaining the competitive environment. Who are the key players? How is the market structured? What defines competitive success?
 
-REQUIRED CITATIONS: Minimum 10
-REQUIRED NAMED COMPETITORS: Minimum 5`,
+**2. Key Competitors Analysis (3-4 paragraphs)**
+Analyze major competitors in narrative form. For each competitor, explain their positioning, strengths, and weaknesses IN PROSE. Name specific companies with details.
+
+**3. Competitive Comparison (1 optional table AFTER prose)**
+If a comparison table adds value, include one after the narrative analysis.
+
+**4. Differentiation & Moats (2 paragraphs)**
+Narrative explanation of how the company differentiates and defends its position.
+
+**5. Competitive Takeaways (4-6 bullets)**
+END with bullet summary of competitive insights.
+
+FORBIDDEN: Starting with competitor tables. More than 1 comparison table.
+REQUIRED: 60%+ narrative prose, 10+ citations, 5+ named competitors analyzed in prose.`,
 
       'technologyAssessment': `
-SECTION: TECHNOLOGY ASSESSMENT (2-3 pages)
+SECTION: TECHNOLOGY ASSESSMENT (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Core Technology: [Description of technology]
-□ Technical Differentiation: [What makes it unique]
-□ Development Stage: [Prototype, MVP, Production]
-□ R&D Team Size: [Number of engineers/scientists]
-□ Technical Milestones: [Key achievements]
-□ Technology Roadmap: [Future development plans]
-□ Technical Risks: [Development challenges]
-□ Scalability: [Path to scale]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that explains the technology and its significance. Help readers understand the innovation and why it matters.
 
-=== SECTION STRUCTURE ===
-1. **Technology Overview**: Core innovation
-2. **Technical Differentiation**: Unique aspects
-3. **Development Stage**: Current maturity
-4. **R&D Pipeline**: Upcoming development
-5. **Technical Team**: Key technical talent
-6. **Scalability Analysis**: Path to production scale
-7. **Technical Risks**: Development challenges
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-REQUIRED CITATIONS: Minimum 10
-REQUIRED TECHNICAL DATA POINTS: Minimum 12`,
+**1. Technology Overview (2-3 paragraphs)**
+Open with narrative explaining the core technology, how it works, and why it's innovative. Weave technical specifications into prose.
+
+**2. Technical Differentiation (2 paragraphs)**
+Narrative explaining what makes the technology unique compared to alternatives. How does it work better/differently?
+
+**3. Development Status & Roadmap (2 paragraphs)**
+Narrative on current development stage and future plans. Include milestones in prose.
+
+**4. Scalability & Risks (1-2 paragraphs)**
+Narrative on path to scale and technical challenges.
+
+**5. Technology Takeaways (4-6 bullets)**
+END with bullet summary of key technical insights.
+
+FORBIDDEN: Starting with feature lists. Technology comparison tables before prose.
+REQUIRED: 60%+ narrative prose, 10+ citations, 12+ technical data points.`,
 
       'investmentTerms': `
-SECTION: INVESTMENT TERMS (2-3 pages)
+SECTION: INVESTMENT TERMS (2-3 pages) - NARRATIVE-FIRST
 
-=== MANDATORY DATA EXTRACTION CHECKLIST ===
-□ Valuation: [$X pre/post money]
-□ Round Size: [$X being raised]
-□ Investment Type: [Equity, SAFE, Convertible Note]
-□ Lead Investor: [Name and allocation]
-□ Board Seats: [New seats granted]
-□ Liquidation Preference: [1x, participating, etc.]
-□ Pro-rata Rights: [Included or not]
-□ Anti-dilution: [Broad-based, narrow-based]
+=== WRITING APPROACH ===
+Write this as a NARRATIVE that explains the deal structure and its implications. Help readers understand the terms and their significance.
 
-=== REQUIRED TABLE ===
-**Deal Terms Summary**
-| Term | Provision |
-|------|-----------|
-| Pre-money Valuation | $ |
-| Round Size | $ |
-| Post-money Valuation | $ |
-| Lead Investor | |
-| Board Seats | |
-| Liquidation Preference | |
-| Anti-dilution | |
+=== REQUIRED STRUCTURE (IN THIS ORDER) ===
 
-=== SECTION STRUCTURE ===
-1. **Deal Summary**: Key terms table
-2. **Valuation Analysis**: Reasonableness assessment
-3. **Investor Rights**: Board, information, pro-rata
-4. **Protective Provisions**: Investor protections
-5. **Comparison to Market**: How terms compare
-6. **Deal Risks**: Term-related concerns
+**1. Deal Overview (2 paragraphs)**
+Open with narrative summarizing the transaction - valuation, round size, lead investor, and key terms in prose form.
 
-REQUIRED CITATIONS: Minimum 8
-REQUIRED DEAL TERMS: Minimum 10`,
+**2. Deal Terms (1 paragraph + 1 table)**
+Brief context, then ONE summary table of key deal terms. This is an appropriate place for a table.
+
+**3. Valuation Analysis (1-2 paragraphs)**
+Narrative analysis of whether the valuation is reasonable. Compare to similar companies if data available.
+
+**4. Investor Rights & Governance (1-2 paragraphs)**
+Narrative explanation of board seats, protective provisions, and investor rights.
+
+**5. Deal Takeaways (4-6 bullets)**
+END with bullet summary of key deal considerations.
+
+FORBIDDEN: Starting with the terms table before narrative context.
+REQUIRED: 50%+ narrative prose, 8+ citations, 10+ deal terms documented.`,
 
       'coverPage': `
 SECTION: COVER PAGE (1 page)
@@ -937,6 +939,7 @@ Generate the complete ${request.sectionTitle} section now:`;
 
   /**
    * Analyze the quality of generated content
+   * Now includes NARRATIVE DENSITY check to enforce prose-first writing
    */
   private analyzeContentQuality(content: string, facts: AgentFact[]): Omit<SectionGenerationResult, 'content'> {
     const warnings: string[] = [];
@@ -982,6 +985,9 @@ Generate the complete ${request.sectionTitle} section now:`;
     const namePattern = /(?:Dr\.|Mr\.|Ms\.|Prof\.)\s+[A-Z][a-z]+\s+[A-Z][a-z]+|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc|LLC|Ltd|Corp|GmbH)/g;
     const namesFound = content.match(namePattern) || [];
     
+    // NEW: Calculate narrative density (prose vs bullets/tables)
+    const narrativeDensity = calculateNarrativeDensity(content);
+    
     // Calculate quality score
     let qualityScore = 50; // Base score
     
@@ -997,6 +1003,16 @@ Generate the complete ${request.sectionTitle} section now:`;
     // Content length factor
     if (content.length > 2000) qualityScore += 5;
     if (content.length > 4000) qualityScore += 5;
+    
+    // NEW: Narrative density factor - boost for prose-heavy content
+    // Target is 60% prose, give bonus for meeting/exceeding
+    if (narrativeDensity >= 60) {
+      qualityScore += 5; // Meets narrative-first requirement
+    } else if (narrativeDensity >= 40) {
+      qualityScore += 0; // Neutral
+    } else {
+      qualityScore -= 10; // Penalty for bullet/table heavy content
+    }
     
     // Placeholder penalty
     qualityScore -= placeholderCount * 5;
@@ -1021,11 +1037,18 @@ Generate the complete ${request.sectionTitle} section now:`;
       warnings.push('Low specific entity count - need more named people/companies');
     }
     
+    // NEW: Narrative density warning - critical for quality gate
+    if (narrativeDensity < 40) {
+      warnings.push(`CRITICAL: Too many bullets/tables (${narrativeDensity}% prose) - need 60%+ narrative paragraphs`);
+    } else if (narrativeDensity < 60) {
+      warnings.push(`Low prose density (${narrativeDensity}%) - aim for 60%+ narrative paragraphs`);
+    }
+    
     // Determine confidence
     let confidence: 'high' | 'medium' | 'low';
-    if (qualityScore >= 80) {
+    if (qualityScore >= 80 && narrativeDensity >= 50) {
       confidence = 'high';
-    } else if (qualityScore >= 60) {
+    } else if (qualityScore >= 60 && narrativeDensity >= 40) {
       confidence = 'medium';
     } else {
       confidence = 'low';
@@ -1035,6 +1058,7 @@ Generate the complete ${request.sectionTitle} section now:`;
       qualityScore,
       citationsUsed,
       quantitativeDataPoints,
+      narrativeDensity,
       confidence,
       warnings
     };
