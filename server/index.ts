@@ -1606,6 +1606,14 @@ app.use((req, res, next) => {
         });
       });
       
+      // Initialize Memo Job Recovery Service (handles orphaned memo generation jobs)
+      console.log('📝 Initializing Memo Job Recovery Service...');
+      import('./services/memoJobRecoveryService').then(({ memoJobRecoveryService }) => {
+        memoJobRecoveryService.initialize().catch(err => {
+          console.error('❌ Failed to initialize memo job recovery:', err);
+        });
+      });
+      
       console.log('✅ All background services initialized');
     });
   });

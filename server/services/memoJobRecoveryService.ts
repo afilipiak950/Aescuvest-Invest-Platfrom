@@ -1,7 +1,6 @@
 import { storage } from '../storage';
-import { investmentMemoService } from './investmentMemoService';
 
-const ORPHAN_TIMEOUT_MINUTES = 3; // Consider job orphaned if no heartbeat for 3 minutes
+const ORPHAN_TIMEOUT_MINUTES = 5; // Consider job orphaned if no heartbeat for 5 minutes
 const RECOVERY_CHECK_INTERVAL = 60 * 1000; // Check every 60 seconds
 
 export class MemoJobRecoveryService {
