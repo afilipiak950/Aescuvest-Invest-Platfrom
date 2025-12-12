@@ -454,6 +454,9 @@ export function cleanMemoSectionContent(content: string): string {
   // CRITICAL: Strip all agent citations for clean professional output
   result = stripAgentCitations(result);
 
+  // CRITICAL: Fix malformed tables (inline rows, bullets in cells)
+  result = normalizeMemoTables(result);
+
   // Ensure proper spacing around tables for parsing
   result = ensureTableSpacing(result);
 

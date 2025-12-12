@@ -90,6 +90,86 @@ function stripAgentCitations(content: string): string {
 }
 
 /**
+ * BULLETPROOF table normalization - fixes malformed AI-generated tables
+ * Handles inline tables, bullets inside cells, missing separators
+ */
+function normalizeMemoTables(content: string): string {
+  if (!content) return content;
+
+  let result = content;
+
+  // Step 1: Fix bullets inside table cells (convert to dash separator)
+  result = result.replace(/\|\s*([^|]+?)\s*\n+\s*[•]\s*\n+\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
+  result = result.replace(/\|\s*([^|•]+?)\s*•\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
+
+  // Step 2: Fix inline multi-row tables: `| A | B | | C | D |` → separate rows
+  const inlineRowPattern = /\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*\|\s*/g;
+  let iterations = 0;
+  while (inlineRowPattern.test(result) && iterations < 20) {
+    result = result.replace(inlineRowPattern, '| $1 | $2 |\n| ');
+    iterations++;
+  }
+
+  // Step 3: Clean up remaining `| |` patterns
+  result = result.replace(/\|\s*\|\s*(?=\|)/g, '|\n|');
+
+  // Step 4: Process line by line to ensure proper structure
+  const lines = result.split('\n');
+  const outputLines: string[] = [];
+  let tableRows: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    
+    const isValidTableRow = trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2;
+    const isSeparator = /^\|[-:\s|]+\|$/.test(trimmed);
+    
+    if (isValidTableRow || isSeparator) {
+      tableRows.push(trimmed);
+    } else {
+      // Flush table
+      if (tableRows.length > 0) {
+        outputLines.push('');
+        const colCount = (tableRows[0].match(/\|/g) || []).length - 1;
+        const hasSep = tableRows.some(r => /^\|[-:\s|]+\|$/.test(r));
+        
+        for (let j = 0; j < tableRows.length; j++) {
+          outputLines.push(tableRows[j]);
+          if (j === 0 && !hasSep && tableRows.length > 1) {
+            outputLines.push('|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|');
+          }
+        }
+        if (tableRows.length === 1 && !hasSep) {
+          outputLines.push('|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|');
+        }
+        outputLines.push('');
+        tableRows = [];
+      }
+      outputLines.push(lines[i]);
+    }
+  }
+
+  // Flush remaining
+  if (tableRows.length > 0) {
+    outputLines.push('');
+    const colCount = (tableRows[0].match(/\|/g) || []).length - 1;
+    const hasSep = tableRows.some(r => /^\|[-:\s|]+\|$/.test(r));
+    for (let j = 0; j < tableRows.length; j++) {
+      outputLines.push(tableRows[j]);
+      if (j === 0 && !hasSep && tableRows.length > 1) {
+        outputLines.push('|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|');
+      }
+    }
+    if (tableRows.length === 1 && !hasSep) {
+      outputLines.push('|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|');
+    }
+    outputLines.push('');
+  }
+
+  return outputLines.join('\n');
+}
+
+/**
  * SIMPLE and SAFE table preprocessing
  * Only ensures proper blank lines around tables - does NOT modify table content
  * This lets remarkGfm parse valid tables correctly
@@ -136,9 +216,13 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
     );
   }
 
-  // CRITICAL: Strip all agent citations first, then add table spacing
+  // CRITICAL: Clean content in proper order
+  // 1. Strip agent citations
+  // 2. Normalize malformed tables
+  // 3. Add spacing around tables
   const cleanedContent = stripAgentCitations(content);
-  const processedContent = ensureTableSpacing(cleanedContent);
+  const normalizedContent = normalizeMemoTables(cleanedContent);
+  const processedContent = ensureTableSpacing(normalizedContent);
 
   return (
     <div className={`memo-markdown-content ${className}`}>
