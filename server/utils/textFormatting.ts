@@ -4,6 +4,122 @@
  */
 
 /**
+ * BULLETPROOF citation stripping function
+ * Removes ALL agent citation references from memo content for clean professional output
+ * 
+ * Handles patterns:
+ * - [AGENT Agent - Category] (full citation)
+ * - [AGENT Agent] (short citation)
+ * - Citations split across lines: [Legal Agent\n- Finding]
+ * - Orphaned fragments: - Obligations].
+ * - All 9 agent types: Legal, Clinical, Commercial, Financial, IP, HR, Research, FOUNDER SUCCESS, ADVISORY
+ * 
+ * @param content - Content that may contain citation references
+ * @returns Clean content with all citations removed
+ */
+export function stripAgentCitations(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+
+  let result = content;
+
+  // All agent name patterns (case-insensitive)
+  const agentNames = [
+    'LEGAL', 'Legal',
+    'CLINICAL', 'Clinical',
+    'COMMERCIAL', 'Commercial',
+    'FINANCIAL', 'Financial',
+    'IP', 'Ip',
+    'HR', 'Hr',
+    'RESEARCH', 'Research',
+    'FOUNDER SUCCESS', 'Founder Success', 'FOUNDER', 'Founder',
+    'ADVISORY', 'Advisory'
+  ];
+
+  // Build agent pattern (matches any agent name)
+  const agentPattern = agentNames.join('|');
+
+  // Pattern 1: Full citations with category [AGENT Agent - Category]
+  // Handles single line: [Legal Agent - Funding]
+  const fullCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*[-–—]\\s*[^\\]]+\\]`,
+    'gi'
+  );
+  result = result.replace(fullCitationRegex, '');
+
+  // Pattern 2: Short citations [AGENT Agent]
+  const shortCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\]`,
+    'gi'
+  );
+  result = result.replace(shortCitationRegex, '');
+
+  // Pattern 3: Citations split across lines with newline before dash
+  // e.g., "[Legal Agent\n- Finding]" or "[Legal Agent\n\n- Finding]"
+  const splitCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\n+\\s*[-–—]\\s*[^\\]]+\\]`,
+    'gi'
+  );
+  result = result.replace(splitCitationRegex, '');
+
+  // Pattern 4: Orphaned closing fragments like "- Category]." or "- Category]"
+  // These appear when the opening "[Agent" was on previous line
+  const orphanedClosingRegex = /^\s*[-–—]\s*[A-Za-z\s]+\]\s*[.,;]?\s*$/gm;
+  result = result.replace(orphanedClosingRegex, '');
+
+  // Pattern 5: Orphaned opening fragments like "[Legal Agent" at end of line
+  const orphanedOpeningRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*$`,
+    'gmi'
+  );
+  result = result.replace(orphanedOpeningRegex, '');
+
+  // Pattern 6: Inline orphaned fragments mid-text
+  // e.g., "some text [Legal Agent\n" 
+  const inlineOrphanRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\n`,
+    'gi'
+  );
+  result = result.replace(inlineOrphanRegex, '\n');
+
+  // Pattern 7: Just the dash-category fragment without bracket context
+  // e.g., "\n- Finding]." or "\n- Obligations]."
+  const dashFragmentRegex = /\n\s*[-–—]\s*[A-Za-z]+\]\s*[.,;]?/g;
+  result = result.replace(dashFragmentRegex, '');
+
+  // Pattern 8: Trailing orphaned bracket closings
+  // e.g., "Finding]." at start of line after citation was split
+  const trailingBracketRegex = /^\s*[A-Za-z\s]+\]\s*[.,;]?\s*$/gm;
+  // Only apply if line is short (likely orphaned)
+  result = result.split('\n').map(line => {
+    const trimmed = line.trim();
+    // If line is short and ends with ] or ]. - likely orphaned citation fragment
+    if (trimmed.length < 40 && /^[A-Za-z\s]+\]\s*[.,;]?$/.test(trimmed)) {
+      return '';
+    }
+    return line;
+  }).join('\n');
+
+  // Clean up: Remove extra whitespace left by removals
+  result = result.replace(/\s+\./g, '.');  // Fix " ." after removal
+  result = result.replace(/\s+,/g, ',');   // Fix " ," after removal
+  result = result.replace(/\s+\)/g, ')');  // Fix " )" after removal
+  result = result.replace(/\(\s+/g, '(');  // Fix "( " after removal
+  
+  // Clean up multiple spaces
+  result = result.replace(/  +/g, ' ');
+  
+  // Clean up multiple blank lines left by removals
+  result = result.replace(/\n{3,}/g, '\n\n');
+  
+  // Clean up lines that are just whitespace
+  result = result.split('\n').filter(line => line.trim() !== '' || line === '').join('\n');
+
+  return result;
+}
+
+/**
  * Normalize inline bullet points to proper markdown list format
  * Converts patterns like "• point1 • point2 • point3" to proper line-separated bullets
  * 
