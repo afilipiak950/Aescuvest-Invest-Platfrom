@@ -116,122 +116,49 @@ export function formatKeyFindings(findings: string[]): string[] {
 }
 
 /**
- * Fix malformed markdown tables that have rows on separate lines or broken syntax
- * This handles common AI output issues where tables get fragmented
+ * SIMPLE table spacing - ensures blank lines around tables for proper parsing
+ * Does NOT modify table content to avoid corrupting valid tables
  * 
- * @param content - Content that may contain broken tables
- * @returns Content with properly formatted markdown tables
+ * @param content - Content that may have tables
+ * @returns Content with proper spacing around tables
  */
-export function fixMalformedTables(content: string): string {
+export function ensureTableSpacing(content: string): string {
   if (!content || typeof content !== 'string') {
     return content;
   }
 
-  let result = content;
-  const lines = result.split('\n');
-  const outputLines: string[] = [];
-  
-  let inTableBlock = false;
-  let tableLines: string[] = [];
+  const lines = content.split('\n');
+  const result: string[] = [];
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+    const prevLine = result[result.length - 1]?.trim() || '';
     
-    // Detect table-related lines
+    // Detect valid table rows (starts and ends with |)
     const isTableRow = trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2;
-    const isPartialTableRow = trimmed.startsWith('|') || trimmed.endsWith('|');
-    const isSeparatorRow = /^\|[\s\-:]+\|$/.test(trimmed) || /^\|[-:\s|]+\|$/.test(trimmed);
-    const isEmptyPipes = trimmed === '|' || trimmed === '| |' || trimmed === '||';
-    const isBrokenSeparator = /^\|[-]+\|?$/.test(trimmed) || /^\|[-|]+$/.test(trimmed);
+    const prevIsTableRow = prevLine.startsWith('|') && prevLine.endsWith('|') && prevLine.length > 2;
+    const isSeparator = /^\|[-:\s|]+\|$/.test(trimmed);
+    const prevIsSeparator = /^\|[-:\s|]+\|$/.test(prevLine);
     
-    // Complete valid table row - just pass through
-    if (isTableRow && !isSeparatorRow && !isEmptyPipes) {
-      if (!inTableBlock) {
-        // Start of a new table - add blank line before
-        if (outputLines.length > 0 && outputLines[outputLines.length - 1].trim() !== '') {
-          outputLines.push('');
-        }
-        inTableBlock = true;
-      }
-      tableLines.push(trimmed);
-      continue;
+    // Add blank line BEFORE table start if previous is not table/separator/blank
+    if ((isTableRow || isSeparator) && !prevIsTableRow && !prevIsSeparator && prevLine !== '') {
+      result.push('');
     }
     
-    // Valid separator row
-    if (isSeparatorRow) {
-      if (inTableBlock) {
-        tableLines.push(trimmed);
-      }
-      continue;
-    }
+    result.push(line);
     
-    // Broken separator - fix it
-    if (isBrokenSeparator && inTableBlock) {
-      // Count columns from first table row
-      const firstRow = tableLines[0];
-      if (firstRow) {
-        const colCount = (firstRow.match(/\|/g) || []).length - 1;
-        const fixedSeparator = '|' + Array(Math.max(colCount, 1)).fill('---|').join('');
-        tableLines.push(fixedSeparator);
-      }
-      continue;
-    }
+    // Add blank line AFTER table end
+    const nextLine = lines[i + 1]?.trim() || '';
+    const nextIsTableRow = nextLine.startsWith('|') && nextLine.endsWith('|') && nextLine.length > 2;
+    const nextIsSeparator = /^\|[-:\s|]+\|$/.test(nextLine);
     
-    // Empty pipe lines - skip them
-    if (isEmptyPipes) {
-      continue;
+    if ((isTableRow || isSeparator) && !nextIsTableRow && !nextIsSeparator && nextLine !== '') {
+      result.push('');
     }
-    
-    // Partial table content - might be a broken row
-    if (isPartialTableRow && !isTableRow && inTableBlock) {
-      // Try to merge with previous line or treat as cell content
-      const cellContent = trimmed.replace(/^\|+\s*/, '').replace(/\s*\|+$/, '').trim();
-      if (cellContent && tableLines.length > 0) {
-        // This might be continuation content - skip for now
-        continue;
-      }
-    }
-    
-    // Non-table line - flush table buffer if we have one
-    if (tableLines.length > 0) {
-      // Ensure we have a separator row after the header
-      if (tableLines.length === 1) {
-        // Single row table needs a separator
-        const colCount = (tableLines[0].match(/\|/g) || []).length - 1;
-        const separator = '|' + Array(Math.max(colCount, 1)).fill(' --- |').join('');
-        tableLines.splice(1, 0, separator);
-      } else {
-        // Check if second row is a separator
-        const secondRow = tableLines[1];
-        if (secondRow && !/^[\|\s\-:]+$/.test(secondRow)) {
-          // Insert separator after header
-          const colCount = (tableLines[0].match(/\|/g) || []).length - 1;
-          const separator = '|' + Array(Math.max(colCount, 1)).fill(' --- |').join('');
-          tableLines.splice(1, 0, separator);
-        }
-      }
-      
-      outputLines.push(...tableLines);
-      outputLines.push(''); // Blank line after table
-      tableLines = [];
-      inTableBlock = false;
-    }
-    
-    outputLines.push(line);
   }
   
-  // Flush any remaining table
-  if (tableLines.length > 0) {
-    if (tableLines.length === 1) {
-      const colCount = (tableLines[0].match(/\|/g) || []).length - 1;
-      const separator = '|' + Array(Math.max(colCount, 1)).fill(' --- |').join('');
-      tableLines.splice(1, 0, separator);
-    }
-    outputLines.push(...tableLines);
-  }
-  
-  return outputLines.join('\n');
+  return result.join('\n');
 }
 
 /**
@@ -263,8 +190,8 @@ export function cleanMemoSectionContent(content: string): string {
   result = result.replace(/&gt;/gi, '>');
   result = result.replace(/&quot;/gi, '"');
 
-  // Fix malformed tables first
-  result = fixMalformedTables(result);
+  // Ensure proper spacing around tables for parsing
+  result = ensureTableSpacing(result);
 
   // Normalize bullet lists
   result = normalizeBulletLists(result);
