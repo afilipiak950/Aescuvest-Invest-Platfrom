@@ -7,6 +7,89 @@ interface MemoMarkdownRendererProps {
 }
 
 /**
+ * BULLETPROOF citation stripping - removes ALL agent citation references
+ * Duplicated from backend for client-side defense-in-depth
+ */
+function stripAgentCitations(content: string): string {
+  if (!content) return content;
+
+  let result = content;
+
+  // All agent name patterns
+  const agentNames = [
+    'LEGAL', 'Legal',
+    'CLINICAL', 'Clinical',
+    'COMMERCIAL', 'Commercial',
+    'FINANCIAL', 'Financial',
+    'IP', 'Ip',
+    'HR', 'Hr',
+    'RESEARCH', 'Research',
+    'FOUNDER SUCCESS', 'Founder Success', 'FOUNDER', 'Founder',
+    'ADVISORY', 'Advisory'
+  ];
+
+  const agentPattern = agentNames.join('|');
+
+  // Pattern 1: Full citations [AGENT Agent - Category]
+  const fullCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*[-–—]\\s*[^\\]]+\\]`,
+    'gi'
+  );
+  result = result.replace(fullCitationRegex, '');
+
+  // Pattern 2: Short citations [AGENT Agent]
+  const shortCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\]`,
+    'gi'
+  );
+  result = result.replace(shortCitationRegex, '');
+
+  // Pattern 3: Citations split across lines
+  const splitCitationRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\n+\\s*[-–—]\\s*[^\\]]+\\]`,
+    'gi'
+  );
+  result = result.replace(splitCitationRegex, '');
+
+  // Pattern 4: Orphaned closing fragments
+  result = result.replace(/^\s*[-–—]\s*[A-Za-z\s]+\]\s*[.,;]?\s*$/gm, '');
+
+  // Pattern 5: Orphaned opening fragments
+  const orphanedOpeningRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*$`,
+    'gmi'
+  );
+  result = result.replace(orphanedOpeningRegex, '');
+
+  // Pattern 6: Inline orphaned fragments
+  const inlineOrphanRegex = new RegExp(
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\n`,
+    'gi'
+  );
+  result = result.replace(inlineOrphanRegex, '\n');
+
+  // Pattern 7: Dash-category fragments
+  result = result.replace(/\n\s*[-–—]\s*[A-Za-z]+\]\s*[.,;]?/g, '');
+
+  // Pattern 8: Trailing orphaned bracket closings (short lines ending with ])
+  result = result.split('\n').map(line => {
+    const trimmed = line.trim();
+    if (trimmed.length < 40 && /^[A-Za-z\s]+\]\s*[.,;]?$/.test(trimmed)) {
+      return '';
+    }
+    return line;
+  }).join('\n');
+
+  // Cleanup
+  result = result.replace(/\s+\./g, '.');
+  result = result.replace(/\s+,/g, ',');
+  result = result.replace(/  +/g, ' ');
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result;
+}
+
+/**
  * SIMPLE and SAFE table preprocessing
  * Only ensures proper blank lines around tables - does NOT modify table content
  * This lets remarkGfm parse valid tables correctly
@@ -53,8 +136,9 @@ export function MemoMarkdownRenderer({ content, className = '' }: MemoMarkdownRe
     );
   }
 
-  // Only add spacing around tables - don't modify content
-  const processedContent = ensureTableSpacing(content);
+  // CRITICAL: Strip all agent citations first, then add table spacing
+  const cleanedContent = stripAgentCitations(content);
+  const processedContent = ensureTableSpacing(cleanedContent);
 
   return (
     <div className={`memo-markdown-content ${className}`}>
