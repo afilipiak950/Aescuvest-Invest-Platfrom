@@ -103,8 +103,8 @@ function normalizeMemoTables(content: string): string {
   result = result.replace(/\|\s*([^|•]+?)\s*•\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
 
   // Step 2: Fix inline multi-row tables: `| A | B | | C | D |` → separate rows
-  // The `| |` (pipe space+ pipe) indicates row boundary
-  result = result.replace(/\|\s+\|/g, '|\n|');
+  // Only split when `| |` is followed by word content (avoids breaking empty cells)
+  result = result.replace(/\|\s+\|\s+(?=[A-Za-z0-9$*\[])/g, '|\n| ');
 
   // Step 4: Process line by line to ensure proper structure
   const lines = result.split('\n');

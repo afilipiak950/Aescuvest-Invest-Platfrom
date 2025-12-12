@@ -257,10 +257,11 @@ export function normalizeMemoTables(content: string): string {
   result = result.replace(/\|\s*([^|•]+?)\s*•\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
 
   // Step 2: Detect and fix inline multi-row tables
-  // Pattern: `| Key1 | Value1 | | Key2 | Value2 |` → separate rows
-  // The `| |` (pipe space+ pipe) indicates row boundary
-  // Replace with newline to split into separate rows
-  result = result.replace(/\|\s+\|/g, '|\n|');
+  // Pattern: `| Value1 | | Key2 |` → separate rows
+  // Only split when `| |` is followed by word content (not empty or end of line)
+  // This avoids breaking valid empty cells like `| key | |`
+  // Pattern: `| |` followed by space then word character (key/value content)
+  result = result.replace(/\|\s+\|\s+(?=[A-Za-z0-9$*\[])/g, '|\n| ');
 
   // Step 4: Normalize table structure line by line
   const lines = result.split('\n');
