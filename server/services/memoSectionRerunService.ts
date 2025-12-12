@@ -21,6 +21,7 @@ import { agentDataFusionService } from './agentDataFusion';
 import { claudeOpusMemoSynthesis } from './claudeOpusMemoSynthesis';
 import { MEMO_SECTION_CONFIGS, getSectionConfig, SectionConfig } from './memoSectionConfig';
 import { websocketManager } from './websocketManager';
+import { cleanMemoSectionContent } from '../utils/textFormatting';
 
 export interface SectionRerunProgress {
   sectionName: string;
@@ -586,6 +587,7 @@ export class MemoSectionRerunService {
   /**
    * Update the investment memo with new section content
    * Uses the 'memo' JSON field which stores all section content
+   * ALWAYS applies cleanMemoSectionContent to fix any malformed tables/formatting
    */
   private async updateMemoSection(
     dealId: number, 
@@ -599,6 +601,9 @@ export class MemoSectionRerunService {
       agentsUsed: string[];
     }
   ): Promise<void> {
+    // ALWAYS clean content before saving - fixes malformed tables automatically
+    const cleanedContent = cleanMemoSectionContent(content);
+    
     // Get existing memo
     const existingMemo = await storage.getMemoByDealId(dealId);
     
@@ -611,8 +616,8 @@ export class MemoSectionRerunService {
         memoData.sections = {};
       }
       
-      // Update the specific section
-      memoData.sections[sectionName] = content;
+      // Update the specific section with CLEANED content
+      memoData.sections[sectionName] = cleanedContent;
       
       // Also update direct section field if this is executiveSummary
       const updateData: any = {
@@ -622,20 +627,20 @@ export class MemoSectionRerunService {
       
       // Map section name to top-level field if applicable
       if (sectionName === 'executiveSummary') {
-        updateData.executiveSummary = content;
+        updateData.executiveSummary = cleanedContent;
       } else if (sectionName === 'marketAnalysis' || sectionName === 'competitiveAnalysis') {
-        updateData.productMarket = content;
+        updateData.productMarket = cleanedContent;
       }
       
       await storage.updateMemo(existingMemo.id, updateData);
       
-      console.log(`📝 Updated memo section: ${sectionName}`);
+      console.log(`📝 Updated memo section: ${sectionName} (tables/formatting cleaned)`);
     } else {
       // Create new memo with just this section
       const memoData: any = {
         sections: {}
       };
-      memoData.sections[sectionName] = content;
+      memoData.sections[sectionName] = cleanedContent;
       
       await storage.createMemo({
         dealId,
