@@ -74,20 +74,35 @@ export class MemoSectionRerunService {
   /**
    * BULLETPROOF: Clean up stuck jobs that have been running too long
    * This is called before starting a new job to ensure clean state
+   * Persists fallback content to ensure memo sections are never empty
    */
   async cleanupStuckJobs(dealId: number, sectionName: string): Promise<void> {
     const jobId = this.getJobId(dealId, sectionName);
     const startTime = this.jobStartTimes.get(jobId);
     
     if (startTime && (Date.now() - startTime) > MAX_SECTION_RUN_TIME_MS) {
+      const sectionConfig = getSectionConfig(sectionName);
+      const displayName = sectionConfig?.displayName || sectionName;
+      
       console.log(`🧹 CLEANING UP STUCK JOB: ${jobId} (running for ${Math.round((Date.now() - startTime) / 1000)}s)`);
       
       // Clear from in-memory tracking
       this.activeSectionRuns.delete(jobId);
       this.jobStartTimes.delete(jobId);
       
-      // Mark database job as completed with fallback
+      // CRITICAL: Generate and persist fallback content to ensure section is never empty
+      const fallbackContent = `## ${displayName}\n\n*This section timed out during generation. Please click "Force Rerun" to regenerate.*\n\n**Note:** The previous generation attempt exceeded the time limit. The system recovered automatically.`;
+      
       try {
+        // BULLETPROOF: Save fallback content to the memo so section is never blank
+        await this.updateMemoSection(dealId, sectionName, fallbackContent, {
+          qualityScore: 25,
+          citationCount: 0,
+          metricCount: 0,
+          evidenceCount: 0,
+          agentsUsed: sectionConfig?.requiredAgents || []
+        });
+        
         await storage.updateBackgroundJob(jobId, {
           status: 'completed',
           progress: 100,
@@ -99,10 +114,16 @@ export class MemoSectionRerunService {
           await storage.updateMemoSectionRun(runRecord.id, {
             status: 'completed',
             progress: 100,
+            qualityScore: 25,
             currentStep: 'Recovered from stuck state',
             completedAt: new Date()
           });
         }
+        
+        // Broadcast via WebSocket so UI updates immediately
+        this.broadcastSectionCompletion(dealId, sectionName, 'low_confidence', fallbackContent, 25);
+        
+        console.log(`✅ Stuck job cleanup complete - fallback content saved for ${displayName}`);
       } catch (e) {
         console.error('Error cleaning up stuck job:', e);
       }
@@ -344,16 +365,21 @@ export class MemoSectionRerunService {
         
         await this.updateProgress(dealId, sectionName, 50, `Generating ${sectionConfig.displayName} with AI${attemptLabel}...`);
         
-        generationResult = await claudeOpusMemoSynthesis.generateSection({
-          sectionType: sectionName,
-          sectionTitle: sectionConfig.displayName,
-          companyName: deal.companyName || 'Unknown Company',
-          factMatrix,
-          ocrContext,
-          companyResearch,
-          aiEvaluation: comprehensiveAnalysis,
-          maxTokens: 6000
-        });
+        // BULLETPROOF: Wrap AI generation with hard timeout to prevent infinite hangs
+        generationResult = await this.withSectionTimeout(
+          claudeOpusMemoSynthesis.generateSection({
+            sectionType: sectionName,
+            sectionTitle: sectionConfig.displayName,
+            companyName: deal.companyName || 'Unknown Company',
+            factMatrix,
+            ocrContext,
+            companyResearch,
+            aiEvaluation: comprehensiveAnalysis,
+            maxTokens: 6000
+          }),
+          sectionName,
+          SECTION_GENERATION_TIMEOUT_MS
+        );
         
         console.log(`📊 Section generated (attempt ${attemptCount}): Quality ${generationResult.qualityScore}/100, ${generationResult.citationsUsed.length} citations`);
         
