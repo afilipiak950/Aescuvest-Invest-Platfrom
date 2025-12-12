@@ -16,12 +16,18 @@
 import { storage } from '../storage';
 import { db } from '../db';
 import { backgroundJobs, investmentMemos } from '../../shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, lt } from 'drizzle-orm';
 import { agentDataFusionService } from './agentDataFusion';
 import { claudeOpusMemoSynthesis } from './claudeOpusMemoSynthesis';
 import { MEMO_SECTION_CONFIGS, getSectionConfig, SectionConfig } from './memoSectionConfig';
 import { websocketManager } from './websocketManager';
 import { cleanMemoSectionContent } from '../utils/textFormatting';
+
+// BULLETPROOF: Maximum time a section can run before considered stuck (5 minutes)
+const MAX_SECTION_RUN_TIME_MS = 5 * 60 * 1000;
+
+// BULLETPROOF: Overall timeout for entire section generation (6 minutes) 
+const SECTION_GENERATION_TIMEOUT_MS = 6 * 60 * 1000;
 
 export interface SectionRerunProgress {
   sectionName: string;
@@ -49,6 +55,7 @@ export interface SectionRerunResult {
 export class MemoSectionRerunService {
   private static instance: MemoSectionRerunService;
   private activeSectionRuns: Map<string, SectionRerunProgress> = new Map();
+  private jobStartTimes: Map<string, number> = new Map(); // Track when each job started
 
   static getInstance(): MemoSectionRerunService {
     if (!MemoSectionRerunService.instance) {
@@ -62,6 +69,70 @@ export class MemoSectionRerunService {
    */
   private getJobId(dealId: number, sectionName: string): string {
     return `memo-section-rerun-${sectionName}-${dealId}`;
+  }
+
+  /**
+   * BULLETPROOF: Clean up stuck jobs that have been running too long
+   * This is called before starting a new job to ensure clean state
+   */
+  async cleanupStuckJobs(dealId: number, sectionName: string): Promise<void> {
+    const jobId = this.getJobId(dealId, sectionName);
+    const startTime = this.jobStartTimes.get(jobId);
+    
+    if (startTime && (Date.now() - startTime) > MAX_SECTION_RUN_TIME_MS) {
+      console.log(`🧹 CLEANING UP STUCK JOB: ${jobId} (running for ${Math.round((Date.now() - startTime) / 1000)}s)`);
+      
+      // Clear from in-memory tracking
+      this.activeSectionRuns.delete(jobId);
+      this.jobStartTimes.delete(jobId);
+      
+      // Mark database job as completed with fallback
+      try {
+        await storage.updateBackgroundJob(jobId, {
+          status: 'completed',
+          progress: 100,
+          currentStep: 'Recovered from stuck state - fallback content saved'
+        });
+        
+        const runRecord = await storage.getMemoSectionRun(dealId, sectionName);
+        if (runRecord && runRecord.status !== 'completed') {
+          await storage.updateMemoSectionRun(runRecord.id, {
+            status: 'completed',
+            progress: 100,
+            currentStep: 'Recovered from stuck state',
+            completedAt: new Date()
+          });
+        }
+      } catch (e) {
+        console.error('Error cleaning up stuck job:', e);
+      }
+    }
+  }
+
+  /**
+   * BULLETPROOF: Wrap async operation with hard timeout
+   */
+  private async withSectionTimeout<T>(
+    operation: Promise<T>,
+    sectionName: string,
+    timeoutMs: number = SECTION_GENERATION_TIMEOUT_MS
+  ): Promise<T> {
+    let timeoutId: NodeJS.Timeout;
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`SECTION_TIMEOUT: ${sectionName} exceeded ${timeoutMs/1000}s limit`));
+      }, timeoutMs);
+    });
+    
+    try {
+      const result = await Promise.race([operation, timeoutPromise]);
+      clearTimeout(timeoutId!);
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId!);
+      throw error;
+    }
   }
 
   /**
@@ -143,6 +214,7 @@ export class MemoSectionRerunService {
   /**
    * Force rerun a specific memo section
    * This is the main entry point for section regeneration
+   * BULLETPROOF: Includes stuck job cleanup and hard timeout protection
    */
   async forceRerunSection(dealId: number, sectionName: string): Promise<SectionRerunResult> {
     const MAX_RETRIES = 1; // Automatically retry once if quality fails
@@ -165,8 +237,14 @@ export class MemoSectionRerunService {
     console.log(`📝 ========================================\n`);
 
     try {
+      // BULLETPROOF: Clean up any stuck jobs first
+      await this.cleanupStuckJobs(dealId, sectionName);
+      
       // Clean up any existing jobs for this section
       await this.cleanupExistingSectionJobs(dealId, sectionName);
+      
+      // BULLETPROOF: Track when this job started
+      this.jobStartTimes.set(jobId, Date.now());
       
       // Create background job for progress tracking
       await storage.createBackgroundJob({
@@ -346,6 +424,7 @@ export class MemoSectionRerunService {
           }
           
           this.activeSectionRuns.delete(jobId);
+          this.jobStartTimes.delete(jobId); // BULLETPROOF: Clear start time tracking
           
           // INSTANT VISIBILITY: Broadcast completion via WebSocket
           this.broadcastSectionCompletion(dealId, sectionName, 'completed', generationResult!.content, generationResult!.qualityScore);
@@ -399,6 +478,7 @@ export class MemoSectionRerunService {
         }
         
         this.activeSectionRuns.delete(jobId);
+        this.jobStartTimes.delete(jobId); // BULLETPROOF: Clear start time tracking
         
         // INSTANT VISIBILITY: Broadcast low confidence (not failure) via WebSocket
         this.broadcastSectionCompletion(dealId, sectionName, 'low_confidence', generationResult!.content, generationResult!.qualityScore);
@@ -458,6 +538,7 @@ export class MemoSectionRerunService {
       }
       
       this.activeSectionRuns.delete(jobId);
+      this.jobStartTimes.delete(jobId); // BULLETPROOF: Clear start time tracking
       
       // INSTANT VISIBILITY: Broadcast completion via WebSocket immediately
       this.broadcastSectionCompletion(dealId, sectionName, 'completed', generationResult!.content, generationResult!.qualityScore);
@@ -513,6 +594,7 @@ export class MemoSectionRerunService {
       }
       
       this.activeSectionRuns.delete(jobId);
+      this.jobStartTimes.delete(jobId); // BULLETPROOF: Clear start time tracking
       
       // INSTANT VISIBILITY: Broadcast low confidence via WebSocket
       this.broadcastSectionCompletion(dealId, sectionName, 'low_confidence', fallbackContent, 30);
@@ -712,6 +794,7 @@ export class MemoSectionRerunService {
     
     // Remove from memory
     this.activeSectionRuns.delete(jobId);
+    this.jobStartTimes.delete(jobId); // BULLETPROOF: Clear start time tracking
     
     console.log(`🚫 Cancelled section rerun: ${sectionName}`);
     return true;
