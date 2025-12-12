@@ -232,6 +232,151 @@ export function formatKeyFindings(findings: string[]): string[] {
 }
 
 /**
+ * BULLETPROOF table normalization - fixes malformed AI-generated tables
+ * Handles:
+ * 1. Inline tables: `| A | B | | C | D |` → split into rows
+ * 2. Bullets inside cells: `| Value\n•\nMore |` → `| Value - More |`
+ * 3. Multi-line cells with stray whitespace
+ * 4. Missing header separators
+ * 
+ * @param content - Content that may have malformed tables
+ * @returns Content with properly formatted markdown tables
+ */
+export function normalizeMemoTables(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+
+  let result = content;
+
+  // Step 1: Fix bullets inside table cells (convert to dash separator)
+  // Pattern: `| something\n•\nsomething else |` → `| something - something else |`
+  result = result.replace(/\|\s*([^|]+?)\s*\n+\s*[•]\s*\n+\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
+  
+  // Also handle inline bullets in cells: `| value • more |` → `| value - more |`
+  result = result.replace(/\|\s*([^|•]+?)\s*•\s*([^|]+?)\s*\|/g, '| $1 - $2 |');
+
+  // Step 2: Detect and fix inline multi-row tables
+  // Pattern: `| Key1 | Value1 | | Key2 | Value2 |` → separate rows
+  // Look for `| ... | | ... |` which indicates inline rows
+  const inlineRowPattern = /\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*\|\s*/g;
+  
+  // Keep splitting until no more inline rows found
+  let iterations = 0;
+  while (inlineRowPattern.test(result) && iterations < 20) {
+    result = result.replace(inlineRowPattern, '| $1 | $2 |\n| ');
+    iterations++;
+  }
+
+  // Step 3: Handle tables that start with inline format on first detection
+  // Clean up any remaining `| |` patterns that indicate row boundaries
+  result = result.replace(/\|\s*\|\s*(?=\|)/g, '|\n|');
+
+  // Step 4: Normalize table structure line by line
+  const lines = result.split('\n');
+  const outputLines: string[] = [];
+  let inTable = false;
+  let tableRows: string[] = [];
+  let lastWasTableRow = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    // Detect table rows (start and end with |)
+    const isValidTableRow = trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2;
+    const isSeparator = /^\|[-:\s|]+\|$/.test(trimmed);
+    
+    // Check for partial/broken table row that needs fixing
+    const isPartialStart = trimmed.startsWith('|') && !trimmed.endsWith('|');
+    const isPartialEnd = !trimmed.startsWith('|') && trimmed.endsWith('|');
+    
+    if (isValidTableRow || isSeparator) {
+      if (!inTable) {
+        inTable = true;
+        tableRows = [];
+      }
+      tableRows.push(trimmed);
+      lastWasTableRow = true;
+    } else if (isPartialStart && inTable) {
+      // Partial row start - might be continuation, try to merge with next
+      const nextLine = lines[i + 1]?.trim() || '';
+      if (nextLine.endsWith('|') && !nextLine.startsWith('|')) {
+        // Merge with next line
+        const merged = trimmed + ' ' + nextLine.replace(/^\s*[•\-]\s*/, '');
+        tableRows.push(merged);
+        i++; // Skip next line
+        lastWasTableRow = true;
+        continue;
+      }
+      // Can't merge - flush table and output as text
+      if (tableRows.length > 0) {
+        outputLines.push(...processTableRows(tableRows));
+        tableRows = [];
+      }
+      inTable = false;
+      outputLines.push(line);
+      lastWasTableRow = false;
+    } else {
+      // Non-table line - flush any accumulated table
+      if (tableRows.length > 0) {
+        outputLines.push(...processTableRows(tableRows));
+        tableRows = [];
+      }
+      inTable = false;
+      outputLines.push(line);
+      lastWasTableRow = false;
+    }
+  }
+
+  // Flush remaining table
+  if (tableRows.length > 0) {
+    outputLines.push(...processTableRows(tableRows));
+  }
+
+  return outputLines.join('\n');
+}
+
+/**
+ * Process accumulated table rows to ensure proper structure
+ */
+function processTableRows(rows: string[]): string[] {
+  if (rows.length === 0) return [];
+  
+  const result: string[] = [''];  // Blank line before table
+  
+  // Count columns from first data row
+  const firstRow = rows[0];
+  const colCount = (firstRow.match(/\|/g) || []).length - 1;
+  
+  // Check if we have a separator row
+  let hasSeparator = rows.some(r => /^\|[-:\s|]+\|$/.test(r));
+  
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const isSep = /^\|[-:\s|]+\|$/.test(row);
+    
+    result.push(row);
+    
+    // Add separator after first row if missing
+    if (i === 0 && !hasSeparator && rows.length > 1) {
+      const separator = '|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|';
+      result.push(separator);
+      hasSeparator = true;
+    }
+  }
+  
+  // If single row table, add separator
+  if (rows.length === 1 && !hasSeparator) {
+    const separator = '|' + Array(Math.max(colCount, 1)).fill(' --- ').join('|') + '|';
+    result.push(separator);
+  }
+  
+  result.push('');  // Blank line after table
+  return result;
+}
+
+/**
  * SIMPLE table spacing - ensures blank lines around tables for proper parsing
  * Does NOT modify table content to avoid corrupting valid tables
  * 
