@@ -55,10 +55,10 @@ export function stripAgentCitations(content: string): string {
   );
   result = result.replace(shortCitationRegex, '');
 
-  // Pattern 3: Citations split across lines with newline before dash
+  // Pattern 3: Citations split across lines with newline/whitespace before dash
   // e.g., "[Legal Agent\n- Finding]" or "[Legal Agent\n\n- Finding]"
   const splitCitationRegex = new RegExp(
-    `\\[\\s*(${agentPattern})\\s+Agent\\s*\\n+\\s*[-–—]\\s*[^\\]]+\\]`,
+    `\\[\\s*(${agentPattern})\\s+Agent\\s*[\\n\\s]*[-–—]\\s*[^\\]]+\\]`,
     'gi'
   );
   result = result.replace(splitCitationRegex, '');
