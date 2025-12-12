@@ -258,19 +258,9 @@ export function normalizeMemoTables(content: string): string {
 
   // Step 2: Detect and fix inline multi-row tables
   // Pattern: `| Key1 | Value1 | | Key2 | Value2 |` → separate rows
-  // Look for `| ... | | ... |` which indicates inline rows
-  const inlineRowPattern = /\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*\|\s*/g;
-  
-  // Keep splitting until no more inline rows found
-  let iterations = 0;
-  while (inlineRowPattern.test(result) && iterations < 20) {
-    result = result.replace(inlineRowPattern, '| $1 | $2 |\n| ');
-    iterations++;
-  }
-
-  // Step 3: Handle tables that start with inline format on first detection
-  // Clean up any remaining `| |` patterns that indicate row boundaries
-  result = result.replace(/\|\s*\|\s*(?=\|)/g, '|\n|');
+  // The `| |` (pipe space+ pipe) indicates row boundary
+  // Replace with newline to split into separate rows
+  result = result.replace(/\|\s+\|/g, '|\n|');
 
   // Step 4: Normalize table structure line by line
   const lines = result.split('\n');
