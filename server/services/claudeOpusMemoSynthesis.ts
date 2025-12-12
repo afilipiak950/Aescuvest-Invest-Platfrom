@@ -449,6 +449,31 @@ Tables are ONLY appropriate for:
 - Cap table breakdowns
 DO NOT use tables for: company snapshots, team bios, or information that reads better as prose
 
+=== CRITICAL: MARKDOWN TABLE SYNTAX ===
+When you DO use a table, you MUST use this EXACT format with proper line breaks:
+
+CORRECT TABLE FORMAT:
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Data 1   | Data 2   | Data 3   |
+| Data 4   | Data 5   | Data 6   |
+
+RULES:
+- Each row MUST be on its own line
+- Header row first, then separator row with dashes, then data rows
+- Every cell must have a pipe | at start and end of row
+- Never put multiple rows on the same line
+- Always have a blank line before and after the table
+- Separator row must have at least 3 dashes per column: |---|---|---|
+
+WRONG (this will break rendering):
+| Header 1 | Header 2 | |---|---| | Data | More data |
+
+RIGHT:
+| Header 1 | Header 2 |
+|----------|----------|
+| Data     | More data |
+
 === BULLETS: USE AT END ===
 - Use bullet points ONLY for final "Key Takeaways" or "Critical Risks" summaries
 - Limit to 3-7 bullets maximum per subsection
