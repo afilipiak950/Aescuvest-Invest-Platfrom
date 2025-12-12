@@ -11,6 +11,32 @@ import { cleanMemoSectionContent, calculateNarrativeDensity, calculateTablePerce
 
 const anthropic = new Anthropic();
 
+// BULLETPROOF: Hard timeout for all Claude API calls (120 seconds)
+const CLAUDE_API_TIMEOUT_MS = 120000;
+
+/**
+ * Wrap a promise with a hard timeout to prevent infinite hangs
+ * This is CRITICAL for reliability - API calls should never hang indefinitely
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operationName: string): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`TIMEOUT: ${operationName} exceeded ${timeoutMs/1000}s limit`));
+    }, timeoutMs);
+  });
+  
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
+  }
+}
+
 export interface SectionGenerationRequest {
   sectionType: string;
   sectionTitle: string;
@@ -80,16 +106,21 @@ export class ClaudeOpusMemoSynthesis {
     
     try {
       // FIRST PASS: Generate with high expectations - MAXIMUM DETAIL
-      const response = await anthropic.messages.create({
-        model: "claude-opus-4-20250514",
-        max_tokens: request.maxTokens || 10000, // Increased to 10k for maximum detail
-        temperature: 0.4, // Higher for richer, more creative content
-        messages: [{
-          role: "user",
-          content: userPrompt
-        }],
-        system: systemPrompt
-      });
+      // BULLETPROOF: Wrap with hard timeout to prevent infinite hangs
+      const response = await withTimeout(
+        anthropic.messages.create({
+          model: "claude-opus-4-20250514",
+          max_tokens: request.maxTokens || 10000, // Increased to 10k for maximum detail
+          temperature: 0.4, // Higher for richer, more creative content
+          messages: [{
+            role: "user",
+            content: userPrompt
+          }],
+          system: systemPrompt
+        }),
+        CLAUDE_API_TIMEOUT_MS,
+        `Claude Opus generation for ${request.sectionTitle}`
+      );
 
       const content = response.content[0];
       let generatedContent = content.type === 'text' ? content.text : '';
@@ -250,16 +281,21 @@ ${metricsSummary}
 
 Generate the ENHANCED version now with narrative-first structure. It must score 80+ on quality:`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-20250514",
-      max_tokens: 8000,
-      temperature: 0.25,
-      messages: [{
-        role: "user",
-        content: enhancementPrompt
-      }],
-      system: `You are a senior investment analyst at a top-tier VC firm. Your job is to enhance investment memo sections to institutional quality. Every sentence must have specific data and proper citations. No generic statements allowed.`
-    });
+    // BULLETPROOF: Wrap with hard timeout to prevent infinite hangs
+    const response = await withTimeout(
+      anthropic.messages.create({
+        model: "claude-opus-4-20250514",
+        max_tokens: 8000,
+        temperature: 0.25,
+        messages: [{
+          role: "user",
+          content: enhancementPrompt
+        }],
+        system: `You are a senior investment analyst at a top-tier VC firm. Your job is to enhance investment memo sections to institutional quality. Every sentence must have specific data and proper citations. No generic statements allowed.`
+      }),
+      CLAUDE_API_TIMEOUT_MS,
+      `Claude Opus enhancement for ${request.sectionType}`
+    );
 
     const content = response.content[0];
     const enhancedText = content.type === 'text' ? content.text : previousContent;
@@ -329,12 +365,17 @@ IMPROVEMENTS:
 ...`;
 
     try {
-      const response = await anthropic.messages.create({
-        model: "claude-opus-4-20250514",
-        max_tokens: 2000,
-        temperature: 0.2,
-        messages: [{ role: "user", content: critiquePrompt }]
-      });
+      // BULLETPROOF: Wrap with hard timeout to prevent infinite hangs
+      const response = await withTimeout(
+        anthropic.messages.create({
+          model: "claude-opus-4-20250514",
+          max_tokens: 2000,
+          temperature: 0.2,
+          messages: [{ role: "user", content: critiquePrompt }]
+        }),
+        CLAUDE_API_TIMEOUT_MS,
+        `Claude Opus critique for ${sectionType}`
+      );
 
       const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
       
@@ -396,13 +437,18 @@ ${formattedFacts.substring(0, 50000)}
 
 Generate the IMPROVED version now:`;
 
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-20250514",
-      max_tokens: 10000,
-      temperature: 0.35,
-      messages: [{ role: "user", content: rewritePrompt }],
-      system: `You are a senior investment analyst. Rewrite sections to fix all identified issues while maintaining narrative flow. Every claim needs specific data and citations.`
-    });
+    // BULLETPROOF: Wrap with hard timeout to prevent infinite hangs
+    const response = await withTimeout(
+      anthropic.messages.create({
+        model: "claude-opus-4-20250514",
+        max_tokens: 10000,
+        temperature: 0.35,
+        messages: [{ role: "user", content: rewritePrompt }],
+        system: `You are a senior investment analyst. Rewrite sections to fix all identified issues while maintaining narrative flow. Every claim needs specific data and citations.`
+      }),
+      CLAUDE_API_TIMEOUT_MS,
+      `Claude Opus rewrite for ${request.sectionType}`
+    );
 
     const content = response.content[0];
     return content.type === 'text' ? cleanMemoSectionContent(content.text) : originalContent;
