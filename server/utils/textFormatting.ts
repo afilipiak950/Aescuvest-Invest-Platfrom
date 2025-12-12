@@ -306,6 +306,9 @@ export function cleanMemoSectionContent(content: string): string {
   result = result.replace(/&gt;/gi, '>');
   result = result.replace(/&quot;/gi, '"');
 
+  // CRITICAL: Strip all agent citations for clean professional output
+  result = stripAgentCitations(result);
+
   // Ensure proper spacing around tables for parsing
   result = ensureTableSpacing(result);
 
