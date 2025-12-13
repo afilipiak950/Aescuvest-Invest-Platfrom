@@ -2,6 +2,29 @@ import { jsPDF } from 'jspdf';
 
 export class EnhancedPdfExportService {
   static async generatePDF(memo: any, companyName: string): Promise<Buffer> {
+    // Normalize memo structure - handle both old (memo.sectionName) and new (memo.sections.sectionName) formats
+    const normalizedMemo: any = {};
+    
+    // If memo has a 'sections' wrapper, flatten it for export
+    if (memo && memo.sections && typeof memo.sections === 'object') {
+      console.log('📄 PDF Export: Found sections wrapper, normalizing structure...');
+      Object.keys(memo.sections).forEach(key => {
+        normalizedMemo[key] = memo.sections[key];
+      });
+    } else if (memo && typeof memo === 'object') {
+      // Old format - copy directly
+      Object.keys(memo).forEach(key => {
+        normalizedMemo[key] = memo[key];
+      });
+    }
+    
+    // Log what sections we found
+    const foundSections = Object.keys(normalizedMemo).filter(k => normalizedMemo[k] && typeof normalizedMemo[k] === 'string' && normalizedMemo[k].length > 0);
+    console.log(`📄 PDF Export: Found ${foundSections.length} sections: ${foundSections.join(', ')}`);
+    
+    // Use normalizedMemo for all subsequent operations
+    const memoData = normalizedMemo;
+    
     // Create PDF document with enhanced settings
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -573,9 +596,9 @@ export class EnhancedPdfExportService {
     startNewSection(true); // Force new page for first section
     
     // Executive Summary with enhanced formatting
-    if (memo.executiveSummary) {
+    if (memoData.executiveSummary) {
       addTitle('EXECUTIVE SUMMARY', true);
-      addText(memo.executiveSummary);
+      addText(memoData.executiveSummary);
       startNewSection(true); // Force new page after executive summary
     }
 
@@ -600,7 +623,7 @@ export class EnhancedPdfExportService {
     ];
 
     sectionMappings.forEach((section) => {
-      const content = (memo as any)[section.key];
+      const content = (memoData as any)[section.key];
       if (content) {
         // Only force new pages for major sections
         const majorSections = ['marketAnalysis', 'financialAnalysis', 'clinicalAssessment', 

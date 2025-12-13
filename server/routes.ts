@@ -7594,9 +7594,23 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
       console.log('📄 Found existing memo, creating DOCX export...');
       
       // Import docx library dynamically
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableCell, TableRow, WidthType, BorderStyle } = await import('docx');
       
-      const memoData = existingMemo.memo as any;
+      // Normalize memo structure - handle both old (memo.sectionName) and new (memo.sections.sectionName) formats
+      const rawMemo = existingMemo.memo as any;
+      let memoData: any = {};
+      
+      if (rawMemo && rawMemo.sections && typeof rawMemo.sections === 'object') {
+        console.log('📄 DOCX Export: Found sections wrapper, normalizing structure...');
+        Object.keys(rawMemo.sections).forEach(key => {
+          memoData[key] = rawMemo.sections[key];
+        });
+      } else if (rawMemo && typeof rawMemo === 'object') {
+        memoData = rawMemo;
+      }
+      
+      const foundSections = Object.keys(memoData).filter(k => memoData[k] && typeof memoData[k] === 'string' && memoData[k].length > 0);
+      console.log(`📄 DOCX Export: Found ${foundSections.length} sections: ${foundSections.join(', ')}`);
       
       // Create Word document with proper structure
       const children = [];
@@ -7700,23 +7714,39 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         }
       }
       
-      // Add all major sections from the memo
+      // Add coverPage section first if present (not already handled above)
+      if (memoData.coverPage) {
+        // Parse and add coverPage content
+        const coverContent = typeof memoData.coverPage === 'string' ? memoData.coverPage : '';
+        const coverParagraphs = coverContent.split('\n').filter((line: string) => line.trim());
+        coverParagraphs.forEach((line: string) => {
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: line.replace(/^#+\s*/, '').replace(/\*\*/g, ''),
+                  size: line.startsWith('#') ? 24 : 22,
+                  bold: line.startsWith('#') || line.includes('**'),
+                }),
+              ],
+              spacing: { after: 100 },
+            })
+          );
+        });
+      }
+      
+      // Add all major sections from the memo - Updated to match actual database sections
       const sectionOrder = [
         { key: 'marketAnalysis', title: 'MARKET ANALYSIS' },
-        { key: 'tamSamSomAnalysis', title: 'TAM/SAM/SOM ANALYSIS' },
-        { key: 'competitiveAnalysis', title: 'COMPETITIVE ANALYSIS' },
-        { key: 'technologyAssessment', title: 'TECHNOLOGY ASSESSMENT' },
-        { key: 'productAnalysis', title: 'PRODUCT ANALYSIS' },
-        { key: 'businessModel', title: 'BUSINESS MODEL' },
         { key: 'teamAssessment', title: 'TEAM ASSESSMENT' },
         { key: 'financialAnalysis', title: 'FINANCIAL ANALYSIS' },
-        { key: 'financialProjections', title: 'FINANCIAL PROJECTIONS' },
-        { key: 'valuationAnalysis', title: 'VALUATION ANALYSIS' },
-        { key: 'legalAssessment', title: 'LEGAL ASSESSMENT' },
-        { key: 'riskAssessment', title: 'RISK ASSESSMENT' },
-        { key: 'investmentTerms', title: 'INVESTMENT TERMS' },
-        { key: 'exitStrategy', title: 'EXIT STRATEGY' },
-        { key: 'recommendation', title: 'RECOMMENDATION' }
+        { key: 'clinicalEvidence', title: 'CLINICAL EVIDENCE' },
+        { key: 'technologyAssessment', title: 'TECHNOLOGY ASSESSMENT' },
+        { key: 'intellectualProperty', title: 'INTELLECTUAL PROPERTY' },
+        { key: 'regulatoryPathway', title: 'REGULATORY PATHWAY' },
+        { key: 'competitiveAnalysis', title: 'COMPETITIVE ANALYSIS' },
+        { key: 'riskAnalysis', title: 'RISK ANALYSIS' },
+        { key: 'investmentTerms', title: 'INVESTMENT TERMS' }
       ];
 
       sectionOrder.forEach(section => {
