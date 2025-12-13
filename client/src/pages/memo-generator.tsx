@@ -1657,6 +1657,7 @@ export default function MemoGenerator() {
                               headers: {
                                 'Content-Type': 'application/json',
                               },
+                              body: JSON.stringify({ premium: true }),
                             });
                             
                             if (!response.ok) {
