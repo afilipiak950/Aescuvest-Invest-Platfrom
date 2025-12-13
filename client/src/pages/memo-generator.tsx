@@ -1667,14 +1667,14 @@ export default function MemoGenerator() {
                             setExportStep('Generating PDF document...');
                             
                             const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 120000);
+                            const timeoutId = setTimeout(() => controller.abort(), 300000);
                             
                             const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',
                               },
-                              body: JSON.stringify({ premium: false }),
+                              body: JSON.stringify({ premium: true }),
                               signal: controller.signal,
                               credentials: 'include',
                             });
