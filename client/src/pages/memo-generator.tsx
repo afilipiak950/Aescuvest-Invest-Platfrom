@@ -210,6 +210,8 @@ export default function MemoGenerator() {
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
   const [isGenerationActive, setIsGenerationActive] = useState(false); // 🔥 FIX: Track if generation is actively running
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportStep, setExportStep] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -1650,7 +1652,11 @@ export default function MemoGenerator() {
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
+                        disabled={isExportingPdf}
+                        data-testid="button-export-pdf"
                         onClick={async () => {
+                          setIsExportingPdf(true);
+                          setExportStep('Synthesizing sections with AI...');
                           try {
                             const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
                               method: 'POST',
@@ -1660,11 +1666,13 @@ export default function MemoGenerator() {
                               body: JSON.stringify({ premium: true }),
                             });
                             
+                            setExportStep('Rendering premium PDF...');
+                            
                             if (!response.ok) {
                               throw new Error('Export failed');
                             }
                             
-                            // Create blob and download
+                            setExportStep('Downloading...');
                             const blob = await response.blob();
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
@@ -1685,16 +1693,42 @@ export default function MemoGenerator() {
                               description: "Failed to export PDF. Please try again.",
                               variant: "destructive",
                             });
+                          } finally {
+                            setIsExportingPdf(false);
+                            setExportStep('');
                           }
                         }}
                       >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Export PDF
+                        {isExportingPdf ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Export PDF
+                          </>
+                        )}
                       </Button>
+                      
+                      {isExportingPdf && (
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3" data-testid="pdf-export-progress">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+                            <span className="text-blue-400 text-sm font-medium">{exportStep}</span>
+                          </div>
+                          <div className="mt-2 w-full bg-dark-lighter rounded-full h-1.5">
+                            <div className="bg-blue-400 h-1.5 rounded-full animate-pulse" style={{width: '60%'}}></div>
+                          </div>
+                        </div>
+                      )}
                       
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
+                        disabled={isExportingPdf}
+                        data-testid="button-export-word"
                         onClick={async () => {
                           try {
                             const response = await fetch(`/api/deals/${selectedDeal}/export-docx`, {
