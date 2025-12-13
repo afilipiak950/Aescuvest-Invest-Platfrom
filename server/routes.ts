@@ -7450,16 +7450,17 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
-  // Export investment memo as PDF
+  // Export investment memo as PDF (supports premium=true for Claude+Puppeteer pipeline)
   app.post('/api/deals/:dealId/export-pdf', async (req: Request, res: Response) => {
     try {
       const dealId = parseInt(req.params.dealId);
+      const { premium } = req.body;
       
       if (isNaN(dealId)) {
         return res.status(400).json({ success: false, error: 'Invalid deal ID provided' });
       }
 
-      console.log(`📄 Starting PDF export for deal ${dealId}...`);
+      console.log(`📄 Starting PDF export for deal ${dealId}... (premium: ${premium ? 'yes' : 'no'})`);
       
       // Get the deal data
       const deal = await storage.getDealById(dealId);
@@ -7473,14 +7474,44 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         return res.status(404).json({ success: false, error: 'No memo found for this deal. Please generate a memo first.' });
       }
 
-      console.log('📄 Found existing memo, creating enhanced professional PDF export...');
+      console.log('📄 Found existing memo, creating PDF export...');
       
       const memoData = existingMemo.memo as any;
+      let pdfBuffer: Buffer;
       
-      // Use enhanced jsPDF service for professional formatting  
-      const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
-      const pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
-      console.log('✅ Generated professional PDF with enhanced formatting');
+      if (premium) {
+        // Ultra-premium Claude + Puppeteer pipeline
+        console.log('🎨 Using ultra-premium Claude + Puppeteer pipeline...');
+        
+        const { claudePdfSynthesisService } = await import('./services/claudePdfSynthesisService');
+        const { puppeteerPdfService } = await import('./services/puppeteerPdfService');
+        
+        // Check if Anthropic API is available
+        if (!claudePdfSynthesisService.isAvailable()) {
+          console.log('⚠️ ANTHROPIC_API_KEY not configured, falling back to standard PDF export');
+          const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
+          pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
+        } else {
+          try {
+            // Step 1: Transform memo to structured format using Claude
+            const structuredMemo = await claudePdfSynthesisService.synthesizeMemoToStructuredFormat(memoData, deal.companyName);
+            console.log(`✅ Claude synthesis complete: ${structuredMemo.sections.length} sections structured`);
+            
+            // Step 2: Generate premium PDF using Puppeteer
+            pdfBuffer = await puppeteerPdfService.generatePDF(structuredMemo);
+            console.log('✅ Puppeteer PDF generation complete');
+          } catch (premiumError) {
+            console.error('⚠️ Premium PDF pipeline failed, falling back to standard:', premiumError);
+            const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
+            pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
+          }
+        }
+      } else {
+        // Standard jsPDF-based export
+        const { EnhancedPdfExportService } = await import('./services/enhancedPdfExportService');
+        pdfBuffer = await EnhancedPdfExportService.generatePDF(memoData, deal.companyName);
+        console.log('✅ Generated PDF with jsPDF formatting');
+      }
       
       // Set proper headers for PDF
       res.setHeader('Content-Type', 'application/pdf');
