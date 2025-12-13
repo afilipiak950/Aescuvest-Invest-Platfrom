@@ -1662,26 +1662,38 @@ export default function MemoGenerator() {
                           
                           try {
                             setExportProgress(10);
-                            setExportStep('Synthesizing sections with AI...');
+                            setExportStep('Generating PDF document...');
+                            
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 120000);
                             
                             const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',
                               },
-                              body: JSON.stringify({ premium: true }),
+                              body: JSON.stringify({ premium: false }),
+                              signal: controller.signal,
                             });
                             
+                            clearTimeout(timeoutId);
+                            
                             setExportProgress(70);
-                            setExportStep('Rendering premium PDF...');
+                            setExportStep('Processing PDF...');
                             
                             if (!response.ok) {
-                              throw new Error('Export failed');
+                              const errorData = await response.json().catch(() => ({}));
+                              throw new Error(errorData.error || 'Export failed');
                             }
                             
                             setExportProgress(85);
                             setExportStep('Downloading...');
                             const blob = await response.blob();
+                            
+                            if (blob.size === 0) {
+                              throw new Error('Empty PDF generated');
+                            }
+                            
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
@@ -1696,12 +1708,16 @@ export default function MemoGenerator() {
                             
                             toast({
                               title: "PDF Export Complete",
-                              description: "Investment memo has been exported as PDF with BAIBYS structure.",
+                              description: "Investment memo has been exported as PDF.",
                             });
-                          } catch (error) {
+                          } catch (error: any) {
+                            console.error('PDF Export error:', error);
+                            const errorMessage = error.name === 'AbortError' 
+                              ? 'Export timed out. Please try again.'
+                              : error.message || 'Failed to export PDF. Please try again.';
                             toast({
                               title: "Export Failed",
-                              description: "Failed to export PDF. Please try again.",
+                              description: errorMessage,
                               variant: "destructive",
                             });
                           } finally {
