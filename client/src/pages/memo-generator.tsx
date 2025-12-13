@@ -1656,11 +1656,13 @@ export default function MemoGenerator() {
                         disabled={isExportingPdf}
                         data-testid="button-export-pdf"
                         onClick={async () => {
+                          console.log('🚀 EXPORT PDF BUTTON CLICKED - selectedDeal:', selectedDeal);
                           setIsExportingPdf(true);
                           setExportProgress(0);
                           setExportStep('Starting export...');
                           
                           try {
+                            console.log('📄 Starting fetch to /api/deals/' + selectedDeal + '/export-pdf');
                             setExportProgress(10);
                             setExportStep('Generating PDF document...');
                             
