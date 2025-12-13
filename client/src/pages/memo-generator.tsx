@@ -212,6 +212,7 @@ export default function MemoGenerator() {
   const [isGenerationActive, setIsGenerationActive] = useState(false); // 🔥 FIX: Track if generation is actively running
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportStep, setExportStep] = useState('');
+  const [exportProgress, setExportProgress] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -1656,8 +1657,13 @@ export default function MemoGenerator() {
                         data-testid="button-export-pdf"
                         onClick={async () => {
                           setIsExportingPdf(true);
-                          setExportStep('Synthesizing sections with AI...');
+                          setExportProgress(0);
+                          setExportStep('Starting export...');
+                          
                           try {
+                            setExportProgress(10);
+                            setExportStep('Synthesizing sections with AI...');
+                            
                             const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
                               method: 'POST',
                               headers: {
@@ -1666,12 +1672,14 @@ export default function MemoGenerator() {
                               body: JSON.stringify({ premium: true }),
                             });
                             
+                            setExportProgress(70);
                             setExportStep('Rendering premium PDF...');
                             
                             if (!response.ok) {
                               throw new Error('Export failed');
                             }
                             
+                            setExportProgress(85);
                             setExportStep('Downloading...');
                             const blob = await response.blob();
                             const url = window.URL.createObjectURL(blob);
@@ -1682,6 +1690,9 @@ export default function MemoGenerator() {
                             a.click();
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
+                            
+                            setExportProgress(100);
+                            setExportStep('Complete!');
                             
                             toast({
                               title: "PDF Export Complete",
@@ -1696,6 +1707,7 @@ export default function MemoGenerator() {
                           } finally {
                             setIsExportingPdf(false);
                             setExportStep('');
+                            setExportProgress(0);
                           }
                         }}
                       >
@@ -1714,12 +1726,18 @@ export default function MemoGenerator() {
                       
                       {isExportingPdf && (
                         <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3" data-testid="pdf-export-progress">
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
-                            <span className="text-blue-400 text-sm font-medium">{exportStep}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+                              <span className="text-blue-400 text-sm font-medium">{exportStep}</span>
+                            </div>
+                            <span className="text-blue-400 text-xs">{exportProgress}%</span>
                           </div>
                           <div className="mt-2 w-full bg-dark-lighter rounded-full h-1.5">
-                            <div className="bg-blue-400 h-1.5 rounded-full animate-pulse" style={{width: '60%'}}></div>
+                            <div 
+                              className="bg-blue-400 h-1.5 rounded-full transition-all duration-300" 
+                              style={{width: `${exportProgress}%`}}
+                            ></div>
                           </div>
                         </div>
                       )}
