@@ -1674,6 +1674,7 @@ export default function MemoGenerator() {
                               },
                               body: JSON.stringify({ premium: false }),
                               signal: controller.signal,
+                              credentials: 'include',
                             });
                             
                             clearTimeout(timeoutId);
