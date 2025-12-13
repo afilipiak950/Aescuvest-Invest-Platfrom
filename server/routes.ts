@@ -7452,6 +7452,7 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
 
   // Export investment memo as PDF (supports premium=true for Claude+Puppeteer pipeline)
   app.post('/api/deals/:dealId/export-pdf', async (req: Request, res: Response) => {
+    console.log(`🚀 EXPORT-PDF ENDPOINT HIT: dealId=${req.params.dealId}`);
     try {
       const dealId = parseInt(req.params.dealId);
       const { premium } = req.body;
