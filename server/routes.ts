@@ -1348,7 +1348,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`✅ Queued OCR processing for: ${file.originalname}`);
           
           await backgroundJobManager.addJob({
-            jobType: 'ai_summary',
+            jobType: 'ai_summary_generation',
             dealId: dealId,
             documentId: document.id,
             jobData: {
@@ -1356,7 +1356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               documentName: file.originalname
             }
           });
-          console.log(`✅ Queued AI summary for: ${file.originalname}`);
+          console.log(`✅ Queued AI summary generation for: ${file.originalname}`);
         } catch (ocrError) {
           console.error(`⚠️ Failed to queue jobs for ${file.originalname}:`, ocrError);
         }
