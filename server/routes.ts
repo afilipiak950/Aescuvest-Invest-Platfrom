@@ -1339,6 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`✅ Created document record: ${document.id} - ${file.originalname}`);
 
         // Queue OCR processing for each uploaded document
+        // NOTE: The OCR job automatically generates AI summaries inline after OCR completion
         try {
           await backgroundJobManager.addJob({
             jobType: 'document_ocr',
@@ -1351,20 +1352,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               documentId: document.id
             }
           });
-          console.log(`✅ Queued document_ocr job for: ${file.originalname}`);
-          
-          await backgroundJobManager.addJob({
-            jobType: 'ai_summary_generation',
-            dealId: dealId,
-            documentId: document.id,
-            jobData: {
-              documentId: document.id,
-              documentName: file.originalname
-            }
-          });
-          console.log(`✅ Queued AI summary generation for: ${file.originalname}`);
+          console.log(`✅ Queued document_ocr job for: ${file.originalname} (includes AI summary)`);
         } catch (ocrError) {
-          console.error(`⚠️ Failed to queue jobs for ${file.originalname}:`, ocrError);
+          console.error(`⚠️ Failed to queue OCR job for ${file.originalname}:`, ocrError);
         }
       }
 
