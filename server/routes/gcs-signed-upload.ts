@@ -256,13 +256,45 @@ router.post('/api/gcs/upload-complete/:dealId', async (req: Request, res: Respon
       });
     }
 
-    // For non-ZIP files, return immediately
-    return res.status(200).json({
-      success: true,
-      message: 'File uploaded successfully',
-      documentId: document.id,
-      gcsPath: gcsFileName
-    });
+    // 🚀 For non-ZIP files (PDFs, etc), queue OCR job
+    // NOTE: The OCR job automatically generates AI summaries inline after OCR completion
+    console.log('📄 Non-ZIP file detected, queuing OCR processing job (includes AI summary)...');
+    const { backgroundJobManager } = await import('../services/backgroundJobManager');
+    
+    try {
+      // Queue OCR processing - this handles both OCR and AI summary generation
+      const ocrJobId = await backgroundJobManager.addJob({
+        jobType: 'document_ocr',
+        dealId: parseInt(dealId),
+        documentId: document.id,
+        jobData: {
+          filePath: gcsFileName,  // GCS path - jobProcessor will handle this
+          fileName: fileName,
+          fileType: fileName.split('.').pop() || 'unknown',
+          documentId: document.id
+        }
+      });
+      console.log(`✅ Queued document_ocr job ${ocrJobId} for: ${fileName} (includes AI summary)`);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'File uploaded successfully! Processing OCR and AI analysis...',
+        documentId: document.id,
+        gcsPath: gcsFileName,
+        jobId: ocrJobId,
+        backgroundProcessing: true
+      });
+    } catch (jobError: any) {
+      console.error('⚠️ Failed to queue processing jobs:', jobError);
+      // Still return success since document was uploaded, but note the job queue failure
+      return res.status(200).json({
+        success: true,
+        message: 'File uploaded successfully (processing jobs may be delayed)',
+        documentId: document.id,
+        gcsPath: gcsFileName,
+        warning: 'Processing jobs could not be queued'
+      });
+    }
 
   } catch (error: any) {
     console.error('❌ MICRO-STEP 2 FAILED:', error);
