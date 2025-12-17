@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { Document } from '@shared/schema';
 import { BackgroundJobProgress } from './BackgroundJobProgress';
+import { useToast } from '@/hooks/use-toast';
 import { PDFViewer, InlinePDFPreview } from './PDFViewer';
 import { chunkedUploadService, type ChunkedUploadProgress } from '../services/chunkedUploadService';
 
@@ -962,6 +963,8 @@ const FolderTree: React.FC<{
 }); // ⚡ PERFORMANCE: React.memo closing
 
 export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUploadComplete }) => {
+  const { toast } = useToast();
+  
   // 🚨 CRITICAL FIX: ALL useState hooks MUST be at the very top before any other hooks or logic
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -1284,7 +1287,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         xhr.send(formData);
       });
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
+      const uploadCount = result?.documents?.length || 0;
       setUploadProgress(prev => prev ? { ...prev, status: 'Complete', progress: 100 } : null);
       setTimeout(() => setUploadProgress(null), 3000);
       queryClient.invalidateQueries({ queryKey: [`/api/deals/${dealId}/documents`] });
@@ -1292,11 +1296,22 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         additionalFileInputRef.current.value = '';
       }
       setShowAdditionalUpload(false);
+      
+      toast({
+        title: "Upload Complete",
+        description: `Successfully uploaded ${uploadCount} document${uploadCount !== 1 ? 's' : ''}. AI analysis will begin automatically.`,
+      });
     },
     onError: (error) => {
       console.error('Files upload failed:', error);
       setUploadProgress(prev => prev ? { ...prev, status: 'Failed', progress: 0 } : null);
       setTimeout(() => setUploadProgress(null), 5000);
+      
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload files. Please try again.",
+        variant: "destructive",
+      });
     }
   });
 
@@ -1660,12 +1675,16 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // Initialize upload progress for multiple files
-    const fileNames = Array.from(files).map(f => f.name).join(', ');
+    const fileCount = files.length;
+    const totalSize = Array.from(files).reduce((sum, f) => sum + f.size, 0);
+    const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+    
     setUploadProgress({
-      fileName: files.length > 1 ? `${files.length} files: ${fileNames}` : files[0].name,
+      fileName: fileCount > 1 
+        ? `Uploading ${fileCount} files (${totalSizeMB} MB total)` 
+        : files[0].name,
       progress: 0,
-      status: 'Starting upload...'
+      status: `Preparing ${fileCount} file${fileCount !== 1 ? 's' : ''} for upload...`
     });
 
     const formData = new FormData();
