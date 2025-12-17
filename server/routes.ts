@@ -1288,6 +1288,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
   (global as any).documentCache = documentCache;
   console.log('🌐 Document cache made globally accessible for ZIP upload cache clearing');
   
+  // POST /api/deals/:dealId/documents - Upload additional documents to a deal (matches frontend URL pattern)
+  app.post('/api/deals/:dealId/documents', upload.array('files', 50), async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      
+      if (isNaN(dealId)) {
+        console.log('❌ Additional upload: Invalid deal ID');
+        return res.status(400).json({ success: false, message: 'Invalid deal ID' });
+      }
+      
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        console.log('❌ Additional upload: No files provided');
+        return res.status(400).json({ success: false, message: 'No files uploaded' });
+      }
+      
+      console.log(`📤 Additional upload: Processing ${files.length} files for deal ${dealId}`);
+      
+      const documents = [];
+      const { backgroundJobManager } = await import('./services/backgroundJobManager');
+      
+      for (const file of files) {
+        const fileExt = path.extname(file.originalname).substring(1) || 'unknown';
+        
+        const documentData = {
+          dealId,
+          name: file.originalname,
+          type: fileExt,
+          path: file.path,
+          size: file.size,
+          status: 'Pending',
+          folderPath: 'Uploaded Documents',
+          assignedAgents: ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research']
+        };
+        
+        const result = insertDocumentSchema.safeParse(documentData);
+        if (!result.success) {
+          console.error(`❌ Validation failed for ${file.originalname}:`, result.error);
+          continue; // Skip invalid files but continue with others
+        }
+        
+        const document = await storage.createDocument(result.data);
+        documents.push(document);
+        console.log(`✅ Created document record: ${document.id} - ${file.originalname}`);
+
+        // Queue OCR processing for each uploaded document
+        try {
+          await backgroundJobManager.addJob({
+            jobType: 'ocr',
+            dealId: dealId,
+            documentId: document.id,
+            jobData: {
+              filePath: file.path,
+              fileType: fileExt,
+              documentId: document.id
+            }
+          });
+          console.log(`✅ Queued OCR processing for: ${file.originalname}`);
+          
+          await backgroundJobManager.addJob({
+            jobType: 'ai_summary',
+            dealId: dealId,
+            documentId: document.id,
+            jobData: {
+              documentId: document.id,
+              documentName: file.originalname
+            }
+          });
+          console.log(`✅ Queued AI summary for: ${file.originalname}`);
+        } catch (ocrError) {
+          console.error(`⚠️ Failed to queue jobs for ${file.originalname}:`, ocrError);
+        }
+      }
+
+      // Clear cache so documents appear in UI immediately
+      clearPaginatedDocumentCache(dealId);
+      await storage.invalidateDocumentCache(dealId);
+      console.log(`🧹 Cleared all caches for deal ${dealId} after additional upload`);
+      
+      // Broadcast via WebSocket for real-time UI update
+      try {
+        broadcastToClients(`deal-${dealId}`, {
+          type: 'documents_uploaded',
+          dealId,
+          count: documents.length,
+          documents: documents.map(d => ({ id: d.id, name: d.name }))
+        });
+        console.log(`📡 Broadcasted document upload notification for deal ${dealId}`);
+      } catch (wsError) {
+        console.error('WebSocket broadcast error:', wsError);
+        // Non-fatal - documents are still uploaded
+      }
+      
+      return res.status(201).json({
+        success: true,
+        documents,
+        message: `Successfully uploaded ${documents.length} document(s)`
+      });
+    } catch (error) {
+      console.error('❌ Additional document upload error:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Failed to upload documents' 
+      });
+    }
+  });
+  
   app.get('/api/deals/:dealId/documents', async (req: Request, res: Response) => {
     const startTime = Date.now();
     try {
