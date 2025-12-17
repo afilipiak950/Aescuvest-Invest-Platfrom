@@ -210,9 +210,6 @@ export default function MemoGenerator() {
   const [generatedMemo, setGeneratedMemo] = useState<ComprehensiveMemo | null>(null);
   const [sectionSources, setSectionSources] = useState<Record<string, any>>({});
   const [isGenerationActive, setIsGenerationActive] = useState(false); // 🔥 FIX: Track if generation is actively running
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [exportStep, setExportStep] = useState('');
-  const [exportProgress, setExportProgress] = useState(0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -1653,50 +1650,21 @@ export default function MemoGenerator() {
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
-                        disabled={isExportingPdf}
-                        data-testid="button-export-pdf"
                         onClick={async () => {
-                          console.log('🚀 EXPORT PDF BUTTON CLICKED - selectedDeal:', selectedDeal);
-                          setIsExportingPdf(true);
-                          setExportProgress(0);
-                          setExportStep('Starting export...');
-                          
                           try {
-                            console.log('📄 Starting fetch to /api/deals/' + selectedDeal + '/export-pdf');
-                            setExportProgress(10);
-                            setExportStep('Generating PDF document...');
-                            
-                            const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 300000);
-                            
                             const response = await fetch(`/api/deals/${selectedDeal}/export-pdf`, {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',
                               },
-                              body: JSON.stringify({ premium: true }),
-                              signal: controller.signal,
-                              credentials: 'include',
                             });
                             
-                            clearTimeout(timeoutId);
-                            
-                            setExportProgress(70);
-                            setExportStep('Processing PDF...');
-                            
                             if (!response.ok) {
-                              const errorData = await response.json().catch(() => ({}));
-                              throw new Error(errorData.error || 'Export failed');
+                              throw new Error('Export failed');
                             }
                             
-                            setExportProgress(85);
-                            setExportStep('Downloading...');
+                            // Create blob and download
                             const blob = await response.blob();
-                            
-                            if (blob.size === 0) {
-                              throw new Error('Empty PDF generated');
-                            }
-                            
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
@@ -1706,66 +1674,26 @@ export default function MemoGenerator() {
                             window.URL.revokeObjectURL(url);
                             document.body.removeChild(a);
                             
-                            setExportProgress(100);
-                            setExportStep('Complete!');
-                            
                             toast({
                               title: "PDF Export Complete",
-                              description: "Investment memo has been exported as PDF.",
+                              description: "Investment memo has been exported as PDF with BAIBYS structure.",
                             });
-                          } catch (error: any) {
-                            console.error('PDF Export error:', error);
-                            const errorMessage = error.name === 'AbortError' 
-                              ? 'Export timed out. Please try again.'
-                              : error.message || 'Failed to export PDF. Please try again.';
+                          } catch (error) {
                             toast({
                               title: "Export Failed",
-                              description: errorMessage,
+                              description: "Failed to export PDF. Please try again.",
                               variant: "destructive",
                             });
-                          } finally {
-                            setIsExportingPdf(false);
-                            setExportStep('');
-                            setExportProgress(0);
                           }
                         }}
                       >
-                        {isExportingPdf ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Export PDF
-                          </>
-                        )}
+                        <FileText className="h-4 w-4 mr-2" />
+                        Export PDF
                       </Button>
-                      
-                      {isExportingPdf && (
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3" data-testid="pdf-export-progress">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
-                              <span className="text-blue-400 text-sm font-medium">{exportStep}</span>
-                            </div>
-                            <span className="text-blue-400 text-xs">{exportProgress}%</span>
-                          </div>
-                          <div className="mt-2 w-full bg-dark-lighter rounded-full h-1.5">
-                            <div 
-                              className="bg-blue-400 h-1.5 rounded-full transition-all duration-300" 
-                              style={{width: `${exportProgress}%`}}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
                       
                       <Button 
                         variant="outline" 
                         className="w-full border-dark-lighter text-white hover:bg-dark-lighter"
-                        disabled={isExportingPdf}
-                        data-testid="button-export-word"
                         onClick={async () => {
                           try {
                             const response = await fetch(`/api/deals/${selectedDeal}/export-docx`, {
