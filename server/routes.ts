@@ -1291,6 +1291,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // POST /api/deals/:dealId/documents - Upload additional documents to a deal (matches frontend URL pattern)
   app.post('/api/deals/:dealId/documents', upload.array('files', 50), async (req: Request, res: Response) => {
+    console.log('🚀🚀🚀 DOCUMENT UPLOAD ROUTE HIT 🚀🚀🚀');
+    console.log(`🚀 Request params:`, req.params);
+    console.log(`🚀 Files received:`, (req.files as Express.Multer.File[])?.length || 0);
+    
     try {
       const dealId = parseInt(req.params.dealId);
       

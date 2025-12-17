@@ -276,6 +276,17 @@ class BackgroundJobManager {
       return false;
     }
   }
+
+  // Alias for createJob - used by upload routes
+  async addJob(data: {
+    jobType: string;
+    dealId?: number | null;
+    documentId?: number | null;
+    jobData?: any;
+  }): Promise<number> {
+    console.log(`📋 addJob called: type=${data.jobType}, dealId=${data.dealId}, docId=${data.documentId}`);
+    return this.createJob(data);
+  }
 }
 
 export const backgroundJobManager = new BackgroundJobManager();
