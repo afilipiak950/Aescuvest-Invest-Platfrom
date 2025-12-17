@@ -1257,16 +1257,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🚨 CRITICAL FIX: Queue OCR processing for each uploaded document
         const { backgroundJobManager } = await import('./services/backgroundJobManager');
         await backgroundJobManager.addJob({
-          jobType: 'ocr',
+          jobType: 'document_ocr',
           dealId: dealId,
           documentId: document.id,
           jobData: {
             filePath: file.path,
+            fileName: file.originalname,
             fileType: fileExt,
             documentId: document.id
           }
         });
-        console.log(`✅ Queued OCR processing for: ${file.originalname}`);
+        console.log(`✅ Queued document_ocr job for: ${file.originalname}`);
       }
 
       // 🚨 CRITICAL FIX: Clear cache so documents appear in UI immediately
@@ -1336,16 +1337,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Queue OCR processing for each uploaded document
         try {
           await backgroundJobManager.addJob({
-            jobType: 'ocr',
+            jobType: 'document_ocr',
             dealId: dealId,
             documentId: document.id,
             jobData: {
               filePath: file.path,
+              fileName: file.originalname,
               fileType: fileExt,
               documentId: document.id
             }
           });
-          console.log(`✅ Queued OCR processing for: ${file.originalname}`);
+          console.log(`✅ Queued document_ocr job for: ${file.originalname}`);
           
           await backgroundJobManager.addJob({
             jobType: 'ai_summary_generation',
@@ -4354,11 +4356,12 @@ ${document.ocrText}`
         try {
           const { backgroundJobManager } = await import('./services/backgroundJobManager');
           await backgroundJobManager.addJob({
-            jobType: 'ocr',
+            jobType: 'document_ocr',
             dealId: doc.dealId,
             documentId: doc.id,
             jobData: {
               filePath: doc.path,
+              fileName: doc.name,
               fileType: doc.type,
               documentId: doc.id
             }
@@ -9957,16 +9960,17 @@ export async function registerAllRoutes(app: Express) {
         // 🚨 CRITICAL FIX: Queue OCR processing for the uploaded document
         const { backgroundJobManager } = await import('./services/backgroundJobManager');
         await backgroundJobManager.addJob({
-          jobType: 'ocr',
+          jobType: 'document_ocr',
           dealId: dealId,
           documentId: document.id,
           jobData: {
             filePath: filePath,
+            fileName: fileName,
             fileType: document.type,
             documentId: document.id
           }
         });
-        console.log(`✅ Queued OCR processing for large file: ${fileName}`);
+        console.log(`✅ Queued document_ocr job for large file: ${fileName}`);
 
         res.json({
           success: true,
