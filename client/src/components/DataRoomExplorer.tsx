@@ -1736,7 +1736,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   };
 
   // 🚀 ULTRA-OPTIMIZED: Intelligent folder tree building with performance monitoring
-  const buildFolderTree = (docs: Document[]): { folderTree: FolderNode; emailAttachments: Document[] } => {
+  const buildFolderTree = (docs: Document[]): { folderTree: FolderNode; pitchDeckDocs: Document[] } => {
     const startTime = performance.now();
     console.log('🚀 Building intelligent folder tree with', docs.length, 'documents');
     
@@ -1744,19 +1744,44 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
     if (!docs || docs.length === 0) {
       return {
         folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
-        emailAttachments: []
+        pitchDeckDocs: []
       };
     }
     
-    // Separate email attachments from regular documents
-    const emailAttachments = docs.filter(doc => 
-      doc.folderPath?.includes('email-attachments') || 
-      doc.path?.includes('email-attachments')
-    );
-    const regularDocs = docs.filter(doc => 
-      !doc.folderPath?.includes('email-attachments') && 
-      !doc.path?.includes('email-attachments')
-    );
+    // 📊 Identify pitch deck documents by SPECIFIC patterns - conservative matching to avoid over-classification
+    const isPitchDeckDocument = (doc: Document): boolean => {
+      const name = doc.name?.toLowerCase() || '';
+      const category = (doc as any).category?.toLowerCase() || '';
+      const docType = (doc as any).documentType?.toLowerCase() || '';
+      
+      // STRICT pitch deck patterns - only explicit pitch deck terminology
+      const strictPitchDeckPatterns = [
+        'pitch deck', 'pitchdeck', 'pitch-deck',
+        'investor deck', 'investor presentation',
+        'one-pager', 'onepager', 'one pager',
+        'teaser deck', 'fund deck'
+      ];
+      
+      // Check for strict pattern matches in filename
+      const matchesStrictPattern = strictPitchDeckPatterns.some(pattern => name.includes(pattern));
+      
+      // Category must explicitly indicate pitch deck
+      const matchesCategory = category === 'pitch deck' || category === 'presentation' || category === 'pitch';
+      const matchesType = docType === 'pitch deck' || docType === 'pitch' || docType === 'presentation';
+      
+      // Email attachments - these were previously shown in the pitch deck section
+      const isEmailAttachment = doc.folderPath?.includes('email-attachments') || doc.path?.includes('email-attachments');
+      
+      // Presentation file types (.ppt, .pptx, .key) are presentation files
+      const isPresentationFile = name.endsWith('.ppt') || name.endsWith('.pptx') || name.endsWith('.key');
+      
+      // Return true only for explicit pitch deck matches, email attachments, or presentation files
+      return matchesStrictPattern || matchesCategory || matchesType || isEmailAttachment || isPresentationFile;
+    };
+    
+    // Separate pitch deck documents from regular documents
+    const pitchDeckDocs = docs.filter(doc => isPitchDeckDocument(doc));
+    const regularDocs = docs.filter(doc => !isPitchDeckDocument(doc));
     
     const root: FolderNode = {
       name: '',
@@ -1816,10 +1841,10 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       rootFolders: root.children.size,
       folderNames: Array.from(root.children.keys()),
       extractedDocuments: extractedDocCount,
-      emailAttachments: emailAttachments.length
+      pitchDeckDocs: pitchDeckDocs.length
     });
 
-    return { folderTree: root, emailAttachments };
+    return { folderTree: root, pitchDeckDocs };
   };
 
   const toggleFolder = (path: string) => {
@@ -1833,7 +1858,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
   const documentsArray = documents as Document[] | undefined;
 
   // 🚀 ULTRA-SMART FOLDER TREE: Progressive building with intelligent caching and deletion support
-  const { folderTree, emailAttachments } = useMemo(() => {
+  const { folderTree, pitchDeckDocs } = useMemo(() => {
     // Use stable documents to prevent UI flicker
     const docsToUse = stableDocuments;
     
@@ -1843,14 +1868,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
       if (!isFetching && lastNonEmptyDocumentsRef.current.length === 0) {
         return { 
           folderTree: { name: '', path: '', children: new Map(), documents: [], isExpanded: true },
-          emailAttachments: [] 
+          pitchDeckDocs: [] 
         };
       }
       // During fetching, preserve last known folder tree
       if (lastNonEmptyFolderTreeRef.current) {
         return {
           folderTree: lastNonEmptyFolderTreeRef.current,
-          emailAttachments: []
+          pitchDeckDocs: []
         };
       }
     }
@@ -2067,8 +2092,8 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      {/* Pitchdeck Section - Only show if there are email attachments */}
-      {emailAttachments.length > 0 && (
+      {/* Pitch Deck Section - Shows documents identified as pitch decks by name patterns, category, or file type */}
+      {pitchDeckDocs.length > 0 && (
         <div className="bg-dark-lighter rounded-lg">
           <div className="p-4 border-b border-dark">
             <div className="flex items-center justify-between">
@@ -2077,14 +2102,14 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   <span className="mr-2">📊</span>
                   Pitch Deck
                 </h3>
-                <p className="text-sm text-gray-400 mt-1">{emailAttachments.length} presentation documents</p>
+                <p className="text-sm text-gray-400 mt-1">{pitchDeckDocs.length} presentation documents</p>
               </div>
             </div>
           </div>
           
           <div className="p-4 max-h-96 overflow-y-auto">
             <div className="space-y-2">
-              {emailAttachments.map((doc) => (
+              {pitchDeckDocs.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex items-center py-2 px-3 hover:bg-dark-light rounded-lg cursor-pointer"
@@ -2163,7 +2188,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
                   <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
                 )}
               </div>
-              <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - emailAttachments.length} documents organized by folder structure</p>
+              <p className="text-sm text-gray-400 mt-1">{(documents?.length || 0) - pitchDeckDocs.length} documents organized by folder structure</p>
             </div>
           
           <div className="flex items-center space-x-2">
@@ -2410,7 +2435,7 @@ export const DataRoomExplorer: React.FC<DataRoomExplorerProps> = ({ dealId, onUp
         {/* No documents message or upload interface when only email attachments exist */}
         {folderTree.children.size === 0 && folderTree.documents.length === 0 && (
           <div className="p-6">
-            {emailAttachments.length > 0 ? (
+            {pitchDeckDocs.length > 0 ? (
               // Show upload interface when email attachments exist but no regular documents
               <div className="relative">
                 {/* Background gradient */}
