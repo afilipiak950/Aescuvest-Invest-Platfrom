@@ -759,7 +759,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
               ip: { label: 'IP Agent', icon: Lightbulb, color: 'text-orange-400' },
               research: { label: 'Research Agent', icon: BookOpen, color: 'text-cyan-400' },
             }).map(([key, config]) => {
-              const agent = intelligence.agentInsights[key];
+              const agent = safeAgentInsights[key as keyof typeof safeAgentInsights];
               const Icon = config.icon;
               const isComplete = agent?.status === 'Completed';
               
