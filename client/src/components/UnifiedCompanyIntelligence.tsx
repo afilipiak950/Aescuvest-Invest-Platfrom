@@ -278,6 +278,15 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
 
   const safeAgentInsights = intelligence.agentInsights || {};
 
+  // Helper to safely render items that might be strings or objects
+  const renderItem = (item: any): string => {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object') {
+      return item.content || item.text || item.description || item.name || JSON.stringify(item);
+    }
+    return String(item);
+  };
+
   const getQualityColor = (score: number) => {
     if (score >= 70) return 'text-green-400';
     if (score >= 40) return 'text-yellow-400';
@@ -433,7 +442,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                     {safeInvestmentHighlights.keyStrengths.map((strength, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-300">{strength}</span>
+                        <span className="text-gray-300">{renderItem(strength)}</span>
                       </li>
                     ))}
                   </ul>
@@ -456,7 +465,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                     {safeInvestmentHighlights.keyRisks.map((risk, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-300">{risk}</span>
+                        <span className="text-gray-300">{renderItem(risk)}</span>
                       </li>
                     ))}
                   </ul>
@@ -547,7 +556,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                     <div className="flex flex-wrap gap-2 mt-1">
                       {safeExecutiveTeam.ceo.previousCompanies.map((company, idx) => (
                         <Badge key={idx} variant="secondary" className="bg-dark-lighter">
-                          {company}
+                          {renderItem(company)}
                         </Badge>
                       ))}
                     </div>
@@ -574,7 +583,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                   {safeExecutiveTeam.teamStrengths.map((strength, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-300">{strength}</span>
+                      <span className="text-gray-300">{renderItem(strength)}</span>
                     </li>
                   ))}
                 </ul>
@@ -686,7 +695,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                   <div className="flex flex-wrap gap-2">
                     {safeMarketAnalysis.competitors.map((competitor, idx) => (
                       <Badge key={idx} variant="outline" className="bg-dark-lighter">
-                        {competitor}
+                        {renderItem(competitor)}
                       </Badge>
                     ))}
                   </div>
@@ -736,7 +745,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                         {risks.slice(0, 3).map((risk, idx) => (
                           <li key={idx} className="text-sm text-gray-400 flex items-start gap-2">
                             <ChevronRight className="h-3 w-3 mt-1 flex-shrink-0" />
-                            {risk}
+                            {renderItem(risk)}
                           </li>
                         ))}
                       </ul>
@@ -787,7 +796,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                         </div>
                         {agent.keyFindings.slice(0, 2).map((finding, idx) => (
                           <p key={idx} className="text-xs text-gray-300 line-clamp-2">
-                            {finding}
+                            {renderItem(finding)}
                           </p>
                         ))}
                       </div>
