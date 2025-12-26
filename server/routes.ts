@@ -5433,7 +5433,30 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
     }
   });
 
+  // Unified Company Intelligence endpoint - merges all data sources
+  app.get('/api/deals/:dealId/intelligence', async (req: Request, res: Response) => {
+    try {
+      const dealId = parseInt(req.params.dealId);
+      if (isNaN(dealId)) {
+        return res.status(400).json({ message: 'Invalid deal ID' });
+      }
 
+      console.log(`🧠 GET /api/deals/${dealId}/intelligence - Fetching unified intelligence`);
+      
+      const { companyIntelligenceService } = await import('./services/companyIntelligenceService');
+      const intelligence = await companyIntelligenceService.getUnifiedIntelligence(dealId);
+      
+      if (!intelligence) {
+        return res.status(404).json({ message: 'Deal not found' });
+      }
+
+      console.log(`✅ Unified intelligence returned for deal ${dealId} - Quality: ${intelligence.metadata.qualityScore}%`);
+      res.json(intelligence);
+    } catch (error) {
+      console.error('Error fetching unified intelligence:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
 
 
 
