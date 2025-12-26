@@ -35,7 +35,7 @@ export default function CompanyResearchPanel({ dealId }: CompanyResearchPanelPro
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: researchData, isLoading: isLoadingResearch, error: researchError } = useQuery<any>({
+  const { data: researchData, isLoading: isLoadingResearch, error: researchError, refetch: refetchResearch } = useQuery<any>({
     queryKey: ['/api/deals', dealId, 'research'],
     queryFn: async () => {
       const response = await fetch(`/api/deals/${dealId}/research`, {
@@ -283,17 +283,34 @@ export default function CompanyResearchPanel({ dealId }: CompanyResearchPanelPro
             </div>
             <div className="flex items-center gap-2">
               {hasResearchData && !isActiveJob && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => startResearchMutation.mutate(true)}
-                  disabled={isActiveJob}
-                  className="bg-dark-lighter border-dark-lighter hover:bg-dark hover:border-primary/50"
-                  data-testid="button-refresh-research"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      refetchResearch();
+                      refetchProgress();
+                      queryClient.invalidateQueries({ queryKey: ['/api/deals', dealId, 'intelligence'] });
+                    }}
+                    disabled={isActiveJob}
+                    className="bg-dark-lighter border-dark-lighter hover:bg-dark hover:border-primary/50"
+                    data-testid="button-refresh-research"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startResearchMutation.mutate(true)}
+                    disabled={isActiveJob}
+                    className="bg-primary/20 border-primary/30 hover:bg-primary/30 hover:border-primary/50 text-primary"
+                    data-testid="button-rerun-research"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Rerun
+                  </Button>
+                </>
               )}
               <Button
                 variant="ghost"

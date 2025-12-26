@@ -5287,34 +5287,37 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
         return res.status(404).json({ message: 'Deal not found' });
       }
 
-      // Try to get authentic research data first
+      // Get research data from companyResearch table (primary source)
+      const researchData = await storage.getCompanyResearchByDealId(dealId);
+      
+      if (researchData && researchData.researchStatus === 'complete') {
+        console.log('🔍 Returning research data from companyResearch table for deal:', dealId);
+        return res.json({
+          ...researchData,
+          aiConfidenceScore: researchData.aiConfidenceScore || 75
+        });
+      }
+
+      // Fallback to authentic research service (legacy)
       const { authenticResearchService } = await import('./services/authenticResearchService');
       const authenticData = await authenticResearchService.getStoredResearch(dealId);
       
       if (authenticData) {
-        console.log('🔍 Returning authentic research data for deal:', dealId);
+        console.log('🔍 Returning authentic research data (legacy) for deal:', dealId);
         return res.json(authenticData);
       }
 
-      // Fallback to basic research data
-      const researchData = await storage.getCompanyResearchByDealId(dealId);
-      
+      // No research data found
       if (!researchData) {
         return res.status(404).json({ message: 'Research data not available for this deal' });
       }
 
-      // Convert basic research to enhanced format
-      const convertedData = {
-        companyName: deal.companyName,
-        website: deal.website || '',
-        lastUpdated: researchData.researchCompletedAt || new Date().toISOString(),
-        sources: researchData.sources || 1,
-        aiConfidenceScore: 75,
-        researchStatus: 'complete' as const
-      };
-
-      console.log('🔍 Returning converted research data for deal:', dealId);
-      res.json(convertedData);
+      // Return partial research data
+      console.log('🔍 Returning partial research data for deal:', dealId);
+      res.json({
+        ...researchData,
+        aiConfidenceScore: researchData.aiConfidenceScore || 75
+      });
     } catch (error) {
       console.error('🔍 Error fetching company research:', error);
       res.status(500).json({ message: 'Internal server error' });
