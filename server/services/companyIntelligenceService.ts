@@ -214,10 +214,9 @@ class CompanyIntelligenceService {
   
   private async getResearchData(dealId: number): Promise<any> {
     try {
-      const { authenticResearchService } = await import('./authenticResearchService');
-      const research = await authenticResearchService.getStoredResearch(dealId);
+      const research = await storage.getCompanyResearchByDealId(dealId);
       if (research) {
-        console.log(`✅ Research data found for deal ${dealId}`);
+        console.log(`✅ Research data found for deal ${dealId} from companyResearch table`);
         return research;
       }
       console.log(`⚠️ No research data found for deal ${dealId} - returning null`);
