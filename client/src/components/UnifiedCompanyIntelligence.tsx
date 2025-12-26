@@ -223,6 +223,61 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
     lastFullUpdate: dataCompleteness?.lastFullUpdate
   };
 
+  const safeInvestmentHighlights = {
+    keyStrengths: intelligence.investmentHighlights?.keyStrengths || [],
+    keyRisks: intelligence.investmentHighlights?.keyRisks || [],
+    traction: intelligence.investmentHighlights?.traction || [],
+    differentiators: intelligence.investmentHighlights?.differentiators || [],
+    investmentThesis: intelligence.investmentHighlights?.investmentThesis || [],
+    sources: intelligence.investmentHighlights?.sources || []
+  };
+
+  const safeAIScoring = {
+    overallScore: intelligence.aiScoring?.overallScore,
+    confidence: intelligence.aiScoring?.confidence,
+    criteriaScores: intelligence.aiScoring?.criteriaScores || [],
+    recommendation: intelligence.aiScoring?.recommendation
+  };
+
+  const safeExecutiveTeam = {
+    ceo: intelligence.executiveTeam?.ceo,
+    keyMembers: intelligence.executiveTeam?.keyMembers || [],
+    teamStrengths: intelligence.executiveTeam?.teamStrengths || [],
+    teamRisks: intelligence.executiveTeam?.teamRisks || []
+  };
+
+  const safeFinancialIntelligence = {
+    sources: intelligence.financialIntelligence?.sources || [],
+    fundingAmount: intelligence.financialIntelligence?.fundingAmount,
+    revenue: intelligence.financialIntelligence?.revenue,
+    valuation: intelligence.financialIntelligence?.valuation,
+    fundingHistory: intelligence.financialIntelligence?.fundingHistory || [],
+    employeeCount: intelligence.financialIntelligence?.employeeCount,
+    growthRate: intelligence.financialIntelligence?.growthRate
+  };
+
+  const safeMarketAnalysis = {
+    sources: intelligence.marketAnalysis?.sources || [],
+    marketSize: intelligence.marketAnalysis?.marketSize,
+    marketPosition: intelligence.marketAnalysis?.marketPosition,
+    competitors: intelligence.marketAnalysis?.competitors || [],
+    businessModel: intelligence.marketAnalysis?.businessModel
+  };
+
+  const safeRiskAssessment = {
+    overallRiskLevel: intelligence.riskAssessment?.overallRiskLevel || 'unknown',
+    regulatory: intelligence.riskAssessment?.regulatory || [],
+    competitive: intelligence.riskAssessment?.competitive || [],
+    financial: intelligence.riskAssessment?.financial || [],
+    operational: intelligence.riskAssessment?.operational || [],
+    clinical: intelligence.riskAssessment?.clinical || [],
+    legal: intelligence.riskAssessment?.legal || [],
+    ip: intelligence.riskAssessment?.ip || [],
+    sources: intelligence.riskAssessment?.sources || []
+  };
+
+  const safeAgentInsights = intelligence.agentInsights || {};
+
   const getQualityColor = (score: number) => {
     if (score >= 70) return 'text-green-400';
     if (score >= 40) return 'text-yellow-400';
@@ -373,9 +428,9 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {intelligence.investmentHighlights.keyStrengths.length > 0 ? (
+                {safeInvestmentHighlights.keyStrengths.length > 0 ? (
                   <ul className="space-y-2">
-                    {intelligence.investmentHighlights.keyStrengths.map((strength, idx) => (
+                    {safeInvestmentHighlights.keyStrengths.map((strength, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
                         <span className="text-gray-300">{strength}</span>
@@ -396,9 +451,9 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {intelligence.investmentHighlights.keyRisks.length > 0 ? (
+                {safeInvestmentHighlights.keyRisks.length > 0 ? (
                   <ul className="space-y-2">
-                    {intelligence.investmentHighlights.keyRisks.map((risk, idx) => (
+                    {safeInvestmentHighlights.keyRisks.map((risk, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
                         <span className="text-gray-300">{risk}</span>
@@ -412,7 +467,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
             </Card>
           </div>
 
-          {intelligence.aiScoring.overallScore !== undefined && (
+          {safeAIScoring.overallScore !== undefined && (
             <Card className="bg-dark border-dark-lighter">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -424,23 +479,23 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                 <div className="flex items-center gap-6">
                   <div className="text-center">
                     <div className={`text-4xl font-bold ${
-                      intelligence.aiScoring.overallScore >= 70 ? 'text-green-400' :
-                      intelligence.aiScoring.overallScore >= 50 ? 'text-yellow-400' : 'text-red-400'
+                      safeAIScoring.overallScore >= 70 ? 'text-green-400' :
+                      safeAIScoring.overallScore >= 50 ? 'text-yellow-400' : 'text-red-400'
                     }`}>
-                      {intelligence.aiScoring.overallScore}/100
+                      {safeAIScoring.overallScore}/100
                     </div>
                     <div className="text-sm text-gray-400">Investment Score</div>
                   </div>
-                  {intelligence.aiScoring.confidence && (
+                  {safeAIScoring.confidence && (
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-400">
-                        {intelligence.aiScoring.confidence}%
+                        {safeAIScoring.confidence}%
                       </div>
                       <div className="text-sm text-gray-400">Confidence</div>
                     </div>
                   )}
                   <div className="flex-1">
-                    <Progress value={intelligence.aiScoring.overallScore} className="h-3" />
+                    <Progress value={safeAIScoring.overallScore} className="h-3" />
                   </div>
                 </div>
               </CardContent>
@@ -449,7 +504,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
         </TabsContent>
 
         <TabsContent value="team" className="space-y-6">
-          {intelligence.executiveTeam.ceo ? (
+          {safeExecutiveTeam.ceo ? (
             <Card className="bg-dark border-dark-lighter">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -457,15 +512,15 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                   CEO / Founder
                 </CardTitle>
                 <Badge variant="outline" className="w-fit text-xs">
-                  Source: {intelligence.executiveTeam.ceo.source}
+                  Source: {safeExecutiveTeam.ceo.source}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-white">{intelligence.executiveTeam.ceo.name}</h3>
-                  {intelligence.executiveTeam.ceo.linkedinUrl && (
+                  <h3 className="text-xl font-semibold text-white">{safeExecutiveTeam.ceo.name}</h3>
+                  {safeExecutiveTeam.ceo.linkedinUrl && (
                     <a 
-                      href={intelligence.executiveTeam.ceo.linkedinUrl}
+                      href={safeExecutiveTeam.ceo.linkedinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary text-sm hover:underline flex items-center gap-1"
@@ -474,23 +529,23 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                     </a>
                   )}
                 </div>
-                {intelligence.executiveTeam.ceo.background && (
+                {safeExecutiveTeam.ceo.background && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Background</label>
-                    <p className="text-gray-300">{intelligence.executiveTeam.ceo.background}</p>
+                    <p className="text-gray-300">{safeExecutiveTeam.ceo.background}</p>
                   </div>
                 )}
-                {intelligence.executiveTeam.ceo.experience && (
+                {safeExecutiveTeam.ceo.experience && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Experience</label>
-                    <p className="text-gray-300">{intelligence.executiveTeam.ceo.experience}</p>
+                    <p className="text-gray-300">{safeExecutiveTeam.ceo.experience}</p>
                   </div>
                 )}
-                {intelligence.executiveTeam.ceo.previousCompanies && intelligence.executiveTeam.ceo.previousCompanies.length > 0 && (
+                {safeExecutiveTeam.ceo.previousCompanies && safeExecutiveTeam.ceo.previousCompanies.length > 0 && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Previous Companies</label>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      {intelligence.executiveTeam.ceo.previousCompanies.map((company, idx) => (
+                      {safeExecutiveTeam.ceo.previousCompanies.map((company, idx) => (
                         <Badge key={idx} variant="secondary" className="bg-dark-lighter">
                           {company}
                         </Badge>
@@ -509,14 +564,14 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
             </Alert>
           )}
 
-          {intelligence.executiveTeam.teamStrengths && intelligence.executiveTeam.teamStrengths.length > 0 && (
+          {safeExecutiveTeam.teamStrengths && safeExecutiveTeam.teamStrengths.length > 0 && (
             <Card className="bg-dark border-dark-lighter">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Team Strengths</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
-                  {intelligence.executiveTeam.teamStrengths.map((strength, idx) => (
+                  {safeExecutiveTeam.teamStrengths.map((strength, idx) => (
                     <li key={idx} className="flex items-start gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
                       <span className="text-gray-300">{strength}</span>
@@ -530,48 +585,48 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
 
         <TabsContent value="financials" className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {intelligence.financialIntelligence.fundingAmount && (
+            {safeFinancialIntelligence.fundingAmount && (
               <Card className="bg-dark border-dark-lighter">
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-400">{intelligence.financialIntelligence.fundingAmount}</div>
+                  <div className="text-2xl font-bold text-green-400">{safeFinancialIntelligence.fundingAmount}</div>
                   <div className="text-sm text-gray-400">Funding</div>
                 </CardContent>
               </Card>
             )}
-            {intelligence.financialIntelligence.valuation && (
+            {safeFinancialIntelligence.valuation && (
               <Card className="bg-dark border-dark-lighter">
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-blue-400">{intelligence.financialIntelligence.valuation}</div>
+                  <div className="text-2xl font-bold text-blue-400">{safeFinancialIntelligence.valuation}</div>
                   <div className="text-sm text-gray-400">Valuation</div>
                 </CardContent>
               </Card>
             )}
-            {intelligence.financialIntelligence.revenue && (
+            {safeFinancialIntelligence.revenue && (
               <Card className="bg-dark border-dark-lighter">
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-primary">{intelligence.financialIntelligence.revenue}</div>
+                  <div className="text-2xl font-bold text-primary">{safeFinancialIntelligence.revenue}</div>
                   <div className="text-sm text-gray-400">Revenue</div>
                 </CardContent>
               </Card>
             )}
-            {intelligence.financialIntelligence.employeeCount && (
+            {safeFinancialIntelligence.employeeCount && (
               <Card className="bg-dark border-dark-lighter">
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-white">{intelligence.financialIntelligence.employeeCount}</div>
+                  <div className="text-2xl font-bold text-white">{safeFinancialIntelligence.employeeCount}</div>
                   <div className="text-sm text-gray-400">Employees</div>
                 </CardContent>
               </Card>
             )}
           </div>
 
-          {intelligence.financialIntelligence.fundingHistory && intelligence.financialIntelligence.fundingHistory.length > 0 && (
+          {safeFinancialIntelligence.fundingHistory && safeFinancialIntelligence.fundingHistory.length > 0 && (
             <Card className="bg-dark border-dark-lighter">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Funding History</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {intelligence.financialIntelligence.fundingHistory.map((round, idx) => (
+                  {safeFinancialIntelligence.fundingHistory.map((round, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-dark-lighter rounded-lg">
                       <div>
                         <span className="font-medium text-white">{round.round}</span>
@@ -587,9 +642,9 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
             </Card>
           )}
 
-          {intelligence.financialIntelligence.sources.length > 0 && (
+          {safeFinancialIntelligence.sources.length > 0 && (
             <div className="text-xs text-gray-500">
-              Sources: {intelligence.financialIntelligence.sources.join(', ')}
+              Sources: {safeFinancialIntelligence.sources.join(', ')}
             </div>
           )}
         </TabsContent>
@@ -601,22 +656,22 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                 <CardTitle className="text-base">Market Overview</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {intelligence.marketAnalysis.marketSize && (
+                {safeMarketAnalysis.marketSize && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Market Size</label>
-                    <p className="text-white font-semibold">{intelligence.marketAnalysis.marketSize}</p>
+                    <p className="text-white font-semibold">{safeMarketAnalysis.marketSize}</p>
                   </div>
                 )}
-                {intelligence.marketAnalysis.marketPosition && (
+                {safeMarketAnalysis.marketPosition && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Market Position</label>
-                    <p className="text-gray-300">{intelligence.marketAnalysis.marketPosition}</p>
+                    <p className="text-gray-300">{safeMarketAnalysis.marketPosition}</p>
                   </div>
                 )}
-                {intelligence.marketAnalysis.businessModel && (
+                {safeMarketAnalysis.businessModel && (
                   <div>
                     <label className="text-sm font-medium text-gray-400">Business Model</label>
-                    <p className="text-gray-300">{intelligence.marketAnalysis.businessModel}</p>
+                    <p className="text-gray-300">{safeMarketAnalysis.businessModel}</p>
                   </div>
                 )}
               </CardContent>
@@ -627,9 +682,9 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                 <CardTitle className="text-base">Competitors</CardTitle>
               </CardHeader>
               <CardContent>
-                {intelligence.marketAnalysis.competitors && intelligence.marketAnalysis.competitors.length > 0 ? (
+                {safeMarketAnalysis.competitors && safeMarketAnalysis.competitors.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {intelligence.marketAnalysis.competitors.map((competitor, idx) => (
+                    {safeMarketAnalysis.competitors.map((competitor, idx) => (
                       <Badge key={idx} variant="outline" className="bg-dark-lighter">
                         {competitor}
                       </Badge>
@@ -648,8 +703,8 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Risk Assessment</CardTitle>
-                <Badge className={getRiskColor(intelligence.riskAssessment.overallRiskLevel)}>
-                  {intelligence.riskAssessment.overallRiskLevel.toUpperCase()} RISK
+                <Badge className={getRiskColor(safeRiskAssessment.overallRiskLevel)}>
+                  {safeRiskAssessment.overallRiskLevel.toUpperCase()} RISK
                 </Badge>
               </div>
             </CardHeader>
@@ -664,7 +719,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
                   legal: { label: 'Legal', icon: Shield },
                   ip: { label: 'IP', icon: Lightbulb },
                 }).map(([key, config]) => {
-                  const risks = intelligence.riskAssessment[key as keyof typeof intelligence.riskAssessment];
+                  const risks = safeRiskAssessment[key as keyof typeof safeRiskAssessment];
                   if (!Array.isArray(risks) || risks.length === 0) return null;
                   
                   const Icon = config.icon;
