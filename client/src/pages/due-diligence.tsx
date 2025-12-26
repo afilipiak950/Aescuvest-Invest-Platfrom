@@ -11,6 +11,7 @@ import { SimpleFileUpload } from '@/components/SimpleFileUpload';
 import FileUploadAnalysis from '@/components/FileUploadAnalysis';
 import EnhancedCompanyResearch from '@/components/EnhancedCompanyResearch';
 import UnifiedCompanyIntelligence from '@/components/UnifiedCompanyIntelligence';
+import CompanyResearchPanel from '@/components/CompanyResearchPanel';
 import DynamicAIScoring from '@/components/ai/DynamicAIScoring';
 import DataRoomManager from '@/components/DataRoomManager';
 import UnassignedDocuments from '@/components/UnassignedDocuments';
@@ -888,7 +889,7 @@ function DueDiligenceContent() {
 
                 <TabsContent value="company-research">
                   <div className="pt-4">
-                    <UnifiedCompanyIntelligence dealId={parseInt(selectedDeal)} />
+                    <CompanyResearchPanel dealId={parseInt(selectedDeal)} />
                   </div>
                 </TabsContent>
 
