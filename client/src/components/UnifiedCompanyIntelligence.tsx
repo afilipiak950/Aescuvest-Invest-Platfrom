@@ -159,7 +159,7 @@ export default function UnifiedCompanyIntelligence({ dealId }: UnifiedCompanyInt
   const [activeTab, setActiveTab] = useState('overview');
 
   const { data: intelligence, isLoading, error, refetch } = useQuery<UnifiedIntelligence>({
-    queryKey: ['/api/deals', dealId, 'intelligence'],
+    queryKey: [`/api/deals/${dealId}/intelligence`],
     enabled: !!dealId,
     staleTime: 30000,
   });
