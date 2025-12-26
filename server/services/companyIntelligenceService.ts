@@ -214,9 +214,15 @@ class CompanyIntelligenceService {
   
   private async getResearchData(dealId: number): Promise<any> {
     try {
-      const research = await storage.getCompanyResearchByDealId(dealId);
+      // Use getCompanyResearchRawByDealId to get the parsed JSON fields (ceoProfile, investmentHighlights, etc.)
+      // instead of getCompanyResearchByDealId which returns flat text format
+      const research = await storage.getCompanyResearchRawByDealId(dealId);
       if (research) {
-        console.log(`✅ Research data found for deal ${dealId} from companyResearch table`);
+        console.log(`✅ Research data found for deal ${dealId} from companyResearch table (raw JSON fields)`);
+        console.log(`   - ceoProfile: ${research.ceoProfile ? 'present' : 'missing'}`);
+        console.log(`   - investmentHighlights: ${research.investmentHighlights ? 'present' : 'missing'}`);
+        console.log(`   - marketAnalysis: ${research.marketAnalysis ? 'present' : 'missing'}`);
+        console.log(`   - aiAnalysis: ${research.aiAnalysis ? 'present' : 'missing'}`);
         return research;
       }
       console.log(`⚠️ No research data found for deal ${dealId} - returning null`);
