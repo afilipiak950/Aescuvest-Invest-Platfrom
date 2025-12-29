@@ -250,6 +250,15 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
       console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
     }
     
+    // CRITICAL: Also clear the agentRunQueue to unblock waiting agents
+    try {
+      const { agentRunCoordinator } = await import('../services/agentRunCoordinator');
+      const queueResult = await agentRunCoordinator.stopAllAgents(dealId);
+      console.log(`🗑️ Cleared agent run queue: ${queueResult.stoppedCount} entries removed`);
+    } catch (queueError) {
+      console.error(`⚠️ Error clearing agent run queue (non-fatal):`, queueError);
+    }
+    
     console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
     
     res.json({
