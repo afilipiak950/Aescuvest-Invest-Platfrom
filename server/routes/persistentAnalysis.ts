@@ -8,6 +8,7 @@ import { storage } from '../storage';
 import { comprehensiveLegalAnalysisService } from '../comprehensiveLegalAnalysisService';
 import { cancellationRegistry } from '../services/cancellationRegistry';
 import { agentRunCoordinator } from '../services/agentRunCoordinator';
+import { cancellationOrchestrator } from '../services/cancellationOrchestrator';
 
 const router = Router();
 
@@ -134,95 +135,24 @@ router.post('/api/persistent-jobs/:jobId/stop', async (req: Request, res: Respon
 });
 
 /**
- * Clear all stuck jobs for a deal - NOW ALSO STOPS RUNNING JOBS
+ * Clear all stuck jobs for a deal - USES UNIFIED CANCELLATION ORCHESTRATOR
+ * This is the main endpoint called by the "Stop All Jobs" button
  */
 router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Response) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
-    console.log(`🛑 CLEARING/STOPPING ALL JOBS for deal ${dealId}`);
+    console.log(`🛑 ====== STOP ALL JOBS BUTTON PRESSED for deal ${dealId} ======`);
     
-    // Get all jobs for this deal from storage
-    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
-    
-    // Define terminal statuses that should NOT be cancelled
-    const terminalStatuses = ['completed', 'failed', 'cancelled'];
-    
-    // Get ALL active/stuck jobs (not just 'processing')
-    const activeJobs = allJobs.filter(job => !terminalStatuses.includes(job.status));
-    
-    console.log(`🔍 Found ${allJobs.length} total jobs, ${activeJobs.length} active/stuck jobs for deal ${dealId}`);
-    console.log(`🔍 Job statuses: ${allJobs.map(j => `${j.agentType}:${j.status}`).join(', ')}`);
-    
-    let stoppedCount = 0;
-    
-    // FIRST: Register all cancellations in memory for instant detection by workers
-    const jobIdsToCancel = activeJobs.map(job => job.jobId);
-    cancellationRegistry.cancelMultiple(jobIdsToCancel);
-    
-    // Cancel ALL non-terminal jobs (processing, pending, queued, starting, etc.)
-    for (const job of activeJobs) {
-      try {
-        await storage.updateBackgroundJob(job.jobId, {
-          status: 'cancelled',
-          currentStep: 'Stopped by user',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        });
-        
-        stoppedCount++;
-        console.log(`🛑 Database: Cancelled job ${job.jobId} (${job.agentType}, was: ${job.status})`);
-      } catch (error) {
-        console.error(`❌ Error updating job ${job.jobId}:`, error);
-      }
-    }
-    
-    // Also clear any jobs from persistent job manager memory
-    try {
-      const clearedFromMemory = await persistentJobManager.clearStuckJobs(dealId);
-      console.log(`🧹 Cleared ${clearedFromMemory} jobs from memory`);
-    } catch (memoryError) {
-      console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
-    }
-    
-    // CRITICAL: Also clear the agent run queue to stop queued agents
-    try {
-      const result = await agentRunCoordinator.stopAllAgents(dealId);
-      console.log(`🛑 Stopped ${result.stoppedCount} agents via coordinator`);
-    } catch (queueError) {
-      console.error(`⚠️ Error stopping via coordinator (non-fatal):`, queueError);
-    }
-    
-    // CRITICAL: Clear agent run queue database rows directly (in case coordinator missed any)
-    try {
-      const clearedQueueRows = await storage.clearAgentRunQueue(dealId);
-      console.log(`🗑️ Cleared ${clearedQueueRows} agent run queue database rows`);
-    } catch (dbQueueError) {
-      console.error(`⚠️ Error clearing agent run queue DB rows (non-fatal):`, dbQueueError);
-    }
-    
-    // CRITICAL: Also cancel research jobs to unblock Research agent
-    try {
-      const cancelledResearchJobs = await storage.cancelResearchJobsByDealId(dealId);
-      console.log(`🛑 Cancelled ${cancelledResearchJobs} research jobs`);
-    } catch (researchError) {
-      console.error(`⚠️ Error cancelling research jobs (non-fatal):`, researchError);
-    }
-    
-    // Also clean up researchBackgroundJobs table
-    try {
-      const deletedResearchBgJobs = await storage.deleteResearchBackgroundJobsByDealId(dealId);
-      console.log(`🗑️ Cleared ${deletedResearchBgJobs} research background jobs`);
-    } catch (researchBgError) {
-      console.error(`⚠️ Error clearing research background jobs (non-fatal):`, researchBgError);
-    }
-    
-    console.log(`✅ Stopped ${stoppedCount} jobs in database for deal ${dealId}`);
+    // Use the unified CancellationOrchestrator for atomic, guaranteed cleanup
+    const result = await cancellationOrchestrator.cancelAllJobsForDeal(dealId);
     
     res.json({
-      success: true,
-      message: `Cleared ${stoppedCount} stuck jobs`,
-      clearedCount: stoppedCount
+      success: result.success,
+      message: `Cleared ${result.totalCancelled} jobs across all systems`,
+      clearedCount: result.totalCancelled,
+      details: result.details,
+      errors: result.errors.length > 0 ? result.errors : undefined
     });
     
   } catch (error) {
@@ -235,85 +165,22 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
 });
 
 /**
- * Stop ALL jobs for a deal immediately
+ * Stop ALL jobs for a deal immediately - USES UNIFIED CANCELLATION ORCHESTRATOR
  */
 router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Response) => {
   try {
     const dealId = parseInt(req.params.dealId);
     
-    console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
+    console.log(`🛑 ====== STOP ALL JOBS ENDPOINT for deal ${dealId} ======`);
     
-    // Get all jobs for this deal from storage
-    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
-    
-    // Define terminal statuses that should NOT be cancelled
-    const terminalStatuses = ['completed', 'failed', 'cancelled'];
-    
-    // Get ALL active/stuck jobs (not just 'processing')
-    const activeJobs = allJobs.filter(job => !terminalStatuses.includes(job.status));
-    
-    console.log(`🔍 Found ${allJobs.length} total jobs, ${activeJobs.length} active jobs for deal ${dealId}`);
-    
-    // FIRST: Register all cancellations in memory for instant detection by workers
-    const jobIdsToCancel = activeJobs.map(job => job.jobId);
-    cancellationRegistry.cancelMultiple(jobIdsToCancel);
-    
-    let stoppedCount = 0;
-    
-    for (const job of activeJobs) {
-      try {
-        await storage.updateBackgroundJob(job.jobId, {
-          status: 'cancelled',
-          currentStep: 'Cancelled by user',
-          completedAt: new Date(),
-          updatedAt: new Date()
-        });
-        
-        stoppedCount++;
-        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType}, was: ${job.status})`);
-      } catch (error) {
-        console.error(`❌ Error stopping job ${job.jobId}:`, error);
-      }
-    }
-    
-    // Also clear from persistent job manager
-    try {
-      await persistentJobManager.clearStuckJobs(dealId);
-    } catch (memoryError) {
-      console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
-    }
-    
-    // CRITICAL: Also clear the agentRunQueue to unblock waiting agents
-    try {
-      const { agentRunCoordinator } = await import('../services/agentRunCoordinator');
-      const queueResult = await agentRunCoordinator.stopAllAgents(dealId);
-      console.log(`🗑️ Cleared agent run queue: ${queueResult.stoppedCount} entries removed`);
-    } catch (queueError) {
-      console.error(`⚠️ Error clearing agent run queue (non-fatal):`, queueError);
-    }
-    
-    // CRITICAL: Also cancel the researchJobs table to unblock Research agent
-    try {
-      const cancelledResearchJobs = await storage.cancelResearchJobsByDealId(dealId);
-      console.log(`🛑 Cancelled research jobs: ${cancelledResearchJobs} entries`);
-    } catch (researchError) {
-      console.error(`⚠️ Error cancelling research jobs (non-fatal):`, researchError);
-    }
-    
-    // Also clean up researchBackgroundJobs table
-    try {
-      const deletedResearchBgJobs = await storage.deleteResearchBackgroundJobsByDealId(dealId);
-      console.log(`🗑️ Cleared research background jobs: ${deletedResearchBgJobs} entries removed`);
-    } catch (researchBgError) {
-      console.error(`⚠️ Error clearing research background jobs (non-fatal):`, researchBgError);
-    }
-    
-    console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
+    // Use the unified CancellationOrchestrator for atomic, guaranteed cleanup
+    const result = await cancellationOrchestrator.cancelAllJobsForDeal(dealId);
     
     res.json({
-      success: true,
-      message: `Stopped ${stoppedCount} jobs for deal ${dealId}`,
-      stoppedCount
+      success: result.success,
+      message: `Stopped ${result.totalCancelled} jobs for deal ${dealId}`,
+      stoppedCount: result.totalCancelled,
+      details: result.details
     });
     
   } catch (error) {
