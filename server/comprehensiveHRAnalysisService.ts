@@ -4,6 +4,7 @@ import { documents, agentAnalyses, backgroundJobs } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 import { formatAgentAnswer } from './utils/textFormatting';
+import { cancellationRegistry } from './services/cancellationRegistry';
 
 const HR_QUESTIONS = [
   // Team Structure
@@ -232,22 +233,15 @@ export class ComprehensiveHRAnalysisService {
       const hrAnswers: Record<string, any> = {};
       
       for (let i = 0; i < HR_QUESTIONS.length; i++) {
-        // Check for cancellation every 3 questions to balance responsiveness with performance
-        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
-          try {
-            const currentJob = await storageService.getBackgroundJobById(jobId);
-            if (currentJob && currentJob.status === 'cancelled') {
-              console.log(`🛑 HR analysis job ${jobId} was cancelled - stopping processing`);
-              return {
-                success: false,
-                cancelled: true,
-                message: 'Analysis cancelled by user',
-                questionsAnswered: Object.keys(hrAnswers).length
-              };
-            }
-          } catch (e) {
-            // Ignore errors checking cancellation status
-          }
+        // FAST PATH: Check in-memory registry first (instant, no DB)
+        if (cancellationRegistry.isCancelled(jobId)) {
+          console.log(`🛑 HR analysis job ${jobId} was cancelled (in-memory) - stopping processing`);
+          return {
+            success: false,
+            cancelled: true,
+            message: 'Analysis cancelled by user',
+            questionsAnswered: Object.keys(hrAnswers).length
+          };
         }
         
         const question = HR_QUESTIONS[i];

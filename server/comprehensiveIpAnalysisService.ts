@@ -11,6 +11,7 @@ import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 import { formatAgentAnswer } from './utils/textFormatting';
+import { cancellationRegistry } from './services/cancellationRegistry';
 
 // Enhanced IP questions for comprehensive analysis - 12 questions exactly like Financial
 export const COMPREHENSIVE_IP_QUESTIONS = [
@@ -201,17 +202,10 @@ export class ComprehensiveIpAnalysisService {
       const ipAnswers: { [key: string]: IpAnswer } = {};
       
       for (let i = 0; i < COMPREHENSIVE_IP_QUESTIONS.length; i++) {
-        // Check for cancellation every 3 questions to balance responsiveness with performance
-        if (i % 3 === 0 && jobId && storage?.getBackgroundJobById) {
-          try {
-            const currentJob = await storage.getBackgroundJobById(jobId);
-            if (currentJob && currentJob.status === 'cancelled') {
-              console.log(`🛑 IP analysis job ${jobId} was cancelled - stopping processing`);
-              return;
-            }
-          } catch (e) {
-            // Ignore errors checking cancellation status
-          }
+        // FAST PATH: Check in-memory registry first (instant, no DB)
+        if (jobId && cancellationRegistry.isCancelled(jobId)) {
+          console.log(`🛑 IP analysis job ${jobId} was cancelled (in-memory) - stopping processing`);
+          return;
         }
         
         const question = COMPREHENSIVE_IP_QUESTIONS[i];

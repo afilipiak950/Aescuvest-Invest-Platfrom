@@ -11,6 +11,7 @@ import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 import { formatAgentAnswer } from './utils/textFormatting';
+import { cancellationRegistry } from './services/cancellationRegistry';
 
 // Enhanced financial questions for comprehensive analysis
 export const COMPREHENSIVE_FINANCIAL_QUESTIONS = [
@@ -187,17 +188,10 @@ export class ComprehensiveFinancialAnalysisService {
       const financialAnswers: { [key: string]: FinancialAnswer } = {};
       
       for (let i = 0; i < COMPREHENSIVE_FINANCIAL_QUESTIONS.length; i++) {
-        // Check for cancellation every 3 questions to balance responsiveness with performance
-        if (i % 3 === 0 && jobId && storage?.getBackgroundJobById) {
-          try {
-            const currentJob = await storage.getBackgroundJobById(jobId);
-            if (currentJob && currentJob.status === 'cancelled') {
-              console.log(`🛑 Financial analysis job ${jobId} was cancelled - stopping processing`);
-              return;
-            }
-          } catch (e) {
-            // Ignore errors checking cancellation status
-          }
+        // FAST PATH: Check in-memory registry first (instant, no DB)
+        if (jobId && cancellationRegistry.isCancelled(jobId)) {
+          console.log(`🛑 Financial analysis job ${jobId} was cancelled (in-memory) - stopping processing`);
+          return;
         }
         
         const question = COMPREHENSIVE_FINANCIAL_QUESTIONS[i];
