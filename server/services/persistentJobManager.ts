@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { InsertBackgroundJob, BackgroundJob } from '@shared/schema';
+import { cancellationRegistry } from './cancellationRegistry';
 
 export class PersistentJobManager {
   private static instance: PersistentJobManager;
@@ -109,6 +110,7 @@ export class PersistentJobManager {
       if (currentJob && currentJob.status === 'cancelled') {
         console.log(`🛑 Job ${jobId} was cancelled - skipping completion`);
         this.activeJobs.delete(jobId);
+        cancellationRegistry.cleanup(jobId);
         return;
       }
 
@@ -117,6 +119,9 @@ export class PersistentJobManager {
 
       // Remove from active tracking
       this.activeJobs.delete(jobId);
+      
+      // Clean up cancellation registry to prevent memory leak
+      cancellationRegistry.cleanup(jobId);
       
       // Clear any intervals
       const interval = this.jobIntervals.get(jobId);
@@ -138,6 +143,7 @@ export class PersistentJobManager {
       if (currentJob && currentJob.status === 'cancelled') {
         console.log(`🛑 Job ${jobId} was cancelled - skipping failure`);
         this.activeJobs.delete(jobId);
+        cancellationRegistry.cleanup(jobId);
         return;
       }
 
@@ -146,6 +152,9 @@ export class PersistentJobManager {
 
       // Remove from active tracking
       this.activeJobs.delete(jobId);
+      
+      // Clean up cancellation registry to prevent memory leak
+      cancellationRegistry.cleanup(jobId);
       
       // Clear any intervals
       const interval = this.jobIntervals.get(jobId);
