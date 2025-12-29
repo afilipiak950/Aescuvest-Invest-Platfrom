@@ -109,7 +109,7 @@ class CancellationOrchestrator {
       
       if (activeQueueEntries.length > 0) {
         // Get unique deal IDs from active entries
-        const dealIds = [...new Set(activeQueueEntries.map(e => e.dealId))];
+        const dealIds = Array.from(new Set(activeQueueEntries.map(e => e.dealId)));
         console.log(`🔍 Found ${activeQueueEntries.length} non-terminal agentRunQueue entries across ${dealIds.length} deals`);
         
         // Only clean entries where the master job doesn't exist or is terminal
@@ -146,7 +146,7 @@ class CancellationOrchestrator {
         .where(notInArray(agentQuestionQueue.status, ['completed', 'failed']));
       
       if (activeQuestionQueue.length > 0) {
-        const dealIds = [...new Set(activeQuestionQueue.map(e => e.dealId))];
+        const dealIds = Array.from(new Set(activeQuestionQueue.map(e => e.dealId)));
         console.log(`🔍 Found ${activeQuestionQueue.length} non-terminal agentQuestionQueue entries across ${dealIds.length} deals`);
         
         for (const dealId of dealIds) {
