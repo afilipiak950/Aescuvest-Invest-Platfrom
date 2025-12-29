@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express';
 import { persistentJobManager } from '../services/persistentJobManager';
 import { storage } from '../storage';
 import { comprehensiveLegalAnalysisService } from '../comprehensiveLegalAnalysisService';
+import { cancellationRegistry } from '../services/cancellationRegistry';
 
 const router = Router();
 
@@ -154,6 +155,10 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
     
     let stoppedCount = 0;
     
+    // FIRST: Register all cancellations in memory for instant detection by workers
+    const jobIdsToCancel = activeJobs.map(job => job.jobId);
+    cancellationRegistry.cancelMultiple(jobIdsToCancel);
+    
     // Cancel ALL non-terminal jobs (processing, pending, queued, starting, etc.)
     for (const job of activeJobs) {
       try {
@@ -215,6 +220,10 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     const activeJobs = allJobs.filter(job => !terminalStatuses.includes(job.status));
     
     console.log(`🔍 Found ${allJobs.length} total jobs, ${activeJobs.length} active jobs for deal ${dealId}`);
+    
+    // FIRST: Register all cancellations in memory for instant detection by workers
+    const jobIdsToCancel = activeJobs.map(job => job.jobId);
+    cancellationRegistry.cancelMultiple(jobIdsToCancel);
     
     let stoppedCount = 0;
     

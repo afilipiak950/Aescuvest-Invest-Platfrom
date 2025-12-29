@@ -10,6 +10,7 @@ import { eq, and } from 'drizzle-orm';
 import { storage } from './storage';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 import { formatAgentAnswer } from './utils/textFormatting';
+import { cancellationRegistry } from './services/cancellationRegistry';
 
 // Enhanced clinical questions for comprehensive analysis
 export const COMPREHENSIVE_CLINICAL_QUESTIONS = [
@@ -738,22 +739,15 @@ export class ComprehensiveClinicalAnalysisService {
       const clinicalAnswers: Record<string, any> = {};
       
       for (let i = 0; i < COMPREHENSIVE_CLINICAL_QUESTIONS.length; i++) {
-        // Check for cancellation every 3 questions to balance responsiveness with performance
-        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
-          try {
-            const currentJob = await storageService.getBackgroundJobById(jobId);
-            if (currentJob && currentJob.status === 'cancelled') {
-              console.log(`🛑 Clinical analysis job ${jobId} was cancelled - stopping processing`);
-              return {
-                success: false,
-                cancelled: true,
-                message: 'Analysis cancelled by user',
-                questionsAnswered: Object.keys(clinicalAnswers).length
-              };
-            }
-          } catch (e) {
-            // Ignore errors checking cancellation status
-          }
+        // FAST PATH: Check in-memory registry first (instant, no DB)
+        if (cancellationRegistry.isCancelled(jobId)) {
+          console.log(`🛑 Clinical analysis job ${jobId} was cancelled (in-memory) - stopping processing`);
+          return {
+            success: false,
+            cancelled: true,
+            message: 'Analysis cancelled by user',
+            questionsAnswered: Object.keys(clinicalAnswers).length
+          };
         }
         
         const question = COMPREHENSIVE_CLINICAL_QUESTIONS[i];

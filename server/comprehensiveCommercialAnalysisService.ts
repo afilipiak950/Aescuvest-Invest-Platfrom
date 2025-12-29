@@ -4,6 +4,7 @@ import { documents, agentAnalyses } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { resilientOpenAI } from './utils/resilientOpenAI';
 import { formatAgentAnswer } from './utils/textFormatting';
+import { cancellationRegistry } from './services/cancellationRegistry';
 
 const COMMERCIAL_QUESTIONS = [
   // Competitive Analysis Decks
@@ -220,22 +221,15 @@ export class ComprehensiveCommercialAnalysisService {
       const commercialAnswers: Record<string, any> = {};
       
       for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
-        // Check for cancellation every 3 questions to balance responsiveness with performance
-        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
-          try {
-            const currentJob = await storageService.getBackgroundJobById(jobId);
-            if (currentJob && currentJob.status === 'cancelled') {
-              console.log(`🛑 Commercial analysis job ${jobId} was cancelled - stopping processing`);
-              return {
-                success: false,
-                cancelled: true,
-                message: 'Analysis cancelled by user',
-                questionsAnswered: Object.keys(commercialAnswers).length
-              };
-            }
-          } catch (e) {
-            // Ignore errors checking cancellation status
-          }
+        // FAST PATH: Check in-memory registry first (instant, no DB)
+        if (cancellationRegistry.isCancelled(jobId)) {
+          console.log(`🛑 Commercial analysis job ${jobId} was cancelled (in-memory) - stopping processing`);
+          return {
+            success: false,
+            cancelled: true,
+            message: 'Analysis cancelled by user',
+            questionsAnswered: Object.keys(commercialAnswers).length
+          };
         }
         
         const question = COMMERCIAL_QUESTIONS[i];
