@@ -182,6 +182,7 @@ export interface IStorage {
   getResearchJobById(id: number): Promise<ResearchJob | undefined>;
   getActiveResearchJobByDealId(dealId: number): Promise<ResearchJob | undefined>;
   getResearchJobProgressByDealId(dealId: number): Promise<ResearchJob | undefined>;
+  cancelResearchJobsByDealId(dealId: number): Promise<number>;
   
   // Agent run queue methods - cross-agent sequential execution
   enqueueAgentRun(dealId: number, agentType: string, totalQuestions: number): Promise<AgentRunQueue>;
@@ -2700,6 +2701,33 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error(`Error fetching research job progress for deal ${dealId}:`, error);
       return undefined;
+    }
+  }
+
+  async cancelResearchJobsByDealId(dealId: number): Promise<number> {
+    try {
+      console.log(`🛑 Cancelling research jobs for deal ${dealId}...`);
+      const result = await db.update(researchJobs)
+        .set({ 
+          status: 'cancelled',
+          progress: 0,
+          progressStage: 'Cancelled by user',
+          currentStep: 0,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(researchJobs.dealId, dealId),
+          or(
+            eq(researchJobs.status, 'processing'),
+            eq(researchJobs.status, 'pending')
+          )
+        ));
+      const count = result.rowCount || 0;
+      console.log(`🛑 Cancelled ${count} research job(s) for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`Error cancelling research jobs for deal ${dealId}:`, error);
+      return 0;
     }
   }
 

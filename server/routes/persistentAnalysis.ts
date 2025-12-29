@@ -259,6 +259,22 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
       console.error(`⚠️ Error clearing agent run queue (non-fatal):`, queueError);
     }
     
+    // CRITICAL: Also cancel the researchJobs table to unblock Research agent
+    try {
+      const cancelledResearchJobs = await storage.cancelResearchJobsByDealId(dealId);
+      console.log(`🛑 Cancelled research jobs: ${cancelledResearchJobs} entries`);
+    } catch (researchError) {
+      console.error(`⚠️ Error cancelling research jobs (non-fatal):`, researchError);
+    }
+    
+    // Also clean up researchBackgroundJobs table
+    try {
+      const deletedResearchBgJobs = await storage.deleteResearchBackgroundJobsByDealId(dealId);
+      console.log(`🗑️ Cleared research background jobs: ${deletedResearchBgJobs} entries removed`);
+    } catch (researchBgError) {
+      console.error(`⚠️ Error clearing research background jobs (non-fatal):`, researchBgError);
+    }
+    
     console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);
     
     res.json({
