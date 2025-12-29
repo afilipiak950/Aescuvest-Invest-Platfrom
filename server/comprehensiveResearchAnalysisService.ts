@@ -142,6 +142,19 @@ export class ComprehensiveResearchAnalysisService {
       const recommendations: string[] = [];
       
       for (let i = 0; i < RESEARCH_QUESTIONS.length; i++) {
+        // Check for cancellation every 3 questions to balance responsiveness with performance
+        if (i % 3 === 0 && this.jobId && this.storage?.getBackgroundJobById) {
+          try {
+            const currentJob = await this.storage.getBackgroundJobById(this.jobId);
+            if (currentJob && currentJob.status === 'cancelled') {
+              console.log(`🛑 Research analysis job ${this.jobId} was cancelled - stopping processing`);
+              return;
+            }
+          } catch (e) {
+            // Ignore errors checking cancellation status
+          }
+        }
+        
         const question = RESEARCH_QUESTIONS[i];
         const progress = 20 + (i / RESEARCH_QUESTIONS.length) * 60;
         

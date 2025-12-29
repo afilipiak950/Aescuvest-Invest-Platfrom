@@ -179,6 +179,24 @@ class ComprehensiveLegalAnalysisService {
       
       // Process each legal question systematically - EXACT Clinical approach
       for (let i = 0; i < COMPREHENSIVE_LEGAL_QUESTIONS.length; i++) {
+        // Check for cancellation every 3 questions to balance responsiveness with performance
+        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
+          try {
+            const currentJob = await storageService.getBackgroundJobById(jobId);
+            if (currentJob && currentJob.status === 'cancelled') {
+              console.log(`🛑 Legal analysis job ${jobId} was cancelled - stopping processing`);
+              return {
+                success: false,
+                cancelled: true,
+                message: 'Analysis cancelled by user',
+                questionsAnswered: Object.keys(legalAnswers).length
+              };
+            }
+          } catch (e) {
+            // Ignore errors checking cancellation status
+          }
+        }
+        
         const question = COMPREHENSIVE_LEGAL_QUESTIONS[i];
         console.log(`📊 Processing legal question ${i + 1}/${COMPREHENSIVE_LEGAL_QUESTIONS.length}: ${question.question}`);
         

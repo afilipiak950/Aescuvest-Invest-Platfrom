@@ -2490,22 +2490,29 @@ export class DatabaseStorage implements IStorage {
 
   async clearStuckBackgroundJobs(dealId?: number): Promise<number> {
     try {
-      let query = db
+      // Define terminal statuses that should NOT be cancelled
+      const terminalStatuses = ['completed', 'failed', 'cancelled'];
+      
+      // Build query to cancel all non-terminal jobs
+      let whereCondition = inArray(backgroundJobs.status, ['processing', 'pending', 'queued', 'starting']);
+      
+      if (dealId) {
+        whereCondition = and(
+          whereCondition,
+          eq(backgroundJobs.dealId, dealId)
+        );
+      }
+      
+      const result = await db
         .update(backgroundJobs)
         .set({
           status: 'cancelled',
+          currentStep: 'Cancelled by system cleanup',
           updatedAt: new Date()
         })
-        .where(eq(backgroundJobs.status, 'processing'));
+        .where(whereCondition);
       
-      if (dealId) {
-        query = query.where(and(
-          eq(backgroundJobs.status, 'processing'),
-          eq(backgroundJobs.dealId, dealId)
-        ));
-      }
-      
-      const result = await query;
+      console.log(`🧹 Cleared ${result.rowCount || 0} stuck background jobs${dealId ? ` for deal ${dealId}` : ''}`);
       return result.rowCount || 0;
     } catch (error) {
       console.error('Error clearing stuck background jobs:', error);
