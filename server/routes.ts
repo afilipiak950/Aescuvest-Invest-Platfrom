@@ -5825,6 +5825,25 @@ ${document.ocrText && typeof document.ocrText === 'string' ? document.ocrText.su
   websocketManager.initialize(httpServer);
   console.log('📡 WebSocket manager initialized for background job progress tracking');
   
+  // Initialize CancellationOrchestrator for bulletproof job cancellation
+  try {
+    const { cancellationOrchestrator } = await import('./services/cancellationOrchestrator');
+    await cancellationOrchestrator.initialize();
+    console.log('🛑 CancellationOrchestrator initialized with boot-time reconciliation');
+    
+    // Set up periodic orphan audit every 5 minutes
+    setInterval(async () => {
+      try {
+        await cancellationOrchestrator.auditAndCleanOrphans();
+      } catch (error) {
+        console.error('❌ Periodic orphan audit error:', error);
+      }
+    }, 5 * 60 * 1000);
+    console.log('🔍 Periodic orphan audit scheduled (every 5 minutes)');
+  } catch (error) {
+    console.error('⚠️ CancellationOrchestrator initialization failed (non-fatal):', error);
+  }
+  
   // Track running analyses to prevent overlaps
   const runningAnalyses = new Map<string, boolean>();
 
