@@ -817,12 +817,41 @@ router.get('/api/deals/:dealId/ip-analysis/queue-status', async (req, res) => {
     const failed = questionJobs.filter(j => j.status === 'failed').length;
     const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
     
-    const total = masterJob ? COMPREHENSIVE_IP_QUESTIONS.length : questionJobs.length;
-    const progress = masterJob ? masterJob.progress : 0;
+    // CRITICAL FIX: If no jobs exist, check if analysis is already complete in database
+    // This handles the case where queue was cleared but analysis exists
+    let hasExistingAnalysis = false;
+    let existingAnswerCount = 0;
+    if (!masterJob && questionJobs.length === 0) {
+      try {
+        const analyses = await storage.getAnalysesByDealId(dealId);
+        const ipAnalysis = analyses.find(a => a.agentType === 'ip');
+        if (ipAnalysis && ipAnalysis.ip_answers) {
+          const answers = ipAnalysis.ip_answers as Record<string, any>;
+          existingAnswerCount = Object.keys(answers).filter(
+            key => answers[key] && answers[key].answer
+          ).length;
+          hasExistingAnalysis = existingAnswerCount > 0;
+        }
+      } catch (e) {
+        console.log(`Note: Could not check existing IP analysis: ${e}`);
+      }
+    }
+    
+    // Use existing analysis data when queue is empty
+    const total = masterJob ? COMPREHENSIVE_IP_QUESTIONS.length 
+      : questionJobs.length > 0 ? questionJobs.length
+      : hasExistingAnalysis ? COMPREHENSIVE_IP_QUESTIONS.length
+      : 0;
+      
+    const progress = masterJob ? masterJob.progress 
+      : hasExistingAnalysis ? 100 
+      : 0;
+      
     const isProcessing = masterJob?.status === 'processing' || running > 0;
     
     const effectiveCompleted = masterJob && masterJob.status === 'processing' 
       ? Math.floor((masterJob.progress / 100) * COMPREHENSIVE_IP_QUESTIONS.length)
+      : hasExistingAnalysis ? existingAnswerCount
       : completed;
     
     // Extract currentQuestionId from currentStep - format is "Processing question X/Y: question_id"
@@ -839,7 +868,7 @@ router.get('/api/deals/:dealId/ip-analysis/queue-status', async (req, res) => {
     // CRITICAL: If master job exists and has valid currentStep, it's processing even if status lags
     const effectiveIsProcessing = isProcessing || (masterJob && currentQuestionId && masterJob.progress < 100);
     
-    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, total=${total}, currentQuestionId=${currentQuestionId}`);
+    console.log(`📊 IP queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, total=${total}, currentQuestionId=${currentQuestionId}, hasExistingAnalysis=${hasExistingAnalysis}`);
     
     res.json({
       success: true,

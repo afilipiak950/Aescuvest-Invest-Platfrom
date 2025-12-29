@@ -630,12 +630,39 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
     
     const pending = questionJobs.filter(j => j.status === 'pending').length;
     const running = questionJobs.filter(j => j.status === 'processing').length;
-    const completed = questionJobs.filter(j => j.status === 'completed').length;
+    let completed = questionJobs.filter(j => j.status === 'completed').length;
     const failed = questionJobs.filter(j => j.status === 'failed').length;
     const cancelled = questionJobs.filter(j => j.status === 'cancelled').length;
     
+    // CRITICAL FIX: If no jobs exist, check if analysis is already complete in database
+    // This handles the case where queue was cleared but analysis exists
+    let hasExistingAnalysis = false;
+    let existingAnswerCount = 0;
+    if (!masterJob && questionJobs.length === 0) {
+      try {
+        const analyses = await storage.getAnalysesByDealId(dealId);
+        const researchAnalysis = analyses.find(a => a.agentType === 'research');
+        if (researchAnalysis && researchAnalysis.research_answers) {
+          const answers = researchAnalysis.research_answers as Record<string, any>;
+          existingAnswerCount = Object.keys(answers).filter(
+            key => answers[key] && answers[key].answer
+          ).length;
+          hasExistingAnalysis = existingAnswerCount > 0;
+        }
+      } catch (e) {
+        console.log(`Note: Could not check existing Research analysis: ${e}`);
+      }
+    }
+    
     const total = RESEARCH_QUESTIONS.length;
-    const progress = masterJob ? masterJob.progress : (total > 0 ? Math.round((completed / total) * 100) : 0);
+    const progress = masterJob ? masterJob.progress 
+      : hasExistingAnalysis ? 100 
+      : (total > 0 ? Math.round((completed / total) * 100) : 0);
+    
+    // Use existing analysis count when queue is empty
+    if (hasExistingAnalysis && completed === 0) {
+      completed = existingAnswerCount;
+    }
     
     // Extract currentQuestionId from master job's currentStep
     let currentQuestionId: string | null = null;
@@ -668,7 +695,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
     // Effective processing: true if master job exists and not completed
     const effectiveIsProcessing = isProcessing || (masterJob && masterJob.progress < 100 && masterJob.status !== 'completed');
     
-    console.log(`📊 Research queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, currentQuestionId=${currentQuestionId}`);
+    console.log(`📊 Research queue-status for deal ${dealId}: masterJob=${!!masterJob}, status=${masterJob?.status}, progress=${progress}%, isProcessing=${isProcessing}, effectiveIsProcessing=${effectiveIsProcessing}, currentQuestionId=${currentQuestionId}, hasExistingAnalysis=${hasExistingAnalysis}`);
     
     res.json({
       success: true,
