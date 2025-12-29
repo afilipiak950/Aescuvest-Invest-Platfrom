@@ -7,6 +7,7 @@ import { persistentJobManager } from '../services/persistentJobManager';
 import { storage } from '../storage';
 import { comprehensiveLegalAnalysisService } from '../comprehensiveLegalAnalysisService';
 import { cancellationRegistry } from '../services/cancellationRegistry';
+import { agentRunCoordinator } from '../services/agentRunCoordinator';
 
 const router = Router();
 
@@ -182,6 +183,38 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
       console.log(`🧹 Cleared ${clearedFromMemory} jobs from memory`);
     } catch (memoryError) {
       console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
+    }
+    
+    // CRITICAL: Also clear the agent run queue to stop queued agents
+    try {
+      const result = await agentRunCoordinator.stopAllAgents(dealId);
+      console.log(`🛑 Stopped ${result.stoppedCount} agents via coordinator`);
+    } catch (queueError) {
+      console.error(`⚠️ Error stopping via coordinator (non-fatal):`, queueError);
+    }
+    
+    // CRITICAL: Clear agent run queue database rows directly (in case coordinator missed any)
+    try {
+      const clearedQueueRows = await storage.clearAgentRunQueue(dealId);
+      console.log(`🗑️ Cleared ${clearedQueueRows} agent run queue database rows`);
+    } catch (dbQueueError) {
+      console.error(`⚠️ Error clearing agent run queue DB rows (non-fatal):`, dbQueueError);
+    }
+    
+    // CRITICAL: Also cancel research jobs to unblock Research agent
+    try {
+      const cancelledResearchJobs = await storage.cancelResearchJobsByDealId(dealId);
+      console.log(`🛑 Cancelled ${cancelledResearchJobs} research jobs`);
+    } catch (researchError) {
+      console.error(`⚠️ Error cancelling research jobs (non-fatal):`, researchError);
+    }
+    
+    // Also clean up researchBackgroundJobs table
+    try {
+      const deletedResearchBgJobs = await storage.deleteResearchBackgroundJobsByDealId(dealId);
+      console.log(`🗑️ Cleared ${deletedResearchBgJobs} research background jobs`);
+    } catch (researchBgError) {
+      console.error(`⚠️ Error clearing research background jobs (non-fatal):`, researchBgError);
     }
     
     console.log(`✅ Stopped ${stoppedCount} jobs in database for deal ${dealId}`);
