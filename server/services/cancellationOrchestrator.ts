@@ -28,6 +28,7 @@ interface CancellationResult {
   details: {
     backgroundJobs: number;
     agentRunQueue: number;
+    agentQuestionQueue: number;
     researchJobs: number;
     researchBackgroundJobs: number;
     memoryCleared: number;
@@ -50,6 +51,7 @@ class CancellationOrchestrator {
 
   /**
    * Boot-time initialization - rehydrates cancellation state from database
+   * and cleans up stale queue entries from previous server sessions
    * Should be called when server starts
    */
   async initialize(): Promise<void> {
@@ -73,12 +75,103 @@ class CancellationOrchestrator {
         console.log(`✅ Rehydrated ${stuckJobs.length} cancellation flags`);
       }
       
+      // BOOT-TIME CLEANUP: Clean up orphaned queue entries left from server crash
+      await this.cleanOrphanedQueuesOnStartup();
+      
       this.initialized = true;
       console.log('✅ CancellationOrchestrator: Boot-time reconciliation complete');
     } catch (error) {
       console.error('❌ CancellationOrchestrator initialization error:', error);
       // Don't throw - allow server to start even if reconciliation fails
       this.initialized = true;
+    }
+  }
+  
+  /**
+   * Clean up TRULY orphaned queue entries from previous server session
+   * Only cleans entries where the master background job is missing or in terminal state
+   * This prevents accidentally deleting legitimate in-progress work after a simple restart
+   */
+  private async cleanOrphanedQueuesOnStartup(): Promise<void> {
+    console.log('🧹 CancellationOrchestrator: Checking for orphaned queue entries from previous session...');
+    
+    try {
+      const { agentRunQueue, agentQuestionQueue, backgroundJobs } = await import('../../shared/schema');
+      const { db } = await import('../db');
+      const { eq, notInArray } = await import('drizzle-orm');
+      
+      let totalCleaned = 0;
+      
+      // 1. Find agentRunQueue entries in non-terminal status (pending, starting, running)
+      const activeQueueEntries = await db.select()
+        .from(agentRunQueue)
+        .where(notInArray(agentRunQueue.status, ['completed', 'failed', 'cancelled']));
+      
+      if (activeQueueEntries.length > 0) {
+        // Get unique deal IDs from active entries
+        const dealIds = [...new Set(activeQueueEntries.map(e => e.dealId))];
+        console.log(`🔍 Found ${activeQueueEntries.length} non-terminal agentRunQueue entries across ${dealIds.length} deals`);
+        
+        // Only clean entries where the master job doesn't exist or is terminal
+        for (const dealId of dealIds) {
+          // Check if there's an active master job for any agent type
+          const masterJobTypes = ['force-rerun-all-ip', 'force-rerun-all-research', 'force-rerun-all-legal', 
+                                  'force-rerun-all-clinical', 'force-rerun-all-financial', 
+                                  'force-rerun-all-hr', 'force-rerun-all-commercial'];
+          
+          let hasActiveMasterJob = false;
+          for (const prefix of masterJobTypes) {
+            const masterJobId = `${prefix}-${dealId}`;
+            const masterJob = await storage.getBackgroundJobById(masterJobId);
+            if (masterJob && !['completed', 'failed', 'cancelled'].includes(masterJob.status)) {
+              hasActiveMasterJob = true;
+              break;
+            }
+          }
+          
+          if (!hasActiveMasterJob) {
+            // Orphan: queue entries exist but no active master job to process them
+            const cleared = await storage.forceDeleteAllAgentRunQueue(dealId);
+            totalCleaned += cleared;
+            console.log(`  ✓ Cleaned ${cleared} orphaned agentRunQueue entries for deal ${dealId} (no active master job)`);
+          } else {
+            console.log(`  ⏭️ Keeping agentRunQueue for deal ${dealId} (active master job found)`);
+          }
+        }
+      }
+      
+      // 2. Find agentQuestionQueue entries in non-terminal status
+      const activeQuestionQueue = await db.select()
+        .from(agentQuestionQueue)
+        .where(notInArray(agentQuestionQueue.status, ['completed', 'failed']));
+      
+      if (activeQuestionQueue.length > 0) {
+        const dealIds = [...new Set(activeQuestionQueue.map(e => e.dealId))];
+        console.log(`🔍 Found ${activeQuestionQueue.length} non-terminal agentQuestionQueue entries across ${dealIds.length} deals`);
+        
+        for (const dealId of dealIds) {
+          // Check for active research master job
+          const researchMasterJobId = `force-rerun-all-research-${dealId}`;
+          const masterJob = await storage.getBackgroundJobById(researchMasterJobId);
+          
+          if (!masterJob || ['completed', 'failed', 'cancelled'].includes(masterJob.status)) {
+            // Orphan: question queue entries exist but no active master job
+            const cleared = await storage.clearAgentQuestionQueueByDealId(dealId);
+            totalCleaned += cleared;
+            console.log(`  ✓ Cleaned ${cleared} orphaned agentQuestionQueue entries for deal ${dealId}`);
+          } else {
+            console.log(`  ⏭️ Keeping agentQuestionQueue for deal ${dealId} (active research master job)`);
+          }
+        }
+      }
+      
+      if (totalCleaned > 0) {
+        console.log(`✅ Cleaned ${totalCleaned} orphaned queue entries on startup`);
+      } else {
+        console.log(`✅ No orphaned queue entries found (or all have active master jobs)`);
+      }
+    } catch (error) {
+      console.error('⚠️ Error cleaning orphaned queues on startup (non-fatal):', error);
     }
   }
 
@@ -95,6 +188,7 @@ class CancellationOrchestrator {
       details: {
         backgroundJobs: 0,
         agentRunQueue: 0,
+        agentQuestionQueue: 0,
         researchJobs: 0,
         researchBackgroundJobs: 0,
         memoryCleared: 0
@@ -133,16 +227,50 @@ class CancellationOrchestrator {
       }
       console.log(`📊 Cancelled ${result.details.backgroundJobs} background jobs in database`);
 
-      // STEP 4: Clear agentRunQueue table (DATABASE ROWS - critical!)
+      // STEP 4: CRITICAL - Stop in-memory coordinators BEFORE deleting their queue rows
+      // The coordinators need to see the queue rows to detect and honor cancellation
+      
+      // 4a: Stop agentRunCoordinator FIRST - this stops live IP/Research processors
       try {
-        const clearedQueue = await storage.clearAgentRunQueue(dealId);
+        const coordResult = await agentRunCoordinator.stopAllAgents(dealId);
+        result.details.memoryCleared += coordResult.stoppedCount;
+        console.log(`🛑 Stopped ${coordResult.stoppedCount} agents via agentRunCoordinator (BEFORE queue deletion)`);
+      } catch (e) {
+        result.errors.push(`agentRunCoordinator: ${e}`);
+      }
+
+      // 4b: Reset Research Question Queue Service in-memory state BEFORE deleting its rows
+      try {
+        const { ResearchQuestionQueueService } = await import('./researchQuestionQueue');
+        const researchQueueService = ResearchQuestionQueueService.getInstance();
+        researchQueueService.cancelDeal(dealId);
+        result.details.memoryCleared++;
+        console.log(`🧹 Reset ResearchQuestionQueueService memory state (BEFORE queue deletion)`);
+      } catch (e) {
+        result.errors.push(`ResearchQuestionQueueService: ${e}`);
+      }
+
+      // STEP 5: Now safe to delete queue tables (coordinators already stopped)
+      
+      // 5a: FORCE DELETE agentRunQueue table (ALL rows regardless of status)
+      try {
+        const clearedQueue = await storage.forceDeleteAllAgentRunQueue(dealId);
         result.details.agentRunQueue = clearedQueue;
-        console.log(`🗑️ Cleared ${clearedQueue} agent run queue database rows`);
+        console.log(`🗑️ FORCE DELETED ${clearedQueue} agent run queue database rows`);
       } catch (e) {
         result.errors.push(`agentRunQueue: ${e}`);
       }
 
-      // STEP 5: Cancel researchJobs table
+      // 5b: Clear agentQuestionQueue table (Research agent question queue)
+      try {
+        const clearedQuestionQueue = await storage.clearAgentQuestionQueueByDealId(dealId);
+        result.details.agentQuestionQueue = clearedQuestionQueue;
+        console.log(`🗑️ Cleared ${clearedQuestionQueue} agent question queue entries`);
+      } catch (e) {
+        result.errors.push(`agentQuestionQueue: ${e}`);
+      }
+
+      // STEP 6: Cancel researchJobs table
       try {
         const cancelledResearch = await storage.cancelResearchJobsByDealId(dealId);
         result.details.researchJobs = cancelledResearch;
@@ -151,7 +279,7 @@ class CancellationOrchestrator {
         result.errors.push(`researchJobs: ${e}`);
       }
 
-      // STEP 6: Delete researchBackgroundJobs table
+      // STEP 7: Delete researchBackgroundJobs table
       try {
         const deletedResearchBg = await storage.deleteResearchBackgroundJobsByDealId(dealId);
         result.details.researchBackgroundJobs = deletedResearchBg;
@@ -160,7 +288,7 @@ class CancellationOrchestrator {
         result.errors.push(`researchBackgroundJobs: ${e}`);
       }
 
-      // STEP 7: Clear in-memory state from persistentJobManager
+      // STEP 8: Clear in-memory state from persistentJobManager
       try {
         const clearedMemory = await persistentJobManager.clearStuckJobs(dealId);
         result.details.memoryCleared += clearedMemory;
@@ -169,19 +297,11 @@ class CancellationOrchestrator {
         result.errors.push(`persistentJobManager: ${e}`);
       }
 
-      // STEP 8: Stop via agentRunCoordinator (in-memory coordinator state)
-      try {
-        const coordResult = await agentRunCoordinator.stopAllAgents(dealId);
-        result.details.memoryCleared += coordResult.stoppedCount;
-        console.log(`🛑 Stopped ${coordResult.stoppedCount} agents via coordinator`);
-      } catch (e) {
-        result.errors.push(`agentRunCoordinator: ${e}`);
-      }
-
       // Calculate totals
       result.totalCancelled = 
         result.details.backgroundJobs + 
         result.details.agentRunQueue + 
+        result.details.agentQuestionQueue +
         result.details.researchJobs + 
         result.details.researchBackgroundJobs;
       
@@ -190,7 +310,8 @@ class CancellationOrchestrator {
       console.log(`✅ ====== CANCELLATION COMPLETE for deal ${dealId} ======`);
       console.log(`   Total cancelled: ${result.totalCancelled}`);
       console.log(`   Background jobs: ${result.details.backgroundJobs}`);
-      console.log(`   Agent queue rows: ${result.details.agentRunQueue}`);
+      console.log(`   Agent run queue rows: ${result.details.agentRunQueue}`);
+      console.log(`   Agent question queue rows: ${result.details.agentQuestionQueue}`);
       console.log(`   Research jobs: ${result.details.researchJobs}`);
       console.log(`   Research bg jobs: ${result.details.researchBackgroundJobs}`);
       console.log(`   Memory cleared: ${result.details.memoryCleared}`);

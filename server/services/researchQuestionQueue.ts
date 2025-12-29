@@ -116,6 +116,27 @@ export class ResearchQuestionQueueService {
     }
   }
 
+  /**
+   * Cancel all research processing for a deal and reset in-memory state
+   * Called by CancellationOrchestrator during Stop All Jobs
+   */
+  cancelDeal(dealId: number): void {
+    console.log(`🛑 ResearchQuestionQueueService: Cancelling deal ${dealId}`);
+    
+    // Stop any active processing for this deal
+    this.processingQueues.delete(dealId);
+    
+    // Abort any active processor
+    const controller = this.activeProcessors.get(dealId);
+    if (controller) {
+      controller.abort();
+      this.activeProcessors.delete(dealId);
+      console.log(`🛑 Aborted active research processor for deal ${dealId}`);
+    }
+    
+    console.log(`✅ ResearchQuestionQueueService: Deal ${dealId} cancelled, memory state reset`);
+  }
+
   async forceRerunAllQuestions(dealId: number): Promise<{ success: boolean; queuedCount: number }> {
     try {
       console.log(`🔥 FORCE RERUN: Starting ALL research questions for deal ${dealId} (no skipping)`);

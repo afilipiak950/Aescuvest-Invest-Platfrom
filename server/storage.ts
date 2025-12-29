@@ -195,6 +195,8 @@ export interface IStorage {
   completeAgentRun(id: number): Promise<void>;
   failAgentRun(id: number, error: string): Promise<void>;
   clearAgentRunQueue(dealId: number): Promise<number>;
+  forceDeleteAllAgentRunQueue(dealId: number): Promise<number>;
+  clearAgentQuestionQueueByDealId(dealId: number): Promise<number>;
   deleteAgentRunEntry(id: number): Promise<boolean>;
   isAgentQueued(dealId: number, agentType: string): Promise<boolean>;
   
@@ -3077,6 +3079,34 @@ export class DatabaseStorage implements IStorage {
       return count;
     } catch (error) {
       console.error(`Error clearing agent run queue for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async forceDeleteAllAgentRunQueue(dealId: number): Promise<number> {
+    try {
+      // FORCE DELETE ALL entries regardless of status - used for cancellation
+      const result = await db.delete(agentRunQueue)
+        .where(eq(agentRunQueue.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ FORCE DELETED ${count} agent run queue entries for deal ${dealId} (ALL statuses)`);
+      return count;
+    } catch (error) {
+      console.error(`Error force deleting agent run queue for deal ${dealId}:`, error);
+      return 0;
+    }
+  }
+
+  async clearAgentQuestionQueueByDealId(dealId: number): Promise<number> {
+    try {
+      // Clear all agent question queue entries for this deal (Research agent questions)
+      const result = await db.delete(agentQuestionQueue)
+        .where(eq(agentQuestionQueue.dealId, dealId));
+      const count = result.rowCount || 0;
+      console.log(`🗑️ Cleared ${count} agent question queue entries for deal ${dealId}`);
+      return count;
+    } catch (error) {
+      console.error(`Error clearing agent question queue for deal ${dealId}:`, error);
       return 0;
     }
   }
