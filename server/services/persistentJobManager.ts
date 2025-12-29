@@ -67,16 +67,8 @@ export class PersistentJobManager {
     }
   }
 
-  async updateJobProgress(jobId: string, progress: number, processedDocuments: number, currentDocumentName?: string): Promise<boolean> {
+  async updateJobProgress(jobId: string, progress: number, processedDocuments: number, currentDocumentName?: string): Promise<void> {
     try {
-      // Check if job has been cancelled before updating
-      const currentJob = await storage.getBackgroundJobById(jobId);
-      if (currentJob && currentJob.status === 'cancelled') {
-        console.log(`🛑 Job ${jobId} was cancelled - stopping updates`);
-        this.activeJobs.delete(jobId);
-        return false; // Signal that job should stop
-      }
-
       // Update database
       await storage.updateBackgroundJob(jobId, {
         progress,
@@ -95,10 +87,8 @@ export class PersistentJobManager {
       }
 
       console.log(`📊 Updated job progress: ${jobId} ${progress}% (${processedDocuments} docs)`);
-      return true; // Job can continue
     } catch (error) {
       console.error(`❌ Failed to update job progress ${jobId}:`, error);
-      return true; // Continue on error to avoid breaking jobs
     }
   }
 
