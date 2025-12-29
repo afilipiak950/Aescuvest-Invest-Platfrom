@@ -140,18 +140,23 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
     
     console.log(`🛑 CLEARING/STOPPING ALL JOBS for deal ${dealId}`);
     
-    // Get all active jobs for this deal from storage
-    const activeJobs = await storage.getBackgroundJobsByDealId(dealId);
-    const processingJobs = activeJobs.filter(job => job.status === 'processing');
+    // Get all jobs for this deal from storage
+    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
     
-    console.log(`🔍 Found ${activeJobs.length} total jobs, ${processingJobs.length} processing jobs for deal ${dealId}`);
+    // Define terminal statuses that should NOT be cancelled
+    const terminalStatuses = ['completed', 'failed', 'cancelled'];
+    
+    // Get ALL active/stuck jobs (not just 'processing')
+    const activeJobs = allJobs.filter(job => !terminalStatuses.includes(job.status));
+    
+    console.log(`🔍 Found ${allJobs.length} total jobs, ${activeJobs.length} active/stuck jobs for deal ${dealId}`);
+    console.log(`🔍 Job statuses: ${allJobs.map(j => `${j.agentType}:${j.status}`).join(', ')}`);
     
     let stoppedCount = 0;
     
-    // First, update database status to cancelled
-    for (const job of processingJobs) {
+    // Cancel ALL non-terminal jobs (processing, pending, queued, starting, etc.)
+    for (const job of activeJobs) {
       try {
-        // Update job status to cancelled in database
         await storage.updateBackgroundJob(job.jobId, {
           status: 'cancelled',
           currentStep: 'Stopped by user',
@@ -160,16 +165,21 @@ router.post('/api/deals/:dealId/clear-stuck-jobs', async (req: Request, res: Res
         });
         
         stoppedCount++;
-        console.log(`🛑 Database: Cancelled job ${job.jobId} (${job.agentType})`);
+        console.log(`🛑 Database: Cancelled job ${job.jobId} (${job.agentType}, was: ${job.status})`);
       } catch (error) {
         console.error(`❌ Error updating job ${job.jobId}:`, error);
       }
     }
     
-    // Then clear from memory using persistent job manager  
-    const clearedFromMemory = await persistentJobManager.clearStuckJobs(dealId);
+    // Also clear any jobs from persistent job manager memory
+    try {
+      const clearedFromMemory = await persistentJobManager.clearStuckJobs(dealId);
+      console.log(`🧹 Cleared ${clearedFromMemory} jobs from memory`);
+    } catch (memoryError) {
+      console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
+    }
     
-    console.log(`✅ Stopped ${stoppedCount} jobs in database, cleared ${clearedFromMemory} from memory for deal ${dealId}`);
+    console.log(`✅ Stopped ${stoppedCount} jobs in database for deal ${dealId}`);
     
     res.json({
       success: true,
@@ -195,15 +205,21 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
     
     console.log(`🛑 STOPPING ALL JOBS for deal ${dealId}`);
     
-    // Get all active jobs for this deal from storage
-    const activeJobs = await storage.getBackgroundJobs(dealId);
-    const processingJobs = activeJobs.filter(job => job.status === 'processing');
+    // Get all jobs for this deal from storage
+    const allJobs = await storage.getBackgroundJobsByDealId(dealId);
+    
+    // Define terminal statuses that should NOT be cancelled
+    const terminalStatuses = ['completed', 'failed', 'cancelled'];
+    
+    // Get ALL active/stuck jobs (not just 'processing')
+    const activeJobs = allJobs.filter(job => !terminalStatuses.includes(job.status));
+    
+    console.log(`🔍 Found ${allJobs.length} total jobs, ${activeJobs.length} active jobs for deal ${dealId}`);
     
     let stoppedCount = 0;
     
-    for (const job of processingJobs) {
+    for (const job of activeJobs) {
       try {
-        // Update job status to cancelled
         await storage.updateBackgroundJob(job.jobId, {
           status: 'cancelled',
           currentStep: 'Cancelled by user',
@@ -212,10 +228,17 @@ router.post('/api/deals/:dealId/stop-all-jobs', async (req: Request, res: Respon
         });
         
         stoppedCount++;
-        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType})`);
+        console.log(`🛑 Stopped job: ${job.jobId} (${job.agentType}, was: ${job.status})`);
       } catch (error) {
         console.error(`❌ Error stopping job ${job.jobId}:`, error);
       }
+    }
+    
+    // Also clear from persistent job manager
+    try {
+      await persistentJobManager.clearStuckJobs(dealId);
+    } catch (memoryError) {
+      console.error(`⚠️ Error clearing from memory (non-fatal):`, memoryError);
     }
     
     console.log(`✅ Stopped ${stoppedCount} jobs for deal ${dealId}`);

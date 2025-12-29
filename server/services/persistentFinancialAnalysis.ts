@@ -297,8 +297,8 @@ export class PersistentFinancialAnalysisService {
         }
       }
 
-      // Check if job is completed or failed
-      if (currentJob?.status === 'completed' || currentJob?.status === 'failed') {
+      // Check if job is completed, failed, or cancelled
+      if (currentJob?.status === 'completed' || currentJob?.status === 'failed' || currentJob?.status === 'cancelled') {
         console.log(`✅ Financial analysis job ${jobId} finished with status: ${currentJob.status}`);
         const interval = this.jobIntervals.get(jobId);
         if (interval) {

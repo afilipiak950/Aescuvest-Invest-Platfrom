@@ -738,6 +738,24 @@ export class ComprehensiveClinicalAnalysisService {
       const clinicalAnswers: Record<string, any> = {};
       
       for (let i = 0; i < COMPREHENSIVE_CLINICAL_QUESTIONS.length; i++) {
+        // Check for cancellation every 3 questions to balance responsiveness with performance
+        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
+          try {
+            const currentJob = await storageService.getBackgroundJobById(jobId);
+            if (currentJob && currentJob.status === 'cancelled') {
+              console.log(`🛑 Clinical analysis job ${jobId} was cancelled - stopping processing`);
+              return {
+                success: false,
+                cancelled: true,
+                message: 'Analysis cancelled by user',
+                questionsAnswered: Object.keys(clinicalAnswers).length
+              };
+            }
+          } catch (e) {
+            // Ignore errors checking cancellation status
+          }
+        }
+        
         const question = COMPREHENSIVE_CLINICAL_QUESTIONS[i];
         console.log(`🔍 Processing clinical question ${i + 1}/${COMPREHENSIVE_CLINICAL_QUESTIONS.length}: ${question.question}`);
         

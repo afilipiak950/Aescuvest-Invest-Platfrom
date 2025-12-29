@@ -67,8 +67,16 @@ export class PersistentJobManager {
     }
   }
 
-  async updateJobProgress(jobId: string, progress: number, processedDocuments: number, currentDocumentName?: string): Promise<void> {
+  async updateJobProgress(jobId: string, progress: number, processedDocuments: number, currentDocumentName?: string): Promise<boolean> {
     try {
+      // Check if job has been cancelled before updating
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (currentJob && currentJob.status === 'cancelled') {
+        console.log(`🛑 Job ${jobId} was cancelled - stopping updates`);
+        this.activeJobs.delete(jobId);
+        return false; // Signal that job should stop
+      }
+
       // Update database
       await storage.updateBackgroundJob(jobId, {
         progress,
@@ -87,13 +95,33 @@ export class PersistentJobManager {
       }
 
       console.log(`📊 Updated job progress: ${jobId} ${progress}% (${processedDocuments} docs)`);
+      return true; // Job can continue
     } catch (error) {
       console.error(`❌ Failed to update job progress ${jobId}:`, error);
+      return true; // Continue on error to avoid breaking jobs
+    }
+  }
+
+  async isJobCancelled(jobId: string): Promise<boolean> {
+    try {
+      const job = await storage.getBackgroundJobById(jobId);
+      return job?.status === 'cancelled';
+    } catch (error) {
+      console.error(`❌ Error checking job cancellation ${jobId}:`, error);
+      return false;
     }
   }
 
   async completeJob(jobId: string, results: any): Promise<void> {
     try {
+      // Check if job was cancelled - don't overwrite cancelled status
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (currentJob && currentJob.status === 'cancelled') {
+        console.log(`🛑 Job ${jobId} was cancelled - skipping completion`);
+        this.activeJobs.delete(jobId);
+        return;
+      }
+
       // Mark as completed in database
       await storage.completeBackgroundJob(jobId, results);
 
@@ -115,6 +143,14 @@ export class PersistentJobManager {
 
   async failJob(jobId: string, errorMessage: string): Promise<void> {
     try {
+      // Check if job was cancelled - don't overwrite cancelled status
+      const currentJob = await storage.getBackgroundJobById(jobId);
+      if (currentJob && currentJob.status === 'cancelled') {
+        console.log(`🛑 Job ${jobId} was cancelled - skipping failure`);
+        this.activeJobs.delete(jobId);
+        return;
+      }
+
       // Mark as failed in database
       await storage.failBackgroundJob(jobId, errorMessage);
 
@@ -233,13 +269,16 @@ export class PersistentJobManager {
     return this.activeJobs;
   }
 
-  async clearStuckJobs(dealId: number): Promise<void> {
+  async clearStuckJobs(dealId: number): Promise<number> {
     try {
       console.log(`🧹 Clearing stuck jobs for deal ${dealId} from persistent job manager`);
       
-      // Get all jobs for this deal
+      // Define terminal statuses that should NOT be cancelled
+      const terminalStatuses = ['completed', 'failed', 'cancelled'];
+      
+      // Get all jobs for this deal and filter for non-terminal statuses
       const jobs = await storage.getBackgroundJobsByDealId(dealId);
-      const stuckJobs = jobs.filter(job => job.status === 'processing');
+      const stuckJobs = jobs.filter(job => !terminalStatuses.includes(job.status));
       
       // Clear stuck jobs from memory and intervals
       for (const job of stuckJobs) {
@@ -253,8 +292,10 @@ export class PersistentJobManager {
       }
       
       console.log(`🧹 Cleared ${stuckJobs.length} stuck jobs from memory for deal ${dealId}`);
+      return stuckJobs.length;
     } catch (error) {
       console.error(`Error clearing stuck jobs for deal ${dealId}:`, error);
+      return 0;
     }
   }
 

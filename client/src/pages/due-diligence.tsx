@@ -1303,7 +1303,10 @@ function DueDiligenceContent() {
                     variant="outline"
                     className="bg-red-600/10 hover:bg-red-600/20 border-red-600/30 text-red-400 hover:text-red-300"
                     size="sm"
-                    disabled={!jobProgress?.jobs?.some(job => job.status === 'processing')}
+                    disabled={!jobProgress?.jobs?.some(job => 
+                      !['completed', 'failed', 'cancelled'].includes(job.status)
+                    )}
+                    data-testid="button-stop-all-jobs"
                   >
                     <Square className="h-4 w-4 mr-2" />
                     Stop All Jobs

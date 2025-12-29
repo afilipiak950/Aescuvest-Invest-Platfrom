@@ -220,6 +220,24 @@ export class ComprehensiveCommercialAnalysisService {
       const commercialAnswers: Record<string, any> = {};
       
       for (let i = 0; i < COMMERCIAL_QUESTIONS.length; i++) {
+        // Check for cancellation every 3 questions to balance responsiveness with performance
+        if (i % 3 === 0 && storageService?.getBackgroundJobById) {
+          try {
+            const currentJob = await storageService.getBackgroundJobById(jobId);
+            if (currentJob && currentJob.status === 'cancelled') {
+              console.log(`🛑 Commercial analysis job ${jobId} was cancelled - stopping processing`);
+              return {
+                success: false,
+                cancelled: true,
+                message: 'Analysis cancelled by user',
+                questionsAnswered: Object.keys(commercialAnswers).length
+              };
+            }
+          } catch (e) {
+            // Ignore errors checking cancellation status
+          }
+        }
+        
         const question = COMMERCIAL_QUESTIONS[i];
         console.log(`📊 Processing commercial question ${i + 1}/${COMMERCIAL_QUESTIONS.length}: ${question.question}`);
         

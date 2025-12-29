@@ -285,6 +285,19 @@ export class PersistentClinicalAnalysisService {
     try {
       // Get current progress from database (the source of truth)
       const currentJob = await storage.getBackgroundJobById(jobId);
+      
+      // Check if job was cancelled - stop interval and clean up
+      if (currentJob && currentJob.status === 'cancelled') {
+        console.log(`🛑 Clinical job ${jobId} was cancelled - stopping broadcast`);
+        const interval = this.jobIntervals.get(jobId);
+        if (interval) {
+          clearInterval(interval);
+          this.jobIntervals.delete(jobId);
+        }
+        this.activeJobs.delete(jobId);
+        return;
+      }
+      
       if (currentJob && this.activeJobs.has(jobId)) {
         const jobData = this.activeJobs.get(jobId);
         if (jobData) {
