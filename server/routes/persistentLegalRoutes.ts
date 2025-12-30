@@ -257,12 +257,23 @@ persistentLegalRoutes.get('/api/deals/:dealId/legal-analysis/comprehensive/resul
     
     const analysis = await storage.getAgentAnalysis(dealId, 'Legal');
     
-
-    
+    // CRITICAL FIX: Return empty analysis structure instead of 404 to allow incremental updates
+    // This enables the frontend to show partial results as questions complete
     if (!analysis) {
-      return res.status(404).json({
-        success: false,
-        error: 'No legal analysis found'
+      console.log(`📊 No legal analysis yet for deal ${dealId} - returning empty structure for incremental updates`);
+      return res.json({
+        success: true,
+        analysis: {
+          dealId,
+          agentType: 'Legal',
+          status: 'Not Started',
+          progress: 0,
+          findings: [],
+          recommendations: [],
+          confidence: 0,
+          completedAt: null,
+          legalAnswers: {}
+        }
       });
     }
 
