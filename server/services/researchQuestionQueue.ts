@@ -158,7 +158,10 @@ export class ResearchQuestionQueueService {
           questionKey: question.id,
           questionText: question.question,
           prompt: question.analysisPrompt,
-          priority: 0
+          status: 'pending',
+          priority: 0,
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
 
         queuedCount++;
