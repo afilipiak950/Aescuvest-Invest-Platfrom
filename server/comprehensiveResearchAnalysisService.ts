@@ -909,9 +909,34 @@ Format each finding and recommendation as a clear, concise statement (1-2 senten
       }
       
       // 🔥 CRITICAL FIX: Use getAgentAnalysis which has proper case normalization - LEGAL PATTERN
-      const analysis = await storage.getAgentAnalysis(dealId, 'Research');
-      if (!analysis) throw new Error('No research analysis found');
-      console.log(`📊 [Research Rerun] Found existing analysis ID ${analysis.id} for deal ${dealId}`);
+      // If no analysis exists, CREATE one (unlike Legal which requires existing analysis)
+      let analysis = await storage.getAgentAnalysis(dealId, 'Research');
+      
+      if (!analysis) {
+        console.log(`📊 [Research Rerun] No existing analysis found - creating new Research analysis for deal ${dealId}`);
+        
+        // Create a new empty analysis record to store answers incrementally
+        // CRITICAL: Use 'Research' (capital R) to match storage.getAgentAnalysis expectations
+        const newAnalysis = await storage.createAgentAnalysis({
+          dealId,
+          agentType: 'Research',
+          status: 'processing',
+          progress: 0,
+          findings: [],
+          recommendations: [],
+          documentSources: [],
+          research_answers: {}
+        });
+        
+        // Fetch the newly created analysis
+        analysis = await storage.getAgentAnalysis(dealId, 'Research');
+        if (!analysis) {
+          throw new Error('Failed to create Research analysis record');
+        }
+        console.log(`✅ [Research Rerun] Created new analysis ID ${analysis.id} for deal ${dealId}`);
+      } else {
+        console.log(`📊 [Research Rerun] Found existing analysis ID ${analysis.id} for deal ${dealId}`);
+      }
       
       const documents = await storage.getDocumentsByDealId(dealId);
       const researchDocs = documents.filter(doc => 
