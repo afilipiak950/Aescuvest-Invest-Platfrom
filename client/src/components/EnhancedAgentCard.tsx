@@ -484,18 +484,28 @@ export default function EnhancedAgentCard({
     const activeLegalJob = legalJobs[0];
 
     // Function to get agent-specific jobs based on current agent type
+    // BULLETPROOF FIX: Include force_rerun patterns for all agents (especially IP)
     const getAgentJobs = (agentTypeToCheck: string) => {
       if (!jobProgress?.jobs) return [];
       const agentLower = agentTypeToCheck.toLowerCase();
       return jobProgress.jobs.filter((job: any) => {
-        // Match by jobType pattern (e.g., 'clinical_question_rerun', 'hr_question_rerun')
-        // or jobId pattern (e.g., 'clinical-question-rerun-1-q1', 'hr-question-rerun-1-q1')
-        const matchesJobType = job.jobType === `${agentLower}_question_rerun` || 
-                              job.jobType === `comprehensive_${agentLower}_analysis`;
-        const matchesJobId = job.jobId?.includes(`${agentLower}-question-rerun-`) ||
-                            job.jobId?.includes(`${agentLower}_`);
+        // BULLETPROOF: Check agentType field directly (most reliable)
+        const matchesAgentType = job.agentType?.toLowerCase() === agentLower;
         
-        return (matchesJobType || matchesJobId) &&
+        // Match by jobType pattern (e.g., 'clinical_question_rerun', 'hr_question_rerun')
+        const matchesJobType = job.jobType === `${agentLower}_question_rerun` || 
+                              job.jobType === `comprehensive_${agentLower}_analysis` ||
+                              job.jobType === `${agentLower}_force_rerun_master` ||
+                              job.jobType === `force_rerun_all_${agentLower}` ||
+                              job.jobType?.includes(`${agentLower}_`);
+        
+        // Match by jobId pattern (e.g., 'clinical-question-rerun-1-q1', 'force-rerun-all-ip-1')
+        const matchesJobId = job.jobId?.toLowerCase()?.includes(`${agentLower}-question-rerun-`) ||
+                            job.jobId?.toLowerCase()?.includes(`${agentLower}_`) ||
+                            job.jobId?.toLowerCase()?.includes(`force-rerun-all-${agentLower}`) ||
+                            job.jobId?.toLowerCase()?.includes(`${agentLower}-analysis-`);
+        
+        return (matchesAgentType || matchesJobType || matchesJobId) &&
                ACTIVE_STATUSES.has(job.status) &&
                job.progress >= 0;
       });
@@ -614,7 +624,47 @@ export default function EnhancedAgentCard({
         );
       }
       
-      // Show ready state when no jobs are running
+      // BULLETPROOF FIX: Check if analysis is completed before showing "Ready" state
+      // This prevents showing 0% when analysis exists
+      const isAnalysisCompleted = analysis && (
+        analysis.status?.toLowerCase() === 'completed' ||
+        analysis.status?.toLowerCase() === 'complete' ||
+        analysis.status?.toLowerCase() === 'in progress' ||
+        analysis.legal_answers || analysis.ip_answers || analysis.hr_answers ||
+        analysis.clinical_answers || analysis.commercial_answers || 
+        analysis.financial_answers || analysis.research_answers ||
+        analysis.findings?.length > 0 || analysis.recommendations?.length > 0
+      );
+      
+      // Show completed state when analysis exists
+      if (isAnalysisCompleted) {
+        return (
+          <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <CheckCircle className="h-5 w-5 text-green-400" />
+              <div className="flex-1">
+                <p className="text-green-400 font-medium">{currentAgentType} Analysis Complete</p>
+                <p className="text-gray-400 text-sm">
+                  Ready to view results. {assignedDocuments} documents analyzed.
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-white font-medium">100%</p>
+              </div>
+            </div>
+            <Progress 
+              value={100} 
+              className="h-2 bg-dark-lighter"
+            />
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>Analysis complete</span>
+              <span>100% complete</span>
+            </div>
+          </div>
+        );
+      }
+      
+      // Show ready state when no jobs are running and no analysis exists
       return (
         <div className="bg-dark-lighter/30 border border-dark-lighter/50 rounded-lg p-4 mb-4">
           <div className="flex items-center gap-3">
