@@ -68,7 +68,7 @@ export class ResearchQuestionQueueService {
         })
         .where(
           and(
-            eq(agentQuestionQueue.agentType, 'research'),
+            eq(agentQuestionQueue.agentType, 'Research'),
             eq(agentQuestionQueue.status, 'failed')
           )
         );
@@ -84,7 +84,7 @@ export class ResearchQuestionQueueService {
         })
         .where(
           and(
-            eq(agentQuestionQueue.agentType, 'research'),
+            eq(agentQuestionQueue.agentType, 'Research'),
             eq(agentQuestionQueue.status, 'running')
           )
         );
@@ -95,7 +95,7 @@ export class ResearchQuestionQueueService {
         .from(agentQuestionQueue)
         .where(
           and(
-            eq(agentQuestionQueue.agentType, 'research'),
+            eq(agentQuestionQueue.agentType, 'Research'),
             eq(agentQuestionQueue.status, 'pending')
           )
         )
@@ -146,7 +146,7 @@ export class ResearchQuestionQueueService {
         .where(
           and(
             eq(agentQuestionQueue.dealId, dealId),
-            eq(agentQuestionQueue.agentType, 'research')
+            eq(agentQuestionQueue.agentType, 'Research')
           )
         );
 
@@ -154,7 +154,7 @@ export class ResearchQuestionQueueService {
       for (const question of RESEARCH_QUESTIONS) {
         await db.insert(agentQuestionQueue).values({
           dealId,
-          agentType: 'research',
+          agentType: 'Research',
           questionKey: question.id,
           questionText: question.question,
           prompt: question.analysisPrompt,
@@ -229,7 +229,7 @@ export class ResearchQuestionQueueService {
           .where(
             and(
               eq(agentQuestionQueue.dealId, dealId),
-              eq(agentQuestionQueue.agentType, 'research'),
+              eq(agentQuestionQueue.agentType, 'Research'),
               eq(agentQuestionQueue.status, 'pending')
             )
           )
@@ -274,7 +274,7 @@ export class ResearchQuestionQueueService {
             currentStep: `Analyzing: ${question.questionText.substring(0, 50)}...`,
             runId: question.questionKey,
             metadata: {
-              agentType: 'research',
+              agentType: 'Research',
               startTime: new Date().toISOString(),
               questionId: question.questionKey
             }
@@ -955,7 +955,7 @@ Respond in JSON:
       .where(
         and(
           eq(agentQuestionQueue.dealId, dealId),
-          eq(agentQuestionQueue.agentType, 'research'),
+          eq(agentQuestionQueue.agentType, 'Research'),
           sql`${agentQuestionQueue.status} != 'cancelled'`
         )
       );
@@ -972,7 +972,7 @@ Respond in JSON:
       .where(
         and(
           eq(agentQuestionQueue.dealId, dealId),
-          eq(agentQuestionQueue.agentType, 'research'),
+          eq(agentQuestionQueue.agentType, 'Research'),
           eq(agentQuestionQueue.status, 'cancelled')
         )
       );
@@ -1029,7 +1029,7 @@ Respond in JSON:
       .where(
         and(
           eq(agentQuestionQueue.dealId, dealId),
-          eq(agentQuestionQueue.agentType, 'research')
+          eq(agentQuestionQueue.agentType, 'Research')
         )
       );
       
