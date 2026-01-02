@@ -655,7 +655,7 @@ persistentResearchRoutes.get('/api/deals/:dealId/research-analysis/queue-status'
     if (!masterJob && questionJobs.length === 0) {
       try {
         const analyses = await storage.getAnalysesByDealId(dealId);
-        const researchAnalysis = analyses.find(a => a.agentType === 'research');
+        const researchAnalysis = analyses.find(a => a.agentType === 'Research' || a.agentType === 'research');
         if (researchAnalysis && researchAnalysis.research_answers) {
           const answers = researchAnalysis.research_answers as Record<string, any>;
           existingAnswerCount = Object.keys(answers).filter(

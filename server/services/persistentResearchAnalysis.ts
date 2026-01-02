@@ -77,10 +77,10 @@ export class PersistentResearchAnalysisService {
     }
 
     // CRITICAL FIX: Delete existing analysis immediately like Financial agent to prevent stale data
-    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'research');
+    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Research');
     if (existingAnalysis) {
       console.log(`🧹 DELETING existing research analysis for deal ${dealId} to prevent stale data display`);
-      await storage.clearAgentAnalysis(dealId, 'research');
+      await storage.clearAgentAnalysis(dealId, 'Research');
     }
     
     console.log(`🧹 Fresh start for research analysis deal ${dealId}`);
@@ -108,7 +108,7 @@ export class PersistentResearchAnalysisService {
       jobId,
       jobType: 'comprehensive_research_analysis',
       dealId,
-      agentType: 'research',
+      agentType: 'Research',
       status: 'processing',
       progress: 0,
       totalDocuments: 0,

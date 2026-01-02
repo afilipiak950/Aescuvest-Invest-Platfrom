@@ -186,8 +186,9 @@ export class ResearchQuestionQueueService {
           status: 'processing',
           progress: 0,
           currentStep: `Starting research queue: 0/${RESEARCH_QUESTIONS.length} questions`,
+          agentType: 'Research',
           metadata: {
-            agentType: 'research',
+            agentType: 'Research',
             totalQuestions: RESEARCH_QUESTIONS.length,
             startTime: new Date().toISOString()
           }
@@ -912,14 +913,14 @@ Respond in JSON:
   }
 
   private async saveAnswer(dealId: number, questionKey: string, questionText: string, answerData: any): Promise<void> {
-    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'research');
+    const existingAnalysis = await storage.getAgentAnalysis(dealId, 'Research');
     const research_answers = existingAnalysis?.research_answers || {};
     
     research_answers[questionKey] = answerData;
 
     if (existingAnalysis) {
       console.log(`💾 Saving research answer for question "${questionKey}" to analysis ID ${existingAnalysis.id}`);
-      await storage.updateAgentAnalysisByDealAndType(dealId, 'research', {
+      await storage.updateAgentAnalysisByDealAndType(dealId, 'Research', {
         research_answers,
         updatedAt: new Date()
       });
@@ -928,7 +929,7 @@ Respond in JSON:
       console.log(`💾 Creating new research analysis for deal ${dealId} with first answer`);
       await storage.createAgentAnalysis({
         dealId,
-        agentType: 'research',
+        agentType: 'Research',
         status: 'In Progress',
         research_answers
       });
