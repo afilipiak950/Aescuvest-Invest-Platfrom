@@ -161,6 +161,17 @@ export class ResearchQuestionQueueService {
     try {
       console.log(`🔥 FORCE RERUN: Starting ALL research questions for deal ${dealId} (no skipping)`);
 
+      // 🔥 CRITICAL: Delete old analysis results first (fresh start - identical to Legal pattern)
+      await db
+        .delete(agentAnalyses)
+        .where(
+          and(
+            eq(agentAnalyses.dealId, dealId),
+            eq(agentAnalyses.agentType, 'Research')
+          )
+        );
+      console.log(`🗑️ Deleted old Research analysis results for deal ${dealId}`);
+
       await db
         .delete(agentQuestionQueue)
         .where(
