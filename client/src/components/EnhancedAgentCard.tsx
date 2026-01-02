@@ -3439,6 +3439,55 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     };
   }, [dealId, refetchComprehensive, queryClient]);
 
+  // CRITICAL FIX: Proactively poll queue-status to detect Force Rerun All processing
+  // This fills questionProgress when the backend is processing but frontend doesn't know yet
+  useEffect(() => {
+    let isMounted = true;
+    
+    const pollQueueStatus = async () => {
+      try {
+        const response = await fetch(`/api/deals/${dealId}/research-analysis/queue-status`);
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+          const { currentQuestionId, isProcessing, progress } = data.status;
+          
+          // If there's an active question being processed, show its progress
+          if (currentQuestionId && isProcessing && isMounted) {
+            console.log(`🎯 [Research Queue Status] Detected active question: ${currentQuestionId} at ${progress}%`);
+            setQuestionProgress(prev => {
+              // Only update if this is new or progress has changed
+              if (prev[currentQuestionId] !== progress) {
+                return { ...prev, [currentQuestionId]: progress };
+              }
+              return prev;
+            });
+          } else if (!isProcessing && isMounted) {
+            // Clear progress when not processing
+            setQuestionProgress(prev => {
+              if (Object.keys(prev).length > 0) {
+                console.log('🧹 [Research Queue Status] Not processing, clearing progress');
+                return {};
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error polling Research queue status:', error);
+      }
+    };
+    
+    // Poll immediately and then every 2 seconds
+    pollQueueStatus();
+    const interval = setInterval(pollQueueStatus, 2000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [dealId]);
+
   // Load existing running jobs from database on mount to restore progress bars after refresh
   useEffect(() => {
     const loadExistingJobs = async () => {
