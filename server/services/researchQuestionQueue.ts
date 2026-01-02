@@ -6,7 +6,7 @@
  */
 
 import { db } from '../db';
-import { agentQuestionQueue, agentAnalyses } from '../../shared/schema';
+import { agentQuestionQueue, agentAnalyses, backgroundJobs } from '../../shared/schema';
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
 import { storage } from '../storage';
 import { RESEARCH_QUESTIONS } from '../comprehensiveResearchAnalysisService';
@@ -56,6 +56,26 @@ export class ResearchQuestionQueueService {
   async initialize(): Promise<void> {
     try {
       console.log('🔄 Initializing Research Question Queue Service...');
+      
+      // 🔧 SELF-HEALING: Fix any legacy lowercase 'research' entries from before the casing fix
+      // PostgreSQL is case-sensitive, so we need to normalize to 'Research' for consistency
+      await db
+        .update(agentQuestionQueue)
+        .set({ 
+          agentType: 'Research',
+          updatedAt: new Date()
+        })
+        .where(eq(agentQuestionQueue.agentType, 'research'));
+      console.log(`🔧 Self-healing: Fixed any legacy lowercase 'research' entries in agentQuestionQueue`);
+      
+      // Also fix background_jobs table for Research agent (no updatedAt column on this table)
+      await db
+        .update(backgroundJobs)
+        .set({ 
+          agentType: 'Research'
+        })
+        .where(eq(backgroundJobs.agentType, 'research'));
+      console.log(`🔧 Self-healing: Fixed any legacy lowercase 'research' entries in backgroundJobs`);
       
       // 🔥 AUTO-RETRY: Reset BOTH failed AND stuck "running" questions back to pending
       // This handles cases where jobs failed or were interrupted by server restart
