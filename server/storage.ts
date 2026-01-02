@@ -19,7 +19,8 @@ import {
   evaluationResults, EvaluationResult, InsertEvaluationResult,
   researchJobs, ResearchJob, InsertResearchJob,
   passwordResetTokens, PasswordResetToken, InsertPasswordResetToken,
-  memoSectionRuns, MemoSectionRun, InsertMemoSectionRun
+  memoSectionRuns, MemoSectionRun, InsertMemoSectionRun,
+  agentQuestionQueue
 } from "@shared/schema";
 import { db, pool } from './db';
 import { eq, and, or, desc, inArray, isNotNull, isNull, sql } from 'drizzle-orm';

@@ -3267,14 +3267,14 @@ interface ResearchQuestionsSectionProps {
 function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, documents, handleDocumentClick, quoteViewerOpen, setQuoteViewerOpen, selectedQuoteData, setSelectedQuoteData, onResearchAnalysisStart }: ResearchQuestionsSectionProps) {
   console.log('🔬 [Research] ResearchQuestionsSection MOUNTING - dealId:', dealId);
   
-  const [expandedCategories, setExpandedCategories] = useState(new Set(["Technical Methodology"]));
+  const [expandedCategories, setExpandedCategories] = useState(new Set(["Competitive Intelligence"]));
   const [isAnalysisStarting, setIsAnalysisStarting] = useState(false);
   const [questionProgress, setQuestionProgress] = useState<Record<string, number>>({});
   const [rerunDialogOpen, setRerunDialogOpen] = useState(false);
   const [selectedQuestionForRerun, setSelectedQuestionForRerun] = useState<{ id: string; text: string } | null>(null);
   const queryClient = useQueryClient();
   
-  // Debug log to confirm component mounted
+  // Debug log to confirm component mounted and data received
   useEffect(() => {
     console.log('🔬🔬🔬 [Research] ResearchQuestionsSection MOUNTED - useEffect running, dealId:', dealId);
     return () => console.log('🔬 [Research] ResearchQuestionsSection UNMOUNTING');
@@ -3287,6 +3287,36 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
     staleTime: 0, // Always treat as stale to force fresh data like other agents
     gcTime: 0, // Don't cache results like other agents
   });
+
+  // Auto-expand categories that have answers when data loads
+  useEffect(() => {
+    if (comprehensiveResults?.analysis?.researchAnswers) {
+      const answers = comprehensiveResults.analysis.researchAnswers;
+      const answerKeys = Object.keys(answers);
+      console.log('🔬 [Research] Data received:', {
+        hasAnalysis: true,
+        answerCount: answerKeys.length,
+        keys: answerKeys.slice(0, 5),
+      });
+      
+      // Find all categories that have at least one completed answer
+      const categoriesWithAnswers = new Set<string>();
+      RESEARCH_QUESTIONS.forEach(q => {
+        const answer = answers[q.id];
+        if (answer?.answer && !answer.answer.includes('No relevant documents found')) {
+          categoriesWithAnswers.add(q.category);
+        }
+      });
+      
+      // Auto-expand all categories with answers
+      if (categoriesWithAnswers.size > 0) {
+        setExpandedCategories(prev => {
+          const combined = new Set([...prev, ...categoriesWithAnswers]);
+          return combined;
+        });
+      }
+    }
+  }, [comprehensiveResults]);
 
   // ========================================
   // WEBSOCKET QUEUE PROGRESS INTEGRATION (CRITICAL FOR FORCE RERUN ALL)
