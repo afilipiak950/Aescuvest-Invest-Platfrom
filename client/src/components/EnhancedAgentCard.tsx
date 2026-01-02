@@ -3462,6 +3462,23 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
               }
               return prev;
             });
+            
+            // CRITICAL: Auto-expand the category containing the running question
+            // Use functional update that returns the SAME reference if no change needed
+            const runningQuestion = RESEARCH_QUESTIONS.find(q => q.id === currentQuestionId);
+            if (runningQuestion && isMounted) {
+              setExpandedCategories(prev => {
+                // Return same reference if already expanded to avoid unnecessary rerenders
+                if (prev.has(runningQuestion.category)) {
+                  return prev;
+                }
+                // Only create new Set when we actually need to add the category
+                const updated = new Set(prev);
+                updated.add(runningQuestion.category);
+                console.log(`📂 [Research] Auto-expanding category: ${runningQuestion.category} for running question ${currentQuestionId}`);
+                return updated;
+              });
+            }
           } else if (!isProcessing && isMounted) {
             // Clear progress when not processing
             setQuestionProgress(prev => {
@@ -3492,9 +3509,8 @@ function ResearchQuestionsSection({ dealId, analysisData, assignedDocuments, doc
   useEffect(() => {
     const loadExistingJobs = async () => {
       try {
-        // 🔧 FIX: Always start with a clean slate - clear any stale progress from previous sessions
-        setQuestionProgress({});
-        console.log('🧹 Cleared stale Research question progress on mount');
+        // NOTE: Don't clear questionProgress here - the queue-status polling handles state management
+        // Clearing here would race with the polling effect and cause flickering
         
         const response = await fetch(`/api/background-jobs/${dealId}`);
         const data = await response.json();
