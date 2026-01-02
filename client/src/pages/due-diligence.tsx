@@ -1020,19 +1020,34 @@ function DueDiligenceContent() {
                       const agentTypes = ['Legal', 'Clinical', 'Commercial', 'HR', 'Financial', 'IP', 'Research'];
                       let completedCount = 0;
                       
+                      // BULLETPROOF: Helper to detect meaningful analysis content
+                      const hasContent = (data: any) => {
+                        if (!data) return false;
+                        if (data.success === true && data.analysis) return true;
+                        if (data.analysis && typeof data.analysis === 'object' && Object.keys(data.analysis).length > 0) return true;
+                        const answerFields = ['legal_answers', 'ip_answers', 'hr_answers', 'clinical_answers', 
+                                             'commercial_answers', 'financial_answers', 'research_answers',
+                                             'clinicalAnswers', 'legalAnswers', 'ipAnswers', 'findings', 'recommendations'];
+                        for (const field of answerFields) {
+                          if (data[field] && Object.keys(data[field]).length > 0) return true;
+                          if (data.analysis?.[field] && Object.keys(data.analysis[field]).length > 0) return true;
+                        }
+                        return false;
+                      };
+                      
                       agentTypes.forEach(agentType => {
                         const agentLower = agentType.toLowerCase();
                         
-                        // ULTRA-SAFE: Check comprehensive analysis with null safety
+                        // BULLETPROOF: Check comprehensive analysis with multiple fallbacks
                         const hasComprehensiveAnalysis = (() => {
                           try {
-                            if (agentLower === 'clinical') return clinicalAnalysisData?.analysis !== null;
-                            if (agentLower === 'hr') return hrAnalysisData?.analysis !== null;
-                            if (agentLower === 'commercial') return commercialAnalysisData?.analysis !== null;
-                            if (agentLower === 'ip') return ipAnalysisData?.analysis !== null;
-                            if (agentLower === 'research') return researchAnalysisData?.analysis !== null;
-                            if (agentLower === 'financial') return financialAnalysisData?.analysis !== null;
-                            if (agentLower === 'legal') return (typeof legalAnalysisData !== 'undefined' && legalAnalysisData?.analysis !== null);
+                            if (agentLower === 'clinical') return hasContent(clinicalAnalysisData);
+                            if (agentLower === 'hr') return hasContent(hrAnalysisData);
+                            if (agentLower === 'commercial') return hasContent(commercialAnalysisData);
+                            if (agentLower === 'ip') return hasContent(ipAnalysisData);
+                            if (agentLower === 'research') return hasContent(researchAnalysisData);
+                            if (agentLower === 'financial') return hasContent(financialAnalysisData);
+                            if (agentLower === 'legal') return hasContent(legalAnalysisData);
                             return false;
                           } catch (error) {
                             console.error('Error checking comprehensive analysis:', error);
@@ -1040,10 +1055,10 @@ function DueDiligenceContent() {
                           }
                         })();
                         
-                        // Check regular analyses
+                        // Check regular analyses with flexible status matching
                         const completedAnalysis = analyses?.find(a => 
                           a.agentType?.toLowerCase() === agentLower && 
-                          (a.status === 'completed' || a.status === 'Completed')
+                          (a.status?.toLowerCase() === 'completed' || a.status?.toLowerCase() === 'in progress')
                         );
                         
                         if (hasComprehensiveAnalysis || completedAnalysis) {
@@ -1398,25 +1413,56 @@ function DueDiligenceContent() {
                       a.agentType?.toLowerCase() === agentType.toLowerCase()
                     );
                     
-                    // COMPREHENSIVE ANALYSIS FIX: Also check if comprehensive analysis exists
-                    // by checking if the agent-specific results endpoint returns data
+                    // BULLETPROOF ANALYSIS FIX: Multiple fallback checks to detect completed analysis
+                    // Check 1: API response with success flag or analysis object
+                    // Check 2: Agent-specific answer fields (legal_answers, ip_answers, etc.)
+                    // Check 3: Completed status in analyses array
                     const hasComprehensiveAnalysis = (() => {
                       const agentLower = agentType.toLowerCase();
-                      // Check if we have actual analysis data (not just !== null)
-                      if (agentLower === 'legal') return legalAnalysisData?.analysis && Object.keys(legalAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'clinical') return clinicalAnalysisData?.analysis && Object.keys(clinicalAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'hr') return hrAnalysisData?.analysis && Object.keys(hrAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'commercial') return commercialAnalysisData?.analysis && Object.keys(commercialAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'ip') return ipAnalysisData?.analysis && Object.keys(ipAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'research') return researchAnalysisData?.analysis && Object.keys(researchAnalysisData.analysis || {}).length > 0;
-                      if (agentLower === 'financial') return financialAnalysisData?.analysis && Object.keys(financialAnalysisData.analysis || {}).length > 0;
+                      
+                      // Helper: check if data has meaningful content (not empty object)
+                      const hasContent = (data: any) => {
+                        if (!data) return false;
+                        // Check for success response pattern
+                        if (data.success === true && data.analysis) return true;
+                        // Check for analysis object with content
+                        if (data.analysis && typeof data.analysis === 'object') {
+                          const keys = Object.keys(data.analysis);
+                          if (keys.length > 0) return true;
+                        }
+                        // Check for agent-specific answer fields (most reliable)
+                        const answerFields = ['legal_answers', 'ip_answers', 'hr_answers', 'clinical_answers', 
+                                             'commercial_answers', 'financial_answers', 'research_answers',
+                                             'clinicalAnswers', 'legalAnswers', 'ipAnswers', 'findings', 'recommendations'];
+                        for (const field of answerFields) {
+                          if (data[field] && Object.keys(data[field]).length > 0) return true;
+                          if (data.analysis?.[field] && Object.keys(data.analysis[field]).length > 0) return true;
+                        }
+                        return false;
+                      };
+                      
+                      if (agentLower === 'legal') return hasContent(legalAnalysisData);
+                      if (agentLower === 'clinical') return hasContent(clinicalAnalysisData);
+                      if (agentLower === 'hr') return hasContent(hrAnalysisData);
+                      if (agentLower === 'commercial') return hasContent(commercialAnalysisData);
+                      if (agentLower === 'ip') return hasContent(ipAnalysisData);
+                      if (agentLower === 'research') return hasContent(researchAnalysisData);
+                      if (agentLower === 'financial') return hasContent(financialAnalysisData);
                       return false;
                     })();
+                    
+                    // BULLETPROOF: Check analyses array with flexible status matching
+                    const hasCompletedInAnalyses = completedAnalysis && (
+                      completedAnalysis.status?.toLowerCase() === 'completed' ||
+                      completedAnalysis.status?.toLowerCase() === 'complete' ||
+                      completedAnalysis.status?.toLowerCase() === 'in progress' || // In progress means some data exists
+                      (completedAnalysis.progress && completedAnalysis.progress >= 100)
+                    );
                     
                     // FIXED: Prioritize active job progress, then check if this agent's analysis is completed
                     const currentProgress = matchingJob?.status === 'processing'
                       ? (matchingJob?.progress || 0)  // Active job takes priority (allows reset)
-                      : (completedAnalysis?.status?.toLowerCase() === 'completed' || hasComprehensiveAnalysis)
+                      : (hasCompletedInAnalyses || hasComprehensiveAnalysis)
                         ? 100  // Show completed when analysis is done (regardless of job presence)
                         : 0;   // Default to 0% (new deals and non-completed analyses)
                     
