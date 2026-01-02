@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { persistentResearchAnalysisService } from '../services/persistentResearchAnalysis';
 import { storage } from '../storage';
 import { db } from '../db';
-import { backgroundJobs } from '../../shared/schema';
+import { backgroundJobs, agentAnalyses } from '../../shared/schema';
 import { and, eq, like } from 'drizzle-orm';
 import { researchQuestionQueue } from '../services/researchQuestionQueue';
 import { agentRunCoordinator } from '../services/agentRunCoordinator';
@@ -22,6 +22,18 @@ async function executeResearchForceRerunAll(dealId: number): Promise<void> {
   const { comprehensiveResearchAnalysisService, RESEARCH_QUESTIONS } = await import('../comprehensiveResearchAnalysisService');
   
   const masterJobId = `force-rerun-all-research-${dealId}`;
+  
+  // 🔥 CRITICAL: Delete ALL existing Research ANALYSIS RESULTS first (fresh start)
+  // This ensures the force-rerun generates completely new results instead of merging into old ones
+  await db
+    .delete(agentAnalyses)
+    .where(
+      and(
+        eq(agentAnalyses.dealId, dealId),
+        eq(agentAnalyses.agentType, 'Research')
+      )
+    );
+  console.log(`🗑️ Deleted old Research analysis results for deal ${dealId}`);
   
   // CRITICAL: Delete ALL existing Research background jobs (including old completed ones)
   // This ensures the frontend shows fresh 0% progress instead of stale 100%
