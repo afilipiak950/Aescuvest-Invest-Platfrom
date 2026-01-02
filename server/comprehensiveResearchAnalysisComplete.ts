@@ -808,7 +808,7 @@ Respond in JSON format:
       .delete(agentAnalyses)
       .where(and(
         eq(agentAnalyses.dealId, dealId),
-        eq(agentAnalyses.agentType, 'research')
+        eq(agentAnalyses.agentType, 'Research')
       ));
     
     console.log(`🗑️ Cleared existing research analysis for deal ${dealId}`);
@@ -816,7 +816,7 @@ Respond in JSON format:
     // Create the new comprehensive analysis
     const analysisData = {
       dealId,
-      agentType: 'research' as const,
+      agentType: 'Research' as const,
       status: 'completed' as const,
       progress: 100,
       findings: JSON.stringify(findings),
